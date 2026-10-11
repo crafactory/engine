@@ -1,0 +1,52 @@
+name: Publish verified Linux prerelease
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: linux-prerelease
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: node scripts/notices.mjs
+      - run: npm run dist -- --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - run: npx playwright install-deps chromium
+      - name: Verify packaged Linux executable
+        run: xvfb-run -a npm run test:desktop
+        env:
+          E2E_EXECUTABLE_PATH: ${{ github.workspace }}/release/linux-unpacked/crafactory-engine
+      - name: Create checksums and publish prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version")
+          tag="v${version}"
+          if gh release view "$tag" --json isDraft > release-state.json 2>/dev/null; then
+            node -e "if (!JSON.parse(require('fs').readFileSync('release-state.json','utf8')).isDraft) { throw Error('Refusing to overwrite a published release'); }"
+          else
+            gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease \
+              --title "Crafactory Engine ${tag} (prerelease)" --notes-file docs/RELEASE-NOTES.md
+          fi
+          (
+            cd release
+            sha256sum -- *.AppImage *.deb > SHA256SUMS.txt
+          )
+          gh release upload "$tag" release/*.AppImage release/*.deb release/SHA256SUMS.txt
+          gh release edit "$tag" --draft=false --prerelease --target "$GITHUB_SHA" \
+            --notes-file docs/RELEASE-NOTES.md
