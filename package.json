@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "main": "electron/main.cjs",
-  "author": "Crafactory contributors",
+  "author": {"name": "Crafactory contributors", "email": "1501332+kenpusney@users.noreply.github.com"},
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "desktop": "npm run build && electron .",
