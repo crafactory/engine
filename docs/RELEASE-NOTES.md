@@ -14,7 +14,7 @@ Original code and original branding are MIT licensed. No Obsidian application co
 
 ## Downloads and limitations
 
-Linux x64 AppImage and `.deb` artifacts are unsigned. `SHA256SUMS` contains file checksums, not a cryptographic publisher signature. AppImage execution requires an appropriate Linux environment; its extracted executable was tested, but FUSE/installer behavior is not a certified installation test.
+Linux x64 AppImage and `.deb` artifacts are unsigned. `SHA256SUMS.txt` contains file checksums, not a cryptographic publisher signature. AppImage execution requires an appropriate Linux environment; the locally built AppImage's extracted executable was tested, but FUSE/installer behavior is not a certified installation test. The explicitly dispatched Linux publishing workflow also tests its packaged executable before uploading artifacts.
 
 Windows/macOS build workflows are configured separately; no native runtime verification is claimed for them. There is no native mobile application.
 
