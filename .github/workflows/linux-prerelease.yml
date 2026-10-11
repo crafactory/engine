@@ -1,6 +1,11 @@
 name: Publish verified Linux prerelease
 on:
   workflow_dispatch:
+    inputs:
+      repair_checksums:
+        description: Correct checksums and notes of an existing release without replacing binaries
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -8,6 +13,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish:
+    if: ${{ !inputs.repair_checksums }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -45,8 +51,36 @@ jobs:
           fi
           (
             cd release
+            for file in *.AppImage *.deb; do
+              normalized="${file// /-}"
+              if [[ "$file" != "$normalized" ]]; then mv -- "$file" "$normalized"; fi
+            done
             sha256sum -- *.AppImage *.deb > SHA256SUMS.txt
           )
           gh release upload "$tag" release/*.AppImage release/*.deb release/SHA256SUMS.txt
           gh release edit "$tag" --draft=false --prerelease --target "$GITHUB_SHA" \
             --notes-file docs/RELEASE-NOTES.md
+  repair:
+    if: ${{ inputs.repair_checksums }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repair checksums for actual download filenames
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version")
+          tag="v${version}"
+          mkdir checksum-repair
+          gh release download "$tag" --pattern '*.AppImage' --pattern '*.deb' --dir checksum-repair
+          (
+            cd checksum-repair
+            sha256sum -- *.AppImage *.deb > SHA256SUMS.txt
+          )
+          gh release upload "$tag" checksum-repair/SHA256SUMS.txt --clobber
+          gh release edit "$tag" --notes-file docs/RELEASE-NOTES.md

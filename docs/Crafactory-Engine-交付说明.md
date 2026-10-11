@@ -5,6 +5,7 @@
 ## 仓库与实现
 
 - **仓库**：[crafactory/engine](https://github.com/crafactory/engine)，代码已推送到 `main`。
+- **Linux 安装包**：[v0.1.0 预发布版](https://github.com/crafactory/engine/releases/tag/v0.1.0)，包含未签名的 x64 AppImage、Debian 包及校验清单；发布前已通过[打包程序测试流程](https://github.com/crafactory/engine/actions/runs/38156323024)。
 - **技术结构**：Electron 桌面外壳、React 工作区、CodeMirror 6 编辑器、普通文件 Vault；没有远程账号或同步数据库。
 - **资源**：Lucide 图标、本地打包的 Inter 字体，以及许可证兼容的 Markdown、图谱和 Canvas 库；保留第三方许可声明。
 - **来源边界**：没有导入、反编译或改写 Obsidian 应用代码，也没有使用其品牌素材；实现依据是公开行为说明，不宣称正式法律意义上的双团队 clean-room 认证。
@@ -33,11 +34,14 @@
 | 桌面集成测试 | 6 项通过 |
 | 同一桌面测试针对打包后的 Linux 程序运行 | 6 项通过 |
 | TypeScript 检查与生产构建 | 通过 |
-| Linux x64 AppImage / Debian 包构建 | 通过，未签名 |
+| Linux x64 AppImage / Debian 包构建与发布 | 通过，未签名 |
+| Windows / macOS 桌面包构建 | 通过；尚未实际系统运行验收 |
 | 生产依赖 `npm audit` | 当次检查报告 0 项已知告警 |
 | 含开发/构建工具的全量 `npm audit` | 尚有 8 项中等风险告警，无高危或严重告警 |
 
 已推送的实现提交通过了 [GitHub Actions 自动验证](https://github.com/crafactory/engine/actions/runs/38155611092)。仓库同时包含桌面/窄屏、亮暗主题、图谱、Canvas、Bases 和编辑器截图；这些证据不等于原生移动端或全部平台验收。
+
+另外，[三平台打包流程](https://github.com/crafactory/engine/actions/runs/38156310973)已经成功生成 Linux、Windows 和 macOS 构建产物。Windows/macOS 产物保存在该流程的 Artifacts 中，未进行原生运行、签名或安装升级验收。
 
 ## 启动
 
