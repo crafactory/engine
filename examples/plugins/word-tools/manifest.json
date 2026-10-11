@@ -1,0 +1,6 @@
+{
+  "id": "word-tools",
+  "name": "Word tools",
+  "version": "1.0.0",
+  "description": "An example of the independent Engine Worker plugin API."
+}

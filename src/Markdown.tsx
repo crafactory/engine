@@ -1,0 +1,150 @@
+import {useEffect,useRef,useState} from 'react';
+import MarkdownIt from 'markdown-it';
+import footnote from 'markdown-it-footnote';
+import mark from 'markdown-it-mark';
+import tasks from 'markdown-it-task-lists';
+import DOMPurify from 'dompurify';
+import katex from 'katex';
+import {bridge} from './bridge';
+import {frontmatter,resolveLink,section,title,search} from './knowledge';
+import type {Note} from './types';
+
+const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
+const md=new MarkdownIt({html:false,linkify:true,breaks:false,typographer:false}).use(footnote).use(mark).use(tasks,{enabled:true,label:true});
+md.inline.ruler.before('link','wiki',(state:any,silent:boolean)=>{
+  const start=state.pos;
+  const embed=state.src.startsWith('![[',start);
+  if(!embed&&!state.src.startsWith('[[',start))return false;
+  const end=state.src.indexOf(']]',start+3);
+  if(end<0)return false;
+  const inner=state.src.slice(start+(embed?3:2),end),[destination,...alias]=inner.split('|');
+  if(!silent) {
+    const token=state.push('html_inline','',0);
+    token.content=embed?`<span class="embed-slot" data-embed="${escape(destination)}"></span>`:
+      `<a class="internal-link" href="#" data-note="${escape(destination)}">${escape(alias.join('|')||destination.split('#')[0]||destination.slice(1))}</a>`;
+  }
+  state.pos=end+2;return true;
+});
+md.inline.ruler.before('escape','comment',(state:any,silent:boolean)=>{
+  if(!state.src.startsWith('%%',state.pos))return false;
+  const end=state.src.indexOf('%%',state.pos+2);if(end<0)return false;
+  if(!silent)state.push('text','',0).content='';
+  state.pos=end+2;return true;
+});
+md.inline.ruler.before('escape','math',(state:any,silent:boolean)=>{
+  if(state.src[state.pos]!=='$'||state.src[state.pos+1]==='$')return false;
+  const end=state.src.indexOf('$',state.pos+1);if(end<=state.pos+1)return false;
+  if(!silent) {
+    const token=state.push('html_inline','',0);
+    token.content=katex.renderToString(state.src.slice(state.pos+1,end),{throwOnError:false,trust:false});
+  }
+  state.pos=end+1;return true;
+});
+md.block.ruler.before('fence','math-block',(state:any,start:number,end:number,silent:boolean)=>{
+  const begin=state.bMarks[start]+state.tShift[start],finish=state.eMarks[start];
+  if(state.src.slice(begin,finish).trim()!=='$$')return false;
+  let next=start+1;while(next<end&&state.src.slice(state.bMarks[next],state.eMarks[next]).trim()!=='$$')next++;
+  if(next>=end)return false;
+  if(silent)return true;
+  const token=state.push('html_block','',0);
+  token.content=katex.renderToString(state.src.slice(state.bMarks[start+1],state.bMarks[next]),{displayMode:true,throwOnError:false,trust:false});
+  state.line=next+1;return true;
+});
+const defaultLink=md.renderer.rules.link_open || ((tokens,idx,options,_env,self)=>self.renderToken(tokens,idx,options));
+md.renderer.rules.link_open=(tokens,idx,options,env,self)=>{
+  const href=tokens[idx].attrGet('href') || '';
+  if(!/^(https?:|mailto:|#)/.test(href)){let decoded=href;try{decoded=decodeURIComponent(href);}catch{}tokens[idx].attrSet('data-note',decoded);}
+  else if(/^https?:/.test(href)){tokens[idx].attrSet('target','_blank');tokens[idx].attrSet('rel','noopener noreferrer');}
+  return defaultLink(tokens,idx,options,env,self);
+};
+const defaultImage=md.renderer.rules.image!;
+md.renderer.rules.image=(tokens,idx,options,env,self)=>{
+  const source=tokens[idx].attrGet('src') || '';
+  if(!/^(https?:|data:|blob:)/.test(source)){tokens[idx].attrSet('data-asset',source);tokens[idx].attrSet('src','');}
+  return defaultImage(tokens,idx,options,env,self);
+};
+md.renderer.rules.heading_open=(tokens,idx,options,_env,self)=>{
+  const next=tokens[idx+1];
+  tokens[idx].attrSet('id','heading-'+(next?.content||'').toLowerCase().replace(/\s+/g,'-'));
+  return self.renderToken(tokens,idx,options);
+};
+export function renderMarkdown(content:string) {
+  const body=frontmatter(content).body;
+  const html=md.render(body).replace(/<blockquote>\s*<p>\[!([a-z-]+)\]([+-]?)([^\n<]*)(?:\n|<\/p>)/gi,(_,type,fold,label)=>{
+    const labelText=label.trim()||type[0].toUpperCase()+type.slice(1);
+    return `<blockquote class="callout callout-${escape(type)}"><div class="callout-title">${escape(labelText)}</div><p>`;
+  });
+  return DOMPurify.sanitize(html,{ADD_ATTR:['target','data-note','data-embed','data-asset'],FORBID_TAGS:['style','iframe','object','embed']});
+}
+export function Markdown({content,notes,path,onOpen,onChange,depth=0}:{
+  content:string;notes:Note[];path:string;onOpen:(target:string)=>void;onChange?:(content:string)=>void;depth?:number;
+}) {
+  const ref=useRef<HTMLDivElement>(null);
+  const [hover,setHover]=useState<{note:Note;x:number;y:number}|null>(null);
+  useEffect(()=>{
+    let disposed=false;const root=ref.current;if(!root)return;
+    const load=async()=>{
+      for(const img of root.querySelectorAll<HTMLImageElement>('img[data-asset]')) {
+        const name=img.dataset.asset!;
+        const relative=resolveLink(name,path,notes)?.path || name;
+        try {const asset=await bridge.asset(relative);if(!disposed)img.src=asset;}catch {img.alt='Attachment not found: '+name;}
+      }
+      for(const slot of root.querySelectorAll<HTMLElement>('[data-embed]')) {
+        const target=slot.dataset.embed!,[name,...fragment]=target.split('#');
+        const linked=resolveLink(name,path,notes);
+        if(depth>=3){slot.textContent='Embed depth limit';continue;}
+        if(linked) {
+          slot.className='embedded-note';
+          slot.innerHTML=`<button class="embed-title" data-note="${escape(target)}">${escape(title(linked.path))}</button>${renderMarkdown(section(linked.content,fragment.join('#')))}`;
+        }else if(/\.(png|jpe?g|gif|webp|svg|pdf|mp3|wav|webm|ogg|mp4)$/i.test(name)){
+          try{
+            const asset=await bridge.asset(name);if(disposed)continue;
+            const tag=/\.(mp3|wav|webm|ogg)$/i.test(name)?'audio':/\.mp4$/i.test(name)?'video':/\.pdf$/i.test(name)?'a':'img';
+            const el=document.createElement(tag);
+            if(el instanceof HTMLImageElement){el.src=asset;el.alt=name;}
+            if(el instanceof HTMLMediaElement){el.src=asset;el.controls=true;}
+            if(el instanceof HTMLAnchorElement){el.href=asset;el.download=name.split('/').pop()!;el.textContent='Open PDF: '+name;}
+            slot.replaceChildren(el);
+          }catch{slot.textContent='Attachment not found: '+name;}
+        }else{slot.textContent='Unresolved embed: '+target;}
+      }
+      for(const code of root.querySelectorAll<HTMLElement>('code.language-mermaid')) {
+        try {
+          const {default:mermaid}=await import('mermaid');
+          mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:document.documentElement.dataset.theme==='light'?'default':'dark'});
+          const {svg}=await mermaid.render('mermaid-'+crypto.randomUUID().replaceAll('-',''),code.textContent||'');
+          if(!disposed){const div=document.createElement('div');div.className='mermaid';div.innerHTML=DOMPurify.sanitize(svg);code.parentElement?.replaceWith(div);}
+        }catch{if(!disposed)code.dataset.error='Invalid diagram';}
+      }
+      for(const code of root.querySelectorAll<HTMLElement>('code.language-query')) {
+        const results=search(notes,code.textContent||'');
+        const div=document.createElement('div');div.className='query-results';
+        for(const note of results){const button=document.createElement('button');button.dataset.note=note.path;button.textContent=title(note.path);div.append(button);}
+        code.parentElement?.replaceWith(div);
+      }
+    };
+    load();
+    return()=>{disposed=true;};
+  },[content,notes,path,depth]);
+  function click(e:React.MouseEvent) {
+    const target=e.target as HTMLElement;
+    const link=target.closest<HTMLElement>('[data-note]');
+    if(link){e.preventDefault();onOpen(link.dataset.note!);return;}
+    if(target instanceof HTMLInputElement&&target.type==='checkbox'&&onChange) {
+      const boxes=Array.from(ref.current!.querySelectorAll('input[type=checkbox]'));
+      const index=boxes.indexOf(target);let count=0,fence=false;
+      const next=content.split('\n').map(line=>{
+        if(/^\s*(```|~~~)/.test(line))fence=!fence;
+        if(!fence&&/^\s*[-*+] \[[^\]]\]/.test(line)){if(count++===index)return line.replace(/\[.\]/,target.checked?'[x]':'[ ]');}
+        return line;
+      }).join('\n');
+      onChange(next);
+    }
+  }
+  return <div className="markdown-container">
+    <div className="markdown" ref={ref} onClick={click}
+      onMouseOver={e=>{const link=(e.target as HTMLElement).closest<HTMLElement>('[data-note]');if(link){const note=resolveLink(link.dataset.note!.split('#')[0],path,notes);if(note){const bounds=link.getBoundingClientRect();setHover({note,x:Math.min(bounds.left,window.innerWidth-350),y:Math.min(bounds.bottom+8,window.innerHeight-240)});}}}}
+      onMouseOut={()=>setHover(null)} dangerouslySetInnerHTML={{__html:renderMarkdown(content)}} />
+    {hover&&<aside className="hover-preview" style={{left:hover.x,top:hover.y}}><strong>{title(hover.note.path)}</strong><div dangerouslySetInnerHTML={{__html:renderMarkdown(frontmatter(hover.note.content).body.slice(0,650))}}/></aside>}
+  </div>;
+}

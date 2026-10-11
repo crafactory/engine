@@ -1,0 +1,36 @@
+import {describe,it,expect,beforeEach,afterEach} from 'vitest';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import {Vault} from '../core/vault.mjs';
+let root,vault,outside;
+beforeEach(async()=>{root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-vault-'));outside=await fs.mkdtemp(path.join(os.tmpdir(),'engine-outside-'));vault=await new Vault(root).init();});
+afterEach(async()=>{await fs.rm(root,{recursive:true,force:true});await fs.rm(outside,{recursive:true,force:true});});
+describe('local vault storage',()=>{
+  it('preserves Unicode filenames and note content',async()=>{const name='想法/你好世界.md';await vault.write(name,'# 你好世界\n\n中文内容。');expect((await vault.read(name)).content).toBe('# 你好世界\n\n中文内容。');expect((await vault.list()).some(e=>e.path===name)).toBe(true);});
+  it('creates and reads plain Markdown with fingerprints',async()=>{const n=await vault.write('Ideas/Hello.md','# Hello');expect(n.version).toHaveLength(64);expect(await fs.readFile(path.join(root,'Ideas/Hello.md'),'utf8')).toBe('# Hello');expect(await vault.read('Ideas/Hello.md')).toEqual(n);});
+  it('lists folders and attachments while hiding metadata',async()=>{await vault.write('One.md','one');await vault.mkdir('Empty');expect((await vault.list()).map(e=>e.path)).toEqual(['Empty','One.md']);});
+  it('rejects parent traversal, hidden paths, absolute paths, and NUL bytes',async()=>{for(const p of ['../escaped.md','A/../../escaped.md','/tmp/escaped.md','.crafactory/state.json','A/../escaped.md','bad\0.md'])await expect(vault.write(p,'bad')).rejects.toThrow();});
+  it('rejects symlinks that leave the vault',async()=>{await fs.symlink(outside,path.join(root,'External'));await expect(vault.write('External/Test.md','bad')).rejects.toThrow('Symlink');});
+  it('protects metadata against symlink escapes',async()=>{await fs.rm(path.join(root,'.crafactory'),{recursive:true});await fs.symlink(outside,path.join(root,'.crafactory'));await expect(vault.saveState({})).rejects.toThrow('Symlink');});
+  it('detects external changes without overwriting them',async()=>{const first=await vault.write('One.md','one');await fs.writeFile(path.join(root,'One.md'),'external');await expect(vault.write('One.md','mine',first.version)).rejects.toThrow('CONFLICT');expect((await vault.read('One.md')).content).toBe('external');});
+  it('detects externally deleted files',async()=>{const first=await vault.write('One.md','one');await fs.rm(path.join(root,'One.md'));await expect(vault.write('One.md','mine',first.version)).rejects.toThrow('CONFLICT');});
+  it('serializes competing writes and preserves optimistic concurrency',async()=>{const first=await vault.write('One.md','one');const results=await Promise.allSettled([vault.write('One.md','two',first.version),vault.write('One.md','three',first.version)]);expect(results.filter(r=>r.status==='fulfilled')).toHaveLength(1);});
+  it('snapshots previous content and restores safely',async()=>{const first=await vault.write('One.md','one');await vault.write('One.md','two',first.version);const snapshots=await vault.snapshots('One.md');expect(snapshots).toHaveLength(1);expect((await vault.restore(snapshots[0].id)).content).toBe('one');expect(await vault.snapshots('One.md')).toHaveLength(2);});
+  it('does not snapshot unchanged content',async()=>{const first=await vault.write('One.md','one');await vault.write('One.md','one',first.version);expect(await vault.snapshots('One.md')).toEqual([]);});
+  it('rejects recovery path injection',async()=>expect(vault.restore('../../secret')).rejects.toThrow('Invalid snapshot'));
+  it('renames without overwriting another file',async()=>{await vault.write('One.md','one');await vault.write('Two.md','two');await expect(vault.rename('One.md','Two.md')).rejects.toThrow('already exists');await vault.rename('One.md','Folder/New.md');expect((await vault.read('Folder/New.md')).content).toBe('one');});
+  it('moves deleted files to recoverable trash',async()=>{await vault.write('One.md','one');await vault.trash('One.md');expect(await vault.list()).toEqual([]);const names=await fs.readdir(path.join(root,'.crafactory/trash'));const id=names.find(n=>!n.endsWith('.json'));expect(await fs.readFile(path.join(root,'.crafactory/trash',id),'utf8')).toBe('one');});
+  it('protects root directory',async()=>{await expect(vault.trash('')).rejects.toThrow('root');await expect(vault.rename('','A')).rejects.toThrow('root');});
+  it('persists settings in vault-local metadata',async()=>{await vault.saveState({settings:{theme:'light'}});expect(await vault.loadState()).toEqual({settings:{theme:'light'}});});
+  it('imports attachments and avoids filename collisions',async()=>{const a=await vault.attach('image.png',[1,2,3]);const b=await vault.attach('image.png',[4]);expect(a).not.toBe(b);expect(await vault.asset(a)).toBe('data:image/png;base64,AQID');});
+  it('validates attachment bytes',async()=>{await expect(vault.attach('bad.png',[300])).rejects.toThrow();});
+  it('honors the configured attachment folder',async()=>{await vault.saveState({settings:{attachmentFolder:'Media'}});expect(await vault.attach('x.png',[1])).toBe('Media/x.png');});
+  it('rejects writes to executable formats',async()=>expect(vault.write('run.sh','rm')).rejects.toThrow('Unsupported'));
+  it('loads only matching plugin manifests',async()=>{
+    await fs.mkdir(path.join(root,'.crafactory/plugins/example'),{recursive:true});
+    await fs.writeFile(path.join(root,'.crafactory/plugins/example/manifest.json'),JSON.stringify({id:'example',name:'Example',version:'1'}));
+    await fs.writeFile(path.join(root,'.crafactory/plugins/example/main.js'),'engine.notice("Hi");');
+    expect(await vault.plugins()).toHaveLength(1);
+  });
+});
