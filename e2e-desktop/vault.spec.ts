@@ -28,9 +28,10 @@ test('native embedded tasks cannot mutate a different host task or embedded sour
   const canvas=JSON.stringify({nodes:[{id:'task',type:'text',x:0,y:0,width:260,height:160,text:'- [ ] Canvas task'}],edges:[]},null,2);
   const embedded='- [ ] Embedded task\n';
   const source='---\nstatus: pending\n---\n# Persist\n\n- [ ] First\n\n![[Tasks.canvas]]\n\n![[Embedded.md]]\n\n- [ ] Second\n\n> - [ ] Quoted\n\n1. [ ] Ordered\n'.replace(/\n/g,'\r\n');
+  await page.getByTestId('mode-source').click();
   await fs.writeFile(path.join(root,'Tasks.canvas'),canvas);await fs.writeFile(path.join(root,'Embedded.md'),embedded);
   await fs.writeFile(path.join(root,'Persist.md'),source);
-  await expect(page.getByTestId('note-editor')).toContainText('![[Tasks.canvas]]');
+  await expect.poll(async()=>(await page.getByTestId('note-editor').locator('.cm-line').allTextContents()).join('\n')).toBe(source.replace(/\r\n/g,'\n'));
   await expect(page.getByTestId('file-Tasks.canvas')).toBeVisible();await expect(page.getByTestId('file-Embedded.md')).toBeVisible();
   await page.getByTestId('mode-reading').click();
   await expect(page.getByRole('checkbox',{name:'Canvas task',exact:true})).toBeDisabled();

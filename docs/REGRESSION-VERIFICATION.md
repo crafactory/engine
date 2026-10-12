@@ -36,6 +36,8 @@ The next candidate replaces ordinal mapping with parser-derived source offsets a
 
 The first ownership browser run passed the input checks but failed its final text assertion: CodeMirror's adjacent line divs have no newline in their aggregate `textContent`. The assertion now joins each visible `.cm-line` text with a newline and checks the entire exact source, including frontmatter and unchanged earlier task. This is a stronger exact-source check, not removal of the task-integrity assertion; the earlier 49-pass/one-fail run remains a failed candidate.
 
+The first native ownership run passed 45 existing cases but failed waiting for raw embed syntax while still in Live mode, where that syntax was correctly replaced by Canvas content. The test now explicitly enters Source mode before waiting for the externally loaded complete source, then uses Reading mode and the unchanged exact on-disk CRLF/embedded-byte assertions. Neither that local failure nor its matching public CI failure is counted as a pass.
+
 100-row table plus 120 paragraphs is a regression fixture, not large-Vault performance certification. Inline links support bounded destinations; nested parentheses, escaped labels and full inline grammar remain incomplete. Canvas file-card rendering and recursive embedding are not declared equivalent. Native Windows/macOS installation and running, mobile, signed packages, accessibility/security audits and exhaustive Obsidian plugin behavior remain unverified.
 
 `NATIVE-PLUGIN-ARCHITECTURE.md` is a proposal with unchecked migration gates. No all-plugin kernel implementation is claimed.
