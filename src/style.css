@@ -95,3 +95,14 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}h1,
 .markdown details.callout>summary{cursor:pointer;display:list-item;list-style-position:inside;color:var(--accent);font-weight:600;padding:var(--space-1) 0}
 .markdown details.callout>summary:focus-visible{outline:2px solid var(--accent)}
 @media(max-width:650px){.live-edit-source{opacity:1;position:relative;margin-left:auto;display:block}.live-block .markdown table{max-width:100%}}
+.plugin-runtime{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:0 0 16px;font-size:var(--text-xs);color:var(--muted)}
+.plugin-runtime select{max-width:100%;padding:7px}.plugin-settings-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.setting-item{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 0;border-bottom:1px solid var(--border)}
+.setting-item-info{flex:1;min-width:0}.setting-item-name{font-size:var(--text-sm);font-weight:600}.setting-item-description{font-size:var(--text-xs);color:var(--muted);line-height:1.6;margin-top:6px}
+.setting-item-control{display:flex;gap:8px;max-width:55%}.setting-item-control input,.setting-item-control select,.setting-item-control textarea{max-width:100%;min-width:0;padding:8px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px}
+.plugin-modal-backdrop{z-index:150}.plugin-modal{position:relative;padding:28px;max-height:85vh;overflow:auto}.plugin-modal h2{padding-right:30px;margin-bottom:18px;font-size:var(--text-lg)}.plugin-modal-close{position:absolute;right:12px;top:12px}
+#plugin-status:empty,#plugin-views:empty{display:none}
+#plugin-status{position:absolute;bottom:29px;right:12px;max-width:calc(100% - 24px);display:flex;gap:12px;padding:5px 10px;border:1px solid var(--border);background:var(--panel);border-radius:4px;font-size:var(--text-xs);overflow:auto}
+#plugin-views{position:absolute;right:16px;top:60px;width:min(380px,calc(100% - 32px));max-height:calc(100% - 130px);overflow:auto;z-index:20;background:var(--panel);border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 28px #0003}
+.plugin-view-header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border)}.plugin-view-content{padding:16px}
+@media(max-width:650px){.setting-item{flex-direction:column;align-items:stretch;gap:10px}.setting-item-control{max-width:100%}}

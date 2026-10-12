@@ -84,7 +84,7 @@ Search behavior was informed by [Search documentation](https://help.obsidian.md/
 
 | Area | Status | Boundary |
 |---|---|---|
-| Community plugin API | Implemented subset | Independent Engine API plus experimental CommonJS worker subset for commands, lifecycle, text files, data and single editor selection. Five pinned real plugins tested at startup only, all unsupported; no positive real-plugin workflow certification or full member/overload audit. See PLUGIN-COMPATIBILITY.md and COMMUNITY-PLUGIN-TESTS.md. |
+| Community plugin API | Implemented subset | Default Worker plus explicit trusted-renderer subset with DOM settings/Modal, status items, dedicated views and actual host CodeMirror extensions. Pinned Reading Time has bounded Linux workflows; Calendar and Advanced Tables startup only; Dataview/Templater still fail. Default Worker still fails all five. Full member/overload/reference/platform coverage incomplete; see PLUGIN-COMPATIBILITY.md and TRUSTED-RENDERER-PLUGIN-TESTS.md. |
 | Community catalog | Not implemented | No plugin/theme marketplace, unattended installation, updates or signing; local manual install only |
 | Themes/snippets | Implemented subset | Two original themes, one editable vault CSS snippet; reference themes and CSS-variable API not compatible |
 | Hotkeys | Implemented subset | Editable application hotkeys; conflicts, editor binding overrides, complete command registration not equal |

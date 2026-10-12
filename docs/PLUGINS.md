@@ -14,7 +14,7 @@ The manifest's `id` must equal the folder name and use lowercase letters, number
 
 ## API
 
-Plugins execute in a Web Worker. Electron Node integration is not exposed. The provided API is:
+Legacy Engine plugins and default-mode CommonJS plugins execute in a Web Worker. Electron Node integration is not exposed. The legacy Worker API is:
 
 ```js
 engine.registerCommand('id', 'Human-readable command label', () => {
@@ -31,10 +31,14 @@ engine.write('Ideas/New thought.md', '# A new thought\n\n');
 - `engine.write(path, content)`: returns a Promise for Markdown create/modify through normal save handling. Hidden and parent paths are rejected.
 - `engine.notice(message)`: show a transient message.
 
-Disabling a CommonJS plugin awaits unload and removes commands; after two seconds the Worker is terminated regardless. Enabling warns about startup/command/unload read/write privileges, and is not persisted across launches. Plugins are stopped before switching vaults, even if the subsequent picker is canceled.
+Disabling a Worker CommonJS plugin awaits unload and removes commands; after two seconds the Worker is terminated regardless. Enabling warns about startup/command/unload read/write privileges, and is not persisted across launches. Plugins are stopped before switching vaults, even if the subsequent picker is canceled.
 
 ## Trust boundary
 
 Workers separate plugin execution from the UI and Electron main process, but do not constitute a complete adversarial sandbox. Plugins can consume resources, read note data handed to them, modify notes through the API, and make same-origin requests permitted by the application CSP. Do not enable untrusted code. Plugin command registries, resource quotas, permission granularity, API version negotiation, and compatibility guarantees remain future work.
 
-Neither arbitrary npm imports nor Node filesystem access are available. CommonJS `require('obsidian')` exposes only the documented Engine subset; other imports and unsupported API symbols fail explicitly. Synchronous editor methods operate on a snapshot; mutations reach the host asynchronously and are checked against expected text, not executed on a reference CodeMirror instance.
+Neither arbitrary npm imports nor Node filesystem access are available. Worker CommonJS `require('obsidian')` exposes only the documented Engine subset; other imports and unsupported API symbols fail explicitly. Synchronous editor methods operate on a snapshot; mutations reach the host asynchronously and are checked against expected text, not executed on a reference CodeMirror instance.
+
+## Runtime choice
+
+CommonJS plugins default to the Worker subset. A disabled local plugin can explicitly select Trusted renderer in Settings > Community plugins, then approve its stronger warning. This enables bounded DOM/settings/Modal, dedicated views and actual active-editor CodeMirror extensions, but exposes the whole UI/vault bridge and cannot forcibly interrupt main-thread code. It is not sandboxed; do not enable untrusted source. No automatic fallback occurs. See [compatibility report](https://github.com/crafactory/engine/blob/main/docs/PLUGIN-COMPATIBILITY.md) and [real per-mode results](https://github.com/crafactory/engine/blob/main/docs/TRUSTED-RENDERER-PLUGIN-TESTS.md).

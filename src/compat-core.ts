@@ -12,6 +12,12 @@ export interface CompatHost {
   request(operation:string,args:unknown[]):Promise<unknown>;
   commands(commands:{id:string;name:string}[]):void;
   notice(message:string):void;
+  ui?:{
+    exports:Record<string,unknown>;workspace:Record<string,unknown>;
+    statusBar():HTMLElement;settingTab(tab:any):()=>void;
+    editorExtension(extension:unknown):()=>void;updateOptions():void;
+    registerView(type:string,factory:(leaf:any)=>any):()=>void;
+  };
 }
 export class CompatibilityError extends Error {
   constructor(readonly capability:string){super('Unsupported Obsidian capability: '+capability+'. See docs/PLUGIN-COMPATIBILITY.md.');this.name='CompatibilityError';}
@@ -53,7 +59,10 @@ export class Component {
   register(callback:()=>void){this.cleanups.push(callback);}
   registerEvent(ref:ReturnType<Events['on']>){this.register(()=>ref.emitter.offref(ref));}
   registerInterval(id:ReturnType<typeof setInterval>|number){this.register(()=>clearInterval(id));return id;}
-  registerDomEvent(){return unsupported('Component.registerDomEvent');}
+  registerDomEvent(element?:EventTarget,type?:string,callback?:EventListener,options?:AddEventListenerOptions|boolean){
+    if(typeof document==='undefined'||!element||!type||!callback)return unsupported('Component.registerDomEvent');
+    element.addEventListener(type,callback,options);this.register(()=>element.removeEventListener(type,callback,options));
+  }
   addChild<T extends Component>(child:T):T{this.children.push(child);if(this.loaded)void child.load();return child;}
   removeChild<T extends Component>(child:T):T{this.children=this.children.filter(c=>c!==child);void child.unload();return child;}
 }
@@ -141,7 +150,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     async create(path:string,data:string,options?:unknown){checkOptions(options,'Vault.create options');await mutate('create',[path,data]);return this.getFileByPath(path)!;}
     async modify(file:TFile,data:string,options?:unknown){checkFile(file);checkOptions(options,'Vault.modify options');await mutate('modify',[file.path,data]);}
     async append(file:TFile,data:string,options?:unknown){checkFile(file);checkOptions(options,'Vault.append options');await mutate('append',[file.path,data]);}
-    async createFolder(path:string){await mutate('mkdir',[path]);}
+    async createFolder(path:string){await mutate('mkdir',[path]);return this.getFolderByPath(path)!;}
     rename(){return unsupported('Vault.rename');}
     async copy(file:TFile,path:string){checkFile(file);return this.create(path,await this.read(file));}
     trash(){return unsupported('Vault.trash');}
@@ -155,12 +164,12 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   function checkAbstract(file:TAbstractFile){if(!(file instanceof TAbstractFile)||file.vault!==vault||objects.get(file.path)!==file)throw new Error('File does not belong to this vault');}
   function checkFile(file:TFile){checkAbstract(file);if(!(file instanceof TFile))throw new Error('Expected TFile');}
   const vault=guard(new Vault(),'Vault');
-  class MarkdownView {file:TFile|null;editor:Editor|null;constructor(){this.file=vault.getFileByPath(snapshot.active);this.editor=editor;return guard(this,'MarkdownView');}getViewType(){return 'markdown';}}
+  class MarkdownView {file:TFile|null;editor:Editor|null;constructor(){this.file=vault.getFileByPath(snapshot.active);this.editor=editor;return guard(this,'MarkdownView');}getViewType(){return 'markdown';}getViewData(){return snapshot.notes.find(n=>n.path===snapshot.active)?.content||'';}}
   class Workspace extends Events {
     layoutReady=true;
-    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){if(name!=='file-open')return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
+    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){if(name!=='file-open'&&(!host.ui||!['layout-change','editor-change'].includes(name)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
     getActiveFile(){return vault.getFileByPath(snapshot.active);}
-    getActiveViewOfType(type:unknown){return type===MarkdownView&&editor?new MarkdownView():null;}
+    getActiveViewOfType(type:unknown){return type===MarkdownView&&(editor||host.ui&&snapshot.active.endsWith('.md'))?new MarkdownView():null;}
     get activeEditor(){return editor?{file:this.getActiveFile(),editor}:null;}
     onLayoutReady(callback:()=>void){callback();}
     async openLinkText(linktext:string,sourcePath:string,newLeaf?:unknown,openState?:unknown){
@@ -170,6 +179,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     }
   }
   const workspace=guard(new Workspace(),'Workspace'),metadataCache=guard(new Events(),'MetadataCache') as Events&Record<string,any>;
+  if(host.ui)Object.assign(workspace,host.ui.workspace,{updateOptions:()=>host.ui!.updateOptions()});
   metadataCache.on=(name:string)=>unsupported('MetadataCache event '+name);
   metadataCache.getFileCache=()=>unsupported('MetadataCache.getFileCache exact positions');
   metadataCache.getCache=()=>unsupported('MetadataCache.getCache exact positions');
@@ -189,8 +199,13 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     for(const f of objects.values())if(f instanceof TFolder)f.children=[];
     for(const f of objects.values())if(f.path){f.parent=objects.get(f.path.split('/').slice(0,-1).join('/')) as TFolder||null;f.parent?.children.push(f);}
     if(events){
+      initEditor();
       if(previous.active!==snapshot.active)workspace.trigger('file-open',workspace.getActiveFile());
-      for(const note of snapshot.notes){const before=previous.notes.find(n=>n.path===note.path);if(before&&before.content!==note.content)vault.trigger('modify',vault.getFileByPath(note.path));}
+      if(host.ui&&(previous.active!==snapshot.active||!!previous.editor!==!!snapshot.editor))workspace.trigger('layout-change');
+      for(const note of snapshot.notes){const before=previous.notes.find(n=>n.path===note.path);if(before&&before.content!==note.content){
+        vault.trigger('modify',vault.getFileByPath(note.path));
+        if(host.ui&&note.path===snapshot.active)workspace.trigger('editor-change',editor,new MarkdownView());
+      }}
     }
   }
   refresh(initial);
@@ -222,9 +237,12 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     loadData(){return request('loadData');}saveData(data:unknown){return mutate('saveData',[data]);}
     onExternalSettingsChange(){return unsupported('Plugin.onExternalSettingsChange');}
     onUserEnable():unknown{return undefined;}
-    addRibbonIcon(){return unsupported('Plugin.addRibbonIcon');}addSettingTab(){return unsupported('Plugin.addSettingTab');}
-    addStatusBarItem(){return unsupported('Plugin.addStatusBarItem');}registerView(){return unsupported('Plugin.registerView');}
-    registerExtensions(){return unsupported('Plugin.registerExtensions');}registerEditorExtension(){return unsupported('Plugin.registerEditorExtension');}
+    addRibbonIcon(){return unsupported('Plugin.addRibbonIcon');}
+    addSettingTab(tab:unknown){if(!host.ui)return unsupported('Plugin.addSettingTab');this.register(host.ui.settingTab(tab));}
+    addStatusBarItem(){if(!host.ui)return unsupported('Plugin.addStatusBarItem');const element=host.ui.statusBar();this.register(()=>element.remove());return element;}
+    registerView(type:string,factory:(leaf:any)=>any){if(!host.ui)return unsupported('Plugin.registerView');this.register(host.ui.registerView(type,factory));}
+    registerExtensions(){return unsupported('Plugin.registerExtensions');}
+    registerEditorExtension(extension:unknown){if(!host.ui)return unsupported('Plugin.registerEditorExtension');this.register(host.ui.editorExtension(extension));}
     registerEditorSuggest(){return unsupported('Plugin.registerEditorSuggest');}
     registerMarkdownPostProcessor(){return unsupported('Plugin.registerMarkdownPostProcessor');}
     registerMarkdownCodeBlockProcessor(){return unsupported('Plugin.registerMarkdownCodeBlockProcessor');}
@@ -248,11 +266,12 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     iterateRefs:(refs:any[],callback:(r:any)=>boolean|void)=>{for(const r of refs)if(callback(r)===true)return true;return false;},
     iterateCacheRefs:(cache:any,callback:(r:any)=>boolean|void)=>{for(const r of [...(cache.links||[]),...(cache.embeds||[])])if(callback(r)===true)return true;return false;},
     debounce,apiVersion:'0.0.0',requireApiVersion:(version:string)=>version==='0.0.0'};
+  Object.assign(exports,host.ui?.exports);
   const api=new Proxy(exports,{get(target,key){if(typeof key==='symbol')return Reflect.get(target,key);if(key==='__esModule')return false;if(Object.hasOwn(target,key))return target[key];return unsupported('export '+key);}});
   return {
     app,api,settle,
     sync(next:PluginSnapshot){refresh(next,true);publish();},
-    async boot(constructor:any){if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');plugin=new constructor(app,manifest);await plugin!.load();await plugin!.onUserEnable();await settle();publish();},
+    async boot(constructor:any){if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');plugin=new constructor(app,manifest);await plugin!.load();await plugin!.onUserEnable();await settle();publish();if(host.ui)workspace.trigger('layout-change');},
     async run(id:string){if(unloaded)throw new Error('Plugin is unloaded');initEditor();const command=commands.get(id);if(!command)throw new Error('Command not found');if(!available(command,true))throw new Error('Command unavailable');await available(command,false);await settle();},
     async stop(){if(unloaded)return;try{await plugin?.unload();await settle();}finally{commands.clear();host.commands([]);unloaded=true;}},
     getExports(){return Object.keys(exports);}

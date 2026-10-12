@@ -1,4 +1,4 @@
-name: Pinned real plugin startup boundaries
+name: Pinned real plugin compatibility checks
 on:
   workflow_dispatch:
 permissions:
@@ -22,10 +22,15 @@ jobs:
         env:
           ENGINE_PLUGIN_CORPUS: ${{ runner.temp }}/plugin-corpus
           ENGINE_CORPUS_REPORT: ${{ runner.temp }}/plugin-corpus-results
+      - run: xvfb-run -a npm run test:desktop -- renderer-corpus.spec.ts
+        env:
+          ENGINE_PLUGIN_CORPUS: ${{ runner.temp }}/plugin-corpus
+          ENGINE_RENDERER_CORPUS_REPORT: ${{ runner.temp }}/renderer-corpus-results
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: pinned-plugin-startup-results
           path: |
             ${{ runner.temp }}/plugin-corpus-results
+            ${{ runner.temp }}/renderer-corpus-results
             test-results-desktop

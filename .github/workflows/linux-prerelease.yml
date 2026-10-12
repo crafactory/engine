@@ -30,10 +30,25 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - run: npx playwright install-deps chromium
+      - name: Download and verify pinned external plugin test inputs
+        run: node scripts/corpus.mjs
+        env:
+          ENGINE_PLUGIN_CORPUS: ${{ runner.temp }}/plugin-corpus
       - name: Verify packaged Linux executable
         run: xvfb-run -a npm run test:desktop
         env:
           E2E_EXECUTABLE_PATH: ${{ github.workspace }}/release/linux-unpacked/crafactory-engine
+          ENGINE_PLUGIN_CORPUS: ${{ runner.temp }}/plugin-corpus
+          ENGINE_CORPUS_REPORT: ${{ runner.temp }}/worker-corpus-results
+          ENGINE_RENDERER_CORPUS_REPORT: ${{ runner.temp }}/renderer-corpus-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: packaged-plugin-compatibility-results
+          path: |
+            ${{ runner.temp }}/worker-corpus-results
+            ${{ runner.temp }}/renderer-corpus-results
+            test-results-desktop
       - name: Create checksums and publish prerelease
         shell: bash
         env:

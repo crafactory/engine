@@ -1,38 +1,34 @@
 # Crafactory Engine 交付说明
 
-本轮推进到 0.3.1，重点是可追踪的 Feature checklist 和独立插件兼容层，并修正了 Windows 构建发现的清单 CRLF 换行问题。**完整 1:1 目标、全面插件兼容与逐项参考行为验收仍未完成**；以下区分已经验证的子集、明确拒绝的能力和未测试部分，不给出未经证实的完成百分比。
+本轮版本为 v0.4.0，重点推进插件模块、CodeMirror 与 DOM、设置和视图的原创兼容实现。完整非订阅功能 1:1 目标仍未完成，不把启动通过、导出名称覆盖或负向测试通过算作全面兼容；原创实现继续采用 MIT，没有加入 Obsidian 应用代码、SDK 声明或社区插件实现。
 
-## Feature checklist
+## 本轮新增
 
-- **追踪清单**：[FEATURE-CHECKLIST.md](https://github.com/crafactory/engine/blob/main/docs/FEATURE-CHECKLIST.md)包含 93 个编号项，覆盖全部 29 个公开文档核心插件、工作区/编辑/文件/平台/免费扩展差距、28 个有限验收点和后续完整性门槛。
-- **勾选规则**：只勾选有具体测试证据的限定行为，不把“实现了一部分”勾成完整功能；Sync 和 Publish 是仅有的订阅排除项。完整原生移动端、免费扩展和社区插件均仍在目标内。
-- **防止漂移**：Markdown 清单和机器可读 JSON 一起生成，`npm run inventory:check` 已接入验证流程，检查重复编号、遗漏核心插件、额外排除项、生成文档漂移和测试证据缺失。它不能自动发现所有新文档变化，因此仍需持续扩充逐项验收用例。
-- **参考边界**：参考公开文档快照为 2026-10-12 UTC，尚未固定并安装某一 Obsidian 版本作黑盒差分验收；这是起始库存，不是穷尽规范。
+- **显式运行模式：** 默认仍是 Worker。需要 DOM 的插件必须手动选择 Trusted renderer，再确认更强的权限提示，没有自动回退或自动启用。
+- **真实 UI：** 插件设置的文本、长文本、下拉、开关、按钮、滑块支持实际交互与插件回调；Modal 支持打开、关闭、Escape 与焦点循环；状态信息和独立插件视图支持卸载清理。公开行为参考 [设置文档](https://docs.obsidian.md/Reference/TypeScript+API/Setting)及 [Modal 文档](https://docs.obsidian.md/Reference/TypeScript+API/Modal)，但不是全接口等价。
+- **真实 CodeMirror：** 注册扩展接入主编辑器的实际 CodeMirror，修改扩展数组后 updateOptions 可重新配置，禁用后移除。参考 [公开扩展接口](https://docs.obsidian.md/Reference/TypeScript+API/Plugin/registerEditorExtension)；次级分栏编辑器和全部 Live Preview 插件行为尚未覆盖。
+- **Checklist：** 增至 98 个稳定编号项、33 个限定验收点，保留全部 29 个核心插件与未完成总门槛。API 库存对照 271 个名称，分别列出 Worker 的 27 个和可信 renderer 的 43 个运行时子集，不把导出存在当作完整成员兼容，详见 [清单](https://github.com/crafactory/engine/blob/main/docs/FEATURE-CHECKLIST.md)与 [API 覆盖表](https://github.com/crafactory/engine/blob/main/docs/API-COVERAGE.md)。
 
-## 本轮实现
+## 真实插件结果
 
-新增原创 CommonJS Worker 兼容子集，允许 `require('obsidian')` 获取有限的 Plugin/Component 生命周期、命令注册、文本文件操作、插件数据与单一编辑器选区接口。原有 Engine 插件 API 保留，插件仍需手动安装和明确启用，不会自动从 `.obsidian` 读取或下载代码。
+测试仍使用原来固定版本和 SHA-256 的原始发布文件，插件字节未经改写，只在一次性测试 Vault 中执行，不随软件分发。模式、哈希、首次阻塞和已执行流程分开记录于 [可信 renderer 结果](https://github.com/crafactory/engine/blob/main/docs/TRUSTED-RENDERER-PLUGIN-TESTS.md)。
 
-命令测试覆盖 editorCheck/editor/check/callback 的优先级、可用性与阅读模式隐藏。文件新增“只创建不覆盖”、串行追加，插件 JSON 数据按 ID 保存并拒绝跨插件元数据符号链接；桌面实测了创建/追加、数据持久化、停用/卸载/重新启用、关闭窗口保存，以及真实编辑器选区修改。出现错误后清除命令并停用，切换 Vault 前先停止插件，病态卸载最多等待两秒。
+| 插件 | 可信 renderer 实测 | 仍未验证 |
+|---|---|---|
+| Reading Time 1.1.2 | 八个限定流程通过：文档统计、速度设置保存、阅读/源码切换、编辑更新、选区弹窗、Escape、禁用清理、再启用恢复 | 全格式、无效输入、所有字数语义、事件时序、多分栏、其他平台 |
+| Calendar (Beta) 2.0.0-beta.2 | 启动完成 | 日历视图与每日笔记等功能流程 |
+| Advanced Tables 0.23.2 | 启动完成 | 表格导航、结构操作与格式化流程 |
+| Dataview 0.5.70 / manifest 0.5.68 | 仍失败：MarkdownRenderChild 不支持 | 后续 API、查询和渲染 |
+| Templater 2.26.0 | 仍失败：class extends undefined 加载错误 | 未猜测具体缺失类，后续模板流程未执行 |
 
-这些都是独立实现，没有引入 Obsidian 应用代码、SDK、类型声明或其示例插件实现。第三方真实插件仅作为临时测试输入，未并入 Engine 源码或安装包；原创项目仍采用 MIT，第三方资源保留各自许可。
+默认 Worker 模式仍然是五个插件全部启动失败，独立保留在 [Worker 测试报告](https://github.com/crafactory/engine/blob/main/docs/COMMUNITY-PLUGIN-TESTS.md)。任何单个插件都没有被标记为完整兼容，也尚未固定安装版 Obsidian 进行逐项黑盒差分。
 
-## 插件文档对照与真实样本
+## 安全与交付边界
 
-[公开 API 对照表](https://github.com/crafactory/engine/blob/main/docs/API-COVERAGE.md)记录 271 个文档名称：154 个运行时符号和 117 个仅类型名称；27 个运行时符号提供子集，另 127 个明确拒绝。另有 12 个主要类的成员边界，**并非所有成员、重载、事件和时序都已全面验证**，详见[兼容报告](https://github.com/crafactory/engine/blob/main/docs/PLUGIN-COMPATIBILITY.md)。
+Trusted renderer 不是沙箱：插件可访问整个 UI、Vault bridge 与工作区元数据，可能冻结主线程，不能强制中断，已经完成的写入也不会回滚。Electron 保留 context isolation、sandbox 与关闭 Node integration；这不意味着 renderer 插件与应用隔离，完整说明见 [兼容报告](https://github.com/crafactory/engine/blob/main/docs/PLUGIN-COMPATIBILITY.md)。
 
-实际加载测试包含 Dataview、Templater、Calendar (Beta)、Advanced Tables 和 Reading Time 的版本固定发布文件，加载前校验 main.js 与 manifest.json 的 SHA-256。**这五个插件目前全部启动失败，不能记作功能兼容通过**；具体首次错误、发布标签与 manifest 版本差异、未执行的后续功能见[真实插件测试报告](https://github.com/crafactory/engine/blob/main/docs/COMMUNITY-PLUGIN-TESTS.md)。首次失败后的其他阻塞项尚未枚举，泛化加载错误也没有被擅自诊断成某个 API 缺失。
+状态项目前在底部状态栏上方独立显示，插件视图是独立浮层，不是完整 leaf 树；CSS/主题、Markdown processors、Node 模块和所有成员/事件仍有缺口。Linux 包未签名，Windows/macOS 构建不等于原生运行与安装验收，移动端、安全/无障碍及大型 Vault 验收也未完成。
 
-本轮补正了 CommonJS `__esModule` 元数据探测被当作缺失 API 的问题，但没有把这等同于完整模块包装兼容。DOM、设置/Modal、视图、Markdown 处理器、CodeMirror 扩展、Node/Electron 环境、精确元数据缓存、二进制接口等仍未实现或未验证。
+本轮生产依赖检查报告 0 项已知告警，完整构建/开发依赖仍为 8 项中等风险、0 项高风险、0 项严重风险，这不是完整安全审计。最终自动验证和下载证据见 [验证记录](https://github.com/crafactory/engine/blob/main/docs/VERIFICATION.md)及 [v0.4.0 预发布页](https://github.com/crafactory/engine/releases/tag/v0.4.0)；重要笔记仍应先独立备份。
 
-## 验证与使用
-
-本轮[自动验证](https://github.com/crafactory/engine/actions/runs/38198688877)通过 521 项单元测试、36 项浏览器回归和 18 项 Linux Electron 桌面回归，其中单元套件包含新增的 3 项 Windows 换行回归、271 个符号探测及大量拒绝测试，不能换算为完成度。另有[真实插件启动流程](https://github.com/crafactory/engine/actions/runs/38198693360)执行了 5 项失败边界测试，断言通过只表示观察到了拒绝/加载错误，并不是五个插件可用；普通桌面套件中跳过的这五项未算入通过数量。
-
-[v0.3.1 预发布页](https://github.com/crafactory/engine/releases/tag/v0.3.1)提供未签名 Linux x64 AppImage、Debian 包与 SHA-256 校验清单；[打包发布流程](https://github.com/crafactory/engine/actions/runs/38198691046)在上传前对打包程序通过了同样的 18 项桌面测试。下载清单的文件名与摘要已对照 GitHub 上传资产摘要核对，[三平台构建](https://github.com/crafactory/engine/actions/runs/38198689122)也已全部通过，但这不等于 Windows/macOS 原生运行或安装验收。v0.3.0 文件没有被覆盖，早期 Windows 清单检查失败保留在验证记录中。
-
-生产依赖审计没有报告已知告警，完整开发/构建依赖仍有 8 项中等告警。原生 Windows/macOS 运行、签名/安装/升级、移动端、大型 Vault、崩溃耐久性和完整安全/无障碍审计尚未完成；桌面测试环境使用 Xvfb 与测试专用 `--no-sandbox`，不据此认证生产系统沙箱。
-
-源码需要 Node.js 22.12 或更新版本，克隆[仓库](https://github.com/crafactory/engine)后执行 `npm ci`、`npm run desktop`。插件测试应使用备份或可丢弃 Vault；插件可以在启动、命令执行和卸载时修改笔记，启动失败不会回滚已完成写入。浏览器预览只保存临时内存数据，刷新即重置，不是本地 Vault 或原生移动端。
-
-后续优先门槛是扩大清单到逐工作流用例，固定参考应用版本，补全模块/CodeMirror 和 DOM/设置/视图接口，并把真实插件测试从“启动失败边界”推进到实际功能与平台验收。完整 Live Preview、表格结构操作、完整 Bases/Canvas、原生移动端和免费扩展也继续保留在未完成清单中。
+下一阶段可以补 MarkdownRenderChild/渲染处理器，执行 Calendar 与 Advanced Tables 的实际功能验收，并继续拆解 Dataview、Templater 的后续阻塞。

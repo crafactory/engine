@@ -1,5 +1,7 @@
 # Real community-plugin startup tests
 
+Scope: **default Worker mode only**. Separate opt-in renderer results and bounded Reading Time workflows are in [trusted-renderer tests](https://github.com/crafactory/engine/blob/main/docs/TRUSTED-RENDERER-PLUGIN-TESTS.md). Statements below about untested workflows refer only to this Worker run, not renderer coverage.
+
 These are **actual upstream release artifacts**, loaded unchanged into disposable Engine vaults on Linux x64 Electron. They are not a synthetic replacement for community plugins. All five currently fail at startup; no plugin is counted as functionally compatible. Tests passing means the recorded unsupported boundary was observed, not that the plugin works. Actual plugin workflows, additional blockers beyond the first, Windows/macOS/mobile and an installed-reference differential comparison remain untested.
 
 ## Pinned inputs and observed results

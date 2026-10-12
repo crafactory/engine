@@ -1,5 +1,5 @@
 import {forwardRef,useEffect,useImperativeHandle,useRef} from 'react';
-import {EditorState} from '@codemirror/state';
+import {EditorState,Compartment,type Extension} from '@codemirror/state';
 import {EditorView,keymap,lineNumbers,highlightActiveLine} from '@codemirror/view';
 import {markdown,markdownKeymap} from '@codemirror/lang-markdown';
 import {defaultKeymap,history,historyKeymap,indentWithTab} from '@codemirror/commands';
@@ -26,9 +26,10 @@ function wrap(view:EditorView,marker:string) {
   view.dispatch({changes:{from:range.from,to:range.to,insert:marker+selected+marker},selection:{anchor:range.from+marker.length,head:range.to+marker.length}});
   view.focus();return true;
 }
-export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Settings;onChange:(content:string)=>void;onOpen:(target:string)=>void;onCommand:(command:string)=>void}>(
-function Editor({note,notes,settings,onChange,onOpen,onCommand},handle) {
+export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Settings;pluginExtensions?:Extension[];onChange:(content:string)=>void;onOpen:(target:string)=>void;onCommand:(command:string)=>void}>(
+function Editor({note,notes,settings,pluginExtensions=[],onChange,onOpen,onCommand},handle) {
   const container=useRef<HTMLDivElement>(null),view=useRef<EditorView>();
+  const pluginCompartment=useRef(new Compartment());
   const meta=frontmatter(note.content),hideMeta=settings.mode==='live'&&!meta.error;
   const viewContent=hideMeta?meta.body:note.content;
   const prefix=useRef('');prefix.current=hideMeta?meta.raw:'';
@@ -74,7 +75,7 @@ function Editor({note,notes,settings,onChange,onOpen,onCommand},handle) {
     };
     const editor=new EditorView({
       parent:container.current!,state:EditorState.create({doc:viewContent,extensions:[
-        markdown(),history(),syntaxHighlighting(engineHighlight),highlightSelectionMatches(),EditorView.lineWrapping,
+        markdown(),history(),syntaxHighlighting(engineHighlight),highlightSelectionMatches(),EditorView.lineWrapping,pluginCompartment.current.of(pluginExtensions),
         ...(settings.lineNumbers?[lineNumbers()]:[]),
         ...(settings.mode==='live'?livePreview(()=>({path:note.path,notes:callbacks.current.notes,onOpen:target=>callbacks.current.onOpen(target)})):[highlightActiveLine()]),
         autocompletion({override:[complete]}),
@@ -101,5 +102,6 @@ function Editor({note,notes,settings,onChange,onOpen,onCommand},handle) {
   },[note.path,settings.mode,settings.lineNumbers,settings.fontSize,settings.theme,settings.spellcheck,settings.disabledPlugins]);
   useEffect(()=>{const v=view.current;if(v&&v.state.doc.toString()!==viewContent){external.current=true;v.dispatch({changes:{from:0,to:v.state.doc.length,insert:viewContent}});external.current=false;}},[viewContent]);
   useEffect(()=>{if(settings.mode==='live')view.current?.dispatch({effects:refreshLivePreview.of(null)});},[notes,settings.mode]);
+  useEffect(()=>{view.current?.dispatch({effects:pluginCompartment.current.reconfigure(pluginExtensions)});},[pluginExtensions]);
   return <div ref={container} className={'editor '+(settings.readableWidth?'readable':'')} data-testid="editor-surface"/>;
 });

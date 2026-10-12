@@ -7,8 +7,13 @@ const ledger=await read('docs/PARITY.md'),baseline=JSON.parse(await read('docs/c
 const exported=JSON.parse(await read('docs/compatibility/obsidian-exports.json'));
 const source=await read('src/compat-core.ts');
 const supported=[...source.match(/supportedExports=\[([\s\S]*?)\] as const/)[1].matchAll(/'([^']+)'/g)].map(m=>m[1]);
+const rendererSource=await read('src/compat-dom.ts');
+const rendererOnly=[...rendererSource.match(/rendererExports=\[([\s\S]*?)\] as const/)[1].matchAll(/'([^']+)'/g)].map(m=>m[1]);
+const rendererSupported=[...supported,...rendererOnly];
+assert.equal(new Set(rendererSupported).size,rendererSupported.length,'Renderer exports must not duplicate Worker exports');
 assert.equal(new Set(exported.symbols.map(s=>s.name)).size,exported.symbols.length);
 for(const name of supported)assert(exported.symbols.some(s=>s.runtime&&s.name===name),'Undocumented export: '+name);
+for(const name of rendererOnly)assert(exported.symbols.some(s=>s.runtime&&s.name===name),'Undocumented renderer export: '+name);
 const items=parseParityLedger(ledger,baseline.core_source,exported.source_url);
 const core=items.filter(i=>i.id.startsWith('CORE-'));
 assert.equal(core.length,29,'All 29 documented core plugins must remain in the inventory');
@@ -42,7 +47,12 @@ const accepted=[
   ['ACCEPT-append','Serialized in-process appends','tests/vault.test.mjs','plugin append serializes concurrent updates and rejects missing files'],
   ['ACCEPT-callback-order','editorCheckCallback precedence','tests/compatibility.test.ts','prefixes commands and prioritizes editorCheckCallback'],
   ['ACCEPT-lifecycle','Awaited lifecycle and unload settings','tests/compatibility.test.ts','saves data on load and unload and awaits lifecycle promises'],
-  ['ACCEPT-api-index','Unique documented export inventory','tests/compatibility.test.ts','pins unique documented symbols and references']
+  ['ACCEPT-api-index','Unique documented export inventory','tests/compatibility.test.ts','pins unique documented symbols and references'],
+  ['ACCEPT-renderer-opt-in','Explicit renderer mode and canceled trust prompt','e2e-desktop/renderer.spec.ts','trusted renderer requires explicit mode and cancellable permission'],
+  ['ACCEPT-renderer-settings','Real renderer settings controls and Modal focus/close','e2e-desktop/renderer.spec.ts','renderer settings controls persist and modal traps focus and closes'],
+  ['ACCEPT-renderer-cm','Host CodeMirror extensions, replacement, view and unload','e2e-desktop/renderer.spec.ts','renderer CodeMirror extensions update real editor and unload all UI'],
+  ['ACCEPT-renderer-failure','Startup failure removes allocated plugin UI','e2e-desktop/renderer.spec.ts','trusted renderer failure cleans up:'],
+  ['ACCEPT-reading-time','Pinned Reading Time bounded workflows on Linux trusted renderer','e2e-desktop/renderer-corpus.spec.ts','BOUNDED_WORKFLOWS_PASS']
 ];
 for(const [id,title,file,test]of accepted){
   assert((await read(file)).includes(test),`Missing evidence for ${id}: ${file} / ${test}`);
@@ -74,9 +84,9 @@ for(const group of [...new Set(items.map(i=>i.section))]){
     for(const ev of item.evidence)md+=`  - Evidence: \`${ev.file}\` / \`${ev.test}\`.\n`;
   }md+='\n';
 }
-md+='## Maintenance\n\nEdit `PARITY.md` and the acceptance registry in `scripts/inventory.mjs`, then run `npm run inventory:update`. Commit generated JSON and Markdown together. CI rejects drift, missing core plugins, extra exclusions, duplicate IDs and missing evidence. Do not remove unfinished areas to improve statistics. Keep checkpoint IDs stable; append new cases. Public docs may change: refresh the baseline deliberately and record differences.\n';
-let api='# Public API export coverage\n\n'+`Pinned [public API index](${exported.source_url}): ${exported.symbols.length} names; ${exported.symbols.filter(s=>s.runtime).length} runtime symbols; ${exported.symbols.filter(s=>!s.runtime).length} type-only names. ${supported.length} runtime symbols expose a bounded implementation; other runtime symbols are explicitly rejected. **Export-access tests do not establish member behavior or real-plugin compatibility.** See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json.\n\n| Symbol | Kind | Runtime behavior | Public documentation |\n|---|---|---|---|\n`;
-for(const s of exported.symbols)api+=`| ${s.name} | ${s.kind} | ${!s.runtime?'Type only; runtime access rejected':supported.includes(s.name)?'Implemented subset, not full equivalence':'Unsupported; explicit CompatibilityError'} | [${s.name}](${s.source_url}) |\n`;
+md+='## Maintenance\n\nEdit `PARITY.md` and the acceptance registry in `scripts/inventory.mjs`, then run `npm run inventory:update`. Commit generated JSON and Markdown together. CI rejects drift, missing core plugins, extra exclusions, duplicate IDs and missing evidence. Do not remove unfinished areas to improve statistics. Keep checkpoint IDs stable; append new cases. Public docs may change: refresh the baseline deliberately and record differences. `ACCEPT-reading-time` is signed off only for the eight listed Linux trusted-renderer workflows in TRUSTED-RENDERER-PLUGIN-TESTS.md; it is optional in ordinary CI and must be reproduced with verified corpus inputs using the manual corpus workflow. No overall plugin checkbox is complete.\n';
+let api='# Public API export coverage\n\n'+`Pinned [public API index](${exported.source_url}): ${exported.symbols.length} names; ${exported.symbols.filter(s=>s.runtime).length} runtime symbols; ${exported.symbols.filter(s=>!s.runtime).length} type-only names. Default Worker: ${supported.length} bounded runtime symbols. Explicit opt-in trusted renderer: ${rendererSupported.length} bounded runtime symbols (${rendererOnly.length} additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.\n\n| Symbol | Kind | Default Worker | Trusted renderer | Public documentation |\n|---|---|---|---|---|\n`;
+for(const s of exported.symbols){const behavior=(names)=>!s.runtime?'Type only; runtime access rejected':names.includes(s.name)?'Implemented subset, not full equivalence':'Unsupported; explicit CompatibilityError';api+=`| ${s.name} | ${s.kind} | ${behavior(supported)} | ${behavior(rendererSupported)} | [${s.name}](${s.source_url}) |\n`;}
 const generated={'docs/FEATURE-CHECKLIST.md':md,'docs/compatibility/feature-checklist.json':JSON.stringify(checklist,null,2)+'\n','docs/API-COVERAGE.md':api};
 for(const [file,content]of Object.entries(generated)){
   if(check)assert.equal(await read(file),content,'Inventory drift: '+file+'; run npm run inventory:update');

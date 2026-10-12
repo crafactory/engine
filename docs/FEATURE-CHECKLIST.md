@@ -145,8 +145,8 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 ## Extensions, themes, and platform surface
 
 - [ ] **AREA-community-plugin-api Community plugin API**: partial. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
-  - Current scope: Independent Engine API plus experimental CommonJS worker subset for commands, lifecycle, text files, data and single editor selection. Five pinned real plugins tested at startup only, all unsupported; no positive real-plugin workflow certification or full member/overload audit. See PLUGIN-COMPATIBILITY.md and COMMUNITY-PLUGIN-TESTS.md.
-  - Remaining / boundary: Independent Engine API plus experimental CommonJS worker subset for commands, lifecycle, text files, data and single editor selection. Five pinned real plugins tested at startup only, all unsupported; no positive real-plugin workflow certification or full member/overload audit. See PLUGIN-COMPATIBILITY.md and COMMUNITY-PLUGIN-TESTS.md.
+  - Current scope: Default Worker plus explicit trusted-renderer subset with DOM settings/Modal, status items, dedicated views and actual host CodeMirror extensions. Pinned Reading Time has bounded Linux workflows; Calendar and Advanced Tables startup only; Dataview/Templater still fail. Default Worker still fails all five. Full member/overload/reference/platform coverage incomplete; see PLUGIN-COMPATIBILITY.md and TRUSTED-RENDERER-PLUGIN-TESTS.md.
+  - Remaining / boundary: Default Worker plus explicit trusted-renderer subset with DOM settings/Modal, status items, dedicated views and actual host CodeMirror extensions. Pinned Reading Time has bounded Linux workflows; Calendar and Advanced Tables startup only; Dataview/Templater still fail. Default Worker still fails all five. Full member/overload/reference/platform coverage incomplete; see PLUGIN-COMPATIBILITY.md and TRUSTED-RENDERER-PLUGIN-TESTS.md.
 - [ ] **AREA-community-catalog Community catalog**: missing. Reference: [public documentation](https://help.obsidian.md).
   - Current scope: No plugin/theme marketplace, unattended installation, updates or signing; local manual install only
   - Remaining / boundary: No plugin/theme marketplace, unattended installation, updates or signing; local manual install only
@@ -264,6 +264,21 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [x] **ACCEPT-api-index Unique documented export inventory**: verified-subset. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
   - Acceptance: Unique documented export inventory
   - Evidence: `tests/compatibility.test.ts` / `pins unique documented symbols and references`.
+- [x] **ACCEPT-renderer-opt-in Explicit renderer mode and canceled trust prompt**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Explicit renderer mode and canceled trust prompt
+  - Evidence: `e2e-desktop/renderer.spec.ts` / `trusted renderer requires explicit mode and cancellable permission`.
+- [x] **ACCEPT-renderer-settings Real renderer settings controls and Modal focus/close**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Real renderer settings controls and Modal focus/close
+  - Evidence: `e2e-desktop/renderer.spec.ts` / `renderer settings controls persist and modal traps focus and closes`.
+- [x] **ACCEPT-renderer-cm Host CodeMirror extensions, replacement, view and unload**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Host CodeMirror extensions, replacement, view and unload
+  - Evidence: `e2e-desktop/renderer.spec.ts` / `renderer CodeMirror extensions update real editor and unload all UI`.
+- [x] **ACCEPT-renderer-failure Startup failure removes allocated plugin UI**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Startup failure removes allocated plugin UI
+  - Evidence: `e2e-desktop/renderer.spec.ts` / `trusted renderer failure cleans up:`.
+- [x] **ACCEPT-reading-time Pinned Reading Time bounded workflows on Linux trusted renderer**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Pinned Reading Time bounded workflows on Linux trusted renderer
+  - Evidence: `e2e-desktop/renderer-corpus.spec.ts` / `BOUNDED_WORKFLOWS_PASS`.
 
 ## Unfinished parity gates
 
@@ -303,4 +318,4 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 
 ## Maintenance
 
-Edit `PARITY.md` and the acceptance registry in `scripts/inventory.mjs`, then run `npm run inventory:update`. Commit generated JSON and Markdown together. CI rejects drift, missing core plugins, extra exclusions, duplicate IDs and missing evidence. Do not remove unfinished areas to improve statistics. Keep checkpoint IDs stable; append new cases. Public docs may change: refresh the baseline deliberately and record differences.
+Edit `PARITY.md` and the acceptance registry in `scripts/inventory.mjs`, then run `npm run inventory:update`. Commit generated JSON and Markdown together. CI rejects drift, missing core plugins, extra exclusions, duplicate IDs and missing evidence. Do not remove unfinished areas to improve statistics. Keep checkpoint IDs stable; append new cases. Public docs may change: refresh the baseline deliberately and record differences. `ACCEPT-reading-time` is signed off only for the eight listed Linux trusted-renderer workflows in TRUSTED-RENDERER-PLUGIN-TESTS.md; it is optional in ordinary CI and must be reproduced with verified corpus inputs using the manual corpus workflow. No overall plugin checkbox is complete.

@@ -1,5 +1,27 @@
 # Verification results
 
+## v0.4.0 local verification
+
+Executed on 2026-10-12 UTC, Linux x64 and Node.js 22. The installed Obsidian reference version remains unfixed and no differential equivalence is implied.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 98 entries, 29 core, 33 bounded checkpoints | Evidence existence and drift; not full workflow execution |
+| `npm run test` | 527 passed | Existing Worker contracts plus six renderer event/hook/inventory contracts |
+| `npm run build` | Passed | Strict TypeScript and production bundle; existing large-chunk warnings remain |
+| `npm run test:e2e` | 36 passed | Full existing browser regression, not native mobile |
+| Desktop with both verified corpus modes | 33 passed | 23 regular native cases + five Worker negative startup cases + five renderer corpus cases |
+| Renderer fixture | 5 passed within desktop total | Explicit permission/cancel, real settings and modal focus, DOM/CM/view/unload, Node rejection, failed-startup UI cleanup |
+| Real Reading Time | Eight bounded workflows in one renderer corpus case | Actual unchanged bytes, settings JSON, document/editor/selection UI, unload/re-enable |
+| Calendar / Advanced Tables | Startup only | No functional workflow certification |
+| Dataview / Templater | Startup failures | Named unsupported export / generic class load error; later workflows not run |
+| Default Worker real corpus | All five startup failures | Passing assertions verify refusal, not working plugins |
+| `npm audit --omit=dev` | 0 known advisories | Not a security guarantee |
+| Full `npm audit` | 8 moderate, 0 high, 0 critical | Build/dev vulnerabilities unresolved |
+| Interactive Linux Electron visual QA | Dark/light 1440 × 900; settings/Modal 375 × 812 | Viewport fit and normal controls; not exhaustive accessibility or mobile audit |
+
+The renderer's startup error cleanup, boot/unload sequencing and Blob loading are original code. Trusted renderer remains unsandboxed and cannot forcibly stop main-thread code. Third-party corpus files are outside the repository and installer. Package workflow additionally downloads hash-verified inputs and runs the full 33-case desktop suite against the actual packaged Linux executable; final CI evidence is recorded separately once complete.
+
 Executed on 2026-10-11 on Linux x64 with Node.js 22.23.3. These results verify the listed Engine behaviors, not full Obsidian equivalence or all supported operating systems.
 
 ## Executed checks

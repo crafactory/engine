@@ -16,6 +16,9 @@ import {Palette,type Choice} from './Palette';
 import {Slides} from './Slides';
 import {useDialog} from './Dialog';
 import {startPlugin,type PluginCommand,type PluginController} from './plugins';
+import {startRendererPlugin} from './plugin-renderer';
+import type {PluginTab} from './compat-dom';
+import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
@@ -50,6 +53,8 @@ export function App(){
   const [context,setContext]=useState<{path:string;x:number;y:number}|null>(null);
   const [recovery,setRecovery]=useState<Snapshot[]|null>(null);
   const [pluginList,setPluginList]=useState<{manifest:PluginManifest;code:string}[]>([]),[enabledPlugins,setEnabledPlugins]=useState<string[]>([]),[pluginCommands,setPluginCommands]=useState<PluginCommand[]>([]);
+  const [pluginModes,setPluginModes]=useState<Record<string,string>>({}),[pluginTabs,setPluginTabs]=useState<Record<string,PluginTab[]>>({}),[pluginExtensions,setPluginExtensions]=useState<Record<string,unknown[]>>({});
+  const allPluginExtensions=useMemo(()=>Object.values(pluginExtensions).flat() as Extension[],[pluginExtensions]);
   const [dirtyCount,setDirtyCount]=useState(0),[recording,setRecording]=useState(false);
   const notesRef=useRef<Note[]>([]),settingsRef=useRef(settings),editor=useRef<EditorHandle>(null);
   const timers=useRef(new Map<string,ReturnType<typeof setTimeout>>()),saves=useRef(new Map<string,Promise<void>>());
@@ -326,7 +331,10 @@ export function App(){
       await pluginStops.current.get(id)?.stop();pluginStops.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));setPluginCommands(c=>c.filter(p=>p.plugin!==id));return;
     }
     const plugin=pluginList.find(p=>p.manifest.id===id);if(!plugin)return;
-    if(!await dialog.confirm('Enable '+plugin.manifest.name+'?', 'This local plugin can read and modify vault notes when its commands run. Only enable code you trust.'))return;
+    const renderer=pluginModes[id]==='renderer';
+    if(!await dialog.confirm('Enable '+plugin.manifest.name+'?',renderer?
+      'Trusted renderer mode is NOT sandboxed. This code can access the entire UI and vault bridge, including notes and workspace metadata, during startup, commands and unload. It can freeze the application and cannot be forcibly stopped. Only enable code you trust. Back up your vault first.':
+      'This local Worker plugin can read and modify vault notes and save plugin data during startup, commands and unload. Only enable code you trust.'))return;
     const generation=vaultGeneration.current;
     const operation=async(name:string,args:unknown[])=>{
       if(generation!==vaultGeneration.current)throw new Error('Plugin belongs to a closed vault');
@@ -361,9 +369,11 @@ export function App(){
     };
     pluginStarting.current.add(id);
     try{
-      const controller=startPlugin(plugin.manifest,plugin.code,pluginSnapshot,commands=>setPluginCommands(c=>[...c.filter(p=>p.plugin!==id),...commands]),
+      const start=renderer?startRendererPlugin:startPlugin;
+      const controller=start(plugin.manifest,plugin.code,pluginSnapshot,commands=>setPluginCommands(c=>[...c.filter(p=>p.plugin!==id),...commands]),
         (name,args)=>{const request=operation(name,args);pluginRequests.current.add(request);request.then(()=>pluginRequests.current.delete(request),()=>pluginRequests.current.delete(request));return request;},
-        toast,()=>{pluginStops.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));});
+        toast,()=>{pluginStops.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));},
+        tabs=>setPluginTabs(t=>({...t,[id]:tabs})),extensions=>setPluginExtensions(e=>({...e,[id]:extensions})));
       pluginStops.current.set(id,controller);await controller.ready;
       if(generation!==vaultGeneration.current)await controller.stop();else setEnabledPlugins(e=>[...e.filter(p=>p!==id),id]);
     }catch(e){pluginStops.current.delete(id);report(e);}finally{pluginStarting.current.delete(id);}
@@ -483,7 +493,7 @@ export function App(){
         {enabled('properties')&&isNote(note.path)&&propertyEditor(note)}
       </div>
       {mode==='reading'&&isNote(note.path)?<div className={'reading-surface '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}><Markdown content={note.content} notes={notes} path={note.path} onOpen={openLink} onChange={content=>editNote(note.path,content)}/></div>:
-        <Editor ref={secondary?undefined:editor} note={note} notes={notes} settings={{...settings,mode:mode==='reading'?'source':mode}} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand}/>}
+        <Editor ref={secondary?undefined:editor} note={note} notes={notes} pluginExtensions={secondary?undefined:allPluginExtensions} settings={{...settings,mode:mode==='reading'?'source':mode}} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand}/>}
     </div>;
   }
   let paletteItems:Choice[]=[];
@@ -553,10 +563,12 @@ export function App(){
       </aside>}
     </div>
     <footer className="statusbar"><span><span className={'status-dot '+(dirtyCount?'pending':'')}/>{dirtyCount?`${dirtyCount} unsaved`:bridge.desktop?'Saved locally':'Preview vault'}</span><span>{activeMarkdown&&enabled('words')?<>{words.toLocaleString()} words<span className="status-divider"/>{activeNote!.content.length.toLocaleString()} characters</>:activeNote?active.split('.').pop()?.toUpperCase():''}</span><span>{recording&&<button onClick={audio}><Square size={12}/>Recording · Stop</button>}{mode==='reading'?'Reading':mode==='live'?'Live editing':'Source'}<span className="status-divider"/>{bridge.desktop?'Local-first':'Changes reset on refresh'}</span></footer>
+    <div id="plugin-views" aria-label="Plugin views"/>
+    <div id="plugin-status" aria-label="Plugin status"/>
     {notice&&<div className="toast" role="status"><Check size={15}/>{notice}</div>}
     {context&&<div className="context-menu" style={{left:context.x,top:context.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>{open(context.path);setContext(null);}}><FileText size={14}/>Open</button><button onClick={()=>{setSplit(context.path);setContext(null);}}><PanelRightOpen size={14}/>Open in split</button><button onClick={()=>{setContext(null);renamePath(context.path);}}><Pencil size={14}/>Rename or move</button><button onClick={()=>{setBookmarks(b=>b.includes(context.path)?b:[...b,context.path]);setContext(null);}}><Bookmark size={14}/>Bookmark</button><button onClick={()=>{navigator.clipboard?.writeText(context.path);setContext(null);}}><Copy size={14}/>Copy path</button><hr/><button className="danger-text" onClick={()=>deletePath(context.path)}><Trash2 size={14}/>Move to trash</button></div>}
     {palette&&<Palette title={palette==='commands'?'Command palette':palette==='files'?'Quick switcher':palette==='templates'?'Insert template':palette==='merge'?'Merge into note':'Load workspace'} items={paletteItems} onClose={()=>setPalette(null)} onCreate={palette==='files'?name=>createNote(name):undefined}/>}
-    {showSettings&&<Settings value={settings} onChange={s=>{setSettings(s);if(s.mode!==settings.mode)setMode(s.mode);}} onClose={()=>setShowSettings(false)} plugins={pluginList.map(p=>p.manifest)} enabled={enabledPlugins} onTogglePlugin={togglePlugin}/>}
+    {showSettings&&<Settings value={settings} onChange={s=>{setSettings(s);if(s.mode!==settings.mode)setMode(s.mode);}} onClose={()=>setShowSettings(false)} plugins={pluginList.map(p=>p.manifest)} enabled={enabledPlugins} onTogglePlugin={togglePlugin} pluginTabs={Object.values(pluginTabs).flat()} modes={pluginModes} onMode={(id,mode)=>{if(!enabledPlugins.includes(id)&&!pluginStarting.current.has(id))setPluginModes(m=>({...m,[id]:mode}));}}/>}
     {recovery&&<div className="modal-backdrop"><section className="modal recovery-modal" role="dialog" aria-label="File recovery"><header><h2>File recovery</h2><button onClick={()=>setRecovery(null)} aria-label="Close recovery"><X size={18}/></button></header><p>Previous saved versions of {active}. Restoring a version also snapshots the current content.</p>{recovery.length?recovery.map(s=><button key={s.id} onClick={()=>restoreSnapshot(s.id)}><Clock size={15}/>{new Date(s.time).toLocaleString()}<span>Restore</span></button>):<div className="empty"><Clock size={25}/><p>No previous versions yet. Snapshots are created when saved content changes.</p></div>}</section></div>}
     {slides&&activeNote&&<Slides note={activeNote} notes={notes} onOpen={openLink} onClose={()=>setSlides(false)}/>}
     {dialog.ui}

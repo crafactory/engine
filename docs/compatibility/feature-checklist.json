@@ -483,8 +483,8 @@
       "title": "Community plugin API",
       "status": "partial",
       "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
-      "implemented": "Independent Engine API plus experimental CommonJS worker subset for commands, lifecycle, text files, data and single editor selection. Five pinned real plugins tested at startup only, all unsupported; no positive real-plugin workflow certification or full member/overload audit. See PLUGIN-COMPATIBILITY.md and COMMUNITY-PLUGIN-TESTS.md.",
-      "remaining": "Independent Engine API plus experimental CommonJS worker subset for commands, lifecycle, text files, data and single editor selection. Five pinned real plugins tested at startup only, all unsupported; no positive real-plugin workflow certification or full member/overload audit. See PLUGIN-COMPATIBILITY.md and COMMUNITY-PLUGIN-TESTS.md.",
+      "implemented": "Default Worker plus explicit trusted-renderer subset with DOM settings/Modal, status items, dedicated views and actual host CodeMirror extensions. Pinned Reading Time has bounded Linux workflows; Calendar and Advanced Tables startup only; Dataview/Templater still fail. Default Worker still fails all five. Full member/overload/reference/platform coverage incomplete; see PLUGIN-COMPATIBILITY.md and TRUSTED-RENDERER-PLUGIN-TESTS.md.",
+      "remaining": "Default Worker plus explicit trusted-renderer subset with DOM settings/Modal, status items, dedicated views and actual host CodeMirror extensions. Pinned Reading Time has bounded Linux workflows; Calendar and Advanced Tables startup only; Dataview/Templater still fail. Default Worker still fails all five. Full member/overload/reference/platform coverage incomplete; see PLUGIN-COMPATIBILITY.md and TRUSTED-RENDERER-PLUGIN-TESTS.md.",
       "evidence": []
     },
     {
@@ -1004,6 +1004,81 @@
         {
           "file": "tests/compatibility.test.ts",
           "test": "pins unique documented symbols and references"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-renderer-opt-in",
+      "section": "Bounded acceptance checks",
+      "title": "Explicit renderer mode and canceled trust prompt",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Explicit renderer mode and canceled trust prompt",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/renderer.spec.ts",
+          "test": "trusted renderer requires explicit mode and cancellable permission"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-renderer-settings",
+      "section": "Bounded acceptance checks",
+      "title": "Real renderer settings controls and Modal focus/close",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Real renderer settings controls and Modal focus/close",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/renderer.spec.ts",
+          "test": "renderer settings controls persist and modal traps focus and closes"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-renderer-cm",
+      "section": "Bounded acceptance checks",
+      "title": "Host CodeMirror extensions, replacement, view and unload",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Host CodeMirror extensions, replacement, view and unload",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/renderer.spec.ts",
+          "test": "renderer CodeMirror extensions update real editor and unload all UI"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-renderer-failure",
+      "section": "Bounded acceptance checks",
+      "title": "Startup failure removes allocated plugin UI",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Startup failure removes allocated plugin UI",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/renderer.spec.ts",
+          "test": "trusted renderer failure cleans up:"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-reading-time",
+      "section": "Bounded acceptance checks",
+      "title": "Pinned Reading Time bounded workflows on Linux trusted renderer",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Pinned Reading Time bounded workflows on Linux trusted renderer",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/renderer-corpus.spec.ts",
+          "test": "BOUNDED_WORKFLOWS_PASS"
         }
       ]
     },
