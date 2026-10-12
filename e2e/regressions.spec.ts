@@ -17,7 +17,8 @@ test('embedded task controls cannot acquire host task source ownership',async({p
   for(const name of ['Second','Quoted','Ordered'])await page.getByRole('checkbox',{name,exact:true}).check();
   await expect(page.getByRole('checkbox',{name:'First',exact:true})).not.toBeChecked();
   await page.getByTestId('mode-source').click();
-  await expect(page.getByTestId('note-editor')).toContainText(source.replace('- [ ] Second','- [x] Second').replace('- [ ] Quoted','- [x] Quoted').replace('1. [ ] Ordered','1. [x] Ordered'));
+  const expected=source.replace('- [ ] Second','- [x] Second').replace('- [ ] Quoted','- [x] Quoted').replace('1. [ ] Ordered','1. [x] Ordered');
+  await expect.poll(async()=>(await page.getByTestId('note-editor').locator('.cm-line').allTextContents()).join('\n')).toBe(expected);
 });
 test('new files use create-only storage when listing misses a case-insensitive collision',async({page})=>{
   await page.addInitScript(()=>{
