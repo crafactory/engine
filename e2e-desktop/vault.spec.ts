@@ -83,6 +83,7 @@ test('native live table and task edits persist exact Markdown without the custom
   await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('| One | Saved \\| native |');
   const content=await fs.readFile(path.join(root,'Persist.md'),'utf8');expect(content).toContain('- [x] Verify native save');expect(content).toContain('aliases: [Original]');
 });
+/** Install an original compatibility fixture into the temporary native vault. */
 async function installCompat(code?:string,id='compat-fixture',name='Compatibility fixture'){
   const dir=path.join(root,'.crafactory/plugins',id);await fs.mkdir(dir,{recursive:true});
   await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id,name,version:'1.0.0'}));
@@ -91,6 +92,7 @@ async function installCompat(code?:string,id='compat-fixture',name='Compatibilit
   await page.getByRole('switch',{name:'Enable '+name,exact:true}).click();await page.getByTestId('dialog-submit').click();
   return page.getByRole('switch',{name:'Enable '+name,exact:true});
 }
+/** Invoke a compatibility-fixture command through the visible palette. */
 async function pluginCommand(name:string){
   await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill(name);await page.keyboard.press('Enter');
 }

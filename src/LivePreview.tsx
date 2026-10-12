@@ -65,6 +65,7 @@ class BlockWidget extends WidgetType {
   renderBody(host:HTMLElement,view:EditorView){
     const root=roots.get(host);if(!root)return;
     const base=this.block.content;
+    /** Persist only a still-owned block revision and keep its pre-edit viewport anchor. */
     const onChange=(content:string)=>{
       const owner=blockOwners.get(host);
       if(owner?.block.content===base&&owner.current(view)){
@@ -84,6 +85,7 @@ class BlockWidget extends WidgetType {
     host.dataset.liveBlock=this.block.kind;host.contentEditable='false';
     const edit=document.createElement('button');edit.className='live-edit-source';edit.textContent='Edit source';
     edit.setAttribute('aria-label','Edit '+this.block.kind+' source');
+    /** Reveal the current source range rather than coordinates captured by an older widget. */
     const reveal=()=>{const owner=blockOwners.get(host);if(owner?.current(view)){view.dispatch({selection:{anchor:owner.block.from},scrollIntoView:true});view.focus();}};
     edit.onclick=reveal;host.append(edit);
     const body=document.createElement('div');body.className='live-block-body';host.append(body);

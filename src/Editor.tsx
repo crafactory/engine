@@ -22,6 +22,7 @@ const engineHighlight=HighlightStyle.define([
   {tag:[syntaxTags.contentSeparator,syntaxTags.processingInstruction],color:'var(--faint)'},
   {tag:syntaxTags.strikethrough,textDecoration:'line-through'}
 ]);
+/** Wrap the current selection and retain its selected inner text for continued editing. */
 function wrap(view:EditorView,marker:string) {
   const range=view.state.selection.main;
   const selected=view.state.sliceDoc(range.from,range.to);
@@ -90,6 +91,7 @@ function Editor({note,notes,settings,pluginExtensions=[],onChange,onOpen,onComma
         EditorView.contentAttributes.of({spellcheck:String(settings.spellcheck),'aria-label':'Note editor','data-testid':'note-editor'}),
         EditorView.updateListener.of(update=>{if(update.docChanged&&!external.current)callbacks.current.onChange(prefix.current+update.state.doc.toString());}),
         EditorView.domEventHandlers({
+          /** Follow modifier-clicked supported links without intercepting ordinary source editing. */
           click(event,v){
             if(!(event.ctrlKey||event.metaKey))return false;
             const pos=v.posAtCoords({x:event.clientX,y:event.clientY});if(pos===null)return false;

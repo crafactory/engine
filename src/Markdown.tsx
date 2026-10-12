@@ -179,6 +179,7 @@ export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProce
     load();
     return()=>{disposed=true;void processorSession?.close();queueMicrotask(()=>canvasRoots.forEach(root=>root.unmount()));};
   },[content,notes,path,depth,pluginProcessing,renderKey]);
+  /** Route note links and persist task toggles without changing fenced code examples. */
   function click(e:React.MouseEvent) {
     const target=e.target as HTMLElement;
     const link=target.closest<HTMLElement>('[data-note]');

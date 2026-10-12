@@ -192,7 +192,7 @@ export function App(){
       const path=value.match(/\.(md|canvas|base|txt|csv|json)$/i)?value:value+'.md';
       if(!validPath(path))throw new Error('Use a relative path without hidden folders or parent segments.');
       if(entries.some(e=>e.path===path)){open(path);return;}
-      const result=await bridge.write(path,content ?? (isNote(path)?`# ${title(path)}\n\n`:''));
+      const result=await bridge.create(path,content ?? (isNote(path)?`# ${title(path)}\n\n`:''));
       versions.current.set(path,result.version);savedContent.current.set(path,result.content);
       updateNotes([...notesRef.current.filter(n=>n.path!==path),result]);setEntries(await bridge.list());open(path);
       setMode(isNote(path)?settings.mode:'reading');

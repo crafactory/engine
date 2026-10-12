@@ -1,4 +1,32 @@
 import {test,expect,type Page} from '@playwright/test';
+test('new files use create-only storage when listing misses a case-insensitive collision',async({page})=>{
+  await page.addInitScript(()=>{
+    const files=new Map([['Welcome.md','# Welcome'],['Board.canvas','{"nodes":[],"edges":[],"original":true}']]);
+    const audit={creates:[] as string[],writes:[] as string[]};
+    const entries=()=>[{path:'Welcome.md',name:'Welcome.md',folder:false,size:9,mtime:1,ctime:1}];
+    /** Return a fixture note without permitting writes to the existing Canvas. */
+    const read=async(path:string)=>({path,content:files.get(path)!,version:files.get(path)});
+    (window as any).createAudit=audit;
+    (window as any).fixtureContent=()=>files.get('Board.canvas');
+    (window as any).engine={
+      desktop:false,vault:async()=>({name:'Create fixture',root:'fixture',entries:entries(),state:{}}),
+      list:async()=>entries(),read,plugins:async()=>[],state:async()=>{},onChange:()=>()=>{},
+      /** Simulate atomic refusal on a case-insensitive filesystem despite a stale directory listing. */
+      create:async(path:string,content:string)=>{
+        audit.creates.push(path);
+        if([...files.keys()].some(key=>key.toLowerCase()===path.toLowerCase()))throw new Error('File already exists');
+        files.set(path,content);return read(path);
+      },
+      /** Record an incorrect overwrite attempt so the regression fails against the old caller. */
+      write:async(path:string,content:string)=>{audit.writes.push(path);files.set('Board.canvas',content);return read(path);}
+    };
+  });
+  await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
+  await command(page,'Create new canvas');await page.getByTestId('dialog-input').fill('board.CANVAS');
+  await page.getByTestId('dialog-submit').click();await expect(page.getByRole('alert')).toContainText('File already exists');
+  expect(await page.evaluate(()=>(window as any).createAudit)).toEqual({creates:['board.CANVAS'],writes:[]});
+  expect(await page.evaluate(()=>(window as any).fixtureContent())).toBe('{"nodes":[],"edges":[],"original":true}');
+});
 /** Create original regression data through the application's real editor. */
 async function host(page:Page,content:string){
   await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
@@ -22,6 +50,7 @@ test('Canvas embeds render read-only nodes and edges in reading and Live modes',
     await expect(embed.locator('.canvas-edit')).toHaveCount(0);
     await expect(embed.getByTestId('canvas-add-text')).toHaveCount(0);
     await expect(embed).toBeVisible();
+    expect(await embed.locator('.canvas-colored').first().evaluate(el=>getComputedStyle(el).color)).toBe('rgb(255, 255, 255)');
     await page.setViewportSize({width:375,height:940});
     if(await page.getByRole('button',{name:'Collapse sidebar',exact:true}).isVisible())await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
     await expect.poll(async()=>embed.evaluate(el=>{
@@ -123,16 +152,18 @@ test('plugin status occupies reserved space instead of overlaying workspace',asy
   await page.getByRole('button',{name:'Explore local graph',exact:true}).click();await expect(page.getByTestId('graph')).toBeVisible();
 });
 test('empty and malformed Canvas embeds remain bounded and never expose JSON as Markdown',async({page})=>{
-  for(const [name,content] of [['Empty.canvas','{"nodes":[],"edges":[]}'],['Invalid.canvas','not valid JSON']]){
+  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  for(const [name,content] of [['Empty.canvas','{"nodes":[],"edges":[]}'],['Empty omitted.canvas','{}'],['Invalid.canvas','not valid JSON'],['Invalid edges.canvas','{"nodes":[],"edges":[null]}'],['Invalid text.canvas',JSON.stringify({nodes:[{id:'a',type:'text',x:0,y:0,width:200,height:120,text:{invalid:true}}]})]]){
     await page.goto('/');await page.locator('input[aria-label="Import files"]').setInputFiles({name,mimeType:'application/json',buffer:Buffer.from(content)});
     await expect(page.getByTestId('file-'+name)).toBeVisible();
     await page.getByRole('button',{name:'New note',exact:true}).click();await page.getByTestId('dialog-input').fill('Host '+name+'.md');await page.getByTestId('dialog-submit').click();
     await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+a');await page.keyboard.insertText(`# Host\n\n![[${name}]]`);
     await page.getByTestId('mode-reading').click();
-    if(name==='Empty.canvas'){const embed=page.getByRole('region',{name:'Embedded Canvas',exact:true});await expect(embed).toBeVisible();await expect(embed.locator('.react-flow__node')).toHaveCount(0);}
+    if(name.startsWith('Empty')){const embed=page.getByRole('region',{name:'Embedded Canvas',exact:true});await expect(embed).toBeVisible();await expect(embed.locator('.react-flow__node')).toHaveCount(0);}
     else await expect(page.locator('.embedded-note')).toContainText('Invalid Canvas file');
     await expect(page.locator('.embedded-note pre')).toHaveCount(0);
   }
+  expect(errors).toEqual([]);
 });
 test('active Live link source remains editable and safe external links are anchors',async({page})=>{
   await host(page,'# Links\n\n[[Welcome|Alias]] and [Website](https://example.com)\n\n`[[Not a link]]` [Unsafe](javascript:bad)\n\nEnd');

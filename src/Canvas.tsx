@@ -4,15 +4,17 @@ import {Plus,FileText,Link,Group,ArrowRight,X} from 'lucide-react';
 import {renderMarkdown} from './Markdown';
 import {title} from './knowledge';
 import type {Note} from './types';
+import {canvasForeground,canvasBackground,canvasColors as colors} from './canvas-color';
+import {parseCanvas} from './canvas-model';
 interface CanvasData extends Record<string,unknown> {
   text?:string;file?:string;url?:string;label?:string;color?:string;
   kind:string;onEdit:(id:string)=>void;onOpen:(path:string)=>void;notes:Note[];readOnly?:boolean;
 }
-const colors:Record<string,string>={'1':'#794a4a','2':'#896347','3':'#8e7e4a','4':'#466b58','5':'#456678','6':'#685b7c'};
 /** Display a Canvas node; read-only nodes suppress editing and connection affordances. */
 function Card({id,data,selected}:{id:string;data:CanvasData;selected:boolean}) {
   const file=data.notes.find(n=>n.path===data.file);
-  return <div className={'canvas-card '+(data.kind==='group'?'canvas-group':'')} style={{background:data.color?colors[data.color]||data.color:undefined}}>
+  const background=canvasBackground(data.color);
+  return <div className={'canvas-card '+(background?'canvas-colored ':'')+(data.kind==='group'?'canvas-group':'')} style={{background,color:background?canvasForeground(background):undefined}}>
     <NodeResizer color="#93c5af" isVisible={selected&&!data.readOnly} minWidth={160} minHeight={100}/>
     {[['left',Position.Left],['right',Position.Right],['top',Position.Top],['bottom',Position.Bottom]].map(([side,pos])=><Handle key={String(side)} id={String(side)} type="source" position={pos as Position} isConnectable={!data.readOnly}/> )}
     {[['left',Position.Left],['right',Position.Right],['top',Position.Top],['bottom',Position.Bottom]].map(([side,pos])=><Handle key={'t-'+side} id={'t-'+side} type="target" position={pos as Position} isConnectable={!data.readOnly}/>)}
@@ -40,16 +42,17 @@ function FitEmbed({host,revision}:{host:RefObject<HTMLElement>;revision:string})
 export function Canvas({note,notes,onChange,onOpen,readOnly=false}:{note:Note;notes:Note[];onChange:(value:string)=>void;onOpen:(path:string)=>void;readOnly?:boolean}) {
   const host=useRef<HTMLElement>(null);
   const [editing,setEditing]=useState<string|null>(null),[value,setValue]=useState(''),[color,setColor]=useState('');
-  const parsed=useMemo(()=>{try{const data=JSON.parse(note.content);if(!Array.isArray(data.nodes)||!Array.isArray(data.edges))throw new Error('Canvas needs nodes and edges arrays');if(data.nodes.some((n:any)=>typeof n.id!=='string'||!Number.isFinite(n.x)||!Number.isFinite(n.y)||!Number.isFinite(n.width)||!Number.isFinite(n.height)))throw new Error('Invalid Canvas node geometry or id');return {data,error:''};}catch(e){return {data:{nodes:[],edges:[]},error:String(e)};}},[note.content]);
+  const parsed=useMemo(()=>parseCanvas(note.content),[note.content]);
   const [nodes,setNodes]=useState<Node<CanvasData>[]>([]),[edges,setEdges]=useState<Edge[]>([]);
   const parsedRef=useRef(parsed);parsedRef.current=parsed;
+  /** Admit card editing only in the standalone view and read the newest parsed source. */
   const edit=useCallback((id:string)=>{if(readOnly)return;const node=parsedRef.current.data.nodes.find((n:any)=>n.id===id);if(node){setEditing(id);setValue(node.text||node.file||node.url||node.label||'');setColor(node.color||'');}},[readOnly]);
   useEffect(()=>{
     setNodes(parsed.data.nodes.map((node:any)=>({
       id:node.id,type:'card',position:{x:node.x,y:node.y},style:{width:node.width,height:node.height},
       zIndex:node.type==='group'?-1:0,data:{...node,kind:node.type,onEdit:edit,onOpen,notes,readOnly}
     })));
-    setEdges(parsed.data.edges.map((edge:any)=>({id:edge.id,source:edge.fromNode,target:edge.toNode,sourceHandle:edge.fromSide||'right',targetHandle:'t-'+(edge.toSide||'left'),label:edge.label,markerEnd:edge.toEnd==='none'?undefined:{type:MarkerType.ArrowClosed},style:{stroke:edge.color?colors[edge.color]||edge.color:'var(--muted)'}})));
+    setEdges(parsed.data.edges.map((edge:any)=>({id:edge.id,source:edge.fromNode,target:edge.toNode,sourceHandle:edge.fromSide||'right',targetHandle:'t-'+(edge.toSide||'left'),label:edge.label,markerEnd:edge.toEnd==='none'?undefined:{type:MarkerType.ArrowClosed},style:{stroke:canvasBackground(edge.color)||'var(--muted)'}})));
   },[parsed,notes,edit,onOpen,readOnly]);
   /** Preserve unknown JSON fields when persisting editable geometry; embeds reject all writes. */
   function save(nextNodes:Node<CanvasData>[],nextEdges:Edge[]) {

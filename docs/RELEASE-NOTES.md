@@ -5,6 +5,8 @@ Independent original MIT implementation. This is a bounded bug-fix increment and
 ## Fixes
 
 - Canvas embeds display actual read-only Canvas nodes and edges in reading and Live modes instead of rendering JSON as Markdown.
+- Canvas rendering rejects malformed node/edge fields without crashing the note; empty optional arrays remain valid. Palette/hex colors use contrasting text in both themes. This is not complete JSON Canvas behavior certification.
+- New-note/Canvas/Base creation uses the create-only storage operation rather than an overwrite-capable write, including when the visible file listing is stale.
 - Renaming an extensionless Canvas name preserves `.canvas`; known file-type changes are rejected rather than silently pretending to convert content. Native regression checks exact JSON bytes and updated Markdown embeds.
 - Live wiki aliases and bounded Markdown links have actual anchor navigation; active source stays editable. Unsafe schemes, escaped links, images and code spans do not become active links.
 - Unchanged live block widgets reuse their measured DOM after source-position changes, with callbacks rebound to current coordinates. Block edits use minimal source changes and CodeMirror scroll snapshots; editing and committing a bottom table cell retains the edited region. Typing in the current note no longer triggers an additional full dependency refresh. CodeMirror selection drawing is explicit; a 100-row table / 120-paragraph regression checks caret visibility.

@@ -1,5 +1,6 @@
 import {test,expect,type Page} from '@playwright/test';
 const fixture='# Live fixtures\n\nLead paragraph with $x^2$ and `code $x$`.\n\n| Name | State |\n| :--- | ---: |\n| Alpha | Open |\n| Beta | Closed |\n\n- [ ] First task\n- [x] Second task\n\n> [!note]- Folded title\n> Hidden callout content.\n\n$$\nx^2 + y^2\n$$\n\n```js\nconst answer = 42;\n```\n\n```mermaid\nflowchart LR\nA-->B\n```\n\n![[Ideas/Small pieces, loosely joined]]\n\nLast paragraph.\n';
+/** Populate a note through the source editor before exercising live-preview controls. */
 async function prepare(page:Page,content=fixture){
   await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
   await page.getByRole('button',{name:'New note',exact:true}).click();await page.getByTestId('dialog-input').fill('Live QA.md');await page.getByTestId('dialog-submit').click();
