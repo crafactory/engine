@@ -49,20 +49,49 @@ export class Vault {
     this.queue = next.catch(() => {});
     return next;
   }
-  async write(relative, content, version) {
-    return this.serialize(async () => {
+  async write(relative, content, version, createOnly = false) {
+    return this.serialize(()=>this.writeUnlocked(relative,content,version,createOnly));
+  }
+  async writeUnlocked(relative, content, version, createOnly = false) {
       if (typeof content !== 'string' || Buffer.byteLength(content) > 32*1024*1024) throw new Error('Invalid or oversized text');
       if (!textExtensions.has(path.extname(relative).toLowerCase())) throw new Error('Unsupported text format');
       const full = await this.safe(relative);
       let previous;
       try {previous = await fs.readFile(full,'utf8');} catch(e) {if (e.code !== 'ENOENT') throw e;}
+      if (createOnly && previous !== undefined) throw new Error('File already exists');
       if (version && (previous === undefined || hash(previous) !== version)) throw new Error('CONFLICT: File changed on disk. Reload or save a separate copy.');
       if (previous !== undefined && previous !== content) await this.snapshot(relative,previous);
       await fs.mkdir(path.dirname(full),{recursive:true});
       const temporary = full + '.engine-' + crypto.randomUUID();
-      try {await fs.writeFile(temporary,content,{flag:'wx'}); await fs.rename(temporary,full);}
+      try {await fs.writeFile(temporary,content,{flag:'wx'}); if(createOnly)await fs.link(temporary,full);else await fs.rename(temporary,full);}
       finally {await fs.rm(temporary,{force:true});}
       return {path:relative,content,version:hash(content)};
+  }
+  async create(relative, content) {return this.write(relative,content,undefined,true);}
+  async append(relative, content) {
+    if(typeof content!=='string')throw new Error('Invalid text');
+    return this.serialize(async()=>{
+      const before=await this.read(relative);
+      return this.writeUnlocked(relative,before.content+content,before.version);
+    });
+  }
+  async pluginData(id, data, write = false) {
+    if(typeof id!=='string'||!/^[a-z0-9-]+$/.test(id))throw new Error('Invalid plugin id');
+    const relative=`.crafactory/plugins/${id}/data.json`;
+    const full=await this.safe(relative,true);
+    // Even an in-vault symlink must not cross another plugin's data namespace.
+    for(const part of ['.crafactory','.crafactory/plugins',`.crafactory/plugins/${id}`,relative]){
+      try{if((await fs.lstat(path.join(this.root,part))).isSymbolicLink())throw new Error('Plugin data symlink forbidden');}
+      catch(e){if(e.code!=='ENOENT')throw e;}
+    }
+    if(!write){try{return JSON.parse(await fs.readFile(full,'utf8'));}catch(e){if(e.code==='ENOENT')return null;throw e;}}
+    const json=JSON.stringify(data);
+    if(json===undefined||Buffer.byteLength(json)>1024*1024)throw new Error('Invalid or oversized plugin data');
+    return this.serialize(async()=>{
+      await fs.mkdir(path.dirname(full),{recursive:true});
+      const temporary=full+'.engine-'+crypto.randomUUID();
+      try{await fs.writeFile(temporary,json,{flag:'wx'});await fs.rename(temporary,full);}
+      finally{await fs.rm(temporary,{force:true});}
     });
   }
   async mkdir(relative) {await fs.mkdir(await this.safe(relative),{recursive:true});}

@@ -7,6 +7,37 @@ let root,vault,outside;
 beforeEach(async()=>{root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-vault-'));outside=await fs.mkdtemp(path.join(os.tmpdir(),'engine-outside-'));vault=await new Vault(root).init();});
 afterEach(async()=>{await fs.rm(root,{recursive:true,force:true});await fs.rm(outside,{recursive:true,force:true});});
 describe('local vault storage',()=>{
+  it('plugin create never overwrites existing content, including competing creates',async()=>{
+    const results=await Promise.allSettled([vault.create('Create.md','first'),vault.create('Create.md','second')]);
+    expect(results.filter(r=>r.status==='fulfilled')).toHaveLength(1);expect((await vault.read('Create.md')).content).toBe('first');
+    await expect(vault.create('Create.md','overwrite')).rejects.toThrow('exists');
+  });
+  it('plugin append serializes concurrent updates and rejects missing files',async()=>{
+    await vault.create('Append.md','start');await Promise.all([vault.append('Append.md',' A'),vault.append('Append.md',' B')]);
+    expect((await vault.read('Append.md')).content).toBe('start A B');await expect(vault.append('Missing.md','x')).rejects.toThrow();
+  });
+  it('plugin data is persisted as JSON and isolated by id',async()=>{
+    expect(await vault.pluginData('alpha')).toBeNull();await vault.pluginData('alpha',{a:1},true);await vault.pluginData('beta',{b:2},true);
+    expect(await vault.pluginData('alpha')).toEqual({a:1});expect(await vault.pluginData('beta')).toEqual({b:2});
+    expect((await vault.list()).some(e=>e.path.includes('data.json'))).toBe(false);
+  });
+  it('plugin data rejects traversal, non-JSON values and oversized payloads',async()=>{
+    for(const id of ['../beta','Alpha','a/b','',null])await expect(vault.pluginData(id,{},true)).rejects.toThrow('id');
+    await expect(vault.pluginData('alpha',undefined,true)).rejects.toThrow('Invalid');
+    await expect(vault.pluginData('alpha','x'.repeat(1024*1024),true)).rejects.toThrow('oversized');
+  });
+  it('plugin data rejects in-vault cross-plugin symlinks',async()=>{
+    await vault.pluginData('beta',{secret:1},true);
+    await fs.symlink(path.join(root,'.crafactory/plugins/beta'),path.join(root,'.crafactory/plugins/alpha'));
+    await expect(vault.pluginData('alpha')).rejects.toThrow('symlink');
+    await expect(vault.pluginData('alpha',{bad:1},true)).rejects.toThrow('symlink');
+    expect(await vault.pluginData('beta')).toEqual({secret:1});
+  });
+  it('plugin data refuses a data-file symlink to another namespace',async()=>{
+    await vault.pluginData('beta',{secret:1},true);await fs.mkdir(path.join(root,'.crafactory/plugins/alpha'));
+    await fs.symlink(path.join(root,'.crafactory/plugins/beta/data.json'),path.join(root,'.crafactory/plugins/alpha/data.json'));
+    await expect(vault.pluginData('alpha')).rejects.toThrow('symlink');
+  });
   it('preserves Unicode filenames and note content',async()=>{const name='想法/你好世界.md';await vault.write(name,'# 你好世界\n\n中文内容。');expect((await vault.read(name)).content).toBe('# 你好世界\n\n中文内容。');expect((await vault.list()).some(e=>e.path===name)).toBe(true);});
   it('creates and reads plain Markdown with fingerprints',async()=>{const n=await vault.write('Ideas/Hello.md','# Hello');expect(n.version).toHaveLength(64);expect(await fs.readFile(path.join(root,'Ideas/Hello.md'),'utf8')).toBe('# Hello');expect(await vault.read('Ideas/Hello.md')).toEqual(n);});
   it('lists folders and attachments while hiding metadata',async()=>{await vault.write('One.md','one');await vault.mkdir('Empty');expect((await vault.list()).map(e=>e.path)).toEqual(['Empty','One.md']);});

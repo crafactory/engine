@@ -15,7 +15,8 @@ import {Settings} from './Settings';
 import {Palette,type Choice} from './Palette';
 import {Slides} from './Slides';
 import {useDialog} from './Dialog';
-import {startPlugin,type PluginCommand} from './plugins';
+import {startPlugin,type PluginCommand,type PluginController} from './plugins';
+import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
@@ -55,7 +56,19 @@ export function App(){
   const savedContent=useRef(new Map<string,string>()),versions=useRef(new Map<string,string|undefined>());
   const history=useRef<string[]>([]),historyIndex=useRef(-1),recorder=useRef<MediaRecorder|null>(null),stream=useRef<MediaStream|null>(null);
   const importInput=useRef<HTMLInputElement>(null),attachmentInput=useRef<HTMLInputElement>(null);
-  const pluginStops=useRef(new Map<string,()=>void>()),loaded=useRef(false),vaultGeneration=useRef(0);
+  const pluginStops=useRef(new Map<string,PluginController>()),loaded=useRef(false),vaultGeneration=useRef(0);
+  const pluginStarting=useRef(new Set<string>()),pluginRequests=useRef(new Set<Promise<unknown>>());
+  const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
+  function pluginSnapshot():PluginSnapshot{
+    const s=pluginState.current;
+    return {name:s.vaultName,entries:s.entries,notes:notesRef.current,active:s.active,
+      editor:s.mode!=='reading'&&isNote(s.active)&&editor.current?.path()===s.active?editor.current.snapshot():null};
+  }
+  async function stopPlugins(){
+    await Promise.all([...pluginStops.current.values()].map(controller=>controller.stop()));
+    await Promise.allSettled([...pluginRequests.current]);
+    pluginStops.current.clear();setEnabledPlugins([]);setPluginCommands([]);
+  }
   const dialog=useDialog();
   settingsRef.current=settings;
   const enabled=(id:string)=>!settings.disabledPlugins.includes(id);
@@ -81,7 +94,8 @@ export function App(){
       loaded.current=true;setPluginList(await bridge.plugins());
     }catch(e){report(e);}finally{setLoading(false);}
   }
-  useEffect(()=>{initialize();return()=>{for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const stop of pluginStops.current.values())stop();};},[]);
+  useEffect(()=>{initialize();return()=>{for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();};},[]);
+  useEffect(()=>{for(const controller of pluginStops.current.values())controller.sync(pluginSnapshot());},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
     const timer=setTimeout(()=>{bridge.state({settings,bookmarks,workspaces,recent}).catch(report);},700);
@@ -135,7 +149,7 @@ export function App(){
     await Promise.all(notesRef.current.filter(n=>savedContent.current.get(n.path)!==n.content).map(n=>persist(n.path)));
   }
   const closeHandler=useRef<()=>void>(()=>{});
-  closeHandler.current=()=>{flush().then(()=>bridge.state({settings,bookmarks,workspaces,recent})).then(()=>bridge.closeReady?.()).catch(report);};
+  closeHandler.current=()=>{stopPlugins().then(flush).then(()=>bridge.state({settings,bookmarks,workspaces,recent})).then(()=>bridge.closeReady?.()).catch(report);};
   useEffect(()=>bridge.onBeforeClose?.(()=>closeHandler.current()),[]);
   useEffect(()=>{
     const unload=(event:BeforeUnloadEvent)=>{if(notesRef.current.some(n=>savedContent.current.get(n.path)!==n.content)){event.preventDefault();event.returnValue='There are unsaved changes.';}};
@@ -209,7 +223,7 @@ export function App(){
     try{await flush();await bridge.trash(path);const removed=(p:string)=>p===path||p.startsWith(path+'/');updateNotes(notesRef.current.filter(n=>!removed(n.path)));setEntries(await bridge.list());setTabs(t=>t.filter(p=>!removed(p)));if(removed(active))setActive('');setBookmarks(b=>b.filter(p=>!removed(p)));toast('Moved to trash.');}catch(e){report(e);}
   }
   async function chooseVault(create=false){
-    try{await flush();await bridge.state({settings,bookmarks,workspaces,recent});if(await bridge.choose(create)){for(const stop of pluginStops.current.values())stop();pluginStops.current.clear();setEnabledPlugins([]);setPluginCommands([]);await initialize();}}catch(e){report(e);}
+    try{await stopPlugins();await flush();await bridge.state({settings,bookmarks,workspaces,recent});if(await bridge.choose(create))await initialize();}catch(e){report(e);}
   }
   async function dailyNote(){
     const date=applyTemplate('{{date}}',''),path=`${settings.dailyFolder}/${date}.md`;
@@ -307,13 +321,52 @@ export function App(){
     if(!url)return;try{const parsed=new URL(url);if(parsed.protocol!=='https:')throw new Error('Use an HTTPS URL');open('web:'+url);}catch(e){report(e);}
   }
   async function togglePlugin(id:string){
+    if(pluginStarting.current.has(id))return;
     if(enabledPlugins.includes(id)){
-      pluginStops.current.get(id)?.();pluginStops.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));setPluginCommands(c=>c.filter(p=>p.plugin!==id));return;
+      await pluginStops.current.get(id)?.stop();pluginStops.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));setPluginCommands(c=>c.filter(p=>p.plugin!==id));return;
     }
     const plugin=pluginList.find(p=>p.manifest.id===id);if(!plugin)return;
     if(!await dialog.confirm('Enable '+plugin.manifest.name+'?', 'This local plugin can read and modify vault notes when its commands run. Only enable code you trust.'))return;
-    const stop=startPlugin(plugin.manifest,plugin.code,()=>notesRef.current,commands=>setPluginCommands(c=>[...c.filter(p=>p.plugin!==id),...commands]),editNote,toast);
-    pluginStops.current.set(id,stop);setEnabledPlugins(e=>[...e,id]);
+    const generation=vaultGeneration.current;
+    const operation=async(name:string,args:unknown[])=>{
+      if(generation!==vaultGeneration.current)throw new Error('Plugin belongs to a closed vault');
+      if(name==='loadData')return bridge.pluginData(id);
+      if(name==='saveData')return bridge.pluginData(id,args[0],true);
+      if(typeof args[0]!=='string'||!validPath(args[0]))throw new Error('Invalid plugin vault path');
+      const path=args[0];
+      if(name==='read')return (await bridge.read(path)).content;
+      if(name==='open'){if(!notesRef.current.some(n=>n.path===path))throw new Error('File not found');open(path);pluginState.current.active=path;return;}
+      if(name==='editor'){
+        if(path!==pluginState.current.active||pluginState.current.mode==='reading'||editor.current?.path()!==path)throw new Error('Editor no longer active');
+        const [base,text,from,to]=args.slice(1);
+        if(typeof base!=='string'||typeof text!=='string'||!Number.isInteger(from)||!Number.isInteger(to))throw new Error('Invalid editor mutation');
+        if(!editor.current.applyPluginEdit(base,text,from as number,to as number))throw new Error('CONFLICT: Editor changed before plugin edit');
+        return;
+      }
+      if(name==='mkdir'){await bridge.mkdir(path);}
+      else if(['create','modify','append','writeLegacy'].includes(name)){
+        const text=args[1];if(typeof text!=='string'||(name==='writeLegacy'&&!isNote(path)))throw new Error('Invalid plugin text');
+        await flush();
+        const before=notesRef.current.find(n=>n.path===path)?.content;
+        let result:Note;
+        if(name==='create')result=await bridge.create(path,text);
+        else if(name==='append')result=await bridge.append(path,text);
+        else if(name==='modify'){const disk=await bridge.read(path);result=await bridge.write(path,text,disk.version);}
+        else result=await bridge.write(path,text,versions.current.get(path));
+        savedContent.current.set(path,result.content);versions.current.set(path,result.version);
+        const existing=notesRef.current.find(n=>n.path===path);
+        updateNotes(existing?notesRef.current.map(n=>n.path===path&&n.content===before?result:n):[...notesRef.current,result]);
+      }else throw new Error('Unsupported plugin host operation: '+name);
+      const next=await bridge.list();pluginState.current.entries=next;setEntries(next);
+    };
+    pluginStarting.current.add(id);
+    try{
+      const controller=startPlugin(plugin.manifest,plugin.code,pluginSnapshot,commands=>setPluginCommands(c=>[...c.filter(p=>p.plugin!==id),...commands]),
+        (name,args)=>{const request=operation(name,args);pluginRequests.current.add(request);request.then(()=>pluginRequests.current.delete(request),()=>pluginRequests.current.delete(request));return request;},
+        toast,()=>{pluginStops.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));});
+      pluginStops.current.set(id,controller);await controller.ready;
+      if(generation!==vaultGeneration.current)await controller.stop();else setEnabledPlugins(e=>[...e.filter(p=>p!==id),id]);
+    }catch(e){pluginStops.current.delete(id);report(e);}finally{pluginStarting.current.delete(id);}
   }
   function toggleMode(){setMode(m=>m==='reading'?'live':'reading');}
   const commands:Choice[]=[

@@ -1,0 +1,1121 @@
+{
+  "baseline": {
+    "documentation_checked_utc": "2026-10-12",
+    "installed_reference_version": null,
+    "limitation": "Documentation snapshot, not installed-reference behavioral certification. Recheck documentation and add workflows when reference releases change.",
+    "core_source": "https://help.obsidian.md/plugins",
+    "core_plugins": [
+      "Audio recorder",
+      "Backlinks",
+      "Bases",
+      "Bookmarks",
+      "Canvas",
+      "Command palette",
+      "Daily notes",
+      "File explorer",
+      "File recovery",
+      "Format converter",
+      "Graph view",
+      "Note composer",
+      "Outgoing links",
+      "Outline",
+      "Page preview",
+      "Properties view",
+      "Publish",
+      "Quick switcher",
+      "Random note",
+      "Search",
+      "Slash commands",
+      "Slides",
+      "Sync",
+      "Tags",
+      "Templates",
+      "Unique note creator",
+      "Web viewer",
+      "Word count",
+      "Workspaces"
+    ],
+    "excluded_subscription_services": [
+      "Publish",
+      "Sync"
+    ],
+    "free_extensions_in_scope": [
+      "Importer",
+      "Maps",
+      "Web Clipper"
+    ]
+  },
+  "scope": "Parent areas are incomplete; checked boxes are bounded Engine acceptance checkpoints. No overall parity percentage.",
+  "items": [
+    {
+      "id": "AREA-desktop-app",
+      "section": "Workspace and file model",
+      "title": "Desktop app",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Electron desktop shell, local folders, Windows/macOS/Linux build configuration",
+      "remaining": "Windows/macOS runtime verification, signed/notarized installers, automatic updates, multi-window/pop-out parity",
+      "evidence": []
+    },
+    {
+      "id": "AREA-vaults",
+      "section": "Workspace and file model",
+      "title": "Vaults",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Choose/create folder, last vault, plain files, metadata, file watch",
+      "remaining": "Vault switcher catalog, multiple concurrent windows, reference settings migration",
+      "evidence": []
+    },
+    {
+      "id": "AREA-save-safety",
+      "section": "Workspace and file model",
+      "title": "Save safety",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Debounced saves, SHA-256 optimistic conflicts, atomic replacement, queued writes, close-time flush",
+      "remaining": "Power-loss/fsync guarantees, cross-process locking, edge-case external-write races, filesystem permission/ACL preservation",
+      "evidence": []
+    },
+    {
+      "id": "AREA-explorer",
+      "section": "Workspace and file model",
+      "title": "Explorer",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Files/folders, rename/move, drag into folders, sorting, trash",
+      "remaining": "Full context menu parity, bulk selection, attachment renaming in all embed types",
+      "evidence": []
+    },
+    {
+      "id": "AREA-links",
+      "section": "Workspace and file model",
+      "title": "Links",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Wiki/Markdown links, aliases, relative sibling links, headings/block reads, rename update",
+      "remaining": "Canonical shortest-path disambiguation, `../` resolution, escaped destinations, Canvas/Base references during rename, all ambiguous-name cases",
+      "evidence": []
+    },
+    {
+      "id": "AREA-tabs-layout",
+      "section": "Workspace and file model",
+      "title": "Tabs/layout",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Tabs, drag reorder, back/forward, one right split, saved layouts",
+      "remaining": "Arbitrary split tree, stacked tabs, pane pinning/pop-outs, full workspace restoration",
+      "evidence": []
+    },
+    {
+      "id": "AREA-import-export",
+      "section": "Workspace and file model",
+      "title": "Import/export",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Markdown and attachments import; Markdown, HTML, PDF, ZIP exports",
+      "remaining": "Native importers for external products, styled self-contained HTML export, PDF embed parity",
+      "evidence": []
+    },
+    {
+      "id": "AREA-source-editing",
+      "section": "Editing and Markdown",
+      "title": "Source editing",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "CodeMirror 6, Markdown mode, undo/redo, search/replace, selection formatting, spellcheck, line numbers",
+      "remaining": "Vim/Emacs parity, complete editing-shortcut set, table editor, fold/history semantics",
+      "evidence": []
+    },
+    {
+      "id": "AREA-live-preview",
+      "section": "Editing and Markdown",
+      "title": "Live preview",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Inactive-line formatting; top-level tables, code, diagrams, callouts/quotes, math, standalone embeds/rules; source reveal on selection or edit action; table cell edits, undo/redo, task toggles",
+      "remaining": "Full inline/nested grammar, list rendering, table row/column operations, all embeds, exact cursor/selection and reference editing behavior, huge-document performance",
+      "evidence": []
+    },
+    {
+      "id": "AREA-reading",
+      "section": "Editing and Markdown",
+      "title": "Reading",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Markdown-it, tables, tasks, highlights, code, footnotes, comments, callout styling and nested collapsible callouts",
+      "remaining": "HTML-in-note support, complete OFM grammar, syntax highlighting in reading code fences",
+      "evidence": []
+    },
+    {
+      "id": "AREA-math-diagrams",
+      "section": "Editing and Markdown",
+      "title": "Math/diagrams",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "KaTeX inline/display math, Mermaid strict rendering",
+      "remaining": "Full syntax edge cases, editing behavior, complete compatibility/security audit",
+      "evidence": []
+    },
+    {
+      "id": "AREA-embeds",
+      "section": "Editing and Markdown",
+      "title": "Embeds",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Note/heading/block transclusion, image/audio/video attachments, PDF download",
+      "remaining": "Recursive nested embeds, interactive PDFs, image-size wiki syntax, embedded Bases/Canvas, block edit actions",
+      "evidence": []
+    },
+    {
+      "id": "AREA-properties",
+      "section": "Editing and Markdown",
+      "title": "Properties",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Typed YAML editing, add/remove, property search and vault keys",
+      "remaining": "Reference type registry, date/link widgets, drag/reorder, field auto-completion and multi-file bulk edits",
+      "evidence": []
+    },
+    {
+      "id": "AREA-attachments",
+      "section": "Editing and Markdown",
+      "title": "Attachments",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Add/import local assets, image/audio/video display, ZIP inclusion",
+      "remaining": "Large-file streaming, PDF annotation/viewing, drag/paste paths, per-folder attachment rules",
+      "evidence": []
+    },
+    {
+      "id": "CORE-audio-recorder",
+      "section": "Core plugins",
+      "title": "Audio recorder",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "MediaRecorder capture into attachment; device permissions and hardware vary, not hardware-tested",
+      "remaining": "MediaRecorder capture into attachment; device permissions and hardware vary, not hardware-tested",
+      "evidence": []
+    },
+    {
+      "id": "CORE-backlinks",
+      "section": "Core plugins",
+      "title": "Backlinks",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Resolved incoming links and plain-name unlinked mentions; advanced linking/context actions missing",
+      "remaining": "Resolved incoming links and plain-name unlinked mentions; advanced linking/context actions missing",
+      "evidence": []
+    },
+    {
+      "id": "CORE-bases",
+      "section": "Core plugins",
+      "title": "Bases",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "YAML table/cards/list, inline property editing, sort/filter, CSV; full formulas/functions, grouping/summaries/map views missing",
+      "remaining": "YAML table/cards/list, inline property editing, sort/filter, CSV; full formulas/functions, grouping/summaries/map views missing",
+      "evidence": []
+    },
+    {
+      "id": "CORE-bookmarks",
+      "section": "Core plugins",
+      "title": "Bookmarks",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Notes only; headings, saved searches, groups, arbitrary URLs not implemented",
+      "remaining": "Notes only; headings, saved searches, groups, arbitrary URLs not implemented",
+      "evidence": []
+    },
+    {
+      "id": "CORE-canvas",
+      "section": "Core plugins",
+      "title": "Canvas",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Text/file/link/group, position/size, connections, minimap, open JSON; richer groups/edges/media and full interaction parity missing",
+      "remaining": "Text/file/link/group, position/size, connections, minimap, open JSON; richer groups/edges/media and full interaction parity missing",
+      "evidence": []
+    },
+    {
+      "id": "CORE-command-palette",
+      "section": "Core plugins",
+      "title": "Command palette",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Fuzzy search, arrows/Enter, hotkey display; pinned/recent command ranking not implemented",
+      "remaining": "Fuzzy search, arrows/Enter, hotkey display; pinned/recent command ranking not implemented",
+      "evidence": []
+    },
+    {
+      "id": "CORE-daily-notes",
+      "section": "Core plugins",
+      "title": "Daily notes",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Folder and template, local ISO date; full configurable date formats/calendar navigation missing",
+      "remaining": "Folder and template, local ISO date; full configurable date formats/calendar navigation missing",
+      "evidence": []
+    },
+    {
+      "id": "CORE-file-explorer",
+      "section": "Core plugins",
+      "title": "File explorer",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "File/folder operations as above",
+      "remaining": "File/folder operations as above",
+      "evidence": []
+    },
+    {
+      "id": "CORE-file-recovery",
+      "section": "Core plugins",
+      "title": "File recovery",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Up to 100 previous saved versions per text path; reference scheduling/retention behavior differs",
+      "remaining": "Up to 100 previous saved versions per text path; reference scheduling/retention behavior differs",
+      "evidence": []
+    },
+    {
+      "id": "CORE-format-converter",
+      "section": "Core plugins",
+      "title": "Format converter",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Basic HTML highlight and Markdown-link conversion; not a comprehensive importer/converter",
+      "remaining": "Basic HTML highlight and Markdown-link conversion; not a comprehensive importer/converter",
+      "evidence": []
+    },
+    {
+      "id": "CORE-graph-view",
+      "section": "Core plugins",
+      "title": "Graph view",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "D3 local/global graph, query filter, orphans, unresolved links, zoom/drag/depth/distance; reference groups/layout controls differ",
+      "remaining": "D3 local/global graph, query filter, orphans, unresolved links, zoom/drag/depth/distance; reference groups/layout controls differ",
+      "evidence": []
+    },
+    {
+      "id": "CORE-note-composer",
+      "section": "Core plugins",
+      "title": "Note composer",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Extract selected text, merge content, rewrite resolvable links and trash source; metadata/heading conflict resolution missing",
+      "remaining": "Extract selected text, merge content, rewrite resolvable links and trash source; metadata/heading conflict resolution missing",
+      "evidence": []
+    },
+    {
+      "id": "CORE-outgoing-links",
+      "section": "Core plugins",
+      "title": "Outgoing links",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Linked and unresolved targets; advanced context/link actions missing",
+      "remaining": "Linked and unresolved targets; advanced context/link actions missing",
+      "evidence": []
+    },
+    {
+      "id": "CORE-outline",
+      "section": "Core plugins",
+      "title": "Outline",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Heading index and jump; complete folding/drag behavior missing",
+      "remaining": "Heading index and jump; complete folding/drag behavior missing",
+      "evidence": []
+    },
+    {
+      "id": "CORE-page-preview",
+      "section": "Core plugins",
+      "title": "Page preview",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Hover previews in reading; edit-mode modifier behavior and recursive/scroll handling missing",
+      "remaining": "Hover previews in reading; edit-mode modifier behavior and recursive/scroll handling missing",
+      "evidence": []
+    },
+    {
+      "id": "CORE-properties-view",
+      "section": "Core plugins",
+      "title": "Properties view",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Active properties and vault keys; registry/type controls missing",
+      "remaining": "Active properties and vault keys; registry/type controls missing",
+      "evidence": []
+    },
+    {
+      "id": "CORE-publish",
+      "section": "Core plugins",
+      "title": "Publish",
+      "status": "excluded",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Subscription service, no backend included",
+      "remaining": "Subscription service, no backend included",
+      "evidence": []
+    },
+    {
+      "id": "CORE-quick-switcher",
+      "section": "Core plugins",
+      "title": "Quick switcher",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Fuzzy filename/path search, recent order, create-on-no-match; reference ranking/modifier behavior differs",
+      "remaining": "Fuzzy filename/path search, recent order, create-on-no-match; reference ranking/modifier behavior differs",
+      "evidence": []
+    },
+    {
+      "id": "CORE-random-note",
+      "section": "Core plugins",
+      "title": "Random note",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Random indexed Markdown file",
+      "remaining": "Random indexed Markdown file",
+      "evidence": []
+    },
+    {
+      "id": "CORE-search",
+      "section": "Core plugins",
+      "title": "Search",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "AND/OR, grouping, negation, quotes, regex, file/path/tag/content/case/line/block/section/task/property operators; full parser/ranking/UI parity missing",
+      "remaining": "AND/OR, grouping, negation, quotes, regex, file/path/tag/content/case/line/block/section/task/property operators; full parser/ranking/UI parity missing",
+      "evidence": []
+    },
+    {
+      "id": "CORE-slash-commands",
+      "section": "Core plugins",
+      "title": "Slash commands",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "A small list of structural insertions; not every command",
+      "remaining": "A small list of structural insertions; not every command",
+      "evidence": []
+    },
+    {
+      "id": "CORE-slides",
+      "section": "Core plugins",
+      "title": "Slides",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Horizontal-rule separation, arrows, exit/fullscreen; complete presentation grammar/theme controls missing",
+      "remaining": "Horizontal-rule separation, arrows, exit/fullscreen; complete presentation grammar/theme controls missing",
+      "evidence": []
+    },
+    {
+      "id": "CORE-sync",
+      "section": "Core plugins",
+      "title": "Sync",
+      "status": "excluded",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Subscription service, no backend included",
+      "remaining": "Subscription service, no backend included",
+      "evidence": []
+    },
+    {
+      "id": "CORE-tags",
+      "section": "Core plugins",
+      "title": "Tags",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Frontmatter/inline Unicode tags and counts; full hierarchy/collapse UI differs",
+      "remaining": "Frontmatter/inline Unicode tags and counts; full hierarchy/collapse UI differs",
+      "evidence": []
+    },
+    {
+      "id": "CORE-templates",
+      "section": "Core plugins",
+      "title": "Templates",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Title/date/time interpolation and configured folder; token/date-format set narrower",
+      "remaining": "Title/date/time interpolation and configured folder; token/date-format set narrower",
+      "evidence": []
+    },
+    {
+      "id": "CORE-unique-note-creator",
+      "section": "Core plugins",
+      "title": "Unique note creator",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Timestamp filename; format/template configuration missing",
+      "remaining": "Timestamp filename; format/template configuration missing",
+      "evidence": []
+    },
+    {
+      "id": "CORE-web-viewer",
+      "section": "Core plugins",
+      "title": "Web viewer",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "HTTPS iframe and external fallback; sites can block embedding, no browser history/login/clip parity",
+      "remaining": "HTTPS iframe and external fallback; sites can block embedding, no browser history/login/clip parity",
+      "evidence": []
+    },
+    {
+      "id": "CORE-word-count",
+      "section": "Core plugins",
+      "title": "Word count",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Unicode word regex and character count; CJK segmentation and reference counting rules not equal",
+      "remaining": "Unicode word regex and character count; CJK segmentation and reference counting rules not equal",
+      "evidence": []
+    },
+    {
+      "id": "CORE-workspaces",
+      "section": "Core plugins",
+      "title": "Workspaces",
+      "status": "partial",
+      "reference": "https://help.obsidian.md/plugins",
+      "implemented": "Save/restore tabs, active file, sidebars, mode, one split; arbitrary workspace tree missing",
+      "remaining": "Save/restore tabs, active file, sidebars, mode, one split; arbitrary workspace tree missing",
+      "evidence": []
+    },
+    {
+      "id": "AREA-community-plugin-api",
+      "section": "Extensions, themes, and platform surface",
+      "title": "Community plugin API",
+      "status": "partial",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "Independent Engine API plus experimental CommonJS worker subset for commands, lifecycle, text files, data and single editor selection. Five pinned real plugins tested at startup only, all unsupported; no positive real-plugin workflow certification or full member/overload audit. See PLUGIN-COMPATIBILITY.md and COMMUNITY-PLUGIN-TESTS.md.",
+      "remaining": "Independent Engine API plus experimental CommonJS worker subset for commands, lifecycle, text files, data and single editor selection. Five pinned real plugins tested at startup only, all unsupported; no positive real-plugin workflow certification or full member/overload audit. See PLUGIN-COMPATIBILITY.md and COMMUNITY-PLUGIN-TESTS.md.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-community-catalog",
+      "section": "Extensions, themes, and platform surface",
+      "title": "Community catalog",
+      "status": "missing",
+      "reference": "https://help.obsidian.md",
+      "implemented": "No plugin/theme marketplace, unattended installation, updates or signing; local manual install only",
+      "remaining": "No plugin/theme marketplace, unattended installation, updates or signing; local manual install only",
+      "evidence": []
+    },
+    {
+      "id": "AREA-themes-snippets",
+      "section": "Extensions, themes, and platform surface",
+      "title": "Themes/snippets",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Two original themes, one editable vault CSS snippet; reference themes and CSS-variable API not compatible",
+      "remaining": "Two original themes, one editable vault CSS snippet; reference themes and CSS-variable API not compatible",
+      "evidence": []
+    },
+    {
+      "id": "AREA-hotkeys",
+      "section": "Extensions, themes, and platform surface",
+      "title": "Hotkeys",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Editable application hotkeys; conflicts, editor binding overrides, complete command registration not equal",
+      "remaining": "Editable application hotkeys; conflicts, editor binding overrides, complete command registration not equal",
+      "evidence": []
+    },
+    {
+      "id": "AREA-mobile",
+      "section": "Extensions, themes, and platform surface",
+      "title": "Mobile",
+      "status": "missing",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Responsive preview is not an iOS/Android app and is not counted as mobile parity",
+      "remaining": "Responsive preview is not an iOS/Android app and is not counted as mobile parity",
+      "evidence": []
+    },
+    {
+      "id": "AREA-cli",
+      "section": "Extensions, themes, and platform surface",
+      "title": "CLI",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Original local file CLI; not command-compatible with the reference CLI",
+      "remaining": "Original local file CLI; not command-compatible with the reference CLI",
+      "evidence": []
+    },
+    {
+      "id": "AREA-uri-deep-links",
+      "section": "Extensions, themes, and platform surface",
+      "title": "URI/deep links",
+      "status": "missing",
+      "reference": "https://help.obsidian.md",
+      "implemented": "No `obsidian://` or `crafactory://` open protocol compatibility",
+      "remaining": "No `obsidian://` or `crafactory://` open protocol compatibility",
+      "evidence": []
+    },
+    {
+      "id": "AREA-web-clipper",
+      "section": "Extensions, themes, and platform surface",
+      "title": "Web Clipper",
+      "status": "missing",
+      "reference": "https://help.obsidian.md",
+      "implemented": "No browser extension; reference first-party free extension remains outstanding",
+      "remaining": "No browser extension; reference first-party free extension remains outstanding",
+      "evidence": []
+    },
+    {
+      "id": "AREA-importer-maps",
+      "section": "Extensions, themes, and platform surface",
+      "title": "Importer / Maps",
+      "status": "missing",
+      "reference": "https://help.obsidian.md",
+      "implemented": "No equivalent free first-party import or map extension",
+      "remaining": "No equivalent free first-party import or map extension",
+      "evidence": []
+    },
+    {
+      "id": "AREA-localization",
+      "section": "Extensions, themes, and platform surface",
+      "title": "Localization",
+      "status": "missing",
+      "reference": "https://help.obsidian.md",
+      "implemented": "UI currently English; Chinese note content and filenames supported, not a translated UI",
+      "remaining": "UI currently English; Chinese note content and filenames supported, not a translated UI",
+      "evidence": []
+    },
+    {
+      "id": "AREA-accessibility",
+      "section": "Extensions, themes, and platform surface",
+      "title": "Accessibility",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Semantic controls, names, focus, reduced motion; comprehensive screen-reader/accessibility audit outstanding",
+      "remaining": "Semantic controls, names, focus, reduced motion; comprehensive screen-reader/accessibility audit outstanding",
+      "evidence": []
+    },
+    {
+      "id": "ACCEPT-local-save",
+      "section": "Bounded acceptance checks",
+      "title": "Local save and close-time draft flush",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Local save and close-time draft flush",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/vault.spec.ts",
+          "test": "window close flushes a just-typed draft before exiting"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-external-edit",
+      "section": "Bounded acceptance checks",
+      "title": "Clean editor reloads external edit",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Clean editor reloads external edit",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/vault.spec.ts",
+          "test": "native watcher reloads external edits"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-unicode",
+      "section": "Bounded acceptance checks",
+      "title": "Unicode filename/content round trip",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Unicode filename/content round trip",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/vault.spec.ts",
+          "test": "Unicode filename and content round-trip through native UI and disk"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-conflict",
+      "section": "Bounded acceptance checks",
+      "title": "Stale write preserves external edits",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Stale write preserves external edits",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "tests/vault.test.mjs",
+          "test": "detects external changes without overwriting them"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-traversal",
+      "section": "Bounded acceptance checks",
+      "title": "Reject hidden, absolute and parent paths",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Reject hidden, absolute and parent paths",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "tests/vault.test.mjs",
+          "test": "rejects parent traversal, hidden paths, absolute paths, and NUL bytes"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-recovery",
+      "section": "Bounded acceptance checks",
+      "title": "Recover previous saved content",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Recover previous saved content",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "tests/vault.test.mjs",
+          "test": "snapshots previous content and restores safely"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-header",
+      "section": "Bounded acceptance checks",
+      "title": "No custom app/Vault top header",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "No custom app/Vault top header",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/live-preview.spec.ts",
+          "test": "removed header gives the workspace full top edge and keeps vault switching"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-live-blocks",
+      "section": "Bounded acceptance checks",
+      "title": "Inactive top-level live blocks render",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Inactive top-level live blocks render",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/live-preview.spec.ts",
+          "test": "inactive blocks render math, code, diagrams, tables and note embeds"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-table-cells",
+      "section": "Bounded acceptance checks",
+      "title": "Table edit retains delimiters and literal pipes",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Table edit retains delimiters and literal pipes",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/live-preview.spec.ts",
+          "test": "live table edits preserve Markdown delimiters and escaped pipes"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-tasks",
+      "section": "Bounded acceptance checks",
+      "title": "Live task edit retains frontmatter",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Live task edit retains frontmatter",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/live-preview.spec.ts",
+          "test": "live task checkbox edits exactly its task and retains frontmatter"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-callouts",
+      "section": "Bounded acceptance checks",
+      "title": "Independent nested callout folding",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Independent nested callout folding",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/live-preview.spec.ts",
+          "test": "expanded and nested callouts preserve independent folding defaults"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-source-editor",
+      "section": "Bounded acceptance checks",
+      "title": "Undo/redo, formatting and find/replace",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Undo/redo, formatting and find/replace",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/workspace.spec.ts",
+          "test": "undo, redo, formatting and find/replace are actual editor operations"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-search",
+      "section": "Bounded acceptance checks",
+      "title": "Search operators and empty-result UI",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Search operators and empty-result UI",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/workspace.spec.ts",
+          "test": "search supports operators and no-result states"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-graph",
+      "section": "Bounded acceptance checks",
+      "title": "Graph relationships and filter",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Graph relationships and filter",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/workspace.spec.ts",
+          "test": "graph builds actual note relationships and filters"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-canvas",
+      "section": "Bounded acceptance checks",
+      "title": "Canvas card create/edit/persist",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Canvas card create/edit/persist",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/workspace.spec.ts",
+          "test": "Canvas creates, edits and persists a card"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-bases",
+      "section": "Bounded acceptance checks",
+      "title": "Bases filter/property edit",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Bases filter/property edit",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/workspace.spec.ts",
+          "test": "Bases filters and edits YAML-backed properties"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-templates",
+      "section": "Bounded acceptance checks",
+      "title": "Daily note and template content",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Daily note and template content",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/workspace.spec.ts",
+          "test": "daily notes and templates generate real text"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-layout",
+      "section": "Bounded acceptance checks",
+      "title": "Save/restore one-split layout",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Save/restore one-split layout",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/workspace.spec.ts",
+          "test": "save and restore workspace and split editor"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-legacy-plugin",
+      "section": "Bounded acceptance checks",
+      "title": "Legacy Engine Worker command",
+      "status": "verified-subset",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "Legacy Engine Worker command",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/vault.spec.ts",
+          "test": "opt-in local plugin runs its independent Worker command"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-commonjs",
+      "section": "Bounded acceptance checks",
+      "title": "CommonJS text writes and unload data persistence",
+      "status": "verified-subset",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "CommonJS text writes and unload data persistence",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/vault.spec.ts",
+          "test": "CommonJS plugin loads through the packaged worker and persists text/data on unload"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-plugin-editor",
+      "section": "Bounded acceptance checks",
+      "title": "Plugin replaces real editor selection",
+      "status": "verified-subset",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "Plugin replaces real editor selection",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/vault.spec.ts",
+          "test": "CommonJS editor callback replaces the actual source selection and saves"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-plugin-data",
+      "section": "Bounded acceptance checks",
+      "title": "Plugin data namespace isolation",
+      "status": "verified-subset",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "Plugin data namespace isolation",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "tests/vault.test.mjs",
+          "test": "plugin data is persisted as JSON and isolated by id"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-plugin-data-symlink",
+      "section": "Bounded acceptance checks",
+      "title": "Reject cross-plugin data symlinks",
+      "status": "verified-subset",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "Reject cross-plugin data symlinks",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "tests/vault.test.mjs",
+          "test": "plugin data rejects in-vault cross-plugin symlinks"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-create-only",
+      "section": "Bounded acceptance checks",
+      "title": "Plugin create refuses overwrite",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Plugin create refuses overwrite",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "tests/vault.test.mjs",
+          "test": "plugin create never overwrites existing content, including competing creates"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-append",
+      "section": "Bounded acceptance checks",
+      "title": "Serialized in-process appends",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Serialized in-process appends",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "tests/vault.test.mjs",
+          "test": "plugin append serializes concurrent updates and rejects missing files"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-callback-order",
+      "section": "Bounded acceptance checks",
+      "title": "editorCheckCallback precedence",
+      "status": "verified-subset",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "editorCheckCallback precedence",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "tests/compatibility.test.ts",
+          "test": "prefixes commands and prioritizes editorCheckCallback"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-lifecycle",
+      "section": "Bounded acceptance checks",
+      "title": "Awaited lifecycle and unload settings",
+      "status": "verified-subset",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "Awaited lifecycle and unload settings",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "tests/compatibility.test.ts",
+          "test": "saves data on load and unload and awaits lifecycle promises"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-api-index",
+      "section": "Bounded acceptance checks",
+      "title": "Unique documented export inventory",
+      "status": "verified-subset",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "Unique documented export inventory",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "tests/compatibility.test.ts",
+          "test": "pins unique documented symbols and references"
+        }
+      ]
+    },
+    {
+      "id": "GATE-reference",
+      "section": "Unfinished parity gates",
+      "title": "Pin an installed reference version for clean-room black-box comparisons",
+      "status": "missing",
+      "reference": "https://help.obsidian.md",
+      "implemented": "None signed off",
+      "remaining": "Pin an installed reference version for clean-room black-box comparisons",
+      "evidence": []
+    },
+    {
+      "id": "GATE-plugin-corpus",
+      "section": "Unfinished parity gates",
+      "title": "Expand the five-plugin startup corpus into actual functional/platform compatibility and license-reviewed coverage",
+      "status": "missing",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "None signed off",
+      "remaining": "Expand the five-plugin startup corpus into actual functional/platform compatibility and license-reviewed coverage",
+      "evidence": []
+    },
+    {
+      "id": "GATE-settings",
+      "section": "Unfinished parity gates",
+      "title": "Enumerate every setting, default, command and shortcut with fixtures",
+      "status": "missing",
+      "reference": "https://help.obsidian.md",
+      "implemented": "None signed off",
+      "remaining": "Enumerate every setting, default, command and shortcut with fixtures",
+      "evidence": []
+    },
+    {
+      "id": "GATE-platforms",
+      "section": "Unfinished parity gates",
+      "title": "Native Windows/macOS and iOS/Android runtime, installation and upgrade acceptance",
+      "status": "missing",
+      "reference": "https://help.obsidian.md",
+      "implemented": "None signed off",
+      "remaining": "Native Windows/macOS and iOS/Android runtime, installation and upgrade acceptance",
+      "evidence": []
+    },
+    {
+      "id": "GATE-security",
+      "section": "Unfinished parity gates",
+      "title": "Security, dependencies/licenses, accessibility and adversarial plugin audit",
+      "status": "missing",
+      "reference": "https://help.obsidian.md",
+      "implemented": "None signed off",
+      "remaining": "Security, dependencies/licenses, accessibility and adversarial plugin audit",
+      "evidence": []
+    },
+    {
+      "id": "GATE-large-vault",
+      "section": "Unfinished parity gates",
+      "title": "Large vaults/documents, external writers and crash/power-loss acceptance",
+      "status": "missing",
+      "reference": "https://help.obsidian.md",
+      "implemented": "None signed off",
+      "remaining": "Large vaults/documents, external writers and crash/power-loss acceptance",
+      "evidence": []
+    },
+    {
+      "id": "GATE-api-members",
+      "section": "Unfinished parity gates",
+      "title": "Audit every API member, overload and event beyond primary contracts",
+      "status": "missing",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "None signed off",
+      "remaining": "Audit every API member, overload and event beyond primary contracts",
+      "evidence": []
+    },
+    {
+      "id": "GATE-plugin-ui",
+      "section": "Unfinished parity gates",
+      "title": "DOM/settings/Modal/view/render processors and CM integration",
+      "status": "missing",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "None signed off",
+      "remaining": "DOM/settings/Modal/view/render processors and CM integration",
+      "evidence": []
+    },
+    {
+      "id": "GATE-plugin-environment",
+      "section": "Unfinished parity gates",
+      "title": "Node/Electron/network/npm assumptions under an explicit permission policy",
+      "status": "missing",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "None signed off",
+      "remaining": "Node/Electron/network/npm assumptions under an explicit permission policy",
+      "evidence": []
+    },
+    {
+      "id": "GATE-extensions",
+      "section": "Unfinished parity gates",
+      "title": "Free Importer, Maps and Web Clipper equivalents",
+      "status": "missing",
+      "reference": "https://help.obsidian.md",
+      "implemented": "None signed off",
+      "remaining": "Free Importer, Maps and Web Clipper equivalents",
+      "evidence": []
+    },
+    {
+      "id": "GATE-checklist-expansion",
+      "section": "Unfinished parity gates",
+      "title": "Expand every partial parent into exhaustive per-workflow acceptance",
+      "status": "missing",
+      "reference": "https://help.obsidian.md",
+      "implemented": "None signed off",
+      "remaining": "Expand every partial parent into exhaustive per-workflow acceptance",
+      "evidence": []
+    }
+  ]
+}

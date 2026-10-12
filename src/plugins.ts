@@ -1,34 +1,38 @@
-import type {Note,PluginManifest} from './types';
+import workerScript from './plugin-worker.ts?worker&url';
+import type {PluginManifest} from './types';
+import type {PluginSnapshot} from './compat-core';
 export interface PluginCommand {id:string;label:string;run:()=>void;plugin:string}
-/** Opt-in plugins run in Web Workers, never in Electron's main process. */
-export function startPlugin(manifest:PluginManifest,code:string,getNotes:()=>Note[],onCommands:(commands:PluginCommand[])=>void,onEdit:(path:string,content:string)=>void,onNotice:(message:string)=>void) {
-  const bootstrap=`
-    const callbacks=new Map();
-    let sequence=0;
-    self.engine={
-      registerCommand(id,label,callback){callbacks.set(id,callback);postMessage({type:'command',id,label});},
-      notice(message){postMessage({type:'notice',message});},
-      write(path,content){postMessage({type:'write',path,content});},
-      notes:[],
-    };
-    self.onmessage=event=>{
-      if(event.data.type==='notes')engine.notes=event.data.notes;
-      if(event.data.type==='run')Promise.resolve(callbacks.get(event.data.id)?.()).catch(e=>engine.notice(String(e)));
-    };
-  `;
-  const url=URL.createObjectURL(new Blob([bootstrap,'\n',code],{type:'text/javascript'}));
-  const worker=new Worker(url),commands:PluginCommand[]=[];
-  worker.onmessage=({data})=>{
-    if(data.type==='command'&&typeof data.id==='string'&&typeof data.label==='string'){
-      commands.push({id:`plugin:${manifest.id}:${data.id}`,label:data.label,plugin:manifest.id,run:()=>{worker.postMessage({type:'notes',notes:getNotes()});worker.postMessage({type:'run',id:data.id});}});
-      onCommands([...commands]);
-    }
-    if(data.type==='notice'&&typeof data.message==='string')onNotice(data.message);
-    if(data.type==='write'&&typeof data.path==='string'&&typeof data.content==='string'&&data.path.endsWith('.md')){
-      if(!data.path.split('/').some((p:string)=>p.startsWith('.')||p==='..'))onEdit(data.path,data.content);
-    }
+export interface PluginController {ready:Promise<void>;sync(snapshot:PluginSnapshot):void;stop():Promise<void>}
+/** CommonJS is wrapped as original source text, not eval/Function and not a proprietary SDK. */
+export function startPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,onCommands:(commands:PluginCommand[])=>void,
+  operation:(name:string,args:unknown[])=>Promise<unknown>,onNotice:(message:string)=>void,onFailure:()=>void=()=>{}):PluginController {
+  const script=new URL(workerScript,window.location.href).href;
+  const bootstrap=`importScripts(${JSON.stringify(script)});\nself.enginePluginBootstrap(${JSON.stringify({manifest,snapshot:getSnapshot()})},function(require,module,exports){\n${code}\n});\n`;
+  const url=URL.createObjectURL(new Blob([bootstrap],{type:'text/javascript'}));
+  const worker=new Worker(url);
+  let alive=true,ready=false,stopResolve:()=>void=()=>{},rejectReady:(error:Error)=>void=()=>{},resolveReady:()=>void=()=>{};
+  let stopPromise:Promise<void>|undefined;
+  const readyPromise=new Promise<void>((resolve,reject)=>{resolveReady=resolve;rejectReady=reject;});
+  const timer=setTimeout(()=>fail('Plugin startup timed out'),8000);
+  function destroy(){alive=false;clearTimeout(timer);if(!ready)rejectReady(new Error('Plugin stopped before startup completed'));worker.terminate();URL.revokeObjectURL(url);onCommands([]);stopResolve();}
+  function fail(message:string){if(!alive)return;onNotice(manifest.name+': '+message);if(!ready)rejectReady(new Error(message));destroy();onFailure();}
+  worker.onerror=event=>fail(event.message);
+  worker.onmessage=async({data})=>{
+    if(!alive)return;
+    if(data.type==='ready'){ready=true;clearTimeout(timer);resolveReady();}
+    else if(data.type==='failure')fail(String(data.message));
+    else if(data.type==='notice'&&typeof data.message==='string')onNotice(data.message);
+    else if(data.type==='commands'&&Array.isArray(data.commands)){
+      const commands=data.commands.filter((c:any)=>typeof c.id==='string'&&typeof c.name==='string').slice(0,500);
+      onCommands(commands.map((c:any)=>({id:`plugin:${manifest.id}:${c.id}`,label:c.name,plugin:manifest.id,run:()=>{if(alive&&!stopPromise){worker.postMessage({type:'snapshot',snapshot:getSnapshot()});worker.postMessage({type:'run',id:c.id});}}})));
+    }else if(data.type==='request'){
+      try{
+        if(!Number.isInteger(data.id)||typeof data.operation!=='string'||!Array.isArray(data.args))throw new Error('Invalid plugin request');
+        const result=await operation(data.operation,data.args);
+        if(alive)worker.postMessage({type:'response',id:data.id,result,snapshot:getSnapshot()});
+      }catch(error){if(alive)worker.postMessage({type:'response',id:data.id,error:error instanceof Error?error.message:String(error)});}
+    }else if(data.type==='stopped')destroy();
   };
-  worker.onerror=event=>onNotice(`${manifest.name}: ${event.message}`);
-  worker.postMessage({type:'notes',notes:getNotes()});
-  return()=>{worker.terminate();URL.revokeObjectURL(url);};
+  return {ready:readyPromise,sync(snapshot){if(alive&&ready&&!stopPromise)worker.postMessage({type:'snapshot',snapshot});},
+    stop(){if(!alive)return Promise.resolve();return stopPromise??=(new Promise(resolve=>{stopResolve=resolve;worker.postMessage({type:'stop'});setTimeout(()=>{if(alive)destroy();},2000);}));}};
 }

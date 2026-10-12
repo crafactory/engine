@@ -1,0 +1,75 @@
+{
+  "scope": "Linux x64 actual release startup only; no functional compatibility",
+  "results": [
+    {
+      "name": "Dataview",
+      "repo": "blacksmithgu/obsidian-dataview",
+      "tag": "0.5.70",
+      "manifest_version": "0.5.68",
+      "main_sha256": "6bb1cf7010afad830e73575fca0e2bfbd3279c562e3d9d24f2d2f45161eb7d00",
+      "manifest_sha256": "9235db47112da81b85591c79ecb9ae2574e5e72207056e976472f90616286185",
+      "platform": "Linux x64 Electron",
+      "scope": "startup only",
+      "outcome": "UNSUPPORTED_STARTUP",
+      "first_blocker": "Unsupported Obsidian capability: require @codemirror/state. See docs/PLUGIN-COMPATIBILITY.md.",
+      "functional_workflows": "NOT_RUN",
+      "checked_at": "2026-10-12T03:01:58.508Z"
+    },
+    {
+      "name": "Templater",
+      "repo": "SilentVoid13/Templater",
+      "tag": "2.26.0",
+      "manifest_version": "2.26.0",
+      "main_sha256": "0acd45cfdb3a7337e2bef511699bc1f819dc64645ad3480df33579d42d2dcbaa",
+      "manifest_sha256": "91c9fa8510082fffa0b3d022aac4986e3b392295b1126e847ead7ed7289169b8",
+      "platform": "Linux x64 Electron",
+      "scope": "startup only",
+      "outcome": "LOAD_ERROR",
+      "first_blocker": "Class extends value undefined is not a constructor or null",
+      "functional_workflows": "NOT_RUN",
+      "checked_at": "2026-10-12T03:01:59.674Z"
+    },
+    {
+      "name": "Calendar (Beta)",
+      "repo": "liamcain/obsidian-calendar-plugin",
+      "tag": "2.0.0-beta.2",
+      "manifest_version": "2.0.0",
+      "main_sha256": "64d1c6c620803246724bc922c5c2e0a17c406ffc23f6bbcfbfb14c643958fbb7",
+      "manifest_sha256": "314fc17929a2270b17ea392538ee2d93330714800e244b2975b6c19f9b8dc689",
+      "platform": "Linux x64 Electron",
+      "scope": "startup only",
+      "outcome": "UNSUPPORTED_STARTUP",
+      "first_blocker": "Unsupported Obsidian capability: export Modal. See docs/PLUGIN-COMPATIBILITY.md.",
+      "functional_workflows": "NOT_RUN",
+      "checked_at": "2026-10-12T03:02:00.874Z"
+    },
+    {
+      "name": "Advanced Tables",
+      "repo": "tgrosinger/advanced-tables-obsidian",
+      "tag": "0.23.2",
+      "manifest_version": "0.23.2",
+      "main_sha256": "cf5dd4ddbddebef68cc99cd93a883e33895c7f123d04bc5d1106ea6e338ba791",
+      "manifest_sha256": "698b4f77445e07d887f33450eaf533a28e099b7b483f642fa883362ffbd8ffe9",
+      "platform": "Linux x64 Electron",
+      "scope": "startup only",
+      "outcome": "UNSUPPORTED_STARTUP",
+      "first_blocker": "Unsupported Obsidian capability: export Modal. See docs/PLUGIN-COMPATIBILITY.md.",
+      "functional_workflows": "NOT_RUN",
+      "checked_at": "2026-10-12T03:02:02.107Z"
+    },
+    {
+      "name": "Reading Time",
+      "repo": "avr/obsidian-reading-time",
+      "tag": "1.1.2",
+      "manifest_version": "1.1.2",
+      "main_sha256": "8bcde705fc34f9f8601de1ee87cdf6db5bb473b99216887f0123ec3dcdd35576",
+      "manifest_sha256": "a530b33b9c35b9f5b43c32b2216c60401ea7e5af98a07d28d293b1227da34037",
+      "platform": "Linux x64 Electron",
+      "scope": "startup only",
+      "outcome": "UNSUPPORTED_STARTUP",
+      "first_blocker": "Unsupported Obsidian capability: export PluginSettingTab. See docs/PLUGIN-COMPATIBILITY.md.",
+      "functional_workflows": "NOT_RUN",
+      "checked_at": "2026-10-12T03:02:03.158Z"
+    }
+  ]
+}

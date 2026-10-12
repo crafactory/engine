@@ -30,3 +30,9 @@ Inspect and capture 1440×940 desktop and 390×844 narrow layouts. Capture initi
 Ribbon and sidebars cover explorer, search, graph, canvas, daily note, palette, bookmarks, tags, audio, vault switcher, settings, pane visibility, folder expansion, sort, contextual file actions, back/forward, mode controls, outline, backlinks, outgoing links, and properties.
 
 Audio permission/hardware, fullscreen, PDF save dialogs, and embedded third-party page behavior depend on OS/browser capabilities. Test invocation/UI/error handling where possible, but do not infer successful hardware capture or PDF visual fidelity without specific evidence. Graph groups, complete live block rendering, richer Canvas edges/groups, and full Bases grammar are explicit exclusions from signoff, not ignored test cases.
+
+## CommonJS compatibility revision
+
+Claims are bounded to export classification, documented callback precedence, original lifecycle/data/text/editor contracts and explicit unsupported errors. Inventory: enable-confirm-startup, disabled/enabled state, command palette, reading/source editor availability, actual disk create/append, real selection replacement, settings persistence, disable/unload/re-enable and window-close unload. Negative checks cover unsupported DOM/Node/export/CM/Bases startup, existing-file overwrite and traversal. Settings warning must clearly describe the experimental subset and startup privileges.
+
+Visual pass: inspect revised Community plugins warning and empty state in desktop dark/light and 390-pixel narrow view; check dialog fit, legibility and controls. Existing broader browser regression remains applicable. Real community plugins, installed-reference comparisons, full API members and Windows/macOS native execution are explicitly outside signoff.

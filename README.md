@@ -2,7 +2,7 @@
 
 An independent, local-first Markdown knowledge workspace. Crafactory is a combination of Craft and Factory. Engine is the workspace for writing, linking, and arranging knowledge.
 
-Original code is released under the MIT license. No Obsidian application code or branded assets are used. Functional interoperability is the long-term goal, but **version 0.2.0 is not a complete 1:1 replacement**. See [the parity ledger](docs/PARITY.md) before migrating an important vault.
+Original code is released under the MIT license. No Obsidian application code or branded assets are used. Functional interoperability is the long-term goal, but **version 0.3.0 is not a complete 1:1 replacement**. See [the feature checklist](docs/FEATURE-CHECKLIST.md) and [parity ledger](docs/PARITY.md) before migrating an important vault.
 
 中文交付范围、运行方式及未完成项见 [Crafactory Engine 交付说明](docs/Crafactory-Engine-交付说明.md)。该说明明确区分已有实现和完整复刻目标。
 
@@ -91,7 +91,9 @@ The Verify workflow runs unit, browser, and desktop integration tests. The deskt
 
 Copy `examples/plugins/word-tools` into `.crafactory/plugins/word-tools` in a vault. Open Settings → Community plugins and explicitly enable it. Plugins are disabled at every launch until opted in.
 
-This is a deliberately small, new API. It is **not compatible with Obsidian's plugin API**. See [plugin development](docs/PLUGINS.md). Plugin commands receive note contents and may modify notes, so only enable code you trust.
+The original Engine API remains available. An experimental CommonJS Obsidian API subset now supports bounded lifecycle, commands, text files, plugin data and editor selection operations. **This does not establish full community-plugin compatibility.** See [plugin development](docs/PLUGINS.md), [compatibility boundaries](docs/PLUGIN-COMPATIBILITY.md) and [public API coverage](docs/API-COVERAGE.md). Plugins may modify notes during startup as well as commands/unload; only enable trusted code.
+
+The [feature checklist](docs/FEATURE-CHECKLIST.md) includes all 29 documented core plugins, unfinished platform/extension areas and precisely bounded acceptance evidence. Run `npm run inventory:check` to detect drift or `npm run inventory:update` after editing the ledger/acceptance registry. Optional real-plugin startup tests use pinned external artifacts and disposable vaults; see `scripts/corpus.mjs` and the dedicated workflow. Third-party plugin code is not redistributed in this repository or installer.
 
 ## License and provenance
 

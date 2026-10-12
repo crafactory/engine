@@ -10,7 +10,7 @@ import {tags as syntaxTags} from '@lezer/highlight';
 import {isNote,tags,title,frontmatter} from './knowledge';
 import type {Note,Settings} from './types';
 import {livePreview,refreshLivePreview} from './LivePreview';
-export interface EditorHandle {insert(text:string):void;selection():string;replaceSelection(text:string):void;jump(offset:number):void;focus():void;find():void}
+export interface EditorHandle {path():string;insert(text:string):void;selection():string;replaceSelection(text:string):void;jump(offset:number):void;focus():void;find():void;snapshot():{text:string;from:number;to:number};applyPluginEdit(base:string,text:string,from:number,to:number):boolean}
 const engineHighlight=HighlightStyle.define([
   {tag:syntaxTags.heading,fontWeight:'600',color:'var(--text)'},
   {tag:syntaxTags.strong,fontWeight:'600'},
@@ -34,7 +34,20 @@ function Editor({note,notes,settings,onChange,onOpen,onCommand},handle) {
   const prefix=useRef('');prefix.current=hideMeta?meta.raw:'';
   const callbacks=useRef({onChange,onOpen,onCommand,notes});callbacks.current={onChange,onOpen,onCommand,notes};
   const external=useRef(false);
+  const notePath=useRef(note.path);notePath.current=note.path;
+  const hideMetaRef=useRef(hideMeta);hideMetaRef.current=hideMeta;
   useImperativeHandle(handle,()=>({
+    path(){return notePath.current;},
+    snapshot(){const v=view.current!;const r=v.state.selection.main;return {text:prefix.current+v.state.doc.toString(),from:r.anchor+prefix.current.length,to:r.head+prefix.current.length};},
+    applyPluginEdit(base,text,from,to){
+      const v=view.current;if(!v||prefix.current+v.state.doc.toString()!==base)return false;
+      const parsed=frontmatter(text),nextPrefix=hideMetaRef.current&&!parsed.error?parsed.raw:'';
+      if(from<nextPrefix.length||to<nextPrefix.length)throw new Error('Plugin selection inside hidden properties requires source mode');
+      const next=text.slice(nextPrefix.length);prefix.current=nextPrefix;
+      v.dispatch({changes:{from:0,to:v.state.doc.length,insert:next},selection:{anchor:Math.max(0,Math.min(next.length,from-nextPrefix.length)),head:Math.max(0,Math.min(next.length,to-nextPrefix.length))},userEvent:'input'});
+      // A prefix-only change produces no CM document change, but must still persist.
+      callbacks.current.onChange(text);return true;
+    },
     insert(text){const v=view.current!;const r=v.state.selection.main;v.dispatch({changes:{from:r.from,to:r.to,insert:text},selection:{anchor:r.from+text.length}});v.focus();},
     selection(){const v=view.current!;const r=v.state.selection.main;return v.state.sliceDoc(r.from,r.to);},
     replaceSelection(text){const v=view.current!;const r=v.state.selection.main;v.dispatch({changes:{from:r.from,to:r.to,insert:text}});v.focus();},

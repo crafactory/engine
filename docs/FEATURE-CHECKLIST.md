@@ -1,0 +1,306 @@
+# Feature checklist
+
+Documentation baseline: 2026-10-12 UTC. Installed reference version: **not fixed or tested**. This is a traceable starting inventory, not an exhaustive specification or a 1:1 claim.
+
+Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked until all reference workflows pass. Exclusions are only Sync and Publish; free extensions, mobile and plugins remain in scope. Add new cases when workflows are discovered. Test evidence is checked for existence by `npm run inventory:check` and exercised by the normal test suites; the inventory checker itself does not run tests.
+
+## Workspace and file model
+
+- [ ] **AREA-desktop-app Desktop app**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Electron desktop shell, local folders, Windows/macOS/Linux build configuration
+  - Remaining / boundary: Windows/macOS runtime verification, signed/notarized installers, automatic updates, multi-window/pop-out parity
+- [ ] **AREA-vaults Vaults**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Choose/create folder, last vault, plain files, metadata, file watch
+  - Remaining / boundary: Vault switcher catalog, multiple concurrent windows, reference settings migration
+- [ ] **AREA-save-safety Save safety**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Debounced saves, SHA-256 optimistic conflicts, atomic replacement, queued writes, close-time flush
+  - Remaining / boundary: Power-loss/fsync guarantees, cross-process locking, edge-case external-write races, filesystem permission/ACL preservation
+- [ ] **AREA-explorer Explorer**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Files/folders, rename/move, drag into folders, sorting, trash
+  - Remaining / boundary: Full context menu parity, bulk selection, attachment renaming in all embed types
+- [ ] **AREA-links Links**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Wiki/Markdown links, aliases, relative sibling links, headings/block reads, rename update
+  - Remaining / boundary: Canonical shortest-path disambiguation, `../` resolution, escaped destinations, Canvas/Base references during rename, all ambiguous-name cases
+- [ ] **AREA-tabs-layout Tabs/layout**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Tabs, drag reorder, back/forward, one right split, saved layouts
+  - Remaining / boundary: Arbitrary split tree, stacked tabs, pane pinning/pop-outs, full workspace restoration
+- [ ] **AREA-import-export Import/export**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Markdown and attachments import; Markdown, HTML, PDF, ZIP exports
+  - Remaining / boundary: Native importers for external products, styled self-contained HTML export, PDF embed parity
+
+## Editing and Markdown
+
+- [ ] **AREA-source-editing Source editing**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: CodeMirror 6, Markdown mode, undo/redo, search/replace, selection formatting, spellcheck, line numbers
+  - Remaining / boundary: Vim/Emacs parity, complete editing-shortcut set, table editor, fold/history semantics
+- [ ] **AREA-live-preview Live preview**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Inactive-line formatting; top-level tables, code, diagrams, callouts/quotes, math, standalone embeds/rules; source reveal on selection or edit action; table cell edits, undo/redo, task toggles
+  - Remaining / boundary: Full inline/nested grammar, list rendering, table row/column operations, all embeds, exact cursor/selection and reference editing behavior, huge-document performance
+- [ ] **AREA-reading Reading**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Markdown-it, tables, tasks, highlights, code, footnotes, comments, callout styling and nested collapsible callouts
+  - Remaining / boundary: HTML-in-note support, complete OFM grammar, syntax highlighting in reading code fences
+- [ ] **AREA-math-diagrams Math/diagrams**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: KaTeX inline/display math, Mermaid strict rendering
+  - Remaining / boundary: Full syntax edge cases, editing behavior, complete compatibility/security audit
+- [ ] **AREA-embeds Embeds**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Note/heading/block transclusion, image/audio/video attachments, PDF download
+  - Remaining / boundary: Recursive nested embeds, interactive PDFs, image-size wiki syntax, embedded Bases/Canvas, block edit actions
+- [ ] **AREA-properties Properties**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Typed YAML editing, add/remove, property search and vault keys
+  - Remaining / boundary: Reference type registry, date/link widgets, drag/reorder, field auto-completion and multi-file bulk edits
+- [ ] **AREA-attachments Attachments**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Add/import local assets, image/audio/video display, ZIP inclusion
+  - Remaining / boundary: Large-file streaming, PDF annotation/viewing, drag/paste paths, per-folder attachment rules
+
+## Core plugins
+
+- [ ] **CORE-audio-recorder Audio recorder**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: MediaRecorder capture into attachment; device permissions and hardware vary, not hardware-tested
+  - Remaining / boundary: MediaRecorder capture into attachment; device permissions and hardware vary, not hardware-tested
+- [ ] **CORE-backlinks Backlinks**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Resolved incoming links and plain-name unlinked mentions; advanced linking/context actions missing
+  - Remaining / boundary: Resolved incoming links and plain-name unlinked mentions; advanced linking/context actions missing
+- [ ] **CORE-bases Bases**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: YAML table/cards/list, inline property editing, sort/filter, CSV; full formulas/functions, grouping/summaries/map views missing
+  - Remaining / boundary: YAML table/cards/list, inline property editing, sort/filter, CSV; full formulas/functions, grouping/summaries/map views missing
+- [ ] **CORE-bookmarks Bookmarks**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Notes only; headings, saved searches, groups, arbitrary URLs not implemented
+  - Remaining / boundary: Notes only; headings, saved searches, groups, arbitrary URLs not implemented
+- [ ] **CORE-canvas Canvas**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Text/file/link/group, position/size, connections, minimap, open JSON; richer groups/edges/media and full interaction parity missing
+  - Remaining / boundary: Text/file/link/group, position/size, connections, minimap, open JSON; richer groups/edges/media and full interaction parity missing
+- [ ] **CORE-command-palette Command palette**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Fuzzy search, arrows/Enter, hotkey display; pinned/recent command ranking not implemented
+  - Remaining / boundary: Fuzzy search, arrows/Enter, hotkey display; pinned/recent command ranking not implemented
+- [ ] **CORE-daily-notes Daily notes**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Folder and template, local ISO date; full configurable date formats/calendar navigation missing
+  - Remaining / boundary: Folder and template, local ISO date; full configurable date formats/calendar navigation missing
+- [ ] **CORE-file-explorer File explorer**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: File/folder operations as above
+  - Remaining / boundary: File/folder operations as above
+- [ ] **CORE-file-recovery File recovery**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Up to 100 previous saved versions per text path; reference scheduling/retention behavior differs
+  - Remaining / boundary: Up to 100 previous saved versions per text path; reference scheduling/retention behavior differs
+- [ ] **CORE-format-converter Format converter**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Basic HTML highlight and Markdown-link conversion; not a comprehensive importer/converter
+  - Remaining / boundary: Basic HTML highlight and Markdown-link conversion; not a comprehensive importer/converter
+- [ ] **CORE-graph-view Graph view**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: D3 local/global graph, query filter, orphans, unresolved links, zoom/drag/depth/distance; reference groups/layout controls differ
+  - Remaining / boundary: D3 local/global graph, query filter, orphans, unresolved links, zoom/drag/depth/distance; reference groups/layout controls differ
+- [ ] **CORE-note-composer Note composer**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Extract selected text, merge content, rewrite resolvable links and trash source; metadata/heading conflict resolution missing
+  - Remaining / boundary: Extract selected text, merge content, rewrite resolvable links and trash source; metadata/heading conflict resolution missing
+- [ ] **CORE-outgoing-links Outgoing links**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Linked and unresolved targets; advanced context/link actions missing
+  - Remaining / boundary: Linked and unresolved targets; advanced context/link actions missing
+- [ ] **CORE-outline Outline**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Heading index and jump; complete folding/drag behavior missing
+  - Remaining / boundary: Heading index and jump; complete folding/drag behavior missing
+- [ ] **CORE-page-preview Page preview**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Hover previews in reading; edit-mode modifier behavior and recursive/scroll handling missing
+  - Remaining / boundary: Hover previews in reading; edit-mode modifier behavior and recursive/scroll handling missing
+- [ ] **CORE-properties-view Properties view**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Active properties and vault keys; registry/type controls missing
+  - Remaining / boundary: Active properties and vault keys; registry/type controls missing
+- [ ] **CORE-publish Publish**: excluded. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Subscription service, no backend included
+  - Remaining / boundary: Subscription service, no backend included
+- [ ] **CORE-quick-switcher Quick switcher**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Fuzzy filename/path search, recent order, create-on-no-match; reference ranking/modifier behavior differs
+  - Remaining / boundary: Fuzzy filename/path search, recent order, create-on-no-match; reference ranking/modifier behavior differs
+- [ ] **CORE-random-note Random note**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Random indexed Markdown file
+  - Remaining / boundary: Random indexed Markdown file
+- [ ] **CORE-search Search**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: AND/OR, grouping, negation, quotes, regex, file/path/tag/content/case/line/block/section/task/property operators; full parser/ranking/UI parity missing
+  - Remaining / boundary: AND/OR, grouping, negation, quotes, regex, file/path/tag/content/case/line/block/section/task/property operators; full parser/ranking/UI parity missing
+- [ ] **CORE-slash-commands Slash commands**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: A small list of structural insertions; not every command
+  - Remaining / boundary: A small list of structural insertions; not every command
+- [ ] **CORE-slides Slides**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Horizontal-rule separation, arrows, exit/fullscreen; complete presentation grammar/theme controls missing
+  - Remaining / boundary: Horizontal-rule separation, arrows, exit/fullscreen; complete presentation grammar/theme controls missing
+- [ ] **CORE-sync Sync**: excluded. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Subscription service, no backend included
+  - Remaining / boundary: Subscription service, no backend included
+- [ ] **CORE-tags Tags**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Frontmatter/inline Unicode tags and counts; full hierarchy/collapse UI differs
+  - Remaining / boundary: Frontmatter/inline Unicode tags and counts; full hierarchy/collapse UI differs
+- [ ] **CORE-templates Templates**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Title/date/time interpolation and configured folder; token/date-format set narrower
+  - Remaining / boundary: Title/date/time interpolation and configured folder; token/date-format set narrower
+- [ ] **CORE-unique-note-creator Unique note creator**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Timestamp filename; format/template configuration missing
+  - Remaining / boundary: Timestamp filename; format/template configuration missing
+- [ ] **CORE-web-viewer Web viewer**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: HTTPS iframe and external fallback; sites can block embedding, no browser history/login/clip parity
+  - Remaining / boundary: HTTPS iframe and external fallback; sites can block embedding, no browser history/login/clip parity
+- [ ] **CORE-word-count Word count**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Unicode word regex and character count; CJK segmentation and reference counting rules not equal
+  - Remaining / boundary: Unicode word regex and character count; CJK segmentation and reference counting rules not equal
+- [ ] **CORE-workspaces Workspaces**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Save/restore tabs, active file, sidebars, mode, one split; arbitrary workspace tree missing
+  - Remaining / boundary: Save/restore tabs, active file, sidebars, mode, one split; arbitrary workspace tree missing
+
+## Extensions, themes, and platform surface
+
+- [ ] **AREA-community-plugin-api Community plugin API**: partial. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Current scope: Independent Engine API plus experimental CommonJS worker subset for commands, lifecycle, text files, data and single editor selection. Five pinned real plugins tested at startup only, all unsupported; no positive real-plugin workflow certification or full member/overload audit. See PLUGIN-COMPATIBILITY.md and COMMUNITY-PLUGIN-TESTS.md.
+  - Remaining / boundary: Independent Engine API plus experimental CommonJS worker subset for commands, lifecycle, text files, data and single editor selection. Five pinned real plugins tested at startup only, all unsupported; no positive real-plugin workflow certification or full member/overload audit. See PLUGIN-COMPATIBILITY.md and COMMUNITY-PLUGIN-TESTS.md.
+- [ ] **AREA-community-catalog Community catalog**: missing. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: No plugin/theme marketplace, unattended installation, updates or signing; local manual install only
+  - Remaining / boundary: No plugin/theme marketplace, unattended installation, updates or signing; local manual install only
+- [ ] **AREA-themes-snippets Themes/snippets**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Two original themes, one editable vault CSS snippet; reference themes and CSS-variable API not compatible
+  - Remaining / boundary: Two original themes, one editable vault CSS snippet; reference themes and CSS-variable API not compatible
+- [ ] **AREA-hotkeys Hotkeys**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Editable application hotkeys; conflicts, editor binding overrides, complete command registration not equal
+  - Remaining / boundary: Editable application hotkeys; conflicts, editor binding overrides, complete command registration not equal
+- [ ] **AREA-mobile Mobile**: missing. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Responsive preview is not an iOS/Android app and is not counted as mobile parity
+  - Remaining / boundary: Responsive preview is not an iOS/Android app and is not counted as mobile parity
+- [ ] **AREA-cli CLI**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Original local file CLI; not command-compatible with the reference CLI
+  - Remaining / boundary: Original local file CLI; not command-compatible with the reference CLI
+- [ ] **AREA-uri-deep-links URI/deep links**: missing. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: No `obsidian://` or `crafactory://` open protocol compatibility
+  - Remaining / boundary: No `obsidian://` or `crafactory://` open protocol compatibility
+- [ ] **AREA-web-clipper Web Clipper**: missing. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: No browser extension; reference first-party free extension remains outstanding
+  - Remaining / boundary: No browser extension; reference first-party free extension remains outstanding
+- [ ] **AREA-importer-maps Importer / Maps**: missing. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: No equivalent free first-party import or map extension
+  - Remaining / boundary: No equivalent free first-party import or map extension
+- [ ] **AREA-localization Localization**: missing. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: UI currently English; Chinese note content and filenames supported, not a translated UI
+  - Remaining / boundary: UI currently English; Chinese note content and filenames supported, not a translated UI
+- [ ] **AREA-accessibility Accessibility**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Semantic controls, names, focus, reduced motion; comprehensive screen-reader/accessibility audit outstanding
+  - Remaining / boundary: Semantic controls, names, focus, reduced motion; comprehensive screen-reader/accessibility audit outstanding
+
+## Bounded acceptance checks
+
+- [x] **ACCEPT-local-save Local save and close-time draft flush**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Local save and close-time draft flush
+  - Evidence: `e2e-desktop/vault.spec.ts` / `window close flushes a just-typed draft before exiting`.
+- [x] **ACCEPT-external-edit Clean editor reloads external edit**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Clean editor reloads external edit
+  - Evidence: `e2e-desktop/vault.spec.ts` / `native watcher reloads external edits`.
+- [x] **ACCEPT-unicode Unicode filename/content round trip**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Unicode filename/content round trip
+  - Evidence: `e2e-desktop/vault.spec.ts` / `Unicode filename and content round-trip through native UI and disk`.
+- [x] **ACCEPT-conflict Stale write preserves external edits**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Stale write preserves external edits
+  - Evidence: `tests/vault.test.mjs` / `detects external changes without overwriting them`.
+- [x] **ACCEPT-traversal Reject hidden, absolute and parent paths**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Reject hidden, absolute and parent paths
+  - Evidence: `tests/vault.test.mjs` / `rejects parent traversal, hidden paths, absolute paths, and NUL bytes`.
+- [x] **ACCEPT-recovery Recover previous saved content**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Recover previous saved content
+  - Evidence: `tests/vault.test.mjs` / `snapshots previous content and restores safely`.
+- [x] **ACCEPT-header No custom app/Vault top header**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: No custom app/Vault top header
+  - Evidence: `e2e/live-preview.spec.ts` / `removed header gives the workspace full top edge and keeps vault switching`.
+- [x] **ACCEPT-live-blocks Inactive top-level live blocks render**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Inactive top-level live blocks render
+  - Evidence: `e2e/live-preview.spec.ts` / `inactive blocks render math, code, diagrams, tables and note embeds`.
+- [x] **ACCEPT-table-cells Table edit retains delimiters and literal pipes**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Table edit retains delimiters and literal pipes
+  - Evidence: `e2e/live-preview.spec.ts` / `live table edits preserve Markdown delimiters and escaped pipes`.
+- [x] **ACCEPT-tasks Live task edit retains frontmatter**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Live task edit retains frontmatter
+  - Evidence: `e2e/live-preview.spec.ts` / `live task checkbox edits exactly its task and retains frontmatter`.
+- [x] **ACCEPT-callouts Independent nested callout folding**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Independent nested callout folding
+  - Evidence: `e2e/live-preview.spec.ts` / `expanded and nested callouts preserve independent folding defaults`.
+- [x] **ACCEPT-source-editor Undo/redo, formatting and find/replace**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Undo/redo, formatting and find/replace
+  - Evidence: `e2e/workspace.spec.ts` / `undo, redo, formatting and find/replace are actual editor operations`.
+- [x] **ACCEPT-search Search operators and empty-result UI**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Search operators and empty-result UI
+  - Evidence: `e2e/workspace.spec.ts` / `search supports operators and no-result states`.
+- [x] **ACCEPT-graph Graph relationships and filter**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Graph relationships and filter
+  - Evidence: `e2e/workspace.spec.ts` / `graph builds actual note relationships and filters`.
+- [x] **ACCEPT-canvas Canvas card create/edit/persist**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Canvas card create/edit/persist
+  - Evidence: `e2e/workspace.spec.ts` / `Canvas creates, edits and persists a card`.
+- [x] **ACCEPT-bases Bases filter/property edit**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Bases filter/property edit
+  - Evidence: `e2e/workspace.spec.ts` / `Bases filters and edits YAML-backed properties`.
+- [x] **ACCEPT-templates Daily note and template content**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Daily note and template content
+  - Evidence: `e2e/workspace.spec.ts` / `daily notes and templates generate real text`.
+- [x] **ACCEPT-layout Save/restore one-split layout**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Save/restore one-split layout
+  - Evidence: `e2e/workspace.spec.ts` / `save and restore workspace and split editor`.
+- [x] **ACCEPT-legacy-plugin Legacy Engine Worker command**: verified-subset. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Acceptance: Legacy Engine Worker command
+  - Evidence: `e2e-desktop/vault.spec.ts` / `opt-in local plugin runs its independent Worker command`.
+- [x] **ACCEPT-commonjs CommonJS text writes and unload data persistence**: verified-subset. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Acceptance: CommonJS text writes and unload data persistence
+  - Evidence: `e2e-desktop/vault.spec.ts` / `CommonJS plugin loads through the packaged worker and persists text/data on unload`.
+- [x] **ACCEPT-plugin-editor Plugin replaces real editor selection**: verified-subset. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Acceptance: Plugin replaces real editor selection
+  - Evidence: `e2e-desktop/vault.spec.ts` / `CommonJS editor callback replaces the actual source selection and saves`.
+- [x] **ACCEPT-plugin-data Plugin data namespace isolation**: verified-subset. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Acceptance: Plugin data namespace isolation
+  - Evidence: `tests/vault.test.mjs` / `plugin data is persisted as JSON and isolated by id`.
+- [x] **ACCEPT-plugin-data-symlink Reject cross-plugin data symlinks**: verified-subset. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Acceptance: Reject cross-plugin data symlinks
+  - Evidence: `tests/vault.test.mjs` / `plugin data rejects in-vault cross-plugin symlinks`.
+- [x] **ACCEPT-create-only Plugin create refuses overwrite**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Plugin create refuses overwrite
+  - Evidence: `tests/vault.test.mjs` / `plugin create never overwrites existing content, including competing creates`.
+- [x] **ACCEPT-append Serialized in-process appends**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Serialized in-process appends
+  - Evidence: `tests/vault.test.mjs` / `plugin append serializes concurrent updates and rejects missing files`.
+- [x] **ACCEPT-callback-order editorCheckCallback precedence**: verified-subset. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Acceptance: editorCheckCallback precedence
+  - Evidence: `tests/compatibility.test.ts` / `prefixes commands and prioritizes editorCheckCallback`.
+- [x] **ACCEPT-lifecycle Awaited lifecycle and unload settings**: verified-subset. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Acceptance: Awaited lifecycle and unload settings
+  - Evidence: `tests/compatibility.test.ts` / `saves data on load and unload and awaits lifecycle promises`.
+- [x] **ACCEPT-api-index Unique documented export inventory**: verified-subset. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Acceptance: Unique documented export inventory
+  - Evidence: `tests/compatibility.test.ts` / `pins unique documented symbols and references`.
+
+## Unfinished parity gates
+
+- [ ] **GATE-reference Pin an installed reference version for clean-room black-box comparisons**: missing. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: None signed off
+  - Remaining / boundary: Pin an installed reference version for clean-room black-box comparisons
+- [ ] **GATE-plugin-corpus Expand the five-plugin startup corpus into actual functional/platform compatibility and license-reviewed coverage**: missing. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Current scope: None signed off
+  - Remaining / boundary: Expand the five-plugin startup corpus into actual functional/platform compatibility and license-reviewed coverage
+- [ ] **GATE-settings Enumerate every setting, default, command and shortcut with fixtures**: missing. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: None signed off
+  - Remaining / boundary: Enumerate every setting, default, command and shortcut with fixtures
+- [ ] **GATE-platforms Native Windows/macOS and iOS/Android runtime, installation and upgrade acceptance**: missing. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: None signed off
+  - Remaining / boundary: Native Windows/macOS and iOS/Android runtime, installation and upgrade acceptance
+- [ ] **GATE-security Security, dependencies/licenses, accessibility and adversarial plugin audit**: missing. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: None signed off
+  - Remaining / boundary: Security, dependencies/licenses, accessibility and adversarial plugin audit
+- [ ] **GATE-large-vault Large vaults/documents, external writers and crash/power-loss acceptance**: missing. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: None signed off
+  - Remaining / boundary: Large vaults/documents, external writers and crash/power-loss acceptance
+- [ ] **GATE-api-members Audit every API member, overload and event beyond primary contracts**: missing. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Current scope: None signed off
+  - Remaining / boundary: Audit every API member, overload and event beyond primary contracts
+- [ ] **GATE-plugin-ui DOM/settings/Modal/view/render processors and CM integration**: missing. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Current scope: None signed off
+  - Remaining / boundary: DOM/settings/Modal/view/render processors and CM integration
+- [ ] **GATE-plugin-environment Node/Electron/network/npm assumptions under an explicit permission policy**: missing. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Current scope: None signed off
+  - Remaining / boundary: Node/Electron/network/npm assumptions under an explicit permission policy
+- [ ] **GATE-extensions Free Importer, Maps and Web Clipper equivalents**: missing. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: None signed off
+  - Remaining / boundary: Free Importer, Maps and Web Clipper equivalents
+- [ ] **GATE-checklist-expansion Expand every partial parent into exhaustive per-workflow acceptance**: missing. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: None signed off
+  - Remaining / boundary: Expand every partial parent into exhaustive per-workflow acceptance
+
+## Maintenance
+
+Edit `PARITY.md` and the acceptance registry in `scripts/inventory.mjs`, then run `npm run inventory:update`. Commit generated JSON and Markdown together. CI rejects drift, missing core plugins, extra exclusions, duplicate IDs and missing evidence. Do not remove unfinished areas to improve statistics. Keep checkpoint IDs stable; append new cases. Public docs may change: refresh the baseline deliberately and record differences.

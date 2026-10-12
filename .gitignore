@@ -1,4 +1,5 @@
 node_modules/
+.compat-corpus/
 dist/
 release/
 test-results/

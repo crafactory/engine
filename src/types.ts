@@ -17,6 +17,9 @@ export interface Bridge {
   list(): Promise<Entry[]>;
   read(path: string): Promise<Note>;
   write(path: string, content: string, version?: string): Promise<Note>;
+  create(path: string, content: string): Promise<Note>;
+  append(path: string, content: string): Promise<Note>;
+  pluginData(id:string,data?:unknown,write?:boolean):Promise<unknown>;
   mkdir(path: string): Promise<void>;
   rename(from: string, to: string): Promise<void>;
   trash(path: string): Promise<void>;

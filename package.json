@@ -1,7 +1,7 @@
 {
   "name": "crafactory-engine",
   "productName": "Crafactory Engine",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "An independently implemented, local-first Markdown knowledge workspace.",
   "license": "MIT",
   "type": "module",
@@ -18,7 +18,9 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:desktop": "playwright test --config playwright.desktop.config.ts",
-    "check": "npm run test && npm run build",
+    "check": "npm run inventory:check && npm run test && npm run build",
+    "inventory:update": "node scripts/inventory.mjs",
+    "inventory:check": "node scripts/inventory.mjs --check",
     "dist": "npm run build && electron-builder",
     "licenses": "license-checker --production --json",
     "cli": "node bin/engine.mjs"

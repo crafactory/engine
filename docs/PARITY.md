@@ -1,6 +1,6 @@
 # Functional parity ledger
 
-This file distinguishes implementation from completeness. The requested target is all non-subscription Obsidian functionality, independently implemented under MIT. **That target is not reached in 0.2.0.** No overall parity percentage is given because there is no comprehensive behavioral test corpus or fixed reference build.
+This file distinguishes implementation from completeness. The requested target is all non-subscription Obsidian functionality, independently implemented under MIT. **That target is not reached in 0.3.0.** No overall parity percentage is given because there is no comprehensive behavioral test corpus or fixed reference build. `FEATURE-CHECKLIST.md` and its machine-readable JSON preserve unfinished areas and bounded test evidence; they are not an exhaustive reference specification.
 
 The reference inventory comes from [Obsidian's public core-plugin list](https://help.obsidian.md/plugins) and [help home](https://help.obsidian.md). Public behavior was consulted; application source was not used. Core plugin names alone are not an exhaustive specification, and third-party community-plugin functionality is not equivalent to the core feature set.
 
@@ -84,8 +84,8 @@ Search behavior was informed by [Search documentation](https://help.obsidian.md/
 
 | Area | Status | Boundary |
 |---|---|---|
-| Community plugin API | Implemented subset | Independent opt-in Worker API; Obsidian plugins cannot run unchanged |
-| Community catalog | Not implemented | No plugin/theme marketplace, installation, update, signing, or compatibility layer |
+| Community plugin API | Implemented subset | Independent Engine API plus experimental CommonJS worker subset for commands, lifecycle, text files, data and single editor selection. Five pinned real plugins tested at startup only, all unsupported; no positive real-plugin workflow certification or full member/overload audit. See PLUGIN-COMPATIBILITY.md and COMMUNITY-PLUGIN-TESTS.md. |
+| Community catalog | Not implemented | No plugin/theme marketplace, unattended installation, updates or signing; local manual install only |
 | Themes/snippets | Implemented subset | Two original themes, one editable vault CSS snippet; reference themes and CSS-variable API not compatible |
 | Hotkeys | Implemented subset | Editable application hotkeys; conflicts, editor binding overrides, complete command registration not equal |
 | Mobile | Not implemented | Responsive preview is not an iOS/Android app and is not counted as mobile parity |

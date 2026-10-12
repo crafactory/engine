@@ -61,3 +61,70 @@ test('native live table and task edits persist exact Markdown without the custom
   await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('| One | Saved \\| native |');
   const content=await fs.readFile(path.join(root,'Persist.md'),'utf8');expect(content).toContain('- [x] Verify native save');expect(content).toContain('aliases: [Original]');
 });
+async function installCompat(code?:string,id='compat-fixture',name='Compatibility fixture'){
+  const dir=path.join(root,'.crafactory/plugins',id);await fs.mkdir(dir,{recursive:true});
+  await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id,name,version:'1.0.0'}));
+  await fs.writeFile(path.join(dir,'main.js'),code??await fs.readFile('examples/plugins/compat-fixture/main.js','utf8'));
+  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();
+  await page.getByRole('switch',{name:'Enable '+name,exact:true}).click();await page.getByTestId('dialog-submit').click();
+  return page.getByRole('switch',{name:'Enable '+name,exact:true});
+}
+async function pluginCommand(name:string){
+  await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill(name);await page.keyboard.press('Enter');
+}
+test('CommonJS plugin loads through the packaged worker and persists text/data on unload',async()=>{
+  const control=await installCompat();await expect(control).toBeChecked();await page.getByTestId('settings-close').click();
+  await pluginCommand('Compatibility fixture: Create a test note');
+  await expect.poll(async()=>fs.readFile(path.join(root,'Compatibility.md'),'utf8').catch(()=>'' )).toContain('Original plugin, independent runtime.');
+  await expect.poll(async()=>JSON.parse(await fs.readFile(path.join(root,'.crafactory/plugins/compat-fixture/data.json'),'utf8'))).toEqual({loads:1,unloaded:false});
+  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();
+  await control.click();await expect(control).not.toBeChecked();
+  await expect.poll(async()=>JSON.parse(await fs.readFile(path.join(root,'.crafactory/plugins/compat-fixture/data.json'),'utf8'))).toEqual({loads:1,unloaded:true});
+  await control.click();await page.getByTestId('dialog-submit').click();await expect(control).toBeChecked();
+  await expect.poll(async()=>JSON.parse(await fs.readFile(path.join(root,'.crafactory/plugins/compat-fixture/data.json'),'utf8')).loads).toBe(2);
+});
+test('CommonJS editor callback replaces the actual source selection and saves',async()=>{
+  const control=await installCompat();await expect(control).toBeChecked();await page.getByTestId('settings-close').click();
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+Home');await page.keyboard.press('Control+Shift+End');
+  await pluginCommand('Compatibility fixture: Replace the selection');
+  await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toBe('PLUGIN');
+  await expect(page.getByTestId('note-editor')).toHaveText('PLUGIN');
+});
+for(const [name,code,expected] of [
+  ['DOM','const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.addStatusBarItem();}};','Plugin.addStatusBarItem'],
+  ['Node','require("fs");','require fs'],
+  ['Export','const {Modal}=require("obsidian");','export Modal'],
+  ['Editor extension','const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.registerEditorExtension([]);}};','Plugin.registerEditorExtension'],
+  ['Bases view','const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.registerBasesView("test",{});}};','Plugin.registerBasesView']
+])test(`unsupported ${name} plugin is refused without becoming enabled`,async()=>{
+  const control=await installCompat(code,'negative','Negative');await expect(control).not.toBeChecked();
+  await expect(page.locator('.error-banner')).toContainText(expected);
+  expect(await fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('Original content.');
+});
+test('plugin unload finishes persistent data when the window closes',async()=>{
+  const control=await installCompat();await expect(control).toBeChecked();await page.getByTestId('settings-close').click();
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close());
+  await expect.poll(async()=>JSON.parse(await fs.readFile(path.join(root,'.crafactory/plugins/compat-fixture/data.json'),'utf8')).unloaded).toBe(true);
+});
+test('failed plugin command cannot overwrite an existing note and is disabled',async()=>{
+  const control=await installCompat('const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.addCommand({id:"bad",name:"Overwrite",callback:()=>this.app.vault.create("Persist.md","BAD")});}};','collision','Collision');
+  await expect(control).toBeChecked();await page.getByTestId('settings-close').click();await pluginCommand('Collision: Overwrite');
+  await expect(page.locator('.toast')).toContainText('exists');
+  expect(await fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('Original content.');
+  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();await expect(control).not.toBeChecked();
+});
+test('plugin traversal command is refused without writing outside the vault',async()=>{
+  const target='../'+path.basename(root)+'-escape.md';
+  const control=await installCompat(`const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.addCommand({id:"bad",name:"Traverse",callback:()=>this.app.vault.create(${JSON.stringify(target)},"BAD")});}};`,'traversal','Traversal');
+  await expect(control).toBeChecked();await page.getByTestId('settings-close').click();await pluginCommand('Traversal: Traverse');
+  await expect(page.locator('.toast')).toContainText('Invalid plugin vault path');
+  expect(await fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('Original content.');
+  await expect(fs.access(path.resolve(root,target))).rejects.toThrow();
+});
+test('editor command is unavailable in reading mode and returns in source mode',async()=>{
+  const control=await installCompat();await expect(control).toBeChecked();await page.getByTestId('settings-close').click();
+  await page.getByTestId('mode-reading').click();await page.getByRole('button',{name:'Command palette',exact:true}).click();
+  await page.getByTestId('palette-input').fill('Compatibility fixture: Replace the selection');await expect(page.locator('.palette-list button')).toHaveCount(0);await page.keyboard.press('Escape');
+  await page.getByTestId('mode-source').click();await page.getByRole('button',{name:'Command palette',exact:true}).click();
+  await page.getByTestId('palette-input').fill('Compatibility fixture: Replace the selection');await expect(page.locator('.palette-list button')).toHaveCount(1);
+});

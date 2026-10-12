@@ -61,7 +61,7 @@ async function start() {
     if(result.canceled)return false;
     await openVault(result.filePaths[0]); return true;
   });
-  for(const name of ['list','read','write','mkdir','rename','trash','asset','attach','snapshots','restore','plugins'])ipc(name,(...args)=>vault[name](...args));
+  for(const name of ['list','read','write','create','append','pluginData','mkdir','rename','trash','asset','attach','snapshots','restore','plugins'])ipc(name,(...args)=>vault[name](...args));
   ipc('state',state=>vault.saveState(state));
   ipc('print',async()=>{
     const result=await dialog.showSaveDialog(win,{defaultPath:'Crafactory-note.pdf',filters:[{name:'PDF',extensions:['pdf']}]});

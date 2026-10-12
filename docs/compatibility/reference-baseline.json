@@ -1,0 +1,9 @@
+{
+  "documentation_checked_utc": "2026-10-12",
+  "installed_reference_version": null,
+  "limitation": "Documentation snapshot, not installed-reference behavioral certification. Recheck documentation and add workflows when reference releases change.",
+  "core_source": "https://help.obsidian.md/plugins",
+  "core_plugins": ["Audio recorder","Backlinks","Bases","Bookmarks","Canvas","Command palette","Daily notes","File explorer","File recovery","Format converter","Graph view","Note composer","Outgoing links","Outline","Page preview","Properties view","Publish","Quick switcher","Random note","Search","Slash commands","Slides","Sync","Tags","Templates","Unique note creator","Web viewer","Word count","Workspaces"],
+  "excluded_subscription_services": ["Publish","Sync"],
+  "free_extensions_in_scope": ["Importer","Maps","Web Clipper"]
+}

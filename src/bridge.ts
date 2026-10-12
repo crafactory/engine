@@ -9,6 +9,7 @@ function memoryBridge():Bridge {
   const files=new Map(Object.entries(demo)), assets=new Map<string,string>(), folders=new Set<string>();
   const history:{id:string;path:string;time:number;content:string}[]=[];
   let stored:Partial<VaultState>={};
+  const pluginData=new Map<string,unknown>();
   const entries=():Entry[]=>{
     for(const p of files.keys()){const parts=p.split('/');parts.pop();let current='';for(const part of parts){current+= (current?'/':'')+part;folders.add(current);}}
     return [...[...folders].map(path=>({path,name:path.split('/').pop()!,folder:true,size:0,mtime:Date.now(),ctime:Date.now()})),...[...files].map(([path,content])=>({path,name:path.split('/').pop()!,folder:false,size:content.length,mtime:Date.now(),ctime:Date.now()}))];
@@ -19,6 +20,9 @@ function memoryBridge():Bridge {
     vault:async()=>({name:'Starter vault',root:'In-memory preview',entries:entries(),state:stored}),
     choose:async()=>{throw new Error('Open the desktop application to choose a local vault. Preview changes are temporary.');},
     list:async()=>entries(),read,
+    create:async(path,content)=>{if(files.has(path)||folders.has(path))throw new Error('File already exists');files.set(path,content);return read(path);},
+    append:async(path,content)=>{const before=await read(path);files.set(path,before.content+content);return read(path);},
+    pluginData:async(id,data,write=false)=>{if(write){pluginData.set(id,structuredClone(data));return;}return structuredClone(pluginData.get(id)??null);},
     write:async(path,content,version)=>{
       const before=files.get(path);
       if(version!==undefined&&before!==version)throw new Error('CONFLICT: File changed. Reload before saving.');

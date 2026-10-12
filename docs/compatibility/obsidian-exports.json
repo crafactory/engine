@@ -1,0 +1,1633 @@
+{
+  "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+  "checked_at": "2026-10-12T02:39:03.276Z",
+  "scope": "Public export index only; not all member semantics or real plugin behavior",
+  "symbols": [
+    {
+      "name": "AbstractTextComponent",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/AbstractTextComponent",
+      "runtime": true
+    },
+    {
+      "name": "App",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/App",
+      "runtime": true
+    },
+    {
+      "name": "BasesEntry",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesEntry",
+      "runtime": true
+    },
+    {
+      "name": "BasesEntryGroup",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesEntryGroup",
+      "runtime": true
+    },
+    {
+      "name": "BasesQueryResult",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesQueryResult",
+      "runtime": true
+    },
+    {
+      "name": "BasesViewConfig",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesViewConfig",
+      "runtime": true
+    },
+    {
+      "name": "BooleanValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BooleanValue",
+      "runtime": true
+    },
+    {
+      "name": "ButtonComponent",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ButtonComponent",
+      "runtime": true
+    },
+    {
+      "name": "CapacitorAdapter",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/CapacitorAdapter",
+      "runtime": true
+    },
+    {
+      "name": "ColorComponent",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ColorComponent",
+      "runtime": true
+    },
+    {
+      "name": "Component",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Component",
+      "runtime": true
+    },
+    {
+      "name": "DateValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/DateValue",
+      "runtime": true
+    },
+    {
+      "name": "DropdownComponent",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/DropdownComponent",
+      "runtime": true
+    },
+    {
+      "name": "DurationValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/DurationValue",
+      "runtime": true
+    },
+    {
+      "name": "Events",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Events",
+      "runtime": true
+    },
+    {
+      "name": "ExtraButtonComponent",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ExtraButtonComponent",
+      "runtime": true
+    },
+    {
+      "name": "FileManager",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/FileManager",
+      "runtime": true
+    },
+    {
+      "name": "FileSystemAdapter",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/FileSystemAdapter",
+      "runtime": true
+    },
+    {
+      "name": "FileValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/FileValue",
+      "runtime": true
+    },
+    {
+      "name": "HoverPopover",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/HoverPopover",
+      "runtime": true
+    },
+    {
+      "name": "HTMLValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/HTMLValue",
+      "runtime": true
+    },
+    {
+      "name": "IconValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/IconValue",
+      "runtime": true
+    },
+    {
+      "name": "ImageValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ImageValue",
+      "runtime": true
+    },
+    {
+      "name": "Keymap",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Keymap",
+      "runtime": true
+    },
+    {
+      "name": "LinkValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/LinkValue",
+      "runtime": true
+    },
+    {
+      "name": "ListValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ListValue",
+      "runtime": true
+    },
+    {
+      "name": "MarkdownEditView",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MarkdownEditView",
+      "runtime": true
+    },
+    {
+      "name": "MarkdownPreviewRenderer",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MarkdownPreviewRenderer",
+      "runtime": true
+    },
+    {
+      "name": "MarkdownPreviewView",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MarkdownPreviewView",
+      "runtime": true
+    },
+    {
+      "name": "MarkdownRenderChild",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MarkdownRenderChild",
+      "runtime": true
+    },
+    {
+      "name": "MarkdownView",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MarkdownView",
+      "runtime": true
+    },
+    {
+      "name": "Menu",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Menu",
+      "runtime": true
+    },
+    {
+      "name": "MenuItem",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MenuItem",
+      "runtime": true
+    },
+    {
+      "name": "MenuSeparator",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MenuSeparator",
+      "runtime": true
+    },
+    {
+      "name": "MetadataCache",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MetadataCache",
+      "runtime": true
+    },
+    {
+      "name": "Modal",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Modal",
+      "runtime": true
+    },
+    {
+      "name": "MomentFormatComponent",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MomentFormatComponent",
+      "runtime": true
+    },
+    {
+      "name": "Notice",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Notice",
+      "runtime": true
+    },
+    {
+      "name": "NullValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/NullValue",
+      "runtime": true
+    },
+    {
+      "name": "NumberValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/NumberValue",
+      "runtime": true
+    },
+    {
+      "name": "ObjectValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ObjectValue",
+      "runtime": true
+    },
+    {
+      "name": "ProgressBarComponent",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ProgressBarComponent",
+      "runtime": true
+    },
+    {
+      "name": "QueryController",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/QueryController",
+      "runtime": true
+    },
+    {
+      "name": "RegExpValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/RegExpValue",
+      "runtime": true
+    },
+    {
+      "name": "RelativeDateValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/RelativeDateValue",
+      "runtime": true
+    },
+    {
+      "name": "RenderContext",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/RenderContext",
+      "runtime": true
+    },
+    {
+      "name": "Scope",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Scope",
+      "runtime": true
+    },
+    {
+      "name": "SearchComponent",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/SearchComponent",
+      "runtime": true
+    },
+    {
+      "name": "SecretComponent",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/SecretComponent",
+      "runtime": true
+    },
+    {
+      "name": "SecretStorage",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/SecretStorage",
+      "runtime": true
+    },
+    {
+      "name": "Setting",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Setting",
+      "runtime": true
+    },
+    {
+      "name": "SettingGroup",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/SettingGroup",
+      "runtime": true
+    },
+    {
+      "name": "SliderComponent",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/SliderComponent",
+      "runtime": true
+    },
+    {
+      "name": "StringValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/StringValue",
+      "runtime": true
+    },
+    {
+      "name": "TagValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/TagValue",
+      "runtime": true
+    },
+    {
+      "name": "Tasks",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Tasks",
+      "runtime": true
+    },
+    {
+      "name": "TextAreaComponent",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/TextAreaComponent",
+      "runtime": true
+    },
+    {
+      "name": "TextComponent",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/TextComponent",
+      "runtime": true
+    },
+    {
+      "name": "TFile",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/TFile",
+      "runtime": true
+    },
+    {
+      "name": "TFolder",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/TFolder",
+      "runtime": true
+    },
+    {
+      "name": "ToggleComponent",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ToggleComponent",
+      "runtime": true
+    },
+    {
+      "name": "UrlValue",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/UrlValue",
+      "runtime": true
+    },
+    {
+      "name": "Vault",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Vault",
+      "runtime": true
+    },
+    {
+      "name": "Workspace",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Workspace",
+      "runtime": true
+    },
+    {
+      "name": "WorkspaceFloating",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceFloating",
+      "runtime": true
+    },
+    {
+      "name": "WorkspaceLeaf",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceLeaf",
+      "runtime": true
+    },
+    {
+      "name": "WorkspaceMobileDrawer",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceMobileDrawer",
+      "runtime": true
+    },
+    {
+      "name": "WorkspaceRibbon",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceRibbon",
+      "runtime": true
+    },
+    {
+      "name": "WorkspaceRoot",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceRoot",
+      "runtime": true
+    },
+    {
+      "name": "WorkspaceSidedock",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceSidedock",
+      "runtime": true
+    },
+    {
+      "name": "WorkspaceSplit",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceSplit",
+      "runtime": true
+    },
+    {
+      "name": "WorkspaceTabs",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceTabs",
+      "runtime": true
+    },
+    {
+      "name": "WorkspaceWindow",
+      "kind": "Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceWindow",
+      "runtime": true
+    },
+    {
+      "name": "AbstractInputSuggest",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/AbstractInputSuggest",
+      "runtime": true
+    },
+    {
+      "name": "BaseComponent",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BaseComponent",
+      "runtime": true
+    },
+    {
+      "name": "BasesView",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesView",
+      "runtime": true
+    },
+    {
+      "name": "EditableFileView",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EditableFileView",
+      "runtime": true
+    },
+    {
+      "name": "Editor",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Editor",
+      "runtime": true
+    },
+    {
+      "name": "EditorSuggest",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EditorSuggest",
+      "runtime": true
+    },
+    {
+      "name": "FileView",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/FileView",
+      "runtime": true
+    },
+    {
+      "name": "FuzzySuggestModal",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/FuzzySuggestModal",
+      "runtime": true
+    },
+    {
+      "name": "ItemView",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ItemView",
+      "runtime": true
+    },
+    {
+      "name": "MarkdownRenderer",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MarkdownRenderer",
+      "runtime": true
+    },
+    {
+      "name": "NotNullValue",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/NotNullValue",
+      "runtime": true
+    },
+    {
+      "name": "Plugin",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Plugin",
+      "runtime": true
+    },
+    {
+      "name": "PluginSettingTab",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/PluginSettingTab",
+      "runtime": true
+    },
+    {
+      "name": "PopoverSuggest",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/PopoverSuggest",
+      "runtime": true
+    },
+    {
+      "name": "PrimitiveValue",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/PrimitiveValue",
+      "runtime": true
+    },
+    {
+      "name": "SettingTab",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/SettingTab",
+      "runtime": true
+    },
+    {
+      "name": "SuggestModal",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/SuggestModal",
+      "runtime": true
+    },
+    {
+      "name": "TAbstractFile",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/TAbstractFile",
+      "runtime": true
+    },
+    {
+      "name": "TextFileView",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/TextFileView",
+      "runtime": true
+    },
+    {
+      "name": "Value",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Value",
+      "runtime": true
+    },
+    {
+      "name": "ValueComponent",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ValueComponent",
+      "runtime": true
+    },
+    {
+      "name": "View",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/View",
+      "runtime": true
+    },
+    {
+      "name": "WorkspaceContainer",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceContainer",
+      "runtime": true
+    },
+    {
+      "name": "WorkspaceItem",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceItem",
+      "runtime": true
+    },
+    {
+      "name": "WorkspaceParent",
+      "kind": "Abstract Classes",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceParent",
+      "runtime": true
+    },
+    {
+      "name": "PopoverState",
+      "kind": "Enumerations",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/PopoverState",
+      "runtime": true
+    },
+    {
+      "name": "addIcon",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/addIcon",
+      "runtime": true
+    },
+    {
+      "name": "arrayBufferToBase64",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/arrayBufferToBase64",
+      "runtime": true
+    },
+    {
+      "name": "arrayBufferToHex",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/arrayBufferToHex",
+      "runtime": true
+    },
+    {
+      "name": "base64ToArrayBuffer",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/base64ToArrayBuffer",
+      "runtime": true
+    },
+    {
+      "name": "debounce",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/debounce",
+      "runtime": true
+    },
+    {
+      "name": "displayTooltip",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/displayTooltip",
+      "runtime": true
+    },
+    {
+      "name": "finishRenderMath",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/finishRenderMath",
+      "runtime": true
+    },
+    {
+      "name": "getAllTags",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/getAllTags",
+      "runtime": true
+    },
+    {
+      "name": "getBlobArrayBuffer",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/getBlobArrayBuffer",
+      "runtime": true
+    },
+    {
+      "name": "getFrontMatterInfo",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/getFrontMatterInfo",
+      "runtime": true
+    },
+    {
+      "name": "getIcon",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/getIcon",
+      "runtime": true
+    },
+    {
+      "name": "getIconIds",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/getIconIds",
+      "runtime": true
+    },
+    {
+      "name": "getLanguage",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/getLanguage",
+      "runtime": true
+    },
+    {
+      "name": "getLinkpath",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/getLinkpath",
+      "runtime": true
+    },
+    {
+      "name": "hexToArrayBuffer",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/hexToArrayBuffer",
+      "runtime": true
+    },
+    {
+      "name": "htmlToMarkdown",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/htmlToMarkdown",
+      "runtime": true
+    },
+    {
+      "name": "iterateCacheRefs",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/iterateCacheRefs",
+      "runtime": true
+    },
+    {
+      "name": "iterateRefs",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/iterateRefs",
+      "runtime": true
+    },
+    {
+      "name": "loadMathJax",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/loadMathJax",
+      "runtime": true
+    },
+    {
+      "name": "loadMermaid",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/loadMermaid",
+      "runtime": true
+    },
+    {
+      "name": "loadPdfJs",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/loadPdfJs",
+      "runtime": true
+    },
+    {
+      "name": "loadPrism",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/loadPrism",
+      "runtime": true
+    },
+    {
+      "name": "normalizePath",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/normalizePath",
+      "runtime": true
+    },
+    {
+      "name": "parseFrontMatterAliases",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/parseFrontMatterAliases",
+      "runtime": true
+    },
+    {
+      "name": "parseFrontMatterEntry",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/parseFrontMatterEntry",
+      "runtime": true
+    },
+    {
+      "name": "parseFrontMatterStringArray",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/parseFrontMatterStringArray",
+      "runtime": true
+    },
+    {
+      "name": "parseFrontMatterTags",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/parseFrontMatterTags",
+      "runtime": true
+    },
+    {
+      "name": "parseLinktext",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/parseLinktext",
+      "runtime": true
+    },
+    {
+      "name": "parsePropertyId",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/parsePropertyId",
+      "runtime": true
+    },
+    {
+      "name": "parseYaml",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/parseYaml",
+      "runtime": true
+    },
+    {
+      "name": "prepareFuzzySearch",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/prepareFuzzySearch",
+      "runtime": true
+    },
+    {
+      "name": "prepareSimpleSearch",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/prepareSimpleSearch",
+      "runtime": true
+    },
+    {
+      "name": "removeIcon",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/removeIcon",
+      "runtime": true
+    },
+    {
+      "name": "renderMatches",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/renderMatches",
+      "runtime": true
+    },
+    {
+      "name": "renderMath",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/renderMath",
+      "runtime": true
+    },
+    {
+      "name": "renderResults",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/renderResults",
+      "runtime": true
+    },
+    {
+      "name": "request",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/request",
+      "runtime": true
+    },
+    {
+      "name": "requestUrl",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/requestUrl",
+      "runtime": true
+    },
+    {
+      "name": "requireApiVersion",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/requireApiVersion",
+      "runtime": true
+    },
+    {
+      "name": "resolveSubpath",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/resolveSubpath",
+      "runtime": true
+    },
+    {
+      "name": "sanitizeHTMLToDom",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/sanitizeHTMLToDom",
+      "runtime": true
+    },
+    {
+      "name": "setIcon",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/setIcon",
+      "runtime": true
+    },
+    {
+      "name": "setTooltip",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/setTooltip",
+      "runtime": true
+    },
+    {
+      "name": "sortSearchResults",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/sortSearchResults",
+      "runtime": true
+    },
+    {
+      "name": "stringifyYaml",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/stringifyYaml",
+      "runtime": true
+    },
+    {
+      "name": "stripHeading",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/stripHeading",
+      "runtime": true
+    },
+    {
+      "name": "stripHeadingForLink",
+      "kind": "Functions",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/stripHeadingForLink",
+      "runtime": true
+    },
+    {
+      "name": "BasesConfigFile",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesConfigFile",
+      "runtime": false
+    },
+    {
+      "name": "BasesConfigFileView",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesConfigFileView",
+      "runtime": false
+    },
+    {
+      "name": "BasesDropdownOption",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesDropdownOption",
+      "runtime": false
+    },
+    {
+      "name": "BasesFileOption",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesFileOption",
+      "runtime": false
+    },
+    {
+      "name": "BasesFolderOption",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesFolderOption",
+      "runtime": false
+    },
+    {
+      "name": "BasesFormulaOption",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesFormulaOption",
+      "runtime": false
+    },
+    {
+      "name": "BasesMultitextOption",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesMultitextOption",
+      "runtime": false
+    },
+    {
+      "name": "BasesOption",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesOption",
+      "runtime": false
+    },
+    {
+      "name": "BasesOptionGroup",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesOptionGroup",
+      "runtime": false
+    },
+    {
+      "name": "BasesProperty",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesProperty",
+      "runtime": false
+    },
+    {
+      "name": "BasesPropertyOption",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesPropertyOption",
+      "runtime": false
+    },
+    {
+      "name": "BasesSliderOption",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesSliderOption",
+      "runtime": false
+    },
+    {
+      "name": "BasesTextOption",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesTextOption",
+      "runtime": false
+    },
+    {
+      "name": "BasesToggleOption",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesToggleOption",
+      "runtime": false
+    },
+    {
+      "name": "BasesViewRegistration",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesViewRegistration",
+      "runtime": false
+    },
+    {
+      "name": "BlockCache",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BlockCache",
+      "runtime": false
+    },
+    {
+      "name": "BlockSubpathResult",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BlockSubpathResult",
+      "runtime": false
+    },
+    {
+      "name": "CachedMetadata",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/CachedMetadata",
+      "runtime": false
+    },
+    {
+      "name": "CacheItem",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/CacheItem",
+      "runtime": false
+    },
+    {
+      "name": "CliData",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/CliData",
+      "runtime": false
+    },
+    {
+      "name": "CliFlag",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/CliFlag",
+      "runtime": false
+    },
+    {
+      "name": "CloseableComponent",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/CloseableComponent",
+      "runtime": false
+    },
+    {
+      "name": "Command",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Command",
+      "runtime": false
+    },
+    {
+      "name": "DataAdapter",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/DataAdapter",
+      "runtime": false
+    },
+    {
+      "name": "DataWriteOptions",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/DataWriteOptions",
+      "runtime": false
+    },
+    {
+      "name": "Debouncer",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Debouncer",
+      "runtime": false
+    },
+    {
+      "name": "EditorChange",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EditorChange",
+      "runtime": false
+    },
+    {
+      "name": "EditorPosition",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EditorPosition",
+      "runtime": false
+    },
+    {
+      "name": "EditorRange",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EditorRange",
+      "runtime": false
+    },
+    {
+      "name": "EditorRangeOrCaret",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EditorRangeOrCaret",
+      "runtime": false
+    },
+    {
+      "name": "EditorScrollInfo",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EditorScrollInfo",
+      "runtime": false
+    },
+    {
+      "name": "EditorSelection",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EditorSelection",
+      "runtime": false
+    },
+    {
+      "name": "EditorSelectionOrCaret",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EditorSelectionOrCaret",
+      "runtime": false
+    },
+    {
+      "name": "EditorSuggestContext",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EditorSuggestContext",
+      "runtime": false
+    },
+    {
+      "name": "EditorSuggestTriggerInfo",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EditorSuggestTriggerInfo",
+      "runtime": false
+    },
+    {
+      "name": "EditorTransaction",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EditorTransaction",
+      "runtime": false
+    },
+    {
+      "name": "EmbedCache",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EmbedCache",
+      "runtime": false
+    },
+    {
+      "name": "EventRef",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EventRef",
+      "runtime": false
+    },
+    {
+      "name": "FileStats",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/FileStats",
+      "runtime": false
+    },
+    {
+      "name": "FootnoteCache",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/FootnoteCache",
+      "runtime": false
+    },
+    {
+      "name": "FootnoteRefCache",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/FootnoteRefCache",
+      "runtime": false
+    },
+    {
+      "name": "FootnoteSubpathResult",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/FootnoteSubpathResult",
+      "runtime": false
+    },
+    {
+      "name": "FormulaContext",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/FormulaContext",
+      "runtime": false
+    },
+    {
+      "name": "FrontMatterCache",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/FrontMatterCache",
+      "runtime": false
+    },
+    {
+      "name": "FrontMatterInfo",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/FrontMatterInfo",
+      "runtime": false
+    },
+    {
+      "name": "FrontmatterLinkCache",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/FrontmatterLinkCache",
+      "runtime": false
+    },
+    {
+      "name": "FuzzyMatch",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/FuzzyMatch",
+      "runtime": false
+    },
+    {
+      "name": "HeadingCache",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/HeadingCache",
+      "runtime": false
+    },
+    {
+      "name": "HeadingSubpathResult",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/HeadingSubpathResult",
+      "runtime": false
+    },
+    {
+      "name": "Hotkey",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Hotkey",
+      "runtime": false
+    },
+    {
+      "name": "HoverLinkSource",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/HoverLinkSource",
+      "runtime": false
+    },
+    {
+      "name": "HoverParent",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/HoverParent",
+      "runtime": false
+    },
+    {
+      "name": "HSL",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/HSL",
+      "runtime": false
+    },
+    {
+      "name": "Instruction",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Instruction",
+      "runtime": false
+    },
+    {
+      "name": "ISuggestOwner",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ISuggestOwner",
+      "runtime": false
+    },
+    {
+      "name": "KeymapContext",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/KeymapContext",
+      "runtime": false
+    },
+    {
+      "name": "KeymapEventHandler",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/KeymapEventHandler",
+      "runtime": false
+    },
+    {
+      "name": "KeymapInfo",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/KeymapInfo",
+      "runtime": false
+    },
+    {
+      "name": "LinkCache",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/LinkCache",
+      "runtime": false
+    },
+    {
+      "name": "ListedFiles",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ListedFiles",
+      "runtime": false
+    },
+    {
+      "name": "ListItemCache",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ListItemCache",
+      "runtime": false
+    },
+    {
+      "name": "LivePreviewStateType",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/LivePreviewStateType",
+      "runtime": false
+    },
+    {
+      "name": "Loc",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Loc",
+      "runtime": false
+    },
+    {
+      "name": "MarkdownFileInfo",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MarkdownFileInfo",
+      "runtime": false
+    },
+    {
+      "name": "MarkdownPostProcessor",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MarkdownPostProcessor",
+      "runtime": false
+    },
+    {
+      "name": "MarkdownPostProcessorContext",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MarkdownPostProcessorContext",
+      "runtime": false
+    },
+    {
+      "name": "MarkdownPreviewEvents",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MarkdownPreviewEvents",
+      "runtime": false
+    },
+    {
+      "name": "MarkdownSectionInformation",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MarkdownSectionInformation",
+      "runtime": false
+    },
+    {
+      "name": "MarkdownSubView",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MarkdownSubView",
+      "runtime": false
+    },
+    {
+      "name": "MenuPositionDef",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MenuPositionDef",
+      "runtime": false
+    },
+    {
+      "name": "ObsidianProtocolData",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ObsidianProtocolData",
+      "runtime": false
+    },
+    {
+      "name": "OpenViewState",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/OpenViewState",
+      "runtime": false
+    },
+    {
+      "name": "PluginManifest",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/PluginManifest",
+      "runtime": false
+    },
+    {
+      "name": "Point",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Point",
+      "runtime": false
+    },
+    {
+      "name": "Pos",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Pos",
+      "runtime": false
+    },
+    {
+      "name": "Reference",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Reference",
+      "runtime": false
+    },
+    {
+      "name": "ReferenceCache",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ReferenceCache",
+      "runtime": false
+    },
+    {
+      "name": "ReferenceLinkCache",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ReferenceLinkCache",
+      "runtime": false
+    },
+    {
+      "name": "RequestUrlParam",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/RequestUrlParam",
+      "runtime": false
+    },
+    {
+      "name": "RequestUrlResponse",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/RequestUrlResponse",
+      "runtime": false
+    },
+    {
+      "name": "RequestUrlResponsePromise",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/RequestUrlResponsePromise",
+      "runtime": false
+    },
+    {
+      "name": "RGB",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/RGB",
+      "runtime": false
+    },
+    {
+      "name": "SearchResult",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/SearchResult",
+      "runtime": false
+    },
+    {
+      "name": "SearchResultContainer",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/SearchResultContainer",
+      "runtime": false
+    },
+    {
+      "name": "SectionCache",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/SectionCache",
+      "runtime": false
+    },
+    {
+      "name": "Stat",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Stat",
+      "runtime": false
+    },
+    {
+      "name": "SubpathResult",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/SubpathResult",
+      "runtime": false
+    },
+    {
+      "name": "TagCache",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/TagCache",
+      "runtime": false
+    },
+    {
+      "name": "TooltipOptions",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/TooltipOptions",
+      "runtime": false
+    },
+    {
+      "name": "ViewState",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ViewState",
+      "runtime": false
+    },
+    {
+      "name": "ViewStateResult",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ViewStateResult",
+      "runtime": false
+    },
+    {
+      "name": "WorkspaceWindowInitData",
+      "kind": "Interfaces",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceWindowInitData",
+      "runtime": false
+    },
+    {
+      "name": "apiVersion",
+      "kind": "Variables",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/apiVersion",
+      "runtime": true
+    },
+    {
+      "name": "editorEditorField",
+      "kind": "Variables",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/editorEditorField",
+      "runtime": true
+    },
+    {
+      "name": "editorInfoField",
+      "kind": "Variables",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/editorInfoField",
+      "runtime": true
+    },
+    {
+      "name": "editorLivePreviewField",
+      "kind": "Variables",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/editorLivePreviewField",
+      "runtime": true
+    },
+    {
+      "name": "editorViewField",
+      "kind": "Variables",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/editorViewField",
+      "runtime": true
+    },
+    {
+      "name": "livePreviewState",
+      "kind": "Variables",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/livePreviewState",
+      "runtime": true
+    },
+    {
+      "name": "moment",
+      "kind": "Variables",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/moment",
+      "runtime": true
+    },
+    {
+      "name": "Platform",
+      "kind": "Variables",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Platform",
+      "runtime": true
+    },
+    {
+      "name": "BasesAllOptions",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesAllOptions",
+      "runtime": false
+    },
+    {
+      "name": "BasesConfigFileFilter",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesConfigFileFilter",
+      "runtime": false
+    },
+    {
+      "name": "BasesOptions",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesOptions",
+      "runtime": false
+    },
+    {
+      "name": "BasesPropertyId",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesPropertyId",
+      "runtime": false
+    },
+    {
+      "name": "BasesPropertyType",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesPropertyType",
+      "runtime": false
+    },
+    {
+      "name": "BasesSortConfig",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesSortConfig",
+      "runtime": false
+    },
+    {
+      "name": "BasesViewFactory",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/BasesViewFactory",
+      "runtime": false
+    },
+    {
+      "name": "CliFlags",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/CliFlags",
+      "runtime": false
+    },
+    {
+      "name": "CliHandler",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/CliHandler",
+      "runtime": false
+    },
+    {
+      "name": "Constructor",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Constructor",
+      "runtime": false
+    },
+    {
+      "name": "EditorCommandName",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/EditorCommandName",
+      "runtime": false
+    },
+    {
+      "name": "HexString",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/HexString",
+      "runtime": false
+    },
+    {
+      "name": "IconName",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/IconName",
+      "runtime": false
+    },
+    {
+      "name": "KeymapEventListener",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/KeymapEventListener",
+      "runtime": false
+    },
+    {
+      "name": "MarkdownViewModeType",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/MarkdownViewModeType",
+      "runtime": false
+    },
+    {
+      "name": "Modifier",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Modifier",
+      "runtime": false
+    },
+    {
+      "name": "ObsidianProtocolHandler",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ObsidianProtocolHandler",
+      "runtime": false
+    },
+    {
+      "name": "PaneType",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/PaneType",
+      "runtime": false
+    },
+    {
+      "name": "SearchMatches",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/SearchMatches",
+      "runtime": false
+    },
+    {
+      "name": "SearchMatchPart",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/SearchMatchPart",
+      "runtime": false
+    },
+    {
+      "name": "Side",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/Side",
+      "runtime": false
+    },
+    {
+      "name": "SplitDirection",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/SplitDirection",
+      "runtime": false
+    },
+    {
+      "name": "TooltipPlacement",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/TooltipPlacement",
+      "runtime": false
+    },
+    {
+      "name": "UserEvent",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/UserEvent",
+      "runtime": false
+    },
+    {
+      "name": "ViewCreator",
+      "kind": "Type Aliases",
+      "source_url": "https://docs.obsidian.md/Reference/TypeScript+API/ViewCreator",
+      "runtime": false
+    }
+  ]
+}

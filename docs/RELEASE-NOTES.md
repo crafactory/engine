@@ -1,34 +1,31 @@
-# Crafactory Engine v0.2.0
+# Crafactory Engine v0.3.0
 
-An independently implemented, MIT-licensed, local-first Markdown workspace. This is an early **prerelease**, not a complete 1:1 Obsidian replacement. Back up important vaults before testing.
+An independently implemented, MIT-licensed local-first Markdown workspace. This is a **prerelease**, not a complete 1:1 Obsidian replacement. Back up important vaults and test plugins only against disposable data.
 
-## Included
+## Feature tracking
 
-Local vaults and ordinary Markdown files, source/basic-live/reading modes, links and backlinks, search, graph, Canvas, basic Bases, properties, tags, tabs and a split pane, commands, templates/daily notes, recovery/trash, import/export, themes/CSS, a small CLI, and an opt-in independent Worker plugin API.
+Added a generated feature checklist with 93 stable tracking IDs, all 29 documented core plugins, platform/free-extension gaps, 28 bounded test-evidenced checkpoints and unfinished parity gates. Only narrow acceptance checkpoints are checked; no parent area is declared complete. Sync/Publish alone are subscription exclusions. The checklist is a starting inventory, not an exhaustive reference specification.
 
-## Changes in this revision
+`npm run inventory:check` is part of the normal verification gate and rejects generated drift, duplicate IDs, missing core entries, extra exclusions and missing test evidence. It does not itself execute the linked tests or detect every future documentation change; refresh the pinned baseline deliberately.
 
-- Removed the custom software-name/vault-name top bar; tabs now meet the top of the workspace. Vault switching remains in the left ribbon/sidebar. The OS window frame is unchanged.
-- Added inactive top-level live block rendering for tables, code fences, Mermaid, callouts/quotes, display math, standalone embeds, and rules. Edit source or double-click reveals Markdown; selections intersecting blocks also reveal source.
-- Table header/body cells can be edited with Enter/Tab or blur to commit and Escape to cancel. Changes preserve Markdown delimiters/alignment and support undo/redo.
-- Added live task toggles and inline math, preserving frontmatter and protecting code literals.
-- Added nested collapsible callouts honoring `+` / `-` defaults in reading and live views.
-- Added focused browser, desktop-file-save and Markdown-range tests. `docs/QA-LIVE-PREVIEW.md` documents limitations.
+## Experimental plugin compatibility
 
-Original code and original branding are MIT licensed. No Obsidian application code or branded assets are included. Third-party resources retain their respective licenses.
+Added an original CommonJS Worker runtime for `require('obsidian')` with bounded Plugin/Component lifecycle, commands and documented callback precedence, text-file APIs, plugin JSON data and single-selection editor operations. The independent Engine API remains supported. Local enable remains explicit and is not persisted across launches; startup can modify notes, so only enable trusted code.
 
-## Checks
+The public API inventory classifies 271 names: 154 runtime symbols and 117 type-only names. Only 27 runtime symbols have subset implementations; 127 runtime symbols are rejected. Primary member contracts cover 12 classes but not every overload or inherited behavior. Export existence/rejection is not full behavioral compatibility.
 
-68 unit tests, 36 browser end-to-end tests, and 7 desktop integration tests cover this revision. The Linux publishing workflow reruns unit/build and packaged-executable desktop checks before upload; refer to that workflow's result for release-package verification.
+Added create-only text writes, serialized in-process appends, plugin data namespaces and cross-plugin symlink rejection. Plugin errors remove commands and do not leave the UI enabled. Vault switching and window close attempt plugin unload before filesystem changes/close; the Worker has a two-second graceful-shutdown timeout. No crash/power-loss, multi-process safety or adversarial sandbox certification is made.
 
-## Downloads and limitations
+Actual pinned upstream Dataview, Templater, Calendar (Beta), Advanced Tables and Reading Time artifacts are tested at startup in disposable vaults. **All five fail to load; none is certified compatible.** A named unsupported API and a generic load error are recorded distinctly, and testing stops at the first failure. Their source is not redistributed or incorporated into Engine. See `COMMUNITY-PLUGIN-TESTS.md` for hashes, release-tag/manifest-version differences and reproduction.
 
-Linux x64 AppImage and `.deb` artifacts are unsigned. `SHA256SUMS.txt` contains file checksums, not a cryptographic publisher signature. AppImage execution requires an appropriate Linux environment; the locally built AppImage's extracted executable was tested, but FUSE/installer behavior is not a certified installation test. The explicitly dispatched Linux publishing workflow also tests its packaged executable before uploading artifacts.
+## Verification interpretation
 
-Windows/macOS build workflows are configured separately; no native runtime verification is claimed for them. There is no native mobile application.
+The source unit suite contains 518 tests, including 271 export-name probes, explicit rejection and member-inventory checks. These are not 518 independent compatible features. Desktop regressions cover 18 cases, including original fixtures and negative paths; five real-plugin startup cases require separately downloaded pinned inputs and are skipped in ordinary desktop runs. Their successful test assertions certify observed refusal, not successful plugin behavior. Browser regression covers 36 cases.
 
-Complete live inline/nested grammar, table row/column restructuring, exact cursor semantics, full Bases grammar, full Canvas semantics, reference community-plugin compatibility, browser clipper/importer/maps, arbitrary workspace trees, full localization, release signing, large-vault validation, and a complete security/accessibility audit remain outstanding. See `docs/PARITY.md`.
+The Linux publishing workflow packages and tests the actual executable before exposing artifacts. The separate corpus workflow fetches the pinned plugin inputs and records startup results; the three-platform workflow builds unsigned Windows/macOS/Linux artifacts. Consult `VERIFICATION.md` for executed run evidence, and do not treat workflow definitions as completed runs.
 
-Production dependency audit reported zero known advisories at check time. Eight moderate advisories remain in the development/build-tool dependency chain. See `docs/VERIFICATION.md`.
+## Remaining gaps
 
-Obsidian Sync and Publish are deliberately excluded subscription services. Engine is not affiliated with Obsidian.
+Full DOM/settings/Modal/view/Markdown processor/CodeMirror/Node environment compatibility, module-wrapper parity, real-plugin workflows, exact metadata caches/events, binary/storage APIs, full Live Preview and table restructuring, full Bases/Canvas semantics, arbitrary workspace trees, native mobile, free first-party extensions, localization, signed installers, large-vault acceptance and complete security/accessibility audits remain outstanding.
+
+The current dependency checks report zero known production advisories and eight moderate development/build advisories. This is not a security guarantee. Linux packages are unsigned; Windows/macOS native runtime and installation are not accepted yet. Original application code remains MIT with third-party resource notices retained; Engine is not affiliated with Obsidian.
