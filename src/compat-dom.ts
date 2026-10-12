@@ -1,6 +1,7 @@
 /* Original public-contract adapters. No proprietary SDK or plugin implementation. */
 import {Component,unsupported} from './compat-core';
-export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','WorkspaceLeaf'] as const;
+import {MarkdownRenderChild,createMarkdownRenderer,registerPostProcessor,registerCodeProcessor,stopProcessors} from './markdown-plugins';
+export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','WorkspaceLeaf','MarkdownRenderChild','MarkdownRenderer'] as const;
 export interface PluginTab {id:string;name:string;containerEl:HTMLElement;display():void;hide():void}
 const element=(tag:string,parent?:HTMLElement,cls='')=>{const el=document.createElement(tag);el.className=cls;parent?.append(el);return el;};
 export function installDomHelpers(){
@@ -26,9 +27,14 @@ export function installDomHelpers(){
   };
   for(const [name,value]of Object.entries(methods))if(!(name in HTMLElement.prototype))Object.defineProperty(HTMLElement.prototype,name,{value,configurable:true,writable:true});
 }
+/** Create plugin-owned trusted-renderer UI hooks; this adapter is not an isolation boundary. */
 export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void){
   installDomHelpers();
   const resources=new Set<HTMLElement>(),modals=new Set<any>(),tabs=new Set<any>(),extensions:unknown[]=[],factories=new Map<string,(leaf:any)=>any>(),leaves=new Set<any>();
+  const processors=new Set<ReturnType<typeof registerPostProcessor>>();
+  let processorsStopped=false;
+  /** Keep registration handles private to this plugin and remove them after disposal. */
+  const ownProcessor=(entry:ReturnType<typeof registerPostProcessor>)=>{processors.add(entry);return {processor:entry.processor,dispose:async()=>{await entry.dispose();processors.delete(entry);}};};
   const host=(name:string)=>{const el=document.getElementById(name);if(!el)throw new Error('Plugin UI host missing: '+name);return el;};
   const publishTabs=()=>onTabs([...tabs].map((t,i)=>({id:id+':'+i,name,containerEl:t.containerEl,display:()=>safe(()=>t.display())(),hide:()=>safe(()=>t.hide())()})));
   const safe=(callback:(...args:any[])=>unknown)=>(...args:any[])=>{try{Promise.resolve(callback(...args)).catch(onError);}catch(e){onError(e);}};
@@ -126,7 +132,13 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   return {
     setApp(value:any){app=value;},
-    exports:{Modal,SettingTab,PluginSettingTab,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf},
+    exports:{Modal,SettingTab,PluginSettingTab,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app)},
+    /** Bind reading post-processors to this plugin's error and lifecycle ownership. */
+    postProcessor(callback:any,sortOrder?:number){if(processorsStopped)throw new Error('Plugin Markdown processors are stopped');return ownProcessor(registerPostProcessor(callback,sortOrder,onError));},
+    /** Bind named code-block handlers to the same reading registry. */
+    codeProcessor(language:string,callback:any,sortOrder?:number){if(processorsStopped)throw new Error('Plugin Markdown processors are stopped');return ownProcessor(registerCodeProcessor(language,callback,sortOrder,onError));},
+    /** Atomically deactivate this plugin's processors before runtime resource cleanup. */
+    async stopProcessors(){processorsStopped=true;await stopProcessors(processors);processors.clear();},
     workspace:{
       getRightLeaf(split?:boolean){if(split)return unsupported('Workspace.getRightLeaf split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeaf(newLeaf?:boolean|string){if(newLeaf!==undefined&&newLeaf!==true)return unsupported('Workspace.getLeaf reuse/split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},
       getLeavesOfType(type:string){return [...leaves].filter(l=>l.view?.getViewType()===type);},
@@ -138,6 +150,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     editorExtension(extension:unknown){extensions.push(extension);onExtensions([...extensions]);return()=>{const i=extensions.indexOf(extension);if(i>=0)extensions.splice(i,1);onExtensions([...extensions]);};},
     updateOptions(){onExtensions([...extensions]);},
     registerView(type:string,factory:(leaf:any)=>any){if(typeof type!=='string'||!type||typeof factory!=='function')throw new Error('Invalid view registration');if(factories.has(type))throw new Error('View already registered');factories.set(type,factory);return()=>{factories.delete(type);};},
-    async dispose(){for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach();for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
+    /** Dispose processor children, visible UI and editor registrations after owner stop. */
+    async dispose(){processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach();for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
   };
 }

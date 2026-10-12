@@ -1,6 +1,6 @@
 # Public API export coverage
 
-Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 27 bounded runtime symbols. Explicit opt-in trusted renderer: 43 bounded runtime symbols (16 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
+Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 27 bounded runtime symbols. Explicit opt-in trusted renderer: 45 bounded runtime symbols (18 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
 
 | Symbol | Kind | Default Worker | Trusted renderer | Public documentation |
 |---|---|---|---|---|
@@ -33,7 +33,7 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | MarkdownEditView | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [MarkdownEditView](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownEditView) |
 | MarkdownPreviewRenderer | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [MarkdownPreviewRenderer](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownPreviewRenderer) |
 | MarkdownPreviewView | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [MarkdownPreviewView](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownPreviewView) |
-| MarkdownRenderChild | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [MarkdownRenderChild](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownRenderChild) |
+| MarkdownRenderChild | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [MarkdownRenderChild](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownRenderChild) |
 | MarkdownView | Classes | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [MarkdownView](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownView) |
 | Menu | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [Menu](https://docs.obsidian.md/Reference/TypeScript+API/Menu) |
 | MenuItem | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [MenuItem](https://docs.obsidian.md/Reference/TypeScript+API/MenuItem) |
@@ -86,7 +86,7 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | FileView | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [FileView](https://docs.obsidian.md/Reference/TypeScript+API/FileView) |
 | FuzzySuggestModal | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [FuzzySuggestModal](https://docs.obsidian.md/Reference/TypeScript+API/FuzzySuggestModal) |
 | ItemView | Abstract Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [ItemView](https://docs.obsidian.md/Reference/TypeScript+API/ItemView) |
-| MarkdownRenderer | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [MarkdownRenderer](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownRenderer) |
+| MarkdownRenderer | Abstract Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [MarkdownRenderer](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownRenderer) |
 | NotNullValue | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [NotNullValue](https://docs.obsidian.md/Reference/TypeScript+API/NotNullValue) |
 | Plugin | Abstract Classes | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [Plugin](https://docs.obsidian.md/Reference/TypeScript+API/Plugin) |
 | PluginSettingTab | Abstract Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [PluginSettingTab](https://docs.obsidian.md/Reference/TypeScript+API/PluginSettingTab) |

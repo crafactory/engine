@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish:
-    if: ${{ !inputs.repair_checksums }}
+    if: ${{ !inputs.repair_checksums && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -76,7 +76,7 @@ jobs:
           gh release edit "$tag" --draft=false --prerelease --target "$GITHUB_SHA" \
             --notes-file docs/RELEASE-NOTES.md
   repair:
-    if: ${{ inputs.repair_checksums }}
+    if: ${{ inputs.repair_checksums && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

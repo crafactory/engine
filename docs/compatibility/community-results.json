@@ -13,7 +13,7 @@
       "outcome": "UNSUPPORTED_STARTUP",
       "first_blocker": "Unsupported Obsidian capability: require @codemirror/state. See docs/PLUGIN-COMPATIBILITY.md.",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-10-12T04:47:03.269Z"
+      "checked_at": "2026-10-12T07:45:20.010Z"
     },
     {
       "name": "Templater",
@@ -27,7 +27,7 @@
       "outcome": "LOAD_ERROR",
       "first_blocker": "Class extends value undefined is not a constructor or null",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-10-12T04:47:04.503Z"
+      "checked_at": "2026-10-12T07:45:22.295Z"
     },
     {
       "name": "Calendar (Beta)",
@@ -41,7 +41,7 @@
       "outcome": "UNSUPPORTED_STARTUP",
       "first_blocker": "Unsupported Obsidian capability: export Modal. See docs/PLUGIN-COMPATIBILITY.md.",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-10-12T04:47:05.616Z"
+      "checked_at": "2026-10-12T07:45:24.657Z"
     },
     {
       "name": "Advanced Tables",
@@ -55,7 +55,7 @@
       "outcome": "UNSUPPORTED_STARTUP",
       "first_blocker": "Unsupported Obsidian capability: export Modal. See docs/PLUGIN-COMPATIBILITY.md.",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-10-12T04:47:06.702Z"
+      "checked_at": "2026-10-12T07:45:26.972Z"
     },
     {
       "name": "Reading Time",
@@ -69,7 +69,7 @@
       "outcome": "UNSUPPORTED_STARTUP",
       "first_blocker": "Unsupported Obsidian capability: export PluginSettingTab. See docs/PLUGIN-COMPATIBILITY.md.",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-10-12T04:47:07.788Z"
+      "checked_at": "2026-10-12T07:45:28.772Z"
     }
   ]
 }

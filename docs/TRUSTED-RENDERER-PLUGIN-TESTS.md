@@ -4,7 +4,7 @@ Unchanged upstream release bytes, pinned in `compatibility/community-corpus.json
 
 | Plugin | Tag / manifest | Observed outcome | First blocker or bounded workflows | Upstream |
 |---|---|---|---|---|
-| Dataview | 0.5.70 / 0.5.68 | UNSUPPORTED_STARTUP | Unsupported Obsidian capability: export MarkdownRenderChild. See docs/PLUGIN-COMPATIBILITY.md. | [Dataview](https://github.com/blacksmithgu/obsidian-dataview) |
+| Dataview | 0.5.70 / 0.5.68 | UNSUPPORTED_STARTUP | Unsupported Obsidian capability: App.appId. See docs/PLUGIN-COMPATIBILITY.md. | [Dataview](https://github.com/blacksmithgu/obsidian-dataview) |
 | Templater | 2.26.0 / 2.26.0 | LOAD_ERROR | Class extends value undefined is not a constructor or null | [Templater](https://github.com/SilentVoid13/Templater) |
 | Calendar (Beta) | 2.0.0-beta.2 / 2.0.0 | STARTUP_ONLY | No functional workflows executed | [Calendar (Beta)](https://github.com/liamcain/obsidian-calendar-plugin) |
 | Advanced Tables | 0.23.2 / 0.23.2 | STARTUP_ONLY | No functional workflows executed | [Advanced Tables](https://github.com/tgrosinger/advanced-tables-obsidian) |

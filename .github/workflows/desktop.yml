@@ -1,5 +1,6 @@
 name: Build desktop packages
 on:
+  pull_request:
   workflow_dispatch:
   push:
     tags:

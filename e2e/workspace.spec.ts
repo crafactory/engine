@@ -67,8 +67,13 @@ test('file recovery restores a saved version',async({page})=>{
   await command(page,'Open file recovery');await page.locator('.recovery-modal>button').first().click();await expect(page.getByTestId('note-editor')).not.toContainText('Recovery marker.');
 });
 test('daily notes and templates generate real text',async({page})=>{
+  // Always exercise creation rather than whichever demo date happens to match the runner clock.
+  await page.clock.install({time:new Date('2030-02-03T12:00:00Z')});await page.reload();
+  await expect(page.locator('.note-title h1')).toHaveText('Welcome');await page.clock.pauseAt(new Date('2030-02-03T12:00:01Z'));
   await page.getByRole('button',{name:'Daily note',exact:true}).click();await expect(page.locator('.note-title h1')).toHaveText(/\d{4}-\d{2}-\d{2}/);
-  await command(page,'Insert template');await page.getByTestId('palette-input').fill('Meeting');await page.keyboard.press('Enter');await expect(page.getByTestId('note-editor')).toContainText('Discussion');
+  await command(page,'Insert template');await expect(page.getByRole('dialog',{name:'Insert template',exact:true})).toBeVisible();
+  const input=page.getByTestId('palette-input');await input.fill('Meeting');await expect(page.getByTestId('palette-item-Templates/Meeting.md')).toBeVisible();
+  await page.clock.runFor(150);await expect(input).toBeFocused();await page.keyboard.press('Enter');await page.clock.runFor(20);await expect(page.getByTestId('note-editor')).toContainText('Discussion');
 });
 test('settings themes, custom CSS and plugin controls',async({page})=>{
   await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByTestId('theme-light').click();await expect(page.locator('html')).toHaveAttribute('data-theme','light');await page.getByTestId('theme-dark').click();await expect(page.locator('html')).toHaveAttribute('data-theme','dark');

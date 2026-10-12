@@ -12,6 +12,7 @@ import {createDomAdapters,type PluginTab} from './compat-dom';
 import type {PluginManifest} from './types';
 import type {PluginCommand,PluginController} from './plugins';
 const modules:Record<string,unknown>={'@codemirror/state':state,'@codemirror/view':view,'@codemirror/commands':commands,'@codemirror/language':language,'@codemirror/search':search,'@codemirror/autocomplete':autocomplete,'@codemirror/lang-markdown':markdown,'@lezer/highlight':highlight};
+/** Load explicitly authorized local CommonJS source in the renderer with bounded host adapters. */
 export function startRendererPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,
   onCommands:(commands:PluginCommand[])=>void,operation:(name:string,args:unknown[])=>Promise<unknown>,
   onNotice:(message:string)=>void,onFailure:()=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void):PluginController {
@@ -24,9 +25,11 @@ export function startRendererPlugin(manifest:PluginManifest,code:string,getSnaps
       run(){if(alive&&!stopping){try{runtime.sync(getSnapshot());void runtime.run(command.id).catch(fail);}catch(error){fail(error);}}}})));}
   });
   dom.setApp(runtime.app);
+  /** Revoke processor admission immediately, even while startup awaits arbitrary trusted code. */
   async function stop(){
-    return stopPromise??=(async()=>{stopping=true;onCommands([]);try{await booting?.catch(()=>{});await runtime.stop();}finally{alive=false;await dom.dispose();}})();
+    return stopPromise??=(async()=>{stopping=true;onCommands([]);try{await dom.stopProcessors();await booting?.catch(()=>{});await runtime.stop();}finally{alive=false;await dom.dispose();}})();
   }
+  /** Report a first owner failure, revoke admission, and notify the host after cooperative cleanup. */
   function fail(reason:unknown){if(!alive||stopping)return;onNotice(manifest.name+': '+(reason instanceof Error?reason.message:String(reason)));void stop().catch(error=>onNotice(String(error))).finally(onFailure);}
   const slot='__engine_plugin_'+crypto.randomUUID().replaceAll('-','');
   const global=window as unknown as Record<string,unknown>;

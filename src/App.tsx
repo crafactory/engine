@@ -37,6 +37,7 @@ function download(name:string,content:string|Blob,type='text/plain'){
   const url=URL.createObjectURL(typeof content==='string'?new Blob([content],{type}):content);
   const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
+/** Compose the local-first vault workspace and explicitly authorized plugin controllers. */
 export function App(){
   const [notes,setNotes]=useState<Note[]>([]),[entries,setEntries]=useState<Entry[]>([]);
   const [vaultName,setVaultName]=useState('Crafactory Vault'),[root,setRoot]=useState('');
@@ -182,6 +183,7 @@ export function App(){
     if(active===path)setActive(next[Math.max(0,tabs.indexOf(path)-1)]||'');
   }
   function back(direction:number){const next=historyIndex.current+direction;if(next>=0&&next<history.current.length){historyIndex.current=next;open(history.current[next],false);}}
+  /** Create a note without stealing focus from a subsequently opened dialog or another document. */
   async function createNote(initial?:string,content?:string){
     try {
       const value=initial || await dialog.ask('New note','Untitled.md','Enter a filename or a path relative to this vault.');
@@ -192,7 +194,16 @@ export function App(){
       const result=await bridge.write(path,content ?? (isNote(path)?`# ${title(path)}\n\n`:''));
       versions.current.set(path,result.version);savedContent.current.set(path,result.content);
       updateNotes([...notesRef.current.filter(n=>n.path!==path),result]);setEntries(await bridge.list());open(path);
-      setMode(isNote(path)?settings.mode:'reading');setTimeout(()=>editor.current?.focus(),100);
+      setMode(isNote(path)?settings.mode:'reading');
+      const focusOrigin=document.activeElement;
+      /** Preserve subsequent modal/input/document focus instead of stealing it after creation. */
+      function focusCreatedNote(){
+        // A later dialog, input or note switch takes precedence over deferred creation focus.
+        if(editor.current?.path()!==path||document.querySelector('[aria-modal="true"],.modal-backdrop'))return;
+        if(document.activeElement!==focusOrigin&&document.activeElement!==document.body)return;
+        editor.current?.focus();
+      }
+      setTimeout(focusCreatedNote,100);
     }catch(e){report(e);}
   }
   async function newFolder(){
@@ -567,7 +578,7 @@ export function App(){
     <div id="plugin-status" aria-label="Plugin status"/>
     {notice&&<div className="toast" role="status"><Check size={15}/>{notice}</div>}
     {context&&<div className="context-menu" style={{left:context.x,top:context.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>{open(context.path);setContext(null);}}><FileText size={14}/>Open</button><button onClick={()=>{setSplit(context.path);setContext(null);}}><PanelRightOpen size={14}/>Open in split</button><button onClick={()=>{setContext(null);renamePath(context.path);}}><Pencil size={14}/>Rename or move</button><button onClick={()=>{setBookmarks(b=>b.includes(context.path)?b:[...b,context.path]);setContext(null);}}><Bookmark size={14}/>Bookmark</button><button onClick={()=>{navigator.clipboard?.writeText(context.path);setContext(null);}}><Copy size={14}/>Copy path</button><hr/><button className="danger-text" onClick={()=>deletePath(context.path)}><Trash2 size={14}/>Move to trash</button></div>}
-    {palette&&<Palette title={palette==='commands'?'Command palette':palette==='files'?'Quick switcher':palette==='templates'?'Insert template':palette==='merge'?'Merge into note':'Load workspace'} items={paletteItems} onClose={()=>setPalette(null)} onCreate={palette==='files'?name=>createNote(name):undefined}/>}
+    {palette&&<Palette key={palette} title={palette==='commands'?'Command palette':palette==='files'?'Quick switcher':palette==='templates'?'Insert template':palette==='merge'?'Merge into note':'Load workspace'} items={paletteItems} onClose={()=>setPalette(null)} onCreate={palette==='files'?name=>createNote(name):undefined}/>}
     {showSettings&&<Settings value={settings} onChange={s=>{setSettings(s);if(s.mode!==settings.mode)setMode(s.mode);}} onClose={()=>setShowSettings(false)} plugins={pluginList.map(p=>p.manifest)} enabled={enabledPlugins} onTogglePlugin={togglePlugin} pluginTabs={Object.values(pluginTabs).flat()} modes={pluginModes} onMode={(id,mode)=>{if(!enabledPlugins.includes(id)&&!pluginStarting.current.has(id))setPluginModes(m=>({...m,[id]:mode}));}}/>}
     {recovery&&<div className="modal-backdrop"><section className="modal recovery-modal" role="dialog" aria-label="File recovery"><header><h2>File recovery</h2><button onClick={()=>setRecovery(null)} aria-label="Close recovery"><X size={18}/></button></header><p>Previous saved versions of {active}. Restoring a version also snapshots the current content.</p>{recovery.length?recovery.map(s=><button key={s.id} onClick={()=>restoreSnapshot(s.id)}><Clock size={15}/>{new Date(s.time).toLocaleString()}<span>Restore</span></button>):<div className="empty"><Clock size={25}/><p>No previous versions yet. Snapshots are created when saved content changes.</p></div>}</section></div>}
     {slides&&activeNote&&<Slides note={activeNote} notes={notes} onOpen={openLink} onClose={()=>setSlides(false)}/>}

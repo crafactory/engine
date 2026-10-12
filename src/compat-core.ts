@@ -17,6 +17,8 @@ export interface CompatHost {
     statusBar():HTMLElement;settingTab(tab:any):()=>void;
     editorExtension(extension:unknown):()=>void;updateOptions():void;
     registerView(type:string,factory:(leaf:any)=>any):()=>void;
+    postProcessor?(callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
+    codeProcessor?(language:string,callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
   };
 }
 export class CompatibilityError extends Error {
@@ -46,25 +48,84 @@ export class Events {
   trigger(name:string,...args:any[]){for(const ref of [...(this.listeners.get(name)||[])]){if(this.listeners.get(name)?.has(ref))ref.callback.apply(ref.ctx,args);}}
   tryTrigger(ref:{callback:(...args:any[])=>void;ctx?:unknown},args:any[]){try{ref.callback.apply(ref.ctx,args);}catch(error){console.error(error);}}
 }
+/** Create a lifecycle barrier before invoking any user-defined hook. */
+function lifecyclePromise(){
+  let resolve!:()=>void,reject!:(error:unknown)=>void;
+  const promise=new Promise<void>((ok,bad)=>{resolve=ok;reject=bad;});
+  return {promise,resolve,reject};
+}
+interface LifecycleState {startup?:Promise<void>;shutdown?:Promise<void>}
+const componentLifecycles=new WeakMap<Component,LifecycleState>();
+/** Await actual host-owned lifecycle work without making public idempotent calls self-dependent. */
+export function componentLifecycle(component:Component,phase:'startup'|'shutdown'):Promise<void>{
+  return componentLifecycles.get(component)?.[phase]??Promise.resolve();
+}
 export class Component {
-  private loaded=false;private cleanups:(()=>void)[]=[];private children:Component[]=[];
-  async load(){if(this.loaded)return;this.loaded=true;try{await this.onload();for(const child of this.children)await child.load();}catch(e){await this.unload();throw e;}}
-  async unload(){if(!this.loaded)return;this.loaded=false;let first:unknown;
-    try{await this.onunload();}catch(e){first=e;}
-    for(const child of [...this.children].reverse())try{await child.unload();}catch(e){first??=e;}
-    for(const cleanup of this.cleanups.splice(0).reverse())try{cleanup();}catch(e){first??=e;}
-    if(first)throw first;
+  private loaded=false;private disposed=false;private generation=0;private admission=0;private lifecycle:LifecycleState={};private cleanups:(()=>unknown)[]=[];private children:Component[]=[];private childStarts=new Map<Component,Promise<void>>();
+  /** Initialize private host tracking, not an additional Obsidian compatibility export. */
+  constructor(){componentLifecycles.set(this,this.lifecycle);}
+  /** Serialize reload behind complete old startup and shutdown, including registered cleanup. */
+  async load(){
+    if(this.loaded)return;
+    const admission=this.admission;
+    while(this.lifecycle.startup||this.lifecycle.shutdown){
+      const pending=this.lifecycle.startup??this.lifecycle.shutdown!;
+      await pending;
+      if(this.lifecycle.startup===pending)this.lifecycle.startup=undefined;
+      if(this.lifecycle.shutdown===pending)this.lifecycle.shutdown=undefined;
+    }
+    if(admission!==this.admission)return;
+    if(this.loaded)return;
+    this.loaded=true;this.disposed=false;const generation=++this.generation;
+    const {promise:startup,resolve,reject}=lifecyclePromise();
+    this.lifecycle.startup=startup;
+    void (async()=>{
+      try{await this.onload();if(!this.loaded||generation!==this.generation)return;for(const child of this.children){if(!this.loaded||generation!==this.generation)break;const started=this.childStarts.get(child);try{await (started??Promise.all([child.load(),componentLifecycle(child,'startup')]));}finally{if(this.childStarts.get(child)===started)this.childStarts.delete(child);}}}
+      catch(e){if(generation===this.generation)await this.unload();throw e;}
+    })().then(resolve,reject);
+    try{await startup;}finally{if(this.lifecycle.startup===startup)this.lifecycle.startup=undefined;}
   }
-  onload():unknown{return undefined;} onunload():unknown{return undefined;}
-  register(callback:()=>void){this.cleanups.push(callback);}
+  /** Revoke all registered resources immediately; await all work without blocking revocation on hooks. */
+  async unload(){
+    ++this.admission;
+    if(!this.loaded)return;
+    this.loaded=false;
+    this.disposed=true;++this.generation;
+    const children=[...this.children].reverse(),cleanups=this.cleanups.splice(0).reverse();
+    this.childStarts.clear();
+    const {promise:shutdown,resolve,reject}=lifecyclePromise();
+    this.lifecycle.shutdown=shutdown;
+    const jobs:Promise<unknown>[]=[];
+    /** Invoke each callback in contract order, isolating failures without delaying other revocations. */
+    const schedule=(callback:()=>unknown)=>{try{jobs.push(Promise.resolve(callback()));}catch(error){jobs.push(Promise.reject(error));}};
+    schedule(()=>this.onunload());
+    for(const child of children)schedule(()=>Promise.all([child.unload(),componentLifecycle(child,'shutdown')]));
+    for(const cleanup of cleanups)schedule(cleanup);
+    void Promise.allSettled(jobs).then(results=>{
+      const failure=results.find(result=>result.status==='rejected');
+      if(failure?.status==='rejected')reject(failure.reason);else resolve();
+    });
+    try{await shutdown;}finally{if(this.lifecycle.shutdown===shutdown)this.lifecycle.shutdown=undefined;}
+  }
+  /** Override to initialize this component; asynchronous hooks are cooperatively awaited. */
+  onload():unknown{return undefined;}
+  /** Override to release plugin-specific state; arbitrary hanging hooks cannot be interrupted. */
+  onunload():unknown{return undefined;}
+  /** Immediately clean late registrations after disposal instead of retaining leaked resources. */
+  register(callback:()=>unknown){if(this.disposed){try{void Promise.resolve(callback()).catch(error=>console.error(error));}catch(error){console.error(error);}}else this.cleanups.push(callback);}
+  /** Own an emitter reference and revoke it with this component, including late registration. */
   registerEvent(ref:ReturnType<Events['on']>){this.register(()=>ref.emitter.offref(ref));}
+  /** Own an existing interval identifier and clear it on disposal without scheduling a new interval. */
   registerInterval(id:ReturnType<typeof setInterval>|number){this.register(()=>clearInterval(id));return id;}
+  /** Attach a native event with matching removal options; disposed owners remove it immediately. */
   registerDomEvent(element?:EventTarget,type?:string,callback?:EventListener,options?:AddEventListenerOptions|boolean){
     if(typeof document==='undefined'||!element||!type||!callback)return unsupported('Component.registerDomEvent');
     element.addEventListener(type,callback,options);this.register(()=>element.removeEventListener(type,callback,options));
   }
-  addChild<T extends Component>(child:T):T{this.children.push(child);if(this.loaded)void child.load();return child;}
-  removeChild<T extends Component>(child:T):T{this.children=this.children.filter(c=>c!==child);void child.unload();return child;}
+  /** Adopt a child only while this component remains active or has not yet loaded. */
+  addChild<T extends Component>(child:T):T{if(this.disposed)return child;this.children.push(child);if(this.loaded){const started=Promise.all([child.load(),componentLifecycle(child,'startup')]).then(()=>{});if(this.lifecycle.startup)this.childStarts.set(child,started);void started.catch(error=>console.error(error));}return child;}
+  /** Remove an attached child and observe asynchronous cleanup errors rather than leaking rejections. */
+  removeChild<T extends Component>(child:T):T{if(!this.children.includes(child))return child;this.children=this.children.filter(c=>c!==child);this.childStarts.delete(child);void child.unload().catch(error=>console.error(error));return child;}
 }
 export class TAbstractFile {
   path='';name='';parent:TFolder|null=null;vault:any;
@@ -120,6 +181,7 @@ export interface CompatCommand {
   editorCallback?:(editor:Editor,ctx:any)=>unknown;editorCheckCallback?:(checking:boolean,editor:Editor,ctx:any)=>unknown;
   hotkeys?:unknown;icon?:unknown;repeatable?:boolean;mobileOnly?:boolean;
 }
+/** Construct an original snapshot-based plugin runtime with explicit host operations and optional trusted UI. */
 export function createCompatibilityRuntime(manifest:PluginManifest,initial:PluginSnapshot,host:CompatHost){
   let snapshot=initial,plugin:InstanceType<typeof Plugin>|undefined,unloaded=false,editor:Editor|null=null;
   const pending=new Set<Promise<unknown>>(),commands=new Map<string,CompatCommand>(),objects=new Map<string,TAbstractFile>();
@@ -244,8 +306,10 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     registerExtensions(){return unsupported('Plugin.registerExtensions');}
     registerEditorExtension(extension:unknown){if(!host.ui)return unsupported('Plugin.registerEditorExtension');this.register(host.ui.editorExtension(extension));}
     registerEditorSuggest(){return unsupported('Plugin.registerEditorSuggest');}
-    registerMarkdownPostProcessor(){return unsupported('Plugin.registerMarkdownPostProcessor');}
-    registerMarkdownCodeBlockProcessor(){return unsupported('Plugin.registerMarkdownCodeBlockProcessor');}
+    /** Register a renderer-only callback and attach its disposal to this plugin's lifecycle. */
+    registerMarkdownPostProcessor(callback:any,sortOrder?:number){if(!host.ui?.postProcessor)return unsupported('Plugin.registerMarkdownPostProcessor');const registration=host.ui.postProcessor(callback,sortOrder);this.register(registration.dispose);return registration.processor;}
+    /** Register a renderer-only fenced-code handler with the same lifecycle ownership. */
+    registerMarkdownCodeBlockProcessor(language:string,callback:any,sortOrder?:number){if(!host.ui?.codeProcessor)return unsupported('Plugin.registerMarkdownCodeBlockProcessor');const registration=host.ui.codeProcessor(language,callback,sortOrder);this.register(registration.dispose);return registration.processor;}
     registerObsidianProtocolHandler(){return unsupported('Plugin.registerObsidianProtocolHandler');}
     registerHoverLinkSource(){return unsupported('Plugin.registerHoverLinkSource');}registerBasesView(){return unsupported('Plugin.registerBasesView');}
     registerCliHandler(){return unsupported('Plugin.registerCliHandler');}
@@ -271,9 +335,11 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   return {
     app,api,settle,
     sync(next:PluginSnapshot){refresh(next,true);publish();},
-    async boot(constructor:any){if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');plugin=new constructor(app,manifest);await plugin!.load();await plugin!.onUserEnable();await settle();publish();if(host.ui)workspace.trigger('layout-change');},
+    /** Await actual initialization even when public repeated load calls return immediately. */
+    async boot(constructor:any){if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');plugin=new constructor(app,manifest);await Promise.all([plugin!.load(),componentLifecycle(plugin!,'startup')]);await plugin!.onUserEnable();await settle();publish();if(host.ui)workspace.trigger('layout-change');},
     async run(id:string){if(unloaded)throw new Error('Plugin is unloaded');initEditor();const command=commands.get(id);if(!command)throw new Error('Command not found');if(!available(command,true))throw new Error('Command unavailable');await available(command,false);await settle();},
-    async stop(){if(unloaded)return;try{await plugin?.unload();await settle();}finally{commands.clear();host.commands([]);unloaded=true;}},
+    /** Keep the request fence open until actual hook/cleanup work and data operations settle. */
+    async stop(){if(unloaded)return;try{if(plugin)await Promise.all([plugin.unload(),componentLifecycle(plugin,'shutdown')]);await settle();}finally{commands.clear();host.commands([]);unloaded=true;}},
     getExports(){return Object.keys(exports);}
   };
 }
