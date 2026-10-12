@@ -113,8 +113,11 @@ export class Component {
   onunload():unknown{return undefined;}
   /** Immediately clean late registrations after disposal instead of retaining leaked resources. */
   register(callback:()=>unknown){if(this.disposed){try{void Promise.resolve(callback()).catch(error=>console.error(error));}catch(error){console.error(error);}}else this.cleanups.push(callback);}
+  /** Own an emitter reference and revoke it with this component, including late registration. */
   registerEvent(ref:ReturnType<Events['on']>){this.register(()=>ref.emitter.offref(ref));}
+  /** Own an existing interval identifier and clear it on disposal without scheduling a new interval. */
   registerInterval(id:ReturnType<typeof setInterval>|number){this.register(()=>clearInterval(id));return id;}
+  /** Attach a native event with matching removal options; disposed owners remove it immediately. */
   registerDomEvent(element?:EventTarget,type?:string,callback?:EventListener,options?:AddEventListenerOptions|boolean){
     if(typeof document==='undefined'||!element||!type||!callback)return unsupported('Component.registerDomEvent');
     element.addEventListener(type,callback,options);this.register(()=>element.removeEventListener(type,callback,options));
@@ -178,6 +181,7 @@ export interface CompatCommand {
   editorCallback?:(editor:Editor,ctx:any)=>unknown;editorCheckCallback?:(checking:boolean,editor:Editor,ctx:any)=>unknown;
   hotkeys?:unknown;icon?:unknown;repeatable?:boolean;mobileOnly?:boolean;
 }
+/** Construct an original snapshot-based plugin runtime with explicit host operations and optional trusted UI. */
 export function createCompatibilityRuntime(manifest:PluginManifest,initial:PluginSnapshot,host:CompatHost){
   let snapshot=initial,plugin:InstanceType<typeof Plugin>|undefined,unloaded=false,editor:Editor|null=null;
   const pending=new Set<Promise<unknown>>(),commands=new Map<string,CompatCommand>(),objects=new Map<string,TAbstractFile>();
