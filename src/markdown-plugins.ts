@@ -3,6 +3,7 @@ import {Component,unsupported} from './compat-core';
 import {frontmatter} from './knowledge';
 
 export class MarkdownRenderChild extends Component {
+  /** Preserve the renderer-owned container while inheriting cooperative component cleanup. */
   constructor(readonly containerEl:HTMLElement) { super(); }
 }
 
@@ -33,19 +34,24 @@ const listeners=new Set<()=>void>();
 const contextActivity=new WeakMap<ProcessorContext,()=>boolean>();
 const childOwners=new WeakMap<MarkdownRenderChild,RenderSession>();
 let revision=0,sequence=0;
+/** Return the registry revision used by reading hosts' external-store subscription. */
 export const getProcessorRevision=()=>revision;
+/** Subscribe React hosts to processor registration changes; return an idempotent removal hook. */
 export function subscribeProcessors(listener:()=>void) {
   listeners.add(listener);
   return ()=>{listeners.delete(listener);};
 }
+/** Publish a single revision after registry membership changes. */
 function changed() {
   revision++;
   for(const listener of listeners)listener();
 }
+/** Isolate an owner's error reporter from unrelated session cleanup. */
 function report(registration:Registration,error:unknown) {
   // Reporting one plugin must not prevent cleanup of unrelated registrations.
   try { registration.onError(error); } catch (secondary) { console.error(secondary); }
 }
+/** Register the original callback with stable ordering and owner-scoped disposal. */
 export function registerPostProcessor(callback:PostProcessor,sortOrder:number|undefined,onError:(error:unknown)=>void) {
   if(typeof callback!=='function'||sortOrder!==undefined&&!Number.isFinite(sortOrder))throw new TypeError('Invalid Markdown post processor');
   if(sortOrder!==undefined)callback.sortOrder=sortOrder;
@@ -53,6 +59,7 @@ export function registerPostProcessor(callback:PostProcessor,sortOrder:number|un
   registrations.add(registration);
   changed();
   let disposal:Promise<void>|undefined;
+  /** Remove registry membership without notifying until an atomic batch is complete. */
   const deactivate=()=>{
     if(!registration.active)return false;
     registration.active=false;
@@ -62,12 +69,14 @@ export function registerPostProcessor(callback:PostProcessor,sortOrder:number|un
   return {
     processor:callback,
     deactivate,
+    /** Idempotently publish removal and drain this registration's render children. */
     dispose() {
       if(deactivate())changed();
       return disposal??=Promise.all([...sessions].map(session=>session.removeRegistration(registration))).then(()=>{});
     }
   };
 }
+/** Deactivate an owner's entire batch before draining any render-child resources. */
 export async function stopProcessors(entries:Iterable<ReturnType<typeof registerPostProcessor>>) {
   const batch=[...entries];
   let didChange=false;
@@ -75,6 +84,7 @@ export async function stopProcessors(entries:Iterable<ReturnType<typeof register
   if(didChange)changed();
   await Promise.all(batch.map(entry=>entry.dispose()));
 }
+/** Replace matching fenced blocks with containers and pass their original text to the handler. */
 export function registerCodeProcessor(language:string,callback:CodeProcessor,sortOrder:number|undefined,onError:(error:unknown)=>void) {
   if(!/^[a-zA-Z0-9][\w-]*$/.test(language)||typeof callback!=='function')throw new TypeError('Invalid Markdown code processor');
   const post:PostProcessor=async(element,context)=>{
@@ -93,6 +103,18 @@ export function registerCodeProcessor(language:string,callback:CodeProcessor,sor
   return registerPostProcessor(post,sortOrder,onError);
 }
 
+/** Wait at most one second for cooperative work; never claim to interrupt main-thread code. */
+async function settlesWithin(promise:Promise<unknown>):Promise<boolean> {
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  try {
+    return await Promise.race([
+      promise.then(()=>true,()=>true),
+      new Promise<boolean>(resolve=>{timer=setTimeout(()=>resolve(false),1000);})
+    ]);
+  } finally {if(timer!==undefined)clearTimeout(timer);}
+}
+
+/** Own children for one immutable reading root, including canceled and detached roots. */
 export class RenderSession {
   private active=true;
   private children=new Set<ChildRecord>();
@@ -100,6 +122,7 @@ export class RenderSession {
   private observer:MutationObserver;
   private closePromise:Promise<void>|undefined;
   private docId=crypto.randomUUID();
+  /** Observe root/container removal without observing attributes or plugin text mutations. */
   constructor(private root:HTMLElement,private markdown:string,private sourcePath:string) {
     this.connected=root.isConnected;
     this.observer=new MutationObserver(()=>this.reconcile());
@@ -107,28 +130,42 @@ export class RenderSession {
     this.observer.observe(document.documentElement,{childList:true,subtree:true});
     sessions.add(this);
   }
+  /** Close detached sessions and remove children whose containers left this root. */
   private reconcile() {
     if(this.root.isConnected)this.connected=true;
     if(this.connected&&!this.root.isConnected){void this.close();return;}
     for(const record of this.children)if(!this.root.contains(record.child.containerEl))void this.closeChild(record);
   }
+  /** Bound cooperative startup/unload waits and retain ownership until late startup settles. */
   private closeChild(record:ChildRecord):Promise<void> {
     return record.closing??=(async()=>{
-      await record.ready;
-      try { await record.child.unload(); } catch(error) { report(record.registration,error); }
+      const ready=await settlesWithin(record.ready);
+      /** Report cleanup errors without allowing one owner to abort other children. */
+      const unload=()=>record.child.unload().catch(error=>report(record.registration,error));
+      const unloading=unload();
+      await settlesWithin(unloading);
       this.children.delete(record);
-      if(childOwners.get(record.child)===this)childOwners.delete(record.child);
+      // A timed-out child cannot be adopted until both old startup and cleanup settle.
+      // Late registered Component resources clean themselves after unload; arbitrary code does not.
+      void record.ready.then(async()=>{
+        await unloading;
+        if(!ready)await unload();
+        if(childOwners.get(record.child)===this)childOwners.delete(record.child);
+      });
     })();
   }
+  /** Drain only children created by this registration, leaving other owners intact. */
   async removeRegistration(registration:Registration) {
     await Promise.all([...this.children].filter(record=>record.registration===registration).map(record=>this.closeChild(record)));
   }
+  /** Build bounded whole-host context with unknown section mapping represented by null. */
   private context(registration:Registration):ProcessorContext {
     const parsed=frontmatter(this.markdown);
     const context:ProcessorContext={
       docId:this.docId,sourcePath:this.sourcePath,frontmatter:parsed.error||!parsed.raw?null:parsed.properties,
       // Exact source-section mapping is not yet implemented; documented callers must handle null.
       getSectionInfo:()=>null,
+      /** Admit an unowned child only while both the owner registration and session are active. */
       addChild:child=>{
         if(!(child instanceof MarkdownRenderChild))throw new TypeError('Expected MarkdownRenderChild');
         if(!this.active||!registration.active){void child.unload().catch(error=>report(registration,error));return;}
@@ -144,6 +181,7 @@ export class RenderSession {
     contextActivity.set(context,()=>this.active&&registration.active);
     return context;
   }
+  /** Execute active callbacks in sorted order and await their registered children. */
   async run() {
     const ordered=[...registrations].sort((a,b)=>(a.callback.sortOrder||0)-(b.callback.sortOrder||0)||a.sequence-b.sequence);
     for(const registration of ordered) {
@@ -155,6 +193,7 @@ export class RenderSession {
     await Promise.all([...this.children].map(record=>record.ready));
     this.reconcile();
   }
+  /** Stop admitting children, disconnect observation and idempotently drain owned resources. */
   close():Promise<void> {
     return this.closePromise??=(async()=>{
       this.active=false;
@@ -164,13 +203,16 @@ export class RenderSession {
     })();
   }
 }
+/** Start processing one immutable reading root and return its completion/cleanup handles. */
 export function processMarkdown(root:HTMLElement,markdown:string,sourcePath:string) {
   const session=new RenderSession(root,markdown,sourcePath);
   return {ready:session.run(),close:()=>session.close()};
 }
 
+/** Construct the original static-render adapter bound to this compatibility application. */
 export function createMarkdownRenderer(getApp:()=>unknown) {
   return class MarkdownRenderer extends MarkdownRenderChild {
+    /** Append sanitized Markdown and remove it with its Component owner; no recursive processors. */
     static async render(app:unknown,markdown:string,element:HTMLElement,sourcePath:string,component:Component) {
       if(app!==getApp())throw new Error('Foreign application');
       if(!(element instanceof HTMLElement)||!(component instanceof Component)||typeof markdown!=='string'||typeof sourcePath!=='string')throw new TypeError('Invalid Markdown render arguments');
@@ -184,6 +226,7 @@ export function createMarkdownRenderer(getApp:()=>unknown) {
       container.innerHTML=renderMarkdown(markdown);
       element.append(container);
     }
+    /** Support the legacy static signature through the same bounded safe renderer. */
     static async renderMarkdown(markdown:string,element:HTMLElement,sourcePath:string,component:Component) {
       return this.render(getApp(),markdown,element,sourcePath,component);
     }

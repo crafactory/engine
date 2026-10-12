@@ -1158,6 +1158,36 @@
       ]
     },
     {
+      "id": "ACCEPT-render-child-shutdown",
+      "section": "Bounded acceptance checks",
+      "title": "Nonsettling child startup permits bounded owner cleanup and repeat disable",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Nonsettling child startup permits bounded owner cleanup and repeat disable",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/markdown-plugins.spec.ts",
+          "test": "nonsettling child startup cannot block owner cleanup or repeated enable and disable"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-render-child-late-settle",
+      "section": "Bounded acceptance checks",
+      "title": "Late child settlement cannot retain registered events or nested children",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Late child settlement cannot retain registered events or nested children",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/markdown-plugins.spec.ts",
+          "test": "a child settling after bounded shutdown cannot retain registered events or nested children"
+        }
+      ]
+    },
+    {
       "id": "GATE-reference",
       "section": "Unfinished parity gates",
       "title": "Pin an installed reference version for clean-room black-box comparisons",

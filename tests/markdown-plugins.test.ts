@@ -29,3 +29,12 @@ it('Component unload awaits async cleanup and continues after a failing cleanup'
   await expect(component.unload()).rejects.toThrow('Fixture cleanup error');expect(sequence).toEqual(['first','failure','last']);
   await component.unload();expect(sequence).toEqual(['first','failure','last']);
 });
+it('a canceled startup cannot activate children or retain late registered cleanup',async()=>{
+  let settle!:()=>void;
+  const sequence:string[]=[];
+  class Pending extends Component {
+    async onload(){await new Promise<void>(resolve=>{settle=resolve;});this.register(()=>sequence.push('late-cleanup'));this.addChild(new class extends Component{onload(){sequence.push('late-child');}}());}
+  }
+  const child=new Pending(),ready=child.load();await child.unload();settle();await ready;
+  expect(sequence).toEqual(['late-cleanup']);
+});

@@ -14,13 +14,17 @@ test.beforeEach(async()=>{
   page=await app.firstWindow();await expect(page.locator('.note-title h1')).toHaveText('Test');
 });
 test.afterEach(async()=>{await app?.close();await fs.rm(root,{recursive:true,force:true});await fs.rm(profile,{recursive:true,force:true});});
+/** Open the real community-plugin settings through normal input. */
 async function settings(){await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();}
+/** Explicitly select and authorize trusted mode, then open reading mode. */
 async function enable(){
   await settings();await page.getByLabel('Runtime for Markdown fixture',{exact:true}).selectOption('renderer');
   await page.getByRole('switch',{name:'Enable Markdown fixture',exact:true}).click();await page.getByTestId('dialog-submit').click();await expect(page.getByRole('switch',{name:'Enable Markdown fixture',exact:true})).toBeChecked();
   await page.getByTestId('settings-close').click();await page.getByTestId('mode-reading').click();
 }
+/** Read actual native persisted fixture data, not a mocked bridge. */
 async function data(){return JSON.parse(await fs.readFile(path.join(root,'.crafactory/plugins/markdown-fixture/data.json'),'utf8'));}
+/** Run the fixture's named command through the real palette and keyboard. */
 async function command(name:string){await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Markdown fixture: '+name);await page.keyboard.press('Enter');}
 test('reading processors render source bytes in order with real context and child lifecycle',async()=>{
   await enable();await expect(page.getByRole('button',{name:'Processed code',exact:true})).toHaveText('Rendered source bytes');
@@ -63,4 +67,25 @@ test('disabling a pending processor prevents late child startup and stale render
   await page.waitForFunction(()=>Boolean((window as any).__lateFixtureCompleted));
   expect(await page.evaluate(()=>Boolean((window as any).__lateChildLoaded))).toBe(false);
   await expect(page.locator('.late-render')).toHaveCount(0);expect(await fs.access(path.join(dir,'data.json')).then(()=>true,()=>false)).toBe(false);
+});
+test('nonsettling child startup cannot block owner cleanup or repeated enable and disable',async()=>{
+  const dir=path.join(root,'.crafactory/plugins/markdown-fixture');
+  await fs.writeFile(path.join(dir,'main.js'),'const {Plugin,MarkdownRenderChild}=require("obsidian");module.exports=class extends Plugin{onload(){this.addStatusBarItem().setText("pending-child owner");this.registerMarkdownPostProcessor((el,ctx)=>{ctx.addChild(new class extends MarkdownRenderChild{onload(){window.__childStarted=true;return new Promise(()=>{});}}(el));});}onunload(){window.__ownerUnloads=(window.__ownerUnloads||0)+1;}};');
+  await enable();await page.waitForFunction(()=>Boolean((window as any).__childStarted));
+  await settings();await page.getByRole('switch',{name:'Enable Markdown fixture',exact:true}).click();await expect(page.getByRole('switch',{name:'Enable Markdown fixture',exact:true})).not.toBeChecked();
+  expect(await page.evaluate(()=>(window as any).__ownerUnloads)).toBe(1);await expect(page.locator('#plugin-status')).not.toContainText('pending-child owner');
+  await page.getByRole('switch',{name:'Enable Markdown fixture',exact:true}).click();await page.getByTestId('dialog-submit').click();await expect(page.getByRole('switch',{name:'Enable Markdown fixture',exact:true})).toBeChecked();
+  await page.getByRole('switch',{name:'Enable Markdown fixture',exact:true}).click();await expect(page.getByRole('switch',{name:'Enable Markdown fixture',exact:true})).not.toBeChecked();
+  expect(await page.evaluate(()=>(window as any).__ownerUnloads)).toBe(2);
+  expect(await fs.readFile(path.join(root,'Test.md'),'utf8')).toBe(content);
+});
+test('a child settling after bounded shutdown cannot retain registered events or nested children',async()=>{
+  const dir=path.join(root,'.crafactory/plugins/markdown-fixture');
+  await fs.writeFile(path.join(dir,'main.js'),'const {Plugin,MarkdownRenderChild,Component}=require("obsidian");module.exports=class extends Plugin{onload(){this.registerMarkdownPostProcessor((el,ctx)=>{ctx.addChild(new class extends MarkdownRenderChild{async onload(){await new Promise(resolve=>window.__releaseChild=resolve);this.registerDomEvent(document,"click",()=>window.__lateClicks=(window.__lateClicks||0)+1);this.addChild(new class extends Component{onload(){window.__lateNestedChild=true;}}());window.__lateChildSettled=true;}}(el));});}onunload(){window.__ownerStopped=true;}};');
+  await enable();await page.waitForFunction(()=>typeof (window as any).__releaseChild==='function');
+  await settings();await page.getByRole('switch',{name:'Enable Markdown fixture',exact:true}).click();await expect(page.getByRole('switch',{name:'Enable Markdown fixture',exact:true})).not.toBeChecked();expect(await page.evaluate(()=>Boolean((window as any).__ownerStopped))).toBe(true);
+  await page.evaluate(()=>(window as any).__releaseChild());await page.waitForFunction(()=>Boolean((window as any).__lateChildSettled));
+  await page.getByTestId('settings-close').click();await page.getByTestId('mode-source').click();await page.getByTestId('mode-reading').click();
+  expect(await page.evaluate(()=>({clicks:(window as any).__lateClicks||0,nested:Boolean((window as any).__lateNestedChild)}))).toEqual({clicks:0,nested:false});
+  await expect(page.locator('code.language-engine-fixture')).toHaveText('source bytes\n');
 });

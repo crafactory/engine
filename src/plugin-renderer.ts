@@ -12,6 +12,7 @@ import {createDomAdapters,type PluginTab} from './compat-dom';
 import type {PluginManifest} from './types';
 import type {PluginCommand,PluginController} from './plugins';
 const modules:Record<string,unknown>={'@codemirror/state':state,'@codemirror/view':view,'@codemirror/commands':commands,'@codemirror/language':language,'@codemirror/search':search,'@codemirror/autocomplete':autocomplete,'@codemirror/lang-markdown':markdown,'@lezer/highlight':highlight};
+/** Load explicitly authorized local CommonJS source in the renderer with bounded host adapters. */
 export function startRendererPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,
   onCommands:(commands:PluginCommand[])=>void,operation:(name:string,args:unknown[])=>Promise<unknown>,
   onNotice:(message:string)=>void,onFailure:()=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void):PluginController {
@@ -24,6 +25,7 @@ export function startRendererPlugin(manifest:PluginManifest,code:string,getSnaps
       run(){if(alive&&!stopping){try{runtime.sync(getSnapshot());void runtime.run(command.id).catch(fail);}catch(error){fail(error);}}}})));}
   });
   dom.setApp(runtime.app);
+  /** Stop command admission, drain cooperative processors, then unload the runtime and UI. */
   async function stop(){
     return stopPromise??=(async()=>{stopping=true;onCommands([]);try{await booting?.catch(()=>{});await dom.stopProcessors();await runtime.stop();}finally{alive=false;await dom.dispose();}})();
   }

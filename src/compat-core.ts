@@ -49,23 +49,28 @@ export class Events {
   tryTrigger(ref:{callback:(...args:any[])=>void;ctx?:unknown},args:any[]){try{ref.callback.apply(ref.ctx,args);}catch(error){console.error(error);}}
 }
 export class Component {
-  private loaded=false;private cleanups:(()=>unknown)[]=[];private children:Component[]=[];
-  async load(){if(this.loaded)return;this.loaded=true;try{await this.onload();for(const child of this.children)await child.load();}catch(e){await this.unload();throw e;}}
+  private loaded=false;private disposed=false;private generation=0;private cleanups:(()=>unknown)[]=[];private children:Component[]=[];
+  /** Load once per generation; a canceled old startup may not reactivate child components. */
+  async load(){if(this.loaded)return;this.loaded=true;this.disposed=false;const generation=++this.generation;try{await this.onload();if(!this.loaded||generation!==this.generation)return;for(const child of this.children){if(!this.loaded||generation!==this.generation)break;await child.load();}}catch(e){if(generation===this.generation)await this.unload();throw e;}}
+  /** Mark disposal before awaiting user hooks, then await cleanup while preserving the first error. */
   async unload(){if(!this.loaded)return;this.loaded=false;let first:unknown;
+    this.disposed=true;++this.generation;
     try{await this.onunload();}catch(e){first=e;}
     for(const child of [...this.children].reverse())try{await child.unload();}catch(e){first??=e;}
     for(const cleanup of this.cleanups.splice(0).reverse())try{await cleanup();}catch(e){first??=e;}
     if(first)throw first;
   }
   onload():unknown{return undefined;} onunload():unknown{return undefined;}
-  register(callback:()=>unknown){this.cleanups.push(callback);}
+  /** Immediately clean late registrations after disposal instead of retaining leaked resources. */
+  register(callback:()=>unknown){if(this.disposed){try{void Promise.resolve(callback()).catch(error=>console.error(error));}catch(error){console.error(error);}}else this.cleanups.push(callback);}
   registerEvent(ref:ReturnType<Events['on']>){this.register(()=>ref.emitter.offref(ref));}
   registerInterval(id:ReturnType<typeof setInterval>|number){this.register(()=>clearInterval(id));return id;}
   registerDomEvent(element?:EventTarget,type?:string,callback?:EventListener,options?:AddEventListenerOptions|boolean){
     if(typeof document==='undefined'||!element||!type||!callback)return unsupported('Component.registerDomEvent');
     element.addEventListener(type,callback,options);this.register(()=>element.removeEventListener(type,callback,options));
   }
-  addChild<T extends Component>(child:T):T{this.children.push(child);if(this.loaded)void child.load();return child;}
+  /** Adopt a child only while this component remains active or has not yet loaded. */
+  addChild<T extends Component>(child:T):T{if(this.disposed){void child.unload().catch(error=>console.error(error));return child;}this.children.push(child);if(this.loaded)void child.load();return child;}
   removeChild<T extends Component>(child:T):T{this.children=this.children.filter(c=>c!==child);void child.unload();return child;}
 }
 export class TAbstractFile {
@@ -246,7 +251,9 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     registerExtensions(){return unsupported('Plugin.registerExtensions');}
     registerEditorExtension(extension:unknown){if(!host.ui)return unsupported('Plugin.registerEditorExtension');this.register(host.ui.editorExtension(extension));}
     registerEditorSuggest(){return unsupported('Plugin.registerEditorSuggest');}
+    /** Register a renderer-only callback and attach its disposal to this plugin's lifecycle. */
     registerMarkdownPostProcessor(callback:any,sortOrder?:number){if(!host.ui?.postProcessor)return unsupported('Plugin.registerMarkdownPostProcessor');const registration=host.ui.postProcessor(callback,sortOrder);this.register(registration.dispose);return registration.processor;}
+    /** Register a renderer-only fenced-code handler with the same lifecycle ownership. */
     registerMarkdownCodeBlockProcessor(language:string,callback:any,sortOrder?:number){if(!host.ui?.codeProcessor)return unsupported('Plugin.registerMarkdownCodeBlockProcessor');const registration=host.ui.codeProcessor(language,callback,sortOrder);this.register(registration.dispose);return registration.processor;}
     registerObsidianProtocolHandler(){return unsupported('Plugin.registerObsidianProtocolHandler');}
     registerHoverLinkSource(){return unsupported('Plugin.registerHoverLinkSource');}registerBasesView(){return unsupported('Plugin.registerBasesView');}

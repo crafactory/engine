@@ -294,6 +294,12 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [x] **ACCEPT-render-disable-pending Disable prevents pending render child startup**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
   - Acceptance: Disable prevents pending render child startup
   - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `disabling a pending processor prevents late child startup and stale rendered output`.
+- [x] **ACCEPT-render-child-shutdown Nonsettling child startup permits bounded owner cleanup and repeat disable**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Nonsettling child startup permits bounded owner cleanup and repeat disable
+  - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `nonsettling child startup cannot block owner cleanup or repeated enable and disable`.
+- [x] **ACCEPT-render-child-late-settle Late child settlement cannot retain registered events or nested children**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Late child settlement cannot retain registered events or nested children
+  - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `a child settling after bounded shutdown cannot retain registered events or nested children`.
 
 ## Unfinished parity gates
 

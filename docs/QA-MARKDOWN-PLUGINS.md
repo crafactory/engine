@@ -10,6 +10,7 @@ This increment is limited to reading-mode whole-host post-processing and named f
 | Render-child lifecycle and native DOM events | Click persists counter; remove child unloads; source/reading reloads; disable balances load/unload | Before/after removal and disable |
 | Sanitized static rendering | Modal renders strong text, no script node or recursive processor markers | Static-render Modal, desktop/narrow |
 | Late async callback isolation | Switch mode and change source while callback waits; successor clean; disable removes late output | Re-rendered and disabled note |
+| Nonsettling render-child startup | Bounded owner cleanup and repeated enable/disable; late settlement removes registered events and prevents nested startup | Disabled switch, removed status, unchanged raw code |
 | Worker limitations preserved | Existing negative exports/method cases remain | Explicit errors/default mode |
 | PR review requirement | CodeRabbit latest review complete, findings fixed, tests green before merge | Public PR evidence, no direct-main development |
 

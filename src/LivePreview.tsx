@@ -31,6 +31,7 @@ class BlockWidget extends WidgetType {
   readonly notes:Note[];
   constructor(readonly block:LiveBlock,readonly context:()=>Context){super();this.notes=context().notes;}
   eq(other:BlockWidget){return this.block.from===other.block.from&&this.block.to===other.block.to&&this.block.content===other.block.content&&this.context===other.context&&this.notes===other.notes;}
+  /** Mount a bounded live widget without admitting reading-only plugin processors. */
   toDOM(view:EditorView){
     const host=document.createElement('div');host.className='live-block live-block-'+this.block.kind;
     host.dataset.liveBlock=this.block.kind;host.contentEditable='false';

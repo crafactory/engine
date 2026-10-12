@@ -99,11 +99,13 @@ md.renderer.rules.heading_open=(tokens,idx,options,_env,self)=>{
   tokens[idx].attrSet('id','heading-'+(next?.content||'').toLowerCase().replace(/\s+/g,'-'));
   return self.renderToken(tokens,idx,options);
 };
+/** Render original Engine Markdown with raw HTML disabled and sanitized output. */
 export function renderMarkdown(content:string) {
   const body=frontmatter(content).body;
   const html=md.render(body);
   return DOMPurify.sanitize(html,{ADD_ATTR:['target','data-note','data-embed','data-asset'],FORBID_TAGS:['style','iframe','object','embed']});
 }
+/** Render an immutable reading host; dispose owned processing when content or registry changes. */
 export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProcessing=true}:{
   content:string;notes:Note[];path:string;onOpen:(target:string)=>void;onChange?:(content:string)=>void;depth?:number;pluginProcessing?:boolean;
 }) {
@@ -115,6 +117,7 @@ export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProce
   useEffect(()=>{
     let disposed=false;const root=ref.current;if(!root)return;
     let processorSession:ReturnType<typeof processMarkdown>|undefined;
+    /** Resolve original built-ins, then process only the still-current reading host. */
     const load=async()=>{
       for(const img of root.querySelectorAll<HTMLImageElement>('img[data-asset]')) {
         const name=img.dataset.asset!;

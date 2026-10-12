@@ -57,7 +57,9 @@ const accepted=[
   ['ACCEPT-static-markdown','Sanitized static Markdown without recursive processors','e2e-desktop/markdown-plugins.spec.ts','static Markdown rendering uses the sanitized renderer without recursive processors'],
   ['ACCEPT-render-cancellation','Canceled async render cannot alter its successor','e2e-desktop/markdown-plugins.spec.ts','canceling a slow render leaves the next document unmodified and children unloaded'],
   ['ACCEPT-render-child-error','Render-child load error disables plugin and restores source','e2e-desktop/markdown-plugins.spec.ts','a render child startup error disables its plugin and restores the original code block'],
-  ['ACCEPT-render-disable-pending','Disable prevents pending render child startup','e2e-desktop/markdown-plugins.spec.ts','disabling a pending processor prevents late child startup and stale rendered output']
+  ['ACCEPT-render-disable-pending','Disable prevents pending render child startup','e2e-desktop/markdown-plugins.spec.ts','disabling a pending processor prevents late child startup and stale rendered output'],
+  ['ACCEPT-render-child-shutdown','Nonsettling child startup permits bounded owner cleanup and repeat disable','e2e-desktop/markdown-plugins.spec.ts','nonsettling child startup cannot block owner cleanup or repeated enable and disable'],
+  ['ACCEPT-render-child-late-settle','Late child settlement cannot retain registered events or nested children','e2e-desktop/markdown-plugins.spec.ts','a child settling after bounded shutdown cannot retain registered events or nested children']
 ];
 for(const [id,title,file,test]of accepted){
   assert((await read(file)).includes(test),`Missing evidence for ${id}: ${file} / ${test}`);
