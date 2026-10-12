@@ -5,7 +5,7 @@
 ## 仓库与实现
 
 - **仓库**：[crafactory/engine](https://github.com/crafactory/engine)，代码已推送到 `main`。
-- **Linux 安装包**：[预发布下载页](https://github.com/crafactory/engine/releases)，包含未签名的 x64 AppImage、Debian 包及校验清单；发布流程在上传前验证打包程序。
+- **Linux 安装包**：[v0.2.0 预发布下载页](https://github.com/crafactory/engine/releases/tag/v0.2.0)，包含未签名的 x64 AppImage、Debian 包及校验清单；[发布流程](https://github.com/crafactory/engine/actions/runs/38193971063)已在上传前验证打包程序。
 - **技术结构**：Electron 桌面外壳、React 工作区、CodeMirror 6 编辑器、普通文件 Vault；没有远程账号或同步数据库。
 - **资源**：Lucide 图标、本地打包的 Inter 字体，以及许可证兼容的 Markdown、图谱和 Canvas 库；保留第三方许可声明。
 - **来源边界**：没有导入、反编译或改写 Obsidian 应用代码，也没有使用其品牌素材；实现依据是公开行为说明，不宣称正式法律意义上的双团队 clean-room 认证。
@@ -32,16 +32,16 @@
 | 单元测试 | 68 项通过 |
 | 浏览器端到端测试 | 36 项通过 |
 | 桌面集成测试 | 7 项通过 |
-| 发布流程中的 Linux 打包程序验证 | 每次发布前重新运行桌面集成测试；以对应发布流程结果为准 |
+| 发布流程中的 Linux 打包程序验证 | 7 项桌面集成测试通过 |
 | TypeScript 检查与生产构建 | 通过 |
 | Linux x64 AppImage / Debian 包构建与发布 | 通过，未签名 |
-| Windows / macOS 桌面包构建 | 0.1.0 的构建已通过；后续版本以对应流程结果为准，尚未实际系统运行验收 |
+| Windows / macOS 桌面包构建 | 0.2.0 构建通过；尚未实际系统运行验收 |
 | 生产依赖 `npm audit` | 当次检查报告 0 项已知告警 |
 | 含开发/构建工具的全量 `npm audit` | 尚有 8 项中等风险告警，无高危或严重告警 |
 
-0.1.0 的实现提交通过了 [GitHub Actions 自动验证](https://github.com/crafactory/engine/actions/runs/38155611092)，上述 68/36/7 项是本轮 0.2.0 的本地回归结果，不能与旧流程混为一谈。仓库包含桌面/窄屏、亮暗主题、图谱、Canvas、Bases 和编辑器截图；这些证据不等于原生移动端或全部平台验收。
+本轮 0.2.0 的实现提交 `cebfe70da9206fb1739f557415cd555013e28f3d` 通过了 [GitHub Actions 自动验证](https://github.com/crafactory/engine/actions/runs/38193971090)，包括单元/构建、浏览器和桌面测试。仓库包含桌面/窄屏、亮暗主题、图谱、Canvas、Bases 和编辑器截图；这些证据不等于原生移动端或全部平台验收。
 
-另外，[三平台打包流程](https://github.com/crafactory/engine/actions/runs/38156310973)已经成功生成 Linux、Windows 和 macOS 构建产物。Windows/macOS 产物保存在该流程的 Artifacts 中，未进行原生运行、签名或安装升级验收。
+另外，[本轮三平台打包流程](https://github.com/crafactory/engine/actions/runs/38193973228)已经成功生成 Linux、Windows 和 macOS 构建产物。Windows/macOS 产物保存在该流程的 Artifacts 中，未进行原生运行、签名或安装升级验收。
 
 ## 本轮 0.2.0 进展
 

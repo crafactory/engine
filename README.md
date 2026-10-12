@@ -10,7 +10,7 @@ Original code is released under the MIT license. No Obsidian application code or
 
 ## Run
 
-Unsigned Linux x64 AppImage and Debian packages are available on [the releases page](https://github.com/crafactory/engine/releases). Back up your vault before testing; consult the release notes for known gaps and verification boundaries.
+Unsigned Linux x64 AppImage and Debian packages are available in [the v0.2.0 prerelease](https://github.com/crafactory/engine/releases/tag/v0.2.0). Back up your vault before testing; consult the release notes for known gaps and verification boundaries.
 
 Use Node.js 22.12 or newer and npm. A graphical session is required for the desktop app.
 
