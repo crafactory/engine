@@ -29,6 +29,7 @@ export function startRendererPlugin(manifest:PluginManifest,code:string,getSnaps
   async function stop(){
     return stopPromise??=(async()=>{stopping=true;onCommands([]);try{await dom.stopProcessors();await booting?.catch(()=>{});await runtime.stop();}finally{alive=false;await dom.dispose();}})();
   }
+  /** Report a first owner failure, revoke admission, and notify the host after cooperative cleanup. */
   function fail(reason:unknown){if(!alive||stopping)return;onNotice(manifest.name+': '+(reason instanceof Error?reason.message:String(reason)));void stop().catch(error=>onNotice(String(error))).finally(onFailure);}
   const slot='__engine_plugin_'+crypto.randomUUID().replaceAll('-','');
   const global=window as unknown as Record<string,unknown>;

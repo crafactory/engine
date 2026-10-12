@@ -100,7 +100,11 @@ export function registerCodeProcessor(language:string,callback:CodeProcessor,sor
       const container=document.createElement('div');
       container.className='plugin-code-block';
       pre.replaceWith(container);
-      await callback(source,container,context);
+      try {await callback(source,container,context);}
+      catch(error) {
+        if(container.parentNode)container.replaceWith(pre);
+        throw error;
+      }
     }
   };
   return registerPostProcessor(post,sortOrder,onError);

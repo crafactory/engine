@@ -309,6 +309,9 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [x] **ACCEPT-pending-plugin-processor-revocation Stop revokes processors before pending plugin startup and rejects late registrations**: verified-subset. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
   - Acceptance: Stop revokes processors before pending plugin startup and rejects late registrations
   - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `stop revokes processors before pending plugin startup and rejects late registrations`.
+- [x] **ACCEPT-code-processor-error-restore Synchronous and asynchronous code-handler failure restores original pre before reporting**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Synchronous and asynchronous code-handler failure restores original pre before reporting
+  - Evidence: `tests/markdown-plugins.test.ts` / `failed code processors restore original pre before propagating the error`.
 
 ## Unfinished parity gates
 
