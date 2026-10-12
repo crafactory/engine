@@ -2,7 +2,7 @@
 
 An independent, local-first Markdown knowledge workspace. Crafactory is a combination of Craft and Factory. Engine is the workspace for writing, linking, and arranging knowledge.
 
-Original code is released under the MIT license. No Obsidian application code or branded assets are used. Functional interoperability is the long-term goal, but **version 0.3.1 is not a complete 1:1 replacement**. See [the feature checklist](docs/FEATURE-CHECKLIST.md) and [parity ledger](docs/PARITY.md) before migrating an important vault.
+Original code is released under the MIT license. No Obsidian application code or branded assets are used. Functional interoperability is the long-term goal, but **version 0.4.0 is not a complete 1:1 replacement**. See [the feature checklist](docs/FEATURE-CHECKLIST.md) and [parity ledger](docs/PARITY.md) before migrating an important vault.
 
 中文交付范围、运行方式及未完成项见 [Crafactory Engine 交付说明](docs/Crafactory-Engine-交付说明.md)。该说明明确区分已有实现和完整复刻目标。
 
@@ -10,7 +10,7 @@ Original code is released under the MIT license. No Obsidian application code or
 
 ## Run
 
-Unsigned Linux x64 AppImage and Debian packages are available in [the v0.3.1 prerelease](https://github.com/crafactory/engine/releases/tag/v0.3.1). Back up your vault before testing; consult the release notes for known gaps and verification boundaries.
+Unsigned Linux x64 AppImage and Debian packages are available in [the v0.4.0 prerelease](https://github.com/crafactory/engine/releases/tag/v0.4.0). Back up your vault before testing; consult the release notes for known gaps and verification boundaries.
 
 Use Node.js 22.12 or newer and npm. A graphical session is required for the desktop app.
 

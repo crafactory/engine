@@ -25,6 +25,10 @@
 
 ## 安全与交付边界
 
+本轮 [自动验证](https://github.com/crafactory/engine/actions/runs/38205278539)通过了 527 项单元测试、36 项浏览器回归和 23 项常规桌面回归，另有 10 项可选真实插件测试跳过，未算作通过。[独立真实插件 CI](https://github.com/crafactory/engine/actions/runs/38205281119)复现了两种模式的结果，[Linux 发布流程](https://github.com/crafactory/engine/actions/runs/38205283089)则对实际打包程序执行全部 33 项桌面测试并通过，包含两种模式的 10 个真实插件样本案例；其中负向启动断言通过不代表插件可用。
+
+可从 [v0.4.0 下载页](https://github.com/crafactory/engine/releases/tag/v0.4.0)取得 AppImage、Debian 包及 SHA-256 清单。清单文件已下载，安装包文件名与 GitHub 上传摘要一致；没有另行全量下载两个安装包再本地算一次摘要。[三平台构建](https://github.com/crafactory/engine/actions/runs/38205278999)全部通过，Windows/macOS 原生运行和安装仍未验收。
+
 Trusted renderer 不是沙箱：插件可访问整个 UI、Vault bridge 与工作区元数据，可能冻结主线程，不能强制中断，已经完成的写入也不会回滚。Electron 保留 context isolation、sandbox 与关闭 Node integration；这不意味着 renderer 插件与应用隔离，完整说明见 [兼容报告](https://github.com/crafactory/engine/blob/main/docs/PLUGIN-COMPATIBILITY.md)。
 
 状态项目前在底部状态栏上方独立显示，插件视图是独立浮层，不是完整 leaf 树；CSS/主题、Markdown processors、Node 模块和所有成员/事件仍有缺口。Linux 包未签名，Windows/macOS 构建不等于原生运行与安装验收，移动端、安全/无障碍及大型 Vault 验收也未完成。

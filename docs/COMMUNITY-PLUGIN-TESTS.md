@@ -22,7 +22,7 @@ Dataview release tag and manifest version differ in the downloaded artifacts; Ca
 ENGINE_PLUGIN_CORPUS=/tmp/engine-plugin-corpus node scripts/corpus.mjs
 ENGINE_PLUGIN_CORPUS=/tmp/engine-plugin-corpus \
 ENGINE_CORPUS_REPORT=/tmp/engine-corpus-results \
-xvfb-run -a npm run test:desktop -- corpus.spec.ts
+xvfb-run -a npm run test:desktop -- e2e-desktop/corpus.spec.ts
 ENGINE_CORPUS_REPORT=/tmp/engine-corpus-results node scripts/corpus-report.mjs
 ```
 

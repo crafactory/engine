@@ -11,3 +11,5 @@ Trusted renderer is NOT sandboxed: it accesses the UI/vault bridge and metadata,
 Linux AppImage and Debian packages remain unsigned; verify SHA256SUMS.txt against actual filenames. Windows/macOS build success is not native runtime/install verification. Full API/member/event/module, reference differential, security/accessibility, large-vault and native mobile acceptance remain unfinished. This is not complete 1:1 parity.
 
 See [verification ledger](https://github.com/crafactory/engine/blob/main/docs/VERIFICATION.md) for executed tests and outstanding gates.
+
+[Normal verification](https://github.com/crafactory/engine/actions/runs/38205278539) passed 527 units, 36 browser regressions and 23 regular desktop cases (ten optional corpus cases skipped). [Packaged Linux verification and publication](https://github.com/crafactory/engine/actions/runs/38205283089) passed all 33 desktop cases, including both real-plugin modes, before upload. [Three-platform builds](https://github.com/crafactory/engine/actions/runs/38205278999) passed. These results remain bounded Engine validation, not comprehensive Obsidian equivalence.

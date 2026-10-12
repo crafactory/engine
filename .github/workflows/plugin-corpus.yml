@@ -18,11 +18,11 @@ jobs:
       - run: node scripts/corpus.mjs
         env:
           ENGINE_PLUGIN_CORPUS: ${{ runner.temp }}/plugin-corpus
-      - run: xvfb-run -a npm run test:desktop -- corpus.spec.ts
+      - run: xvfb-run -a npm run test:desktop -- e2e-desktop/corpus.spec.ts
         env:
           ENGINE_PLUGIN_CORPUS: ${{ runner.temp }}/plugin-corpus
           ENGINE_CORPUS_REPORT: ${{ runner.temp }}/plugin-corpus-results
-      - run: xvfb-run -a npm run test:desktop -- renderer-corpus.spec.ts
+      - run: xvfb-run -a npm run test:desktop -- e2e-desktop/renderer-corpus.spec.ts
         env:
           ENGINE_PLUGIN_CORPUS: ${{ runner.temp }}/plugin-corpus
           ENGINE_RENDERER_CORPUS_REPORT: ${{ runner.temp }}/renderer-corpus-results

@@ -18,7 +18,7 @@ Unchanged upstream release bytes, pinned in `compatibility/community-corpus.json
 ENGINE_PLUGIN_CORPUS=/tmp/engine-plugin-corpus node scripts/corpus.mjs
 ENGINE_PLUGIN_CORPUS=/tmp/engine-plugin-corpus \
 ENGINE_RENDERER_CORPUS_REPORT=/tmp/engine-renderer-corpus-results \
-xvfb-run -a npm run test:desktop -- renderer-corpus.spec.ts
+xvfb-run -a npm run test:desktop -- e2e-desktop/renderer-corpus.spec.ts
 ENGINE_RENDERER_CORPUS_REPORT=/tmp/engine-renderer-corpus-results node scripts/renderer-corpus-report.mjs
 ```
 
