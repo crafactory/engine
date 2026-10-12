@@ -32,6 +32,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   installDomHelpers();
   const resources=new Set<HTMLElement>(),modals=new Set<any>(),tabs=new Set<any>(),extensions:unknown[]=[],factories=new Map<string,(leaf:any)=>any>(),leaves=new Set<any>();
   const processors=new Set<ReturnType<typeof registerPostProcessor>>();
+  let processorsStopped=false;
   /** Keep registration handles private to this plugin and remove them after disposal. */
   const ownProcessor=(entry:ReturnType<typeof registerPostProcessor>)=>{processors.add(entry);return {processor:entry.processor,dispose:async()=>{await entry.dispose();processors.delete(entry);}};};
   const host=(name:string)=>{const el=document.getElementById(name);if(!el)throw new Error('Plugin UI host missing: '+name);return el;};
@@ -133,11 +134,11 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     setApp(value:any){app=value;},
     exports:{Modal,SettingTab,PluginSettingTab,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app)},
     /** Bind reading post-processors to this plugin's error and lifecycle ownership. */
-    postProcessor(callback:any,sortOrder?:number){return ownProcessor(registerPostProcessor(callback,sortOrder,onError));},
+    postProcessor(callback:any,sortOrder?:number){if(processorsStopped)throw new Error('Plugin Markdown processors are stopped');return ownProcessor(registerPostProcessor(callback,sortOrder,onError));},
     /** Bind named code-block handlers to the same reading registry. */
-    codeProcessor(language:string,callback:any,sortOrder?:number){return ownProcessor(registerCodeProcessor(language,callback,sortOrder,onError));},
+    codeProcessor(language:string,callback:any,sortOrder?:number){if(processorsStopped)throw new Error('Plugin Markdown processors are stopped');return ownProcessor(registerCodeProcessor(language,callback,sortOrder,onError));},
     /** Atomically deactivate this plugin's processors before runtime resource cleanup. */
-    async stopProcessors(){await stopProcessors(processors);processors.clear();},
+    async stopProcessors(){processorsStopped=true;await stopProcessors(processors);processors.clear();},
     workspace:{
       getRightLeaf(split?:boolean){if(split)return unsupported('Workspace.getRightLeaf split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeaf(newLeaf?:boolean|string){if(newLeaf!==undefined&&newLeaf!==true)return unsupported('Workspace.getLeaf reuse/split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},
       getLeavesOfType(type:string){return [...leaves].filter(l=>l.view?.getViewType()===type);},
@@ -150,6 +151,6 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     updateOptions(){onExtensions([...extensions]);},
     registerView(type:string,factory:(leaf:any)=>any){if(typeof type!=='string'||!type||typeof factory!=='function')throw new Error('Invalid view registration');if(factories.has(type))throw new Error('View already registered');factories.set(type,factory);return()=>{factories.delete(type);};},
     /** Dispose processor children, visible UI and editor registrations after owner stop. */
-    async dispose(){await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach();for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
+    async dispose(){processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach();for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
   };
 }

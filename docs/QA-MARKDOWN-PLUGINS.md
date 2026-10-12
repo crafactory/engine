@@ -9,7 +9,9 @@ This increment is limited to reading-mode whole-host post-processing and named f
 | Sorted post-processors and original code bytes | Native fixture verifies LOW/HIGH order, button source and parent sourcePath/frontmatter | Reading note with rendered block |
 | Render-child lifecycle and native DOM events | Click persists counter; remove child unloads; source/reading reloads; disable balances load/unload | Before/after removal and disable |
 | Sanitized static rendering | Modal renders strong text, no script node or recursive processor markers | Static-render Modal, desktop/narrow |
-| Late async callback isolation | Switch mode and change source while callback waits; successor clean; disable removes late output | Re-rendered and disabled note |
+| Late async callback isolation | Switch from Test.md to Next.md while callback waits; settle old callback, assert no successor output or child; settle Next.md independently | Different successor note, then disabled note |
+| Pending owner startup | Register processors, hold startup, request vault switch; raw reading restored before startup settles, subsequent reading stays raw, both late registration methods reject | Restored raw reading host during startup wait |
+| Template palette focus | Create a daily note under fixed clock, open templates and advance pending focus timer; actual keyboard Enter inserts Discussion | Focus remains in template input until selection |
 | Nonsettling render-child startup | Bounded owner cleanup and repeated enable/disable; late settlement removes registered events and prevents nested startup | Disabled switch, removed status, unchanged raw code |
 | Revoked context ownership | Source/reading successor adoption; stale context command cannot unload successor; real button still works | Successor button, final disable |
 | Pending child unload | Managed global DOM handler removed despite nonsettling user hook and another nonsettling cleanup; owner stop completes | Disabled switch, restored raw code, real clicks no longer counted |

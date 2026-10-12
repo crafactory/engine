@@ -46,11 +46,29 @@ test('static Markdown rendering uses the sanitized renderer without recursive pr
 });
 test('canceling a slow render leaves the next document unmodified and children unloaded',async()=>{
   const dir=path.join(root,'.crafactory/plugins/markdown-fixture');
-  await fs.writeFile(path.join(dir,'main.js'),'const {Plugin,MarkdownRenderChild}=require("obsidian");module.exports=class extends Plugin{onload(){this.registerMarkdownPostProcessor(async(el,ctx)=>{await new Promise(r=>setTimeout(r,250));el.createDiv({cls:"late-render",text:ctx.sourcePath});ctx.addChild(new MarkdownRenderChild(el));});}};');
-  await enable();await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+a');await page.keyboard.insertText('# Changed\n\nClean next document.');
-  await page.getByTestId('mode-reading').click();await expect(page.locator('.late-render')).toHaveText('Test.md');await expect(page.locator('.markdown')).toContainText('Clean next document.');
+  await fs.writeFile(path.join(dir,'main.js'),'const {Plugin,MarkdownRenderChild}=require("obsidian");module.exports=class extends Plugin{onload(){window.__releases={};window.__completed={};this.registerMarkdownPostProcessor(async(el,ctx)=>{await new Promise(r=>window.__releases[ctx.sourcePath]=r);el.createDiv({cls:"late-render",text:ctx.sourcePath});ctx.addChild(new class extends MarkdownRenderChild{onload(){window.__childPath=ctx.sourcePath;}}(el));window.__completed[ctx.sourcePath]=true;});}};');
+  await fs.writeFile(path.join(root,'Next.md'),'# Next\n\nClean next document.');
+  await enable();await page.waitForFunction(()=>typeof (window as any).__releases?.['Test.md']==='function');
+  await page.getByTestId('file-Next.md').click();await expect(page.locator('.note-title h1')).toHaveText('Next');await page.waitForFunction(()=>typeof (window as any).__releases?.['Next.md']==='function');
+  await page.evaluate(()=>(window as any).__releases['Test.md']());await page.waitForFunction(()=>Boolean((window as any).__completed['Test.md']));
+  await expect(page.locator('.late-render')).toHaveCount(0);expect(await page.evaluate(()=>(window as any).__childPath)).toBeUndefined();
+  await page.evaluate(()=>(window as any).__releases['Next.md']());await expect(page.locator('.late-render')).toHaveText('Next.md');await expect(page.locator('.markdown')).toContainText('Clean next document.');
   await settings();await page.getByRole('switch',{name:'Enable Markdown fixture',exact:true}).click();await page.getByTestId('settings-close').click();await expect(page.locator('.late-render')).toHaveCount(0);await expect(page.locator('.markdown')).toContainText('Clean next document.');
   await expect(page.locator('.error-banner')).toHaveCount(0);
+  expect(await fs.readFile(path.join(root,'Test.md'),'utf8')).toBe(content);expect(await fs.readFile(path.join(root,'Next.md'),'utf8')).toBe('# Next\n\nClean next document.');
+});
+test('stop revokes processors before pending plugin startup and rejects late registrations',async()=>{
+  const dir=path.join(root,'.crafactory/plugins/markdown-fixture');
+  await fs.writeFile(path.join(dir,'main.js'),'const {Plugin}=require("obsidian");module.exports=class extends Plugin{async onload(){this.registerMarkdownPostProcessor(el=>el.createDiv({cls:"startup-render",text:"active"}));await new Promise(r=>window.__releaseStartup=r);window.__lateRegistrationErrors=0;for(const register of [()=>this.registerMarkdownPostProcessor(()=>{}),()=>this.registerMarkdownCodeBlockProcessor("late",()=>{})]){try{register();}catch(e){if(e.message==="Plugin Markdown processors are stopped")window.__lateRegistrationErrors++;}}window.__startupSettled=true;}};');
+  await app.evaluate(({dialog})=>{dialog.showOpenDialog=async()=>({canceled:true,filePaths:[]});});
+  await settings();await page.getByLabel('Runtime for Markdown fixture',{exact:true}).selectOption('renderer');
+  await page.getByRole('switch',{name:'Enable Markdown fixture',exact:true}).click();await page.getByTestId('dialog-submit').click();
+  await page.waitForFunction(()=>typeof (window as any).__releaseStartup==='function');await page.getByTestId('settings-close').click();await page.getByTestId('mode-reading').click();await expect(page.locator('.startup-render')).toHaveText('active');
+  await page.getByRole('button',{name:'Open another vault',exact:true}).click();await expect(page.locator('.startup-render')).toHaveCount(0);
+  await page.getByTestId('mode-source').click();await page.getByTestId('mode-reading').click();await expect(page.locator('.startup-render')).toHaveCount(0);
+  await page.evaluate(()=>(window as any).__releaseStartup());await page.waitForFunction(()=>Boolean((window as any).__startupSettled));
+  expect(await page.evaluate(()=>(window as any).__lateRegistrationErrors)).toBe(2);await expect(page.locator('.startup-render')).toHaveCount(0);
+  expect(await fs.readFile(path.join(root,'Test.md'),'utf8')).toBe(content);
 });
 test('a render child startup error disables its plugin and restores the original code block',async()=>{
   const dir=path.join(root,'.crafactory/plugins/markdown-fixture');

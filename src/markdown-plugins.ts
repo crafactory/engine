@@ -1,5 +1,5 @@
 /* Original renderer registry, based only on public behavioral documentation. */
-import {Component,unsupported} from './compat-core';
+import {Component,componentLifecycle,unsupported} from './compat-core';
 import {frontmatter} from './knowledge';
 
 export class MarkdownRenderChild extends Component {
@@ -144,7 +144,7 @@ export class RenderSession {
     return record.closing??=(async()=>{
       const ready=await settlesWithin(record.ready);
       /** Report cleanup errors without allowing one owner to abort other children. */
-      const unload=()=>record.child.unload().catch(error=>report(record.registration,error));
+      const unload=()=>Promise.all([record.child.unload(),componentLifecycle(record.child,'shutdown')]).then(()=>{},error=>report(record.registration,error));
       const unloading=unload();
       await settlesWithin(unloading);
       this.children.delete(record);
@@ -178,7 +178,7 @@ export class RenderSession {
         const record:ChildRecord={child,registration,ready:Promise.resolve()};
         this.children.add(record);
         childOwners.set(child,this);
-        record.ready=child.load().catch(error=>report(registration,error));
+        record.ready=Promise.all([child.load(),componentLifecycle(child,'startup')]).then(()=>{},error=>report(registration,error));
         void record.ready.then(()=>{if(!this.active||!registration.active)void this.closeChild(record);});
       }
     };

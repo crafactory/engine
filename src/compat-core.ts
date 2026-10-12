@@ -54,46 +54,58 @@ function lifecyclePromise(){
   const promise=new Promise<void>((ok,bad)=>{resolve=ok;reject=bad;});
   return {promise,resolve,reject};
 }
+interface LifecycleState {startup?:Promise<void>;shutdown?:Promise<void>}
+const componentLifecycles=new WeakMap<Component,LifecycleState>();
+/** Await actual host-owned lifecycle work without making public idempotent calls self-dependent. */
+export function componentLifecycle(component:Component,phase:'startup'|'shutdown'):Promise<void>{
+  return componentLifecycles.get(component)?.[phase]??Promise.resolve();
+}
 export class Component {
-  private loaded=false;private disposed=false;private generation=0;private startup:Promise<void>|undefined;private shutdown:Promise<void>|undefined;private cleanups:(()=>unknown)[]=[];private children:Component[]=[];
+  private loaded=false;private disposed=false;private generation=0;private admission=0;private lifecycle:LifecycleState={};private cleanups:(()=>unknown)[]=[];private children:Component[]=[];private childStarts=new Map<Component,Promise<void>>();
+  /** Initialize private host tracking, not an additional Obsidian compatibility export. */
+  constructor(){componentLifecycles.set(this,this.lifecycle);}
   /** Serialize reload behind complete old startup and shutdown, including registered cleanup. */
   async load(){
-    while(this.startup||this.shutdown){
-      const pending=this.startup??this.shutdown!;
-      await pending.catch(()=>{});
-      if(this.startup===pending)this.startup=undefined;
-      if(this.shutdown===pending)this.shutdown=undefined;
+    if(this.loaded)return;
+    const admission=this.admission;
+    while(this.lifecycle.startup||this.lifecycle.shutdown){
+      const pending=this.lifecycle.startup??this.lifecycle.shutdown!;
+      await pending;
+      if(this.lifecycle.startup===pending)this.lifecycle.startup=undefined;
+      if(this.lifecycle.shutdown===pending)this.lifecycle.shutdown=undefined;
     }
+    if(admission!==this.admission)return;
     if(this.loaded)return;
     this.loaded=true;this.disposed=false;const generation=++this.generation;
     const {promise:startup,resolve,reject}=lifecyclePromise();
-    this.startup=startup;
+    this.lifecycle.startup=startup;
     void (async()=>{
-      try{await this.onload();if(!this.loaded||generation!==this.generation)return;for(const child of this.children){if(!this.loaded||generation!==this.generation)break;await child.load();}}
+      try{await this.onload();if(!this.loaded||generation!==this.generation)return;for(const child of this.children){if(!this.loaded||generation!==this.generation)break;const started=this.childStarts.get(child);try{await (started??Promise.all([child.load(),componentLifecycle(child,'startup')]));}finally{if(this.childStarts.get(child)===started)this.childStarts.delete(child);}}}
       catch(e){if(generation===this.generation)await this.unload();throw e;}
     })().then(resolve,reject);
-    try{await startup;}finally{if(this.startup===startup)this.startup=undefined;}
+    try{await startup;}finally{if(this.lifecycle.startup===startup)this.lifecycle.startup=undefined;}
   }
   /** Revoke all registered resources immediately; await all work without blocking revocation on hooks. */
   async unload(){
-    if(this.shutdown)return this.shutdown;
+    ++this.admission;
     if(!this.loaded)return;
     this.loaded=false;
     this.disposed=true;++this.generation;
     const children=[...this.children].reverse(),cleanups=this.cleanups.splice(0).reverse();
+    this.childStarts.clear();
     const {promise:shutdown,resolve,reject}=lifecyclePromise();
-    this.shutdown=shutdown;
+    this.lifecycle.shutdown=shutdown;
     const jobs:Promise<unknown>[]=[];
     /** Invoke each callback in contract order, isolating failures without delaying other revocations. */
     const schedule=(callback:()=>unknown)=>{try{jobs.push(Promise.resolve(callback()));}catch(error){jobs.push(Promise.reject(error));}};
     schedule(()=>this.onunload());
-    for(const child of children)schedule(()=>child.unload());
+    for(const child of children)schedule(()=>Promise.all([child.unload(),componentLifecycle(child,'shutdown')]));
     for(const cleanup of cleanups)schedule(cleanup);
     void Promise.allSettled(jobs).then(results=>{
       const failure=results.find(result=>result.status==='rejected');
       if(failure?.status==='rejected')reject(failure.reason);else resolve();
     });
-    try{await shutdown;}finally{if(this.shutdown===shutdown)this.shutdown=undefined;}
+    try{await shutdown;}finally{if(this.lifecycle.shutdown===shutdown)this.lifecycle.shutdown=undefined;}
   }
   /** Override to initialize this component; asynchronous hooks are cooperatively awaited. */
   onload():unknown{return undefined;}
@@ -108,8 +120,9 @@ export class Component {
     element.addEventListener(type,callback,options);this.register(()=>element.removeEventListener(type,callback,options));
   }
   /** Adopt a child only while this component remains active or has not yet loaded. */
-  addChild<T extends Component>(child:T):T{if(this.disposed)return child;this.children.push(child);if(this.loaded)void child.load();return child;}
-  removeChild<T extends Component>(child:T):T{this.children=this.children.filter(c=>c!==child);void child.unload();return child;}
+  addChild<T extends Component>(child:T):T{if(this.disposed)return child;this.children.push(child);if(this.loaded){const started=Promise.all([child.load(),componentLifecycle(child,'startup')]).then(()=>{});if(this.lifecycle.startup)this.childStarts.set(child,started);void started.catch(error=>console.error(error));}return child;}
+  /** Remove an attached child and observe asynchronous cleanup errors rather than leaking rejections. */
+  removeChild<T extends Component>(child:T):T{if(!this.children.includes(child))return child;this.children=this.children.filter(c=>c!==child);this.childStarts.delete(child);void child.unload().catch(error=>console.error(error));return child;}
 }
 export class TAbstractFile {
   path='';name='';parent:TFolder|null=null;vault:any;
@@ -318,9 +331,11 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   return {
     app,api,settle,
     sync(next:PluginSnapshot){refresh(next,true);publish();},
-    async boot(constructor:any){if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');plugin=new constructor(app,manifest);await plugin!.load();await plugin!.onUserEnable();await settle();publish();if(host.ui)workspace.trigger('layout-change');},
+    /** Await actual initialization even when public repeated load calls return immediately. */
+    async boot(constructor:any){if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');plugin=new constructor(app,manifest);await Promise.all([plugin!.load(),componentLifecycle(plugin!,'startup')]);await plugin!.onUserEnable();await settle();publish();if(host.ui)workspace.trigger('layout-change');},
     async run(id:string){if(unloaded)throw new Error('Plugin is unloaded');initEditor();const command=commands.get(id);if(!command)throw new Error('Command not found');if(!available(command,true))throw new Error('Command unavailable');await available(command,false);await settle();},
-    async stop(){if(unloaded)return;try{await plugin?.unload();await settle();}finally{commands.clear();host.commands([]);unloaded=true;}},
+    /** Keep the request fence open until actual hook/cleanup work and data operations settle. */
+    async stop(){if(unloaded)return;try{if(plugin)await Promise.all([plugin.unload(),componentLifecycle(plugin,'shutdown')]);await settle();}finally{commands.clear();host.commands([]);unloaded=true;}},
     getExports(){return Object.keys(exports);}
   };
 }

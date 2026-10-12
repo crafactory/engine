@@ -306,6 +306,9 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [x] **ACCEPT-render-child-unload-revoke Pending child unload revokes global handlers despite another pending cleanup**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
   - Acceptance: Pending child unload revokes global handlers despite another pending cleanup
   - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `pending child unload revokes global events even behind a never-settling cleanup`.
+- [x] **ACCEPT-pending-plugin-processor-revocation Stop revokes processors before pending plugin startup and rejects late registrations**: verified-subset. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Acceptance: Stop revokes processors before pending plugin startup and rejects late registrations
+  - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `stop revokes processors before pending plugin startup and rejects late registrations`.
 
 ## Unfinished parity gates
 

@@ -62,7 +62,8 @@ const accepted=[
   ['ACCEPT-render-child-shutdown','Nonsettling child startup permits bounded owner cleanup and repeat disable','e2e-desktop/markdown-plugins.spec.ts','nonsettling child startup cannot block owner cleanup or repeated enable and disable'],
   ['ACCEPT-render-child-late-settle','Late child settlement cannot retain registered events or nested children','e2e-desktop/markdown-plugins.spec.ts','a child settling after bounded shutdown cannot retain registered events or nested children'],
   ['ACCEPT-render-child-revoked-owner','Revoked context cannot tear down a successor session child','e2e-desktop/markdown-plugins.spec.ts','a revoked context cannot unload a child adopted by a successor reading session'],
-  ['ACCEPT-render-child-unload-revoke','Pending child unload revokes global handlers despite another pending cleanup','e2e-desktop/markdown-plugins.spec.ts','pending child unload revokes global events even behind a never-settling cleanup']
+  ['ACCEPT-render-child-unload-revoke','Pending child unload revokes global handlers despite another pending cleanup','e2e-desktop/markdown-plugins.spec.ts','pending child unload revokes global events even behind a never-settling cleanup'],
+  ['ACCEPT-pending-plugin-processor-revocation','Stop revokes processors before pending plugin startup and rejects late registrations','e2e-desktop/markdown-plugins.spec.ts','stop revokes processors before pending plugin startup and rejects late registrations']
 ];
 for(const [id,title,file,test]of accepted){
   assert((await read(file)).includes(test),`Missing evidence for ${id}: ${file} / ${test}`);

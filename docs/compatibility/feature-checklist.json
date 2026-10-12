@@ -1218,6 +1218,21 @@
       ]
     },
     {
+      "id": "ACCEPT-pending-plugin-processor-revocation",
+      "section": "Bounded acceptance checks",
+      "title": "Stop revokes processors before pending plugin startup and rejects late registrations",
+      "status": "verified-subset",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "Stop revokes processors before pending plugin startup and rejects late registrations",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/markdown-plugins.spec.ts",
+          "test": "stop revokes processors before pending plugin startup and rejects late registrations"
+        }
+      ]
+    },
+    {
       "id": "GATE-reference",
       "section": "Unfinished parity gates",
       "title": "Pin an installed reference version for clean-room black-box comparisons",

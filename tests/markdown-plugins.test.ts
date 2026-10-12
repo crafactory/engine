@@ -1,5 +1,5 @@
-import {it,expect} from 'vitest';
-import {Component} from '../src/compat-core';
+import {it,expect,vi} from 'vitest';
+import {Component,componentLifecycle} from '../src/compat-core';
 import {MarkdownRenderChild,registerPostProcessor,registerCodeProcessor,getProcessorRevision,subscribeProcessors,stopProcessors} from '../src/markdown-plugins';
 it('MarkdownRenderChild independently inherits Component and preserves container',()=>{
   const container={} as HTMLElement,child=new MarkdownRenderChild(container);
@@ -69,4 +69,41 @@ it('disposed parents do not unload supplied children owned elsewhere',async()=>{
   const parent=new Component(),child=new class extends Component{onunload(){childUnloads++;}}();
   await parent.load();await parent.unload();await child.load();parent.addChild(child);expect(childUnloads).toBe(0);
   await child.unload();expect(childUnloads).toBe(1);
+});
+it('a later unload cancels a queued reload without reactivating the component',async()=>{
+  let settle!:()=>void,loads=0,unloads=0;
+  class Pending extends Component {
+    onload(){loads++;}
+    onunload(){if(++unloads===1)return new Promise<void>(resolve=>{settle=resolve;});}
+  }
+  const component=new Pending();await component.load();const old=component.unload(),queued=component.load(),cancel=component.unload();
+  settle();await Promise.all([old,queued,cancel]);expect(loads).toBe(1);
+  await component.load();expect(loads).toBe(2);await component.unload();
+});
+it('parent load propagates an auto-started child failure without an unhandled rejection',async()=>{
+  const logging=vi.spyOn(console,'error').mockImplementation(()=>{});
+  let attempts=0;
+  try {
+    class Parent extends Component {
+      async onload(){this.addChild(new class extends Component{onload(){if(++attempts===1)throw new Error('Child startup failed');}}());await new Promise(resolve=>setTimeout(resolve,0));}
+    }
+    const parent=new Parent();await expect(parent.load()).rejects.toThrow('Child startup failed');await parent.unload();
+    expect(logging).toHaveBeenCalled();expect(attempts).toBe(1);
+  } finally {logging.mockRestore();}
+});
+it('awaited repeated lifecycle calls inside their own hooks remain idempotent',async()=>{
+  const sequence:string[]=[];
+  class Reentrant extends Component {
+    async onload(){sequence.push('load');await this.load();sequence.push('loaded');}
+    async onunload(){sequence.push('unload');await this.unload();sequence.push('unloaded');}
+  }
+  const component=new Reentrant();await component.load();await component.unload();
+  expect(sequence).toEqual(['load','loaded','unload','unloaded']);
+});
+it('host lifecycle tracking still waits for actual teardown after an idempotent repeated unload',async()=>{
+  let settle!:()=>void,finished=false;
+  class Pending extends Component {onunload(){return new Promise<void>(resolve=>{settle=resolve;});}}
+  const component=new Pending();await component.load();const first=component.unload();await component.unload();
+  const actual=componentLifecycle(component,'shutdown').then(()=>{finished=true;});await Promise.resolve();expect(finished).toBe(false);
+  settle();await first;await actual;expect(finished).toBe(true);
 });
