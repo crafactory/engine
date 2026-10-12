@@ -187,9 +187,11 @@ test('empty and malformed Canvas embeds remain bounded and never expose JSON as 
   expect(errors).toEqual([]);
 });
 test('active Live link source remains editable and safe external links are anchors',async({page})=>{
-  await host(page,'# Links\n\n[[Welcome|Alias]] and [Website](https://example.com)\n\n`[[Not a link]]` [Unsafe](javascript:bad)\n\nEnd');
+  const url='https://example.com/s?q=a%26b%23c%2Fd';
+  await host(page,`# Links\n\n[[Welcome|Alias]] and [Website](${url})\n\n\`[[Not a link]]\` [Unsafe](javascript:bad)\n\nEnd`);
   await page.getByTestId('mode-live').click();
-  await expect(page.getByRole('link',{name:'Website',exact:true})).toHaveAttribute('href','https://example.com');
+  await expect(page.getByRole('link',{name:'Website',exact:true})).toHaveAttribute('href',url);
+  expect(new URL((await page.getByRole('link',{name:'Website',exact:true}).getAttribute('href'))!).searchParams.get('q')).toBe('a&b#c/d');
   await expect(page.getByRole('link',{name:'Unsafe',exact:true})).toHaveCount(0);
   await expect(page.getByRole('link',{name:'Not a link',exact:true})).toHaveCount(0);
   await page.getByTestId('note-editor').press('Control+Home');await page.keyboard.press('ArrowDown');await page.keyboard.press('ArrowDown');
