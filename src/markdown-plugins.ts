@@ -39,7 +39,9 @@ export const getProcessorRevision=()=>revision;
 /** Subscribe React hosts to processor registration changes; return an idempotent removal hook. */
 export function subscribeProcessors(listener:()=>void) {
   listeners.add(listener);
-  return ()=>{listeners.delete(listener);};
+  /** Remove this host's subscription without changing processor membership. */
+  const unsubscribe=()=>{listeners.delete(listener);};
+  return unsubscribe;
 }
 /** Publish a single revision after registry membership changes. */
 function changed() {
@@ -87,6 +89,7 @@ export async function stopProcessors(entries:Iterable<ReturnType<typeof register
 /** Replace matching fenced blocks with containers and pass their original text to the handler. */
 export function registerCodeProcessor(language:string,callback:CodeProcessor,sortOrder:number|undefined,onError:(error:unknown)=>void) {
   if(!/^[a-zA-Z0-9][\w-]*$/.test(language)||typeof callback!=='function')throw new TypeError('Invalid Markdown code processor');
+  /** Visit matching fenced blocks while this context still owns admission authority. */
   const post:PostProcessor=async(element,context)=>{
     const codes=[...element.querySelectorAll<HTMLElement>('pre > code')].filter(code=>code.classList.contains('language-'+language));
     for(const code of codes) {

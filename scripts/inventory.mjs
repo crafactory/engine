@@ -2,7 +2,8 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {normalizeText,parseParityLedger} from './inventory-model.mjs';
 const check=process.argv.includes('--check');
-const read=async path=>normalizeText(await fs.readFile(new URL('../'+path,import.meta.url),'utf8'));
+/** Read a repository text input with normalized line endings for reproducible inventory checks. */
+async function read(path){return normalizeText(await fs.readFile(new URL('../'+path,import.meta.url),'utf8'));}
 const ledger=await read('docs/PARITY.md'),baseline=JSON.parse(await read('docs/compatibility/reference-baseline.json'));
 const exported=JSON.parse(await read('docs/compatibility/obsidian-exports.json'));
 const source=await read('src/compat-core.ts');
@@ -60,7 +61,8 @@ const accepted=[
   ['ACCEPT-render-disable-pending','Disable prevents pending render child startup','e2e-desktop/markdown-plugins.spec.ts','disabling a pending processor prevents late child startup and stale rendered output'],
   ['ACCEPT-render-child-shutdown','Nonsettling child startup permits bounded owner cleanup and repeat disable','e2e-desktop/markdown-plugins.spec.ts','nonsettling child startup cannot block owner cleanup or repeated enable and disable'],
   ['ACCEPT-render-child-late-settle','Late child settlement cannot retain registered events or nested children','e2e-desktop/markdown-plugins.spec.ts','a child settling after bounded shutdown cannot retain registered events or nested children'],
-  ['ACCEPT-render-child-revoked-owner','Revoked context cannot tear down a successor session child','e2e-desktop/markdown-plugins.spec.ts','a revoked context cannot unload a child adopted by a successor reading session']
+  ['ACCEPT-render-child-revoked-owner','Revoked context cannot tear down a successor session child','e2e-desktop/markdown-plugins.spec.ts','a revoked context cannot unload a child adopted by a successor reading session'],
+  ['ACCEPT-render-child-unload-revoke','Pending child unload revokes global handlers despite another pending cleanup','e2e-desktop/markdown-plugins.spec.ts','pending child unload revokes global events even behind a never-settling cleanup']
 ];
 for(const [id,title,file,test]of accepted){
   assert((await read(file)).includes(test),`Missing evidence for ${id}: ${file} / ${test}`);
@@ -94,7 +96,9 @@ for(const group of [...new Set(items.map(i=>i.section))]){
 }
 md+='## Maintenance\n\nEdit `PARITY.md` and the acceptance registry in `scripts/inventory.mjs`, then run `npm run inventory:update`. Commit generated JSON and Markdown together. CI rejects drift, missing core plugins, extra exclusions, duplicate IDs and missing evidence. Do not remove unfinished areas to improve statistics. Keep checkpoint IDs stable; append new cases. Public docs may change: refresh the baseline deliberately and record differences. `ACCEPT-reading-time` is signed off only for the eight listed Linux trusted-renderer workflows in TRUSTED-RENDERER-PLUGIN-TESTS.md; it is optional in ordinary CI and must be reproduced with verified corpus inputs using the manual corpus workflow. No overall plugin checkbox is complete.\n';
 let api='# Public API export coverage\n\n'+`Pinned [public API index](${exported.source_url}): ${exported.symbols.length} names; ${exported.symbols.filter(s=>s.runtime).length} runtime symbols; ${exported.symbols.filter(s=>!s.runtime).length} type-only names. Default Worker: ${supported.length} bounded runtime symbols. Explicit opt-in trusted renderer: ${rendererSupported.length} bounded runtime symbols (${rendererOnly.length} additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.\n\n| Symbol | Kind | Default Worker | Trusted renderer | Public documentation |\n|---|---|---|---|---|\n`;
-for(const s of exported.symbols){const behavior=(names)=>!s.runtime?'Type only; runtime access rejected':names.includes(s.name)?'Implemented subset, not full equivalence':'Unsupported; explicit CompatibilityError';api+=`| ${s.name} | ${s.kind} | ${behavior(supported)} | ${behavior(rendererSupported)} | [${s.name}](${s.source_url}) |\n`;}
+/** Describe export availability without treating a runtime symbol as full behavioral compatibility. */
+function behavior(symbol,names){return !symbol.runtime?'Type only; runtime access rejected':names.includes(symbol.name)?'Implemented subset, not full equivalence':'Unsupported; explicit CompatibilityError';}
+for(const s of exported.symbols){api+=`| ${s.name} | ${s.kind} | ${behavior(s,supported)} | ${behavior(s,rendererSupported)} | [${s.name}](${s.source_url}) |\n`;}
 const generated={'docs/FEATURE-CHECKLIST.md':md,'docs/compatibility/feature-checklist.json':JSON.stringify(checklist,null,2)+'\n','docs/API-COVERAGE.md':api};
 for(const [file,content]of Object.entries(generated)){
   if(check)assert.equal(await read(file),content,'Inventory drift: '+file+'; run npm run inventory:update');

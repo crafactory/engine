@@ -99,3 +99,13 @@ test('a revoked context cannot unload a child adopted by a successor reading ses
   await page.getByRole('button',{name:'Shared child action',exact:true}).click();expect(await page.evaluate(()=>(window as any).__sharedClicks)).toBe(1);
   await settings();await page.getByRole('switch',{name:'Enable Markdown fixture',exact:true}).click();await expect(page.getByRole('switch',{name:'Enable Markdown fixture',exact:true})).not.toBeChecked();expect(await page.evaluate(()=>(window as any).__sharedUnloads)).toBe(2);
 });
+test('pending child unload revokes global events even behind a never-settling cleanup',async()=>{
+  const dir=path.join(root,'.crafactory/plugins/markdown-fixture');
+  await fs.writeFile(path.join(dir,'main.js'),'const {Plugin,MarkdownRenderChild}=require("obsidian");module.exports=class extends Plugin{onload(){window.__managedClicks=0;this.registerMarkdownPostProcessor((el,ctx)=>{ctx.addChild(new class extends MarkdownRenderChild{onload(){this.registerDomEvent(document,"click",()=>window.__managedClicks++);this.register(()=>new Promise(()=>{}));window.__managedStarted=true;}onunload(){window.__pendingChildUnload=true;return new Promise(()=>{});}}(el));});}onunload(){window.__managedOwnerStopped=true;}};');
+  await enable();await page.waitForFunction(()=>Boolean((window as any).__managedStarted));
+  await settings();await page.getByRole('switch',{name:'Enable Markdown fixture',exact:true}).click();await expect(page.getByRole('switch',{name:'Enable Markdown fixture',exact:true})).not.toBeChecked();
+  expect(await page.evaluate(()=>Boolean((window as any).__managedOwnerStopped&&(window as any).__pendingChildUnload))).toBe(true);
+  const clicks=await page.evaluate(()=>(window as any).__managedClicks);
+  await page.getByTestId('settings-close').click();await page.getByTestId('mode-source').click();await page.getByTestId('mode-reading').click();
+  expect(await page.evaluate(()=>(window as any).__managedClicks)).toBe(clicks);await expect(page.locator('code.language-engine-fixture')).toHaveText('source bytes\n');
+});

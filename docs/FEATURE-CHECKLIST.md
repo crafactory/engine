@@ -303,6 +303,9 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [x] **ACCEPT-render-child-revoked-owner Revoked context cannot tear down a successor session child**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
   - Acceptance: Revoked context cannot tear down a successor session child
   - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `a revoked context cannot unload a child adopted by a successor reading session`.
+- [x] **ACCEPT-render-child-unload-revoke Pending child unload revokes global handlers despite another pending cleanup**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Pending child unload revokes global handlers despite another pending cleanup
+  - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `pending child unload revokes global events even behind a never-settling cleanup`.
 
 ## Unfinished parity gates
 

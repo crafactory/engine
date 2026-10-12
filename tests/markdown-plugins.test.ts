@@ -21,13 +21,13 @@ it('owner shutdown atomically deactivates all processors with one revision',asyn
   const before=getProcessorRevision();await stopProcessors([a,b]);expect(getProcessorRevision()).toBe(before+1);
   await a.dispose();await b.dispose();expect(getProcessorRevision()).toBe(before+1);
 });
-it('Component unload awaits async cleanup and continues after a failing cleanup',async()=>{
+it('Component unload starts all cleanup and awaits completion despite a failing cleanup',async()=>{
   const sequence:string[]=[],component=new Component();await component.load();
   component.register(async()=>{await new Promise(resolve=>setTimeout(resolve,5));sequence.push('last');});
   component.register(async()=>{sequence.push('failure');throw new Error('Fixture cleanup error');});
   component.register(async()=>{await new Promise(resolve=>setTimeout(resolve,5));sequence.push('first');});
-  await expect(component.unload()).rejects.toThrow('Fixture cleanup error');expect(sequence).toEqual(['first','failure','last']);
-  await component.unload();expect(sequence).toEqual(['first','failure','last']);
+  await expect(component.unload()).rejects.toThrow('Fixture cleanup error');expect(sequence).toEqual(['failure','first','last']);
+  await component.unload();expect(sequence).toEqual(['failure','first','last']);
 });
 it('a canceled startup cannot activate children or retain late registered cleanup',async()=>{
   let settle!:()=>void;
@@ -51,4 +51,22 @@ it('reload waits for canceled startup settlement without adopting its late child
   const reload=component.load();await Promise.resolve();expect(calls).toBe(1);
   settle();await old;await reload;expect(calls).toBe(2);expect(sequence).toEqual(['stale-cleanup','new-load']);
   await component.unload();
+});
+it('reload waits for full pending unload and preserves the next generation cleanup',async()=>{
+  let settle!:()=>void,loads=0,unloads=0;
+  const cleaned:number[]=[];
+  class Pending extends Component {
+    onload(){const generation=++loads;this.register(()=>cleaned.push(generation));}
+    onunload(){if(++unloads===1)return new Promise<void>(resolve=>{settle=resolve;});}
+  }
+  const component=new Pending();await component.load();const old=component.unload(),reload=component.load();
+  await Promise.resolve();expect(loads).toBe(1);expect(cleaned).toEqual([1]);
+  settle();await old;await reload;expect(loads).toBe(2);expect(cleaned).toEqual([1]);
+  await component.unload();expect(cleaned).toEqual([1,2]);
+});
+it('disposed parents do not unload supplied children owned elsewhere',async()=>{
+  let childUnloads=0;
+  const parent=new Component(),child=new class extends Component{onunload(){childUnloads++;}}();
+  await parent.load();await parent.unload();await child.load();parent.addChild(child);expect(childUnloads).toBe(0);
+  await child.unload();expect(childUnloads).toBe(1);
 });

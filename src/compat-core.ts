@@ -48,27 +48,52 @@ export class Events {
   trigger(name:string,...args:any[]){for(const ref of [...(this.listeners.get(name)||[])]){if(this.listeners.get(name)?.has(ref))ref.callback.apply(ref.ctx,args);}}
   tryTrigger(ref:{callback:(...args:any[])=>void;ctx?:unknown},args:any[]){try{ref.callback.apply(ref.ctx,args);}catch(error){console.error(error);}}
 }
+/** Create a lifecycle barrier before invoking any user-defined hook. */
+function lifecyclePromise(){
+  let resolve!:()=>void,reject!:(error:unknown)=>void;
+  const promise=new Promise<void>((ok,bad)=>{resolve=ok;reject=bad;});
+  return {promise,resolve,reject};
+}
 export class Component {
-  private loaded=false;private disposed=false;private generation=0;private startup:Promise<void>|undefined;private cleanups:(()=>unknown)[]=[];private children:Component[]=[];
-  /** Serialize reload behind old startup so canceled callbacks retain disposed ownership. */
+  private loaded=false;private disposed=false;private generation=0;private startup:Promise<void>|undefined;private shutdown:Promise<void>|undefined;private cleanups:(()=>unknown)[]=[];private children:Component[]=[];
+  /** Serialize reload behind complete old startup and shutdown, including registered cleanup. */
   async load(){
-    while(this.startup){const pending=this.startup;await pending.catch(()=>{});if(this.startup===pending)this.startup=undefined;}
+    while(this.startup||this.shutdown){
+      const pending=this.startup??this.shutdown!;
+      await pending.catch(()=>{});
+      if(this.startup===pending)this.startup=undefined;
+      if(this.shutdown===pending)this.shutdown=undefined;
+    }
     if(this.loaded)return;
     this.loaded=true;this.disposed=false;const generation=++this.generation;
-    const startup=(async()=>{
+    const {promise:startup,resolve,reject}=lifecyclePromise();
+    this.startup=startup;
+    void (async()=>{
       try{await this.onload();if(!this.loaded||generation!==this.generation)return;for(const child of this.children){if(!this.loaded||generation!==this.generation)break;await child.load();}}
       catch(e){if(generation===this.generation)await this.unload();throw e;}
-    })();
-    this.startup=startup;
+    })().then(resolve,reject);
     try{await startup;}finally{if(this.startup===startup)this.startup=undefined;}
   }
-  /** Mark disposal before awaiting user hooks, then await cleanup while preserving the first error. */
-  async unload(){if(!this.loaded)return;this.loaded=false;let first:unknown;
+  /** Revoke all registered resources immediately; await all work without blocking revocation on hooks. */
+  async unload(){
+    if(this.shutdown)return this.shutdown;
+    if(!this.loaded)return;
+    this.loaded=false;
     this.disposed=true;++this.generation;
-    try{await this.onunload();}catch(e){first=e;}
-    for(const child of [...this.children].reverse())try{await child.unload();}catch(e){first??=e;}
-    for(const cleanup of this.cleanups.splice(0).reverse())try{await cleanup();}catch(e){first??=e;}
-    if(first)throw first;
+    const children=[...this.children].reverse(),cleanups=this.cleanups.splice(0).reverse();
+    const {promise:shutdown,resolve,reject}=lifecyclePromise();
+    this.shutdown=shutdown;
+    const jobs:Promise<unknown>[]=[];
+    /** Invoke each callback in contract order, isolating failures without delaying other revocations. */
+    const schedule=(callback:()=>unknown)=>{try{jobs.push(Promise.resolve(callback()));}catch(error){jobs.push(Promise.reject(error));}};
+    schedule(()=>this.onunload());
+    for(const child of children)schedule(()=>child.unload());
+    for(const cleanup of cleanups)schedule(cleanup);
+    void Promise.allSettled(jobs).then(results=>{
+      const failure=results.find(result=>result.status==='rejected');
+      if(failure?.status==='rejected')reject(failure.reason);else resolve();
+    });
+    try{await shutdown;}finally{if(this.shutdown===shutdown)this.shutdown=undefined;}
   }
   /** Override to initialize this component; asynchronous hooks are cooperatively awaited. */
   onload():unknown{return undefined;}
@@ -83,7 +108,7 @@ export class Component {
     element.addEventListener(type,callback,options);this.register(()=>element.removeEventListener(type,callback,options));
   }
   /** Adopt a child only while this component remains active or has not yet loaded. */
-  addChild<T extends Component>(child:T):T{if(this.disposed){void child.unload().catch(error=>console.error(error));return child;}this.children.push(child);if(this.loaded)void child.load();return child;}
+  addChild<T extends Component>(child:T):T{if(this.disposed)return child;this.children.push(child);if(this.loaded)void child.load();return child;}
   removeChild<T extends Component>(child:T):T{this.children=this.children.filter(c=>c!==child);void child.unload();return child;}
 }
 export class TAbstractFile {

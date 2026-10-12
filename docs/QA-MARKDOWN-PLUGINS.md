@@ -12,6 +12,7 @@ This increment is limited to reading-mode whole-host post-processing and named f
 | Late async callback isolation | Switch mode and change source while callback waits; successor clean; disable removes late output | Re-rendered and disabled note |
 | Nonsettling render-child startup | Bounded owner cleanup and repeated enable/disable; late settlement removes registered events and prevents nested startup | Disabled switch, removed status, unchanged raw code |
 | Revoked context ownership | Source/reading successor adoption; stale context command cannot unload successor; real button still works | Successor button, final disable |
+| Pending child unload | Managed global DOM handler removed despite nonsettling user hook and another nonsettling cleanup; owner stop completes | Disabled switch, restored raw code, real clicks no longer counted |
 | Worker limitations preserved | Existing negative exports/method cases remain | Explicit errors/default mode |
 | PR review requirement | CodeRabbit latest review complete, findings fixed, tests green before merge | Public PR evidence, no direct-main development |
 

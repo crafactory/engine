@@ -13,7 +13,7 @@
       "outcome": "UNSUPPORTED_STARTUP",
       "first_blocker": "Unsupported Obsidian capability: App.appId. See docs/PLUGIN-COMPATIBILITY.md.",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-10-12T06:04:21.691Z"
+      "checked_at": "2026-10-12T06:30:43.182Z"
     },
     {
       "name": "Templater",
@@ -27,7 +27,7 @@
       "outcome": "LOAD_ERROR",
       "first_blocker": "Class extends value undefined is not a constructor or null",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-10-12T06:04:22.773Z"
+      "checked_at": "2026-10-12T06:30:44.293Z"
     },
     {
       "name": "Calendar (Beta)",
@@ -41,7 +41,7 @@
       "outcome": "STARTUP_ONLY",
       "first_blocker": "",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-10-12T06:04:23.895Z"
+      "checked_at": "2026-10-12T06:30:45.417Z"
     },
     {
       "name": "Advanced Tables",
@@ -55,7 +55,7 @@
       "outcome": "STARTUP_ONLY",
       "first_blocker": "",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-10-12T06:04:24.983Z"
+      "checked_at": "2026-10-12T06:30:46.578Z"
     },
     {
       "name": "Reading Time",
@@ -78,7 +78,7 @@
         "disable removes status and settings",
         "re-enable restores setting and 8 min"
       ],
-      "checked_at": "2026-10-12T06:04:28.599Z"
+      "checked_at": "2026-10-12T06:30:50.209Z"
     }
   ]
 }
