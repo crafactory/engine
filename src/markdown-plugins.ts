@@ -163,12 +163,13 @@ export class RenderSession {
     const parsed=frontmatter(this.markdown);
     const context:ProcessorContext={
       docId:this.docId,sourcePath:this.sourcePath,frontmatter:parsed.error||!parsed.raw?null:parsed.properties,
-      // Exact source-section mapping is not yet implemented; documented callers must handle null.
+      /** Return documented nullable unknown rather than fabricating source-section positions. */
       getSectionInfo:()=>null,
       /** Admit an unowned child only while both the owner registration and session are active. */
       addChild:child=>{
         if(!(child instanceof MarkdownRenderChild))throw new TypeError('Expected MarkdownRenderChild');
-        if(!this.active||!registration.active){void child.unload().catch(error=>report(registration,error));return;}
+        // A revoked context has no authority to unload a supplied child, which may have a new owner.
+        if(!this.active||!registration.active)return;
         if([...this.children].some(record=>record.child===child))throw new Error('Child already registered');
         if(childOwners.has(child))throw new Error('Child belongs to another render session');
         const record:ChildRecord={child,registration,ready:Promise.resolve()};
@@ -230,8 +231,11 @@ export function createMarkdownRenderer(getApp:()=>unknown) {
     static async renderMarkdown(markdown:string,element:HTMLElement,sourcePath:string,component:Component) {
       return this.render(getApp(),markdown,element,sourcePath,component);
     }
+    /** Reject the abstract reference file member rather than returning a fake file. */
     get file():never { return unsupported('MarkdownRenderer.file abstract'); }
+    /** Return only the application bound to this independently implemented renderer. */
     get app() { return getApp(); }
+    /** Reject reference hover state until the corresponding behavior is implemented. */
     get hoverPopover():never { return unsupported('MarkdownRenderer.hoverPopover'); }
   };
 }

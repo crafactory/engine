@@ -1188,6 +1188,21 @@
       ]
     },
     {
+      "id": "ACCEPT-render-child-revoked-owner",
+      "section": "Bounded acceptance checks",
+      "title": "Revoked context cannot tear down a successor session child",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Revoked context cannot tear down a successor session child",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/markdown-plugins.spec.ts",
+          "test": "a revoked context cannot unload a child adopted by a successor reading session"
+        }
+      ]
+    },
+    {
       "id": "GATE-reference",
       "section": "Unfinished parity gates",
       "title": "Pin an installed reference version for clean-room black-box comparisons",

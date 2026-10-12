@@ -2,9 +2,11 @@
 
 This original MIT increment adds bounded reading-mode Markdown post-processors, named fenced-code processors, MarkdownRenderChild lifecycle and sanitized static MarkdownRenderer methods. Whole-host context includes sourcePath, frontmatter and docId; getSectionInfo deliberately returns null. Async child cleanup, plugin-disable cleanup and late callbacks targeting detached old roots are covered by original fixtures. Live Preview processors, exact section/nested-embed contexts and recursive static post-processing remain unfinished.
 
-The [Feature checklist](https://github.com/crafactory/engine/blob/main/docs/FEATURE-CHECKLIST.md) has 105 stable entries, all 29 core plugins and 40 bounded checkpoints. Worker exposes 27 and trusted renderer 45 bounded runtime symbols, not complete API/member/behavior parity.
+The [Feature checklist](https://github.com/crafactory/engine/blob/main/docs/FEATURE-CHECKLIST.md) has 106 stable entries, all 29 core plugins and 41 bounded checkpoints. Worker exposes 27 and trusted renderer 45 bounded runtime symbols, not complete API/member/behavior parity.
 
 Render-child shutdown waits at most one second for startup and one second for unload before owner cleanup can continue. Pending children retain ownership until their old work settles; late registered Component resources clean themselves and canceled startup cannot activate nested children. This is cooperative cleanup, not forced interruption or a sandbox.
+
+Same-object Component reload waits for prior startup settlement. Revoked contexts cannot unload a child belonging to a successor session. These ownership invariants have original unit/native tests; they do not guarantee isolation from arbitrary trusted code.
 
 The unchanged real-plugin corpus still shows eight bounded Reading Time workflows, Calendar/Advanced Tables startup only, Dataview blocked at App.appId and Templater failing with a generic class load error. Worker rejects all five. See [renderer results](https://github.com/crafactory/engine/blob/main/docs/TRUSTED-RENDERER-PLUGIN-TESTS.md) and [compatibility boundaries](https://github.com/crafactory/engine/blob/main/docs/PLUGIN-COMPATIBILITY.md).
 

@@ -59,7 +59,8 @@ const accepted=[
   ['ACCEPT-render-child-error','Render-child load error disables plugin and restores source','e2e-desktop/markdown-plugins.spec.ts','a render child startup error disables its plugin and restores the original code block'],
   ['ACCEPT-render-disable-pending','Disable prevents pending render child startup','e2e-desktop/markdown-plugins.spec.ts','disabling a pending processor prevents late child startup and stale rendered output'],
   ['ACCEPT-render-child-shutdown','Nonsettling child startup permits bounded owner cleanup and repeat disable','e2e-desktop/markdown-plugins.spec.ts','nonsettling child startup cannot block owner cleanup or repeated enable and disable'],
-  ['ACCEPT-render-child-late-settle','Late child settlement cannot retain registered events or nested children','e2e-desktop/markdown-plugins.spec.ts','a child settling after bounded shutdown cannot retain registered events or nested children']
+  ['ACCEPT-render-child-late-settle','Late child settlement cannot retain registered events or nested children','e2e-desktop/markdown-plugins.spec.ts','a child settling after bounded shutdown cannot retain registered events or nested children'],
+  ['ACCEPT-render-child-revoked-owner','Revoked context cannot tear down a successor session child','e2e-desktop/markdown-plugins.spec.ts','a revoked context cannot unload a child adopted by a successor reading session']
 ];
 for(const [id,title,file,test]of accepted){
   assert((await read(file)).includes(test),`Missing evidence for ${id}: ${file} / ${test}`);

@@ -89,3 +89,13 @@ test('a child settling after bounded shutdown cannot retain registered events or
   expect(await page.evaluate(()=>({clicks:(window as any).__lateClicks||0,nested:Boolean((window as any).__lateNestedChild)}))).toEqual({clicks:0,nested:false});
   await expect(page.locator('code.language-engine-fixture')).toHaveText('source bytes\n');
 });
+test('a revoked context cannot unload a child adopted by a successor reading session',async()=>{
+  const dir=path.join(root,'.crafactory/plugins/markdown-fixture');
+  await fs.writeFile(path.join(dir,'main.js'),'const {Plugin,MarkdownRenderChild}=require("obsidian");module.exports=class extends Plugin{onload(){window.__sharedLoads=0;window.__sharedUnloads=0;window.__sharedClicks=0;this.registerMarkdownPostProcessor((el,ctx)=>{el.createEl("button",{text:"Shared child action",attr:{"aria-label":"Shared child action"}});if(!this.shared){this.oldCtx=ctx;this.shared=new class extends MarkdownRenderChild{onload(){window.__sharedLoads++;this.registerDomEvent(this.containerEl.querySelector("button"),"click",()=>window.__sharedClicks++);}onunload(){window.__sharedUnloads++;}}(el);}else this.shared.containerEl=el;ctx.addChild(this.shared);});this.addCommand({id:"stale",name:"Late old context",callback:()=>this.oldCtx.addChild(this.shared)});}};');
+  await enable();await page.waitForFunction(()=>(window as any).__sharedLoads===1);
+  await page.getByTestId('mode-source').click();await page.waitForFunction(()=>(window as any).__sharedUnloads===1);
+  await page.getByTestId('mode-reading').click();await page.waitForFunction(()=>(window as any).__sharedLoads===2);
+  await command('Late old context');expect(await page.evaluate(()=>(window as any).__sharedUnloads)).toBe(1);
+  await page.getByRole('button',{name:'Shared child action',exact:true}).click();expect(await page.evaluate(()=>(window as any).__sharedClicks)).toBe(1);
+  await settings();await page.getByRole('switch',{name:'Enable Markdown fixture',exact:true}).click();await expect(page.getByRole('switch',{name:'Enable Markdown fixture',exact:true})).not.toBeChecked();expect(await page.evaluate(()=>(window as any).__sharedUnloads)).toBe(2);
+});

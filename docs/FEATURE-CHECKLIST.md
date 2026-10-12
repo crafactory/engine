@@ -300,6 +300,9 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [x] **ACCEPT-render-child-late-settle Late child settlement cannot retain registered events or nested children**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
   - Acceptance: Late child settlement cannot retain registered events or nested children
   - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `a child settling after bounded shutdown cannot retain registered events or nested children`.
+- [x] **ACCEPT-render-child-revoked-owner Revoked context cannot tear down a successor session child**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Revoked context cannot tear down a successor session child
+  - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `a revoked context cannot unload a child adopted by a successor reading session`.
 
 ## Unfinished parity gates
 

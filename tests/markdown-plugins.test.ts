@@ -38,3 +38,17 @@ it('a canceled startup cannot activate children or retain late registered cleanu
   const child=new Pending(),ready=child.load();await child.unload();settle();await ready;
   expect(sequence).toEqual(['late-cleanup']);
 });
+it('reload waits for canceled startup settlement without adopting its late children',async()=>{
+  let settle!:()=>void,calls=0;
+  const sequence:string[]=[];
+  class Pending extends Component {
+    async onload(){
+      if(++calls===1){await new Promise<void>(resolve=>{settle=resolve;});this.addChild(new class extends Component{onload(){sequence.push('stale-child');}}());this.register(()=>sequence.push('stale-cleanup'));}
+      else sequence.push('new-load');
+    }
+  }
+  const component=new Pending(),old=component.load();await component.unload();
+  const reload=component.load();await Promise.resolve();expect(calls).toBe(1);
+  settle();await old;await reload;expect(calls).toBe(2);expect(sequence).toEqual(['stale-cleanup','new-load']);
+  await component.unload();
+});

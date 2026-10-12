@@ -49,9 +49,19 @@ export class Events {
   tryTrigger(ref:{callback:(...args:any[])=>void;ctx?:unknown},args:any[]){try{ref.callback.apply(ref.ctx,args);}catch(error){console.error(error);}}
 }
 export class Component {
-  private loaded=false;private disposed=false;private generation=0;private cleanups:(()=>unknown)[]=[];private children:Component[]=[];
-  /** Load once per generation; a canceled old startup may not reactivate child components. */
-  async load(){if(this.loaded)return;this.loaded=true;this.disposed=false;const generation=++this.generation;try{await this.onload();if(!this.loaded||generation!==this.generation)return;for(const child of this.children){if(!this.loaded||generation!==this.generation)break;await child.load();}}catch(e){if(generation===this.generation)await this.unload();throw e;}}
+  private loaded=false;private disposed=false;private generation=0;private startup:Promise<void>|undefined;private cleanups:(()=>unknown)[]=[];private children:Component[]=[];
+  /** Serialize reload behind old startup so canceled callbacks retain disposed ownership. */
+  async load(){
+    while(this.startup){const pending=this.startup;await pending.catch(()=>{});if(this.startup===pending)this.startup=undefined;}
+    if(this.loaded)return;
+    this.loaded=true;this.disposed=false;const generation=++this.generation;
+    const startup=(async()=>{
+      try{await this.onload();if(!this.loaded||generation!==this.generation)return;for(const child of this.children){if(!this.loaded||generation!==this.generation)break;await child.load();}}
+      catch(e){if(generation===this.generation)await this.unload();throw e;}
+    })();
+    this.startup=startup;
+    try{await startup;}finally{if(this.startup===startup)this.startup=undefined;}
+  }
   /** Mark disposal before awaiting user hooks, then await cleanup while preserving the first error. */
   async unload(){if(!this.loaded)return;this.loaded=false;let first:unknown;
     this.disposed=true;++this.generation;
@@ -60,7 +70,10 @@ export class Component {
     for(const cleanup of this.cleanups.splice(0).reverse())try{await cleanup();}catch(e){first??=e;}
     if(first)throw first;
   }
-  onload():unknown{return undefined;} onunload():unknown{return undefined;}
+  /** Override to initialize this component; asynchronous hooks are cooperatively awaited. */
+  onload():unknown{return undefined;}
+  /** Override to release plugin-specific state; arbitrary hanging hooks cannot be interrupted. */
+  onunload():unknown{return undefined;}
   /** Immediately clean late registrations after disposal instead of retaining leaked resources. */
   register(callback:()=>unknown){if(this.disposed){try{void Promise.resolve(callback()).catch(error=>console.error(error));}catch(error){console.error(error);}}else this.cleanups.push(callback);}
   registerEvent(ref:ReturnType<Events['on']>){this.register(()=>ref.emitter.offref(ref));}
