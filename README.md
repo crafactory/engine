@@ -2,7 +2,7 @@
 
 An independent, local-first Markdown knowledge workspace. Crafactory is a combination of Craft and Factory. Engine is the workspace for writing, linking, and arranging knowledge.
 
-Original code is released under the MIT license. No Obsidian application code or branded assets are used. Functional interoperability is the long-term goal, but **version 0.3.0 is not a complete 1:1 replacement**. See [the feature checklist](docs/FEATURE-CHECKLIST.md) and [parity ledger](docs/PARITY.md) before migrating an important vault.
+Original code is released under the MIT license. No Obsidian application code or branded assets are used. Functional interoperability is the long-term goal, but **version 0.3.1 is not a complete 1:1 replacement**. See [the feature checklist](docs/FEATURE-CHECKLIST.md) and [parity ledger](docs/PARITY.md) before migrating an important vault.
 
 中文交付范围、运行方式及未完成项见 [Crafactory Engine 交付说明](docs/Crafactory-Engine-交付说明.md)。该说明明确区分已有实现和完整复刻目标。
 

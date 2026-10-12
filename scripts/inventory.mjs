@@ -1,25 +1,15 @@
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import {normalizeText,parseParityLedger} from './inventory-model.mjs';
 const check=process.argv.includes('--check');
-const read=path=>fs.readFile(new URL('../'+path,import.meta.url),'utf8');
+const read=async path=>normalizeText(await fs.readFile(new URL('../'+path,import.meta.url),'utf8'));
 const ledger=await read('docs/PARITY.md'),baseline=JSON.parse(await read('docs/compatibility/reference-baseline.json'));
 const exported=JSON.parse(await read('docs/compatibility/obsidian-exports.json'));
 const source=await read('src/compat-core.ts');
 const supported=[...source.match(/supportedExports=\[([\s\S]*?)\] as const/)[1].matchAll(/'([^']+)'/g)].map(m=>m[1]);
 assert.equal(new Set(exported.symbols.map(s=>s.name)).size,exported.symbols.length);
 for(const name of supported)assert(exported.symbols.some(s=>s.runtime&&s.name===name),'Undocumented export: '+name);
-const slug=name=>name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-let section='',items=[];
-for(const line of ledger.split('\n')){
-  if(line.startsWith('## '))section=line.slice(3);
-  if(!line.startsWith('|'))continue;
-  const cells=line.slice(1,-1).split('|').map(s=>s.trim());
-  if(!['Implemented subset','Not implemented','Excluded'].includes(cells[1]))continue;
-  const core=section==='Core plugins';
-  items.push({id:(core?'CORE-':'AREA-')+slug(cells[0]),section,title:cells[0],status:cells[1]==='Excluded'?'excluded':cells[1]==='Not implemented'?'missing':'partial',
-    reference:core?baseline.core_source:cells[0]==='Community plugin API'?exported.source_url:'https://help.obsidian.md',
-    implemented:cells[2],remaining:cells[3]||cells[2],evidence:[]});
-}
+const items=parseParityLedger(ledger,baseline.core_source,exported.source_url);
 const core=items.filter(i=>i.id.startsWith('CORE-'));
 assert.equal(core.length,29,'All 29 documented core plugins must remain in the inventory');
 assert.deepEqual(core.map(i=>i.title).sort(),[...baseline.core_plugins].sort());

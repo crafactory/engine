@@ -1,6 +1,8 @@
-# Crafactory Engine v0.3.0
+# Crafactory Engine v0.3.1
 
 An independently implemented, MIT-licensed local-first Markdown workspace. This is a **prerelease**, not a complete 1:1 Obsidian replacement. Back up important vaults and test plugins only against disposable data.
+
+This patch follows v0.3.0 without replacing its published artifacts. Windows CI exposed a CRLF parsing error in the new feature inventory tool; 0.3.1 normalizes text before parsing/comparing, keeps repository text as LF and adds three regression cases. The application compatibility subset is unchanged.
 
 ## Feature tracking
 
@@ -20,7 +22,7 @@ Actual pinned upstream Dataview, Templater, Calendar (Beta), Advanced Tables and
 
 ## Verification interpretation
 
-The source unit suite contains 518 tests, including 271 export-name probes, explicit rejection and member-inventory checks. These are not 518 independent compatible features. Desktop regressions cover 18 cases, including original fixtures and negative paths; five real-plugin startup cases require separately downloaded pinned inputs and are skipped in ordinary desktop runs. Their successful test assertions certify observed refusal, not successful plugin behavior. Browser regression covers 36 cases.
+The source unit suite contains 521 tests, including 271 export-name probes, explicit rejection, member-inventory and line-ending checks. These are not 521 independent compatible features. Desktop regressions cover 18 cases, including original fixtures and negative paths; five real-plugin startup cases require separately downloaded pinned inputs and are skipped in ordinary desktop runs. Their successful test assertions certify observed refusal, not successful plugin behavior. Browser regression covers 36 cases.
 
 The Linux publishing workflow packages and tests the actual executable before exposing artifacts. The separate corpus workflow fetches the pinned plugin inputs and records startup results; the three-platform workflow builds unsigned Windows/macOS/Linux artifacts. Consult `VERIFICATION.md` for executed run evidence, and do not treat workflow definitions as completed runs.
 

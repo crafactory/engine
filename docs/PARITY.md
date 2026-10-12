@@ -1,6 +1,6 @@
 # Functional parity ledger
 
-This file distinguishes implementation from completeness. The requested target is all non-subscription Obsidian functionality, independently implemented under MIT. **That target is not reached in 0.3.0.** No overall parity percentage is given because there is no comprehensive behavioral test corpus or fixed reference build. `FEATURE-CHECKLIST.md` and its machine-readable JSON preserve unfinished areas and bounded test evidence; they are not an exhaustive reference specification.
+This file distinguishes implementation from completeness. The requested target is all non-subscription Obsidian functionality, independently implemented under MIT. **That target is not reached in 0.3.1.** No overall parity percentage is given because there is no comprehensive behavioral test corpus or fixed reference build. `FEATURE-CHECKLIST.md` and its machine-readable JSON preserve unfinished areas and bounded test evidence; they are not an exhaustive reference specification.
 
 The reference inventory comes from [Obsidian's public core-plugin list](https://help.obsidian.md/plugins) and [help home](https://help.obsidian.md). Public behavior was consulted; application source was not used. Core plugin names alone are not an exhaustive specification, and third-party community-plugin functionality is not equivalent to the core feature set.
 
