@@ -24,7 +24,7 @@ Actual pinned upstream Dataview, Templater, Calendar (Beta), Advanced Tables and
 
 The source unit suite contains 521 tests, including 271 export-name probes, explicit rejection, member-inventory and line-ending checks. These are not 521 independent compatible features. Desktop regressions cover 18 cases, including original fixtures and negative paths; five real-plugin startup cases require separately downloaded pinned inputs and are skipped in ordinary desktop runs. Their successful test assertions certify observed refusal, not successful plugin behavior. Browser regression covers 36 cases.
 
-The Linux publishing workflow packages and tests the actual executable before exposing artifacts. The separate corpus workflow fetches the pinned plugin inputs and records startup results; the three-platform workflow builds unsigned Windows/macOS/Linux artifacts. Consult `VERIFICATION.md` for executed run evidence, and do not treat workflow definitions as completed runs.
+Commit `edc2d89030e411655a871dfcd8fa8cc7e9ded07a` passed [Verify](https://github.com/crafactory/engine/actions/runs/38198688877), [real-plugin startup boundaries](https://github.com/crafactory/engine/actions/runs/38198693360), [three-platform packaging](https://github.com/crafactory/engine/actions/runs/38198689122) and [Linux publishing](https://github.com/crafactory/engine/actions/runs/38198691046). The Linux executable passed all 18 packaged desktop tests before publication; Windows/macOS passed builds, not native runtime/installation acceptance. Download filenames/checksum text were matched to provider-computed upload digests, without independently redownloading both full binaries. See `VERIFICATION.md` for details.
 
 ## Remaining gaps
 

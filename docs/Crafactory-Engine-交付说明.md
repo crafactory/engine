@@ -27,7 +27,9 @@
 
 ## 验证与使用
 
-本轮源码单元套件含 521 项，包括新增的 3 项 Windows 换行回归；浏览器回归有 36 项、Linux Electron 桌面回归有 18 项。单元数包含 271 个符号探测与大量拒绝测试，不能换算为完成度；另执行了 5 项真实插件启动失败边界测试，这些断言通过只表示观察到了拒绝/加载错误，并不是五个插件可用。普通桌面套件不提供外部样本时会跳过这五项，不能算入通过数量。
+本轮[自动验证](https://github.com/crafactory/engine/actions/runs/38198688877)通过 521 项单元测试、36 项浏览器回归和 18 项 Linux Electron 桌面回归，其中单元套件包含新增的 3 项 Windows 换行回归、271 个符号探测及大量拒绝测试，不能换算为完成度。另有[真实插件启动流程](https://github.com/crafactory/engine/actions/runs/38198693360)执行了 5 项失败边界测试，断言通过只表示观察到了拒绝/加载错误，并不是五个插件可用；普通桌面套件中跳过的这五项未算入通过数量。
+
+[v0.3.1 预发布页](https://github.com/crafactory/engine/releases/tag/v0.3.1)提供未签名 Linux x64 AppImage、Debian 包与 SHA-256 校验清单；[打包发布流程](https://github.com/crafactory/engine/actions/runs/38198691046)在上传前对打包程序通过了同样的 18 项桌面测试。下载清单的文件名与摘要已对照 GitHub 上传资产摘要核对，[三平台构建](https://github.com/crafactory/engine/actions/runs/38198689122)也已全部通过，但这不等于 Windows/macOS 原生运行或安装验收。v0.3.0 文件没有被覆盖，早期 Windows 清单检查失败保留在验证记录中。
 
 生产依赖审计没有报告已知告警，完整开发/构建依赖仍有 8 项中等告警。原生 Windows/macOS 运行、签名/安装/升级、移动端、大型 Vault、崩溃耐久性和完整安全/无障碍审计尚未完成；桌面测试环境使用 Xvfb 与测试专用 `--no-sandbox`，不据此认证生产系统沙箱。
 
