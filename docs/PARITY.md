@@ -1,6 +1,6 @@
 # Functional parity ledger
 
-This file distinguishes implementation from completeness. The requested target is all non-subscription Obsidian functionality, independently implemented under MIT. **That target is not reached in 0.3.1.** No overall parity percentage is given because there is no comprehensive behavioral test corpus or fixed reference build. `FEATURE-CHECKLIST.md` and its machine-readable JSON preserve unfinished areas and bounded test evidence; they are not an exhaustive reference specification.
+This file distinguishes implementation from completeness. The requested target is all non-subscription Obsidian functionality, independently implemented under MIT. **That target is not reached in 0.6.0.** No overall parity percentage is given because there is no comprehensive behavioral test corpus or fixed reference build. `FEATURE-CHECKLIST.md` and its machine-readable JSON preserve unfinished areas and bounded test evidence; they are not an exhaustive reference specification. The native all-plugin architecture in `NATIVE-PLUGIN-ARCHITECTURE.md` is a proposal, not an implemented kernel.
 
 The reference inventory comes from [Obsidian's public core-plugin list](https://help.obsidian.md/plugins) and [help home](https://help.obsidian.md). Public behavior was consulted; application source was not used. Core plugin names alone are not an exhaustive specification, and third-party community-plugin functionality is not equivalent to the core feature set.
 
@@ -35,10 +35,10 @@ Public formatting behavior is described in [Basic formatting syntax](https://hel
 | Area | Status | Working behavior | Missing or unverified |
 |---|---|---|---|
 | Source editing | Implemented subset | CodeMirror 6, Markdown mode, undo/redo, search/replace, selection formatting, spellcheck, line numbers | Vim/Emacs parity, complete editing-shortcut set, table editor, fold/history semantics |
-| Live preview | Implemented subset | Inactive-line formatting; top-level tables, code, diagrams, callouts/quotes, math, standalone embeds/rules; source reveal on selection or edit action; table cell edits, undo/redo, task toggles | Full inline/nested grammar, list rendering, table row/column operations, all embeds, exact cursor/selection and reference editing behavior, huge-document performance |
+| Live preview | Implemented subset | Inactive-line formatting and bounded wiki/Markdown link navigation; top-level tables, code, diagrams, callouts/quotes, math, standalone embeds/rules; source reveal; table cell edits, widget reuse on position changes, undo/redo, task toggles | Full inline/nested grammar, nested/escaped Markdown link destinations, list rendering, table row/column operations, all embeds, exact cursor/selection and reference editing behavior, huge-document performance |
 | Reading | Implemented subset | Markdown-it, tables, tasks, highlights, code, footnotes, comments, callout styling and nested collapsible callouts | HTML-in-note support, complete OFM grammar, syntax highlighting in reading code fences |
 | Math/diagrams | Implemented subset | KaTeX inline/display math, Mermaid strict rendering | Full syntax edge cases, editing behavior, complete compatibility/security audit |
-| Embeds | Implemented subset | Note/heading/block transclusion, image/audio/video attachments, PDF download | Recursive nested embeds, interactive PDFs, image-size wiki syntax, embedded Bases/Canvas, block edit actions |
+| Embeds | Implemented subset | Note/heading/block transclusion, read-only Canvas geometry, image/audio/video attachments, PDF download | Recursive nested embeds, embedded Canvas file-card format parity, interactive PDFs, image-size wiki syntax, embedded Bases, block edit actions |
 | Properties | Implemented subset | Typed YAML editing, add/remove, property search and vault keys | Reference type registry, date/link widgets, drag/reorder, field auto-completion and multi-file bulk edits |
 | Attachments | Implemented subset | Add/import local assets, image/audio/video display, ZIP inclusion | Large-file streaming, PDF annotation/viewing, drag/paste paths, per-folder attachment rules |
 

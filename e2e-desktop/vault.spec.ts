@@ -24,6 +24,28 @@ test('native watcher reloads external edits',async()=>{
   await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\nEdited externally.\n');
   await expect(page.getByTestId('note-editor')).toContainText('Edited externally.');
 });
+test('native Canvas embed and rename preserve exact JSON bytes and file type',async()=>{
+  const content=JSON.stringify({custom:'retain me',nodes:[{id:'a',type:'text',x:0,y:0,width:260,height:160,text:'# Canvas marker'}],edges:[]},null,2);
+  await fs.writeFile(path.join(root,'Board.canvas'),content);
+  await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\n![[Board.canvas]]');
+  await expect(page.getByTestId('file-Board.canvas')).toBeVisible();
+  await page.getByTestId('mode-reading').click();
+  await expect(page.locator('.embedded-note .react-flow__node')).toHaveCount(1);
+  await expect(page.locator('.embedded-note .canvas-markdown')).toContainText('Canvas marker');
+  await expect(page.locator('.embedded-note .canvas-edit')).toHaveCount(0);
+  expect(await fs.readFile(path.join(root,'Board.canvas'),'utf8')).toBe(content);
+  await page.locator('.embed-title').click();await expect(page.getByTestId('canvas-add-text')).toBeVisible();
+  await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Rename or move current file');await page.keyboard.press('Enter');
+  await page.getByTestId('dialog-input').fill('Renamed');await page.getByTestId('dialog-submit').click();
+  await expect.poll(async()=>fs.readFile(path.join(root,'Renamed.canvas'),'utf8').catch(()=>null)).toBe(content);
+  expect(await fs.stat(path.join(root,'Renamed.md')).catch(()=>null)).toBeNull();
+  expect(await fs.stat(path.join(root,'Board.canvas')).catch(()=>null)).toBeNull();
+  await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('![[Renamed.canvas]]');
+  await page.getByTestId('file-Persist.md').click();await page.getByTestId('mode-live').click();
+  await expect(page.locator('.embedded-note .react-flow__node')).toHaveCount(1);
+  await page.locator('.embed-title').click();await expect(page.getByTestId('canvas-add-text')).toBeVisible();
+  expect(await fs.readFile(path.join(root,'Renamed.canvas'),'utf8')).toBe(content);
+});
 test('native rename rewrites resolved links and trash preserves content',async()=>{
   await fs.writeFile(path.join(root,'Ref.md'),'# Ref\n\n[[Persist]]\n');
   await expect(page.getByTestId('file-Ref.md')).toBeVisible();

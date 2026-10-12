@@ -75,7 +75,7 @@ export function rewriteLinks(content:string,from:string,to:string,source:string,
     const [destination,...alias]=inner.split('|'),[target,...fragment]=destination.split('#');
     const resolved=resolveLink(target,source,notes);
     if(resolved?.path!==from)return whole;
-    const next=target.includes('/')?to.replace(/\.md$/i,''):title(to);
+    const next=target.includes('/')?to.replace(/\.md$/i,''):isNote(to)?title(to):to.split('/').pop()!;
     return `${bang}[[${next}${fragment.length?'#'+fragment.join('#'):''}${alias.length?'|'+alias.join('|'):''}]]`;
   }).replace(/(!?)\[([^\]]*)\]\(([^)]+)\)/g,(whole,bang,label,href)=>{
     const [target,...fragment]=href.split('#');

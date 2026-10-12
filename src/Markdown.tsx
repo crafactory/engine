@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState,useMemo,useSyncExternalStore} from 'react';
+import {createRoot,type Root} from 'react-dom/client';
 import {getProcessorRevision,subscribeProcessors,processMarkdown} from './markdown-plugins';
 import MarkdownIt from 'markdown-it';
 import footnote from 'markdown-it-footnote';
@@ -122,6 +123,7 @@ export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProce
   useEffect(()=>{
     let disposed=false;const root=ref.current;if(!root)return;
     let processorSession:ReturnType<typeof processMarkdown>|undefined;
+    const canvasRoots:Root[]=[];
     /** Resolve original built-ins, then process only the still-current reading host. */
     const load=async()=>{
       for(const img of root.querySelectorAll<HTMLImageElement>('img[data-asset]')) {
@@ -130,12 +132,22 @@ export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProce
         try {const asset=await bridge.asset(relative);if(!disposed)img.src=asset;}catch {img.alt='Attachment not found: '+name;}
       }
       for(const slot of root.querySelectorAll<HTMLElement>('[data-embed]')) {
+        if(disposed)return;
         const target=slot.dataset.embed!,[name,...fragment]=target.split('#');
         const linked=resolveLink(name,path,notes);
         if(depth>=3){slot.textContent='Embed depth limit';continue;}
         if(linked) {
           slot.className='embedded-note';
-          slot.innerHTML=`<button class="embed-title" data-note="${escape(target)}">${escape(title(linked.path))}</button>${renderMarkdown(section(linked.content,fragment.join('#')))}`;
+          slot.innerHTML=`<button class="embed-title" data-note="${escape(target)}">${escape(title(linked.path))}</button>`;
+          if(/\.canvas$/i.test(linked.path)){
+            try{
+              const {Canvas}=await import('./Canvas');
+              if(disposed)return;
+              const body=document.createElement('div');body.className='canvas-embed-host';slot.append(body);
+              const canvasRoot=createRoot(body);canvasRoots.push(canvasRoot);
+              canvasRoot.render(<Canvas note={linked} notes={notes} readOnly onChange={()=>{}} onOpen={onOpen}/>);
+            }catch{if(!disposed)slot.append(document.createTextNode('Canvas preview unavailable. Open the file to inspect it.'));}
+          }else slot.insertAdjacentHTML('beforeend',renderMarkdown(section(linked.content,fragment.join('#'))));
         }else if(/\.(png|jpe?g|gif|webp|svg|pdf|mp3|wav|webm|ogg|mp4)$/i.test(name)){
           try{
             const asset=await bridge.asset(name);if(disposed)continue;
@@ -165,7 +177,7 @@ export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProce
       if(!disposed&&pluginProcessing){processorSession=processMarkdown(root,content,path);await processorSession.ready;}
     };
     load();
-    return()=>{disposed=true;void processorSession?.close();};
+    return()=>{disposed=true;void processorSession?.close();queueMicrotask(()=>canvasRoots.forEach(root=>root.unmount()));};
   },[content,notes,path,depth,pluginProcessing,renderKey]);
   function click(e:React.MouseEvent) {
     const target=e.target as HTMLElement;

@@ -6,36 +6,38 @@ import {title} from './knowledge';
 import type {Note} from './types';
 interface CanvasData extends Record<string,unknown> {
   text?:string;file?:string;url?:string;label?:string;color?:string;
-  kind:string;onEdit:(id:string)=>void;onOpen:(path:string)=>void;notes:Note[];
+  kind:string;onEdit:(id:string)=>void;onOpen:(path:string)=>void;notes:Note[];readOnly?:boolean;
 }
 const colors:Record<string,string>={'1':'#794a4a','2':'#896347','3':'#8e7e4a','4':'#466b58','5':'#456678','6':'#685b7c'};
 function Card({id,data,selected}:{id:string;data:CanvasData;selected:boolean}) {
   const file=data.notes.find(n=>n.path===data.file);
   return <div className={'canvas-card '+(data.kind==='group'?'canvas-group':'')} style={{background:data.color?colors[data.color]||data.color:undefined}}>
-    <NodeResizer color="#93c5af" isVisible={selected} minWidth={160} minHeight={100}/>
-    {[['left',Position.Left],['right',Position.Right],['top',Position.Top],['bottom',Position.Bottom]].map(([side,pos])=><Handle key={String(side)} id={String(side)} type="source" position={pos as Position} isConnectable/> )}
-    {[['left',Position.Left],['right',Position.Right],['top',Position.Top],['bottom',Position.Bottom]].map(([side,pos])=><Handle key={'t-'+side} id={'t-'+side} type="target" position={pos as Position}/>)}
+    <NodeResizer color="#93c5af" isVisible={selected&&!data.readOnly} minWidth={160} minHeight={100}/>
+    {[['left',Position.Left],['right',Position.Right],['top',Position.Top],['bottom',Position.Bottom]].map(([side,pos])=><Handle key={String(side)} id={String(side)} type="source" position={pos as Position} isConnectable={!data.readOnly}/> )}
+    {[['left',Position.Left],['right',Position.Right],['top',Position.Top],['bottom',Position.Bottom]].map(([side,pos])=><Handle key={'t-'+side} id={'t-'+side} type="target" position={pos as Position} isConnectable={!data.readOnly}/>)}
     {data.kind==='file'?<><button className="canvas-file-label nodrag" onClick={()=>data.onOpen(data.file!)}><FileText size={14}/>{title(data.file!)}<ArrowRight size={13}/></button><div className="canvas-markdown" dangerouslySetInnerHTML={{__html:renderMarkdown(file?.content||'File not found')}}/></>:
       data.kind==='link'?<a className="nodrag canvas-url" href={/^https?:\/\//.test(data.url||'')?data.url:'#'} target="_blank" rel="noreferrer">{data.url}</a>:
       <div className="canvas-markdown" onDoubleClick={()=>data.onEdit(id)} dangerouslySetInnerHTML={{__html:renderMarkdown(data.kind==='group'?data.label||'Group':data.text||'Double-click to edit')}}/>}
-    <button aria-label="Edit card" className="canvas-edit nodrag" onClick={()=>data.onEdit(id)}>Edit</button>
+    {!data.readOnly&&<button aria-label="Edit card" className="canvas-edit nodrag" onClick={()=>data.onEdit(id)}>Edit</button>}
   </div>;
 }
 const nodeTypes={card:Card};
-export function Canvas({note,notes,onChange,onOpen}:{note:Note;notes:Note[];onChange:(value:string)=>void;onOpen:(path:string)=>void}) {
+/** Render Canvas geometry with an optional read-only embed boundary that never persists changes. */
+export function Canvas({note,notes,onChange,onOpen,readOnly=false}:{note:Note;notes:Note[];onChange:(value:string)=>void;onOpen:(path:string)=>void;readOnly?:boolean}) {
   const [editing,setEditing]=useState<string|null>(null),[value,setValue]=useState(''),[color,setColor]=useState('');
   const parsed=useMemo(()=>{try{const data=JSON.parse(note.content);if(!Array.isArray(data.nodes)||!Array.isArray(data.edges))throw new Error('Canvas needs nodes and edges arrays');if(data.nodes.some((n:any)=>typeof n.id!=='string'||!Number.isFinite(n.x)||!Number.isFinite(n.y)||!Number.isFinite(n.width)||!Number.isFinite(n.height)))throw new Error('Invalid Canvas node geometry or id');return {data,error:''};}catch(e){return {data:{nodes:[],edges:[]},error:String(e)};}},[note.content]);
   const [nodes,setNodes]=useState<Node<CanvasData>[]>([]),[edges,setEdges]=useState<Edge[]>([]);
   const parsedRef=useRef(parsed);parsedRef.current=parsed;
-  const edit=useCallback((id:string)=>{const node=parsedRef.current.data.nodes.find((n:any)=>n.id===id);if(node){setEditing(id);setValue(node.text||node.file||node.url||node.label||'');setColor(node.color||'');}},[]);
+  const edit=useCallback((id:string)=>{if(readOnly)return;const node=parsedRef.current.data.nodes.find((n:any)=>n.id===id);if(node){setEditing(id);setValue(node.text||node.file||node.url||node.label||'');setColor(node.color||'');}},[readOnly]);
   useEffect(()=>{
     setNodes(parsed.data.nodes.map((node:any)=>({
       id:node.id,type:'card',position:{x:node.x,y:node.y},style:{width:node.width,height:node.height},
-      zIndex:node.type==='group'?-1:0,data:{...node,kind:node.type,onEdit:edit,onOpen,notes}
+      zIndex:node.type==='group'?-1:0,data:{...node,kind:node.type,onEdit:edit,onOpen,notes,readOnly}
     })));
     setEdges(parsed.data.edges.map((edge:any)=>({id:edge.id,source:edge.fromNode,target:edge.toNode,sourceHandle:edge.fromSide||'right',targetHandle:'t-'+(edge.toSide||'left'),label:edge.label,markerEnd:edge.toEnd==='none'?undefined:{type:MarkerType.ArrowClosed},style:{stroke:edge.color?colors[edge.color]||edge.color:'var(--muted)'}})));
-  },[parsed,notes,edit,onOpen]);
+  },[parsed,notes,edit,onOpen,readOnly]);
   function save(nextNodes:Node<CanvasData>[],nextEdges:Edge[]) {
+    if(readOnly)return;
     const oldNodes=new Map(parsed.data.nodes.map((n:any)=>[n.id,n]));
     const oldEdges=new Map(parsed.data.edges.map((e:any)=>[e.id,e]));
     onChange(JSON.stringify({...parsed.data,nodes:nextNodes.map(n=>({
@@ -57,8 +59,8 @@ export function Canvas({note,notes,onChange,onOpen}:{note:Note;notes:Note[];onCh
     const next=[...nodes,node];setNodes(next);save(next,edges);
   }
   if(parsed.error)return <div className="empty"><h2>Invalid Canvas file</h2><p>{parsed.error}</p><p>Switch to source mode to repair the JSON.</p></div>;
-  return <section className="canvas-view"><div className="canvas-toolbar"><button onClick={()=>add('text')} data-testid="canvas-add-text"><Plus size={15}/>Text card</button><button onClick={()=>add('file')}><FileText size={15}/>Note</button><button onClick={()=>add('link')}><Link size={15}/>Link</button><button onClick={()=>add('group')}><Group size={15}/>Group</button><span>{nodes.length} cards · {edges.length} connections</span></div>
-    <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={nodeChanges} onEdgesChange={edgeChanges} onConnect={connect} fitView colorMode={document.documentElement.dataset.theme==='light'?'light':'dark'} deleteKeyCode={['Backspace','Delete']}><Background gap={22} size={1}/><Controls/><MiniMap pannable zoomable/></ReactFlow>
+  return <section className={'canvas-view'+(readOnly?' canvas-embedded':'')} aria-label={readOnly?'Embedded Canvas':'Canvas editor'}>{!readOnly&&<div className="canvas-toolbar"><button onClick={()=>add('text')} data-testid="canvas-add-text"><Plus size={15}/>Text card</button><button onClick={()=>add('file')}><FileText size={15}/>Note</button><button onClick={()=>add('link')}><Link size={15}/>Link</button><button onClick={()=>add('group')}><Group size={15}/>Group</button><span>{nodes.length} cards · {edges.length} connections</span></div>}
+    <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={nodeChanges} onEdgesChange={edgeChanges} onConnect={readOnly?undefined:connect} nodesDraggable={!readOnly} nodesConnectable={!readOnly} elementsSelectable={!readOnly} fitView colorMode={document.documentElement.dataset.theme==='light'?'light':'dark'} deleteKeyCode={readOnly?null:['Backspace','Delete']}><Background gap={22} size={1}/><Controls showInteractive={!readOnly}/>{!readOnly&&<MiniMap pannable zoomable/>}</ReactFlow>
     {editing&&<div className="modal-backdrop"><section className="modal card-modal" role="dialog" aria-label="Edit canvas card"><header><h2>Edit card</h2><button onClick={()=>setEditing(null)} aria-label="Close"><X size={16}/></button></header>
       <textarea aria-label="Card content" autoFocus value={value} onChange={e=>setValue(e.target.value)} data-testid="canvas-card-content"/>
       <label>Color<select value={color} onChange={e=>setColor(e.target.value)}><option value="">Default</option>{Object.keys(colors).map(c=><option key={c} value={c}>{['Red','Orange','Yellow','Green','Blue','Purple'][Number(c)-1]}</option>)}</select></label>

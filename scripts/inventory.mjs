@@ -64,7 +64,13 @@ const accepted=[
   ['ACCEPT-render-child-revoked-owner','Revoked context cannot tear down a successor session child','e2e-desktop/markdown-plugins.spec.ts','a revoked context cannot unload a child adopted by a successor reading session'],
   ['ACCEPT-render-child-unload-revoke','Pending child unload revokes global handlers despite another pending cleanup','e2e-desktop/markdown-plugins.spec.ts','pending child unload revokes global events even behind a never-settling cleanup'],
   ['ACCEPT-pending-plugin-processor-revocation','Stop revokes processors before pending plugin startup and rejects late registrations','e2e-desktop/markdown-plugins.spec.ts','stop revokes processors before pending plugin startup and rejects late registrations'],
-  ['ACCEPT-code-processor-error-restore','Synchronous and asynchronous code-handler failure restores original pre before reporting','tests/markdown-plugins.test.ts','failed code processors restore original pre before propagating the error']
+  ['ACCEPT-code-processor-error-restore','Synchronous and asynchronous code-handler failure restores original pre before reporting','tests/markdown-plugins.test.ts','failed code processors restore original pre before propagating the error'],
+  ['ACCEPT-canvas-embed','Read-only Canvas nodes and edges in reading and Live modes','e2e/regressions.spec.ts','Canvas embeds render read-only nodes and edges in reading and Live modes'],
+  ['ACCEPT-canvas-rename','Native Canvas rename retains exact JSON bytes, type and resolved embed','e2e-desktop/vault.spec.ts','native Canvas embed and rename preserve exact JSON bytes and file type'],
+  ['ACCEPT-live-links','Inactive Live wiki and Markdown link click navigation','e2e/regressions.spec.ts','inactive Live wiki aliases and Markdown links navigate on click'],
+  ['ACCEPT-live-table-stability','Reuse measured table widgets after typing above and remap edit positions','e2e/regressions.spec.ts','typing above a table preserves measured widget DOM and remaps edit callbacks'],
+  ['ACCEPT-long-table-caret','Typing after a 100-row table keeps caret in editor viewport','e2e/regressions.spec.ts','long document with a tall table keeps the typing caret in the editor viewport'],
+  ['ACCEPT-plugin-status-layout','Plugin status occupies normal-flow space, not an overlay','e2e/regressions.spec.ts','plugin status occupies reserved space instead of overlaying workspace']
 ];
 for(const [id,title,file,test]of accepted){
   assert((await read(file)).includes(test),`Missing evidence for ${id}: ${file} / ${test}`);
@@ -81,7 +87,8 @@ const outstanding=[
   ['GATE-plugin-ui','DOM/settings/Modal/view/render processors and CM integration'],
   ['GATE-plugin-environment','Node/Electron/network/npm assumptions under an explicit permission policy'],
   ['GATE-extensions','Free Importer, Maps and Web Clipper equivalents'],
-  ['GATE-checklist-expansion','Expand every partial parent into exhaustive per-workflow acceptance']
+  ['GATE-checklist-expansion','Expand every partial parent into exhaustive per-workflow acceptance'],
+  ['GATE-native-plugin-kernel','Migrate all product capabilities including editor to native providers, with Obsidian only an optional compatibility adapter']
 ];
 for(const [id,title]of outstanding)items.push({id,section:'Unfinished parity gates',title,status:'missing',reference:id.includes('api')||id.includes('plugin')?exported.source_url:'https://help.obsidian.md',implemented:'None signed off',remaining:title,evidence:[]});
 assert.equal(new Set(items.map(i=>i.id)).size,items.length);

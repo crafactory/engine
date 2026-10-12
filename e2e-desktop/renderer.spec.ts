@@ -22,6 +22,16 @@ test('trusted renderer requires explicit mode and cancellable permission',async(
   await expect(page.getByRole('dialog',{name:'Enable Renderer fixture?'})).toContainText('NOT sandboxed');
   await page.getByRole('button',{name:'Cancel',exact:true}).click();await expect(page.getByRole('switch',{name:'Enable Renderer fixture',exact:true})).not.toBeChecked();await expect(page.locator('.plugin-status-item')).toHaveCount(0);
 });
+test('real plugin status stays below workspace footer and releases its reserved strip on unload',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  await expect(page.locator('.plugin-status-item')).toBeVisible();
+  const status=await page.locator('#plugin-status').boundingBox(),footer=await page.locator('.statusbar').boundingBox();
+  expect(status!.y).toBeGreaterThanOrEqual(footer!.y+footer!.height-1);
+  const context=await page.locator('.context-footer').boundingBox();
+  if(context)expect(context.y+context.height).toBeLessThanOrEqual(status!.y);
+  await settings();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();
+  await page.getByTestId('settings-close').click();await expect(page.locator('#plugin-status')).toBeHidden();
+});
 test('renderer settings controls persist and modal traps focus and closes',async()=>{
   await enable();await page.getByRole('button',{name:'Plugin settings Renderer fixture',exact:true}).click();
   await page.getByLabel('Fixture text',{exact:true}).fill('中文 setting');

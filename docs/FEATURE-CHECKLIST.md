@@ -34,8 +34,8 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
   - Current scope: CodeMirror 6, Markdown mode, undo/redo, search/replace, selection formatting, spellcheck, line numbers
   - Remaining / boundary: Vim/Emacs parity, complete editing-shortcut set, table editor, fold/history semantics
 - [ ] **AREA-live-preview Live preview**: partial. Reference: [public documentation](https://help.obsidian.md).
-  - Current scope: Inactive-line formatting; top-level tables, code, diagrams, callouts/quotes, math, standalone embeds/rules; source reveal on selection or edit action; table cell edits, undo/redo, task toggles
-  - Remaining / boundary: Full inline/nested grammar, list rendering, table row/column operations, all embeds, exact cursor/selection and reference editing behavior, huge-document performance
+  - Current scope: Inactive-line formatting and bounded wiki/Markdown link navigation; top-level tables, code, diagrams, callouts/quotes, math, standalone embeds/rules; source reveal; table cell edits, widget reuse on position changes, undo/redo, task toggles
+  - Remaining / boundary: Full inline/nested grammar, nested/escaped Markdown link destinations, list rendering, table row/column operations, all embeds, exact cursor/selection and reference editing behavior, huge-document performance
 - [ ] **AREA-reading Reading**: partial. Reference: [public documentation](https://help.obsidian.md).
   - Current scope: Markdown-it, tables, tasks, highlights, code, footnotes, comments, callout styling and nested collapsible callouts
   - Remaining / boundary: HTML-in-note support, complete OFM grammar, syntax highlighting in reading code fences
@@ -43,8 +43,8 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
   - Current scope: KaTeX inline/display math, Mermaid strict rendering
   - Remaining / boundary: Full syntax edge cases, editing behavior, complete compatibility/security audit
 - [ ] **AREA-embeds Embeds**: partial. Reference: [public documentation](https://help.obsidian.md).
-  - Current scope: Note/heading/block transclusion, image/audio/video attachments, PDF download
-  - Remaining / boundary: Recursive nested embeds, interactive PDFs, image-size wiki syntax, embedded Bases/Canvas, block edit actions
+  - Current scope: Note/heading/block transclusion, read-only Canvas geometry, image/audio/video attachments, PDF download
+  - Remaining / boundary: Recursive nested embeds, embedded Canvas file-card format parity, interactive PDFs, image-size wiki syntax, embedded Bases, block edit actions
 - [ ] **AREA-properties Properties**: partial. Reference: [public documentation](https://help.obsidian.md).
   - Current scope: Typed YAML editing, add/remove, property search and vault keys
   - Remaining / boundary: Reference type registry, date/link widgets, drag/reorder, field auto-completion and multi-file bulk edits
@@ -312,6 +312,24 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [x] **ACCEPT-code-processor-error-restore Synchronous and asynchronous code-handler failure restores original pre before reporting**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
   - Acceptance: Synchronous and asynchronous code-handler failure restores original pre before reporting
   - Evidence: `tests/markdown-plugins.test.ts` / `failed code processors restore original pre before propagating the error`.
+- [x] **ACCEPT-canvas-embed Read-only Canvas nodes and edges in reading and Live modes**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Read-only Canvas nodes and edges in reading and Live modes
+  - Evidence: `e2e/regressions.spec.ts` / `Canvas embeds render read-only nodes and edges in reading and Live modes`.
+- [x] **ACCEPT-canvas-rename Native Canvas rename retains exact JSON bytes, type and resolved embed**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Native Canvas rename retains exact JSON bytes, type and resolved embed
+  - Evidence: `e2e-desktop/vault.spec.ts` / `native Canvas embed and rename preserve exact JSON bytes and file type`.
+- [x] **ACCEPT-live-links Inactive Live wiki and Markdown link click navigation**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Inactive Live wiki and Markdown link click navigation
+  - Evidence: `e2e/regressions.spec.ts` / `inactive Live wiki aliases and Markdown links navigate on click`.
+- [x] **ACCEPT-live-table-stability Reuse measured table widgets after typing above and remap edit positions**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Reuse measured table widgets after typing above and remap edit positions
+  - Evidence: `e2e/regressions.spec.ts` / `typing above a table preserves measured widget DOM and remaps edit callbacks`.
+- [x] **ACCEPT-long-table-caret Typing after a 100-row table keeps caret in editor viewport**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Typing after a 100-row table keeps caret in editor viewport
+  - Evidence: `e2e/regressions.spec.ts` / `long document with a tall table keeps the typing caret in the editor viewport`.
+- [x] **ACCEPT-plugin-status-layout Plugin status occupies normal-flow space, not an overlay**: verified-subset. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Acceptance: Plugin status occupies normal-flow space, not an overlay
+  - Evidence: `e2e/regressions.spec.ts` / `plugin status occupies reserved space instead of overlaying workspace`.
 
 ## Unfinished parity gates
 
@@ -348,6 +366,9 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [ ] **GATE-checklist-expansion Expand every partial parent into exhaustive per-workflow acceptance**: missing. Reference: [public documentation](https://help.obsidian.md).
   - Current scope: None signed off
   - Remaining / boundary: Expand every partial parent into exhaustive per-workflow acceptance
+- [ ] **GATE-native-plugin-kernel Migrate all product capabilities including editor to native providers, with Obsidian only an optional compatibility adapter**: missing. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
+  - Current scope: None signed off
+  - Remaining / boundary: Migrate all product capabilities including editor to native providers, with Obsidian only an optional compatibility adapter
 
 ## Maintenance
 

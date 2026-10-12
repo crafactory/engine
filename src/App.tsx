@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import {parse,stringify} from 'yaml';
 import {bridge,defaults} from './bridge';
+import {renameDestination} from './file-path';
 import {title,isNote,frontmatter,setProperties,links,resolveLink,tags,headings,search,applyTemplate,rewriteLinks} from './knowledge';
 import type {EditorHandle} from './Editor';
 import {Markdown,renderMarkdown} from './Markdown';
@@ -211,9 +212,11 @@ export function App(){
     if(path)try{if(!validPath(path))throw new Error('Invalid folder path');await bridge.mkdir(path);setEntries(await bridge.list());setExpanded(e=>new Set([...e,path]));}catch(e){report(e);}
   }
   async function renamePath(from:string,requested?:string){
-    const to=requested || await dialog.ask('Rename or move',from,'Internal links will be updated where their targets can be resolved.');
-    if(!to||to===from)return;
+    const input=requested || await dialog.ask('Rename or move',from,'The original file extension is preserved. Internal links will be updated where their targets can be resolved.');
+    if(!input)return;
     try{
+      const to=renameDestination(from,input,entries.some(e=>e.path===from&&e.folder));
+      if(to===from)return;
       if(!validPath(to))throw new Error('Invalid destination path');await flush();
       const before=[...notesRef.current];
       await bridge.rename(from,to);
@@ -225,7 +228,7 @@ export function App(){
       for(const note of before){
         const newPath=mappings.find(p=>p.from===note.path)?.to||note.path;
         let content=note.content;
-        for(const pair of mappings)content=rewriteLinks(content,pair.from,pair.to,note.path,before);
+        if(isNote(note.path))for(const pair of mappings)content=rewriteLinks(content,pair.from,pair.to,note.path,before);
         if(content!==note.content)editNote(newPath,content);
       }
       const remap=(p:string)=>mappings.find(pair=>pair.from===p)?.to||p;
