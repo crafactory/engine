@@ -483,8 +483,8 @@
       "title": "Community plugin API",
       "status": "partial",
       "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
-      "implemented": "Default Worker plus explicit trusted-renderer subset with DOM settings/Modal, status items, dedicated views and actual host CodeMirror extensions. Pinned Reading Time has bounded Linux workflows; Calendar and Advanced Tables startup only; Dataview/Templater still fail. Default Worker still fails all five. Full member/overload/reference/platform coverage incomplete; see PLUGIN-COMPATIBILITY.md and TRUSTED-RENDERER-PLUGIN-TESTS.md.",
-      "remaining": "Default Worker plus explicit trusted-renderer subset with DOM settings/Modal, status items, dedicated views and actual host CodeMirror extensions. Pinned Reading Time has bounded Linux workflows; Calendar and Advanced Tables startup only; Dataview/Templater still fail. Default Worker still fails all five. Full member/overload/reference/platform coverage incomplete; see PLUGIN-COMPATIBILITY.md and TRUSTED-RENDERER-PLUGIN-TESTS.md.",
+      "implemented": "Default Worker plus explicit trusted renderer with DOM settings/Modal, dedicated views, host CodeMirror extensions, reading post/code processors and MarkdownRenderChild lifecycle. Whole-host context, null section mapping and non-recursive static rendering are bounded, not reference equivalent. Real plugins remain limited; see PLUGIN-COMPATIBILITY.md and per-mode reports. Full member/overload/reference/platform coverage incomplete.",
+      "remaining": "Default Worker plus explicit trusted renderer with DOM settings/Modal, dedicated views, host CodeMirror extensions, reading post/code processors and MarkdownRenderChild lifecycle. Whole-host context, null section mapping and non-recursive static rendering are bounded, not reference equivalent. Real plugins remain limited; see PLUGIN-COMPATIBILITY.md and per-mode reports. Full member/overload/reference/platform coverage incomplete.",
       "evidence": []
     },
     {
@@ -1079,6 +1079,81 @@
         {
           "file": "e2e-desktop/renderer-corpus.spec.ts",
           "test": "BOUNDED_WORKFLOWS_PASS"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-post-processors",
+      "section": "Bounded acceptance checks",
+      "title": "Reading post/code processors, context and render-child lifecycle",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Reading post/code processors, context and render-child lifecycle",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/markdown-plugins.spec.ts",
+          "test": "reading processors render source bytes in order with real context and child lifecycle"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-static-markdown",
+      "section": "Bounded acceptance checks",
+      "title": "Sanitized static Markdown without recursive processors",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Sanitized static Markdown without recursive processors",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/markdown-plugins.spec.ts",
+          "test": "static Markdown rendering uses the sanitized renderer without recursive processors"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-render-cancellation",
+      "section": "Bounded acceptance checks",
+      "title": "Canceled async render cannot alter its successor",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Canceled async render cannot alter its successor",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/markdown-plugins.spec.ts",
+          "test": "canceling a slow render leaves the next document unmodified and children unloaded"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-render-child-error",
+      "section": "Bounded acceptance checks",
+      "title": "Render-child load error disables plugin and restores source",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Render-child load error disables plugin and restores source",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/markdown-plugins.spec.ts",
+          "test": "a render child startup error disables its plugin and restores the original code block"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-render-disable-pending",
+      "section": "Bounded acceptance checks",
+      "title": "Disable prevents pending render child startup",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Disable prevents pending render child startup",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/markdown-plugins.spec.ts",
+          "test": "disabling a pending processor prevents late child startup and stale rendered output"
         }
       ]
     },

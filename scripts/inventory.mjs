@@ -52,7 +52,12 @@ const accepted=[
   ['ACCEPT-renderer-settings','Real renderer settings controls and Modal focus/close','e2e-desktop/renderer.spec.ts','renderer settings controls persist and modal traps focus and closes'],
   ['ACCEPT-renderer-cm','Host CodeMirror extensions, replacement, view and unload','e2e-desktop/renderer.spec.ts','renderer CodeMirror extensions update real editor and unload all UI'],
   ['ACCEPT-renderer-failure','Startup failure removes allocated plugin UI','e2e-desktop/renderer.spec.ts','trusted renderer failure cleans up:'],
-  ['ACCEPT-reading-time','Pinned Reading Time bounded workflows on Linux trusted renderer','e2e-desktop/renderer-corpus.spec.ts','BOUNDED_WORKFLOWS_PASS']
+  ['ACCEPT-reading-time','Pinned Reading Time bounded workflows on Linux trusted renderer','e2e-desktop/renderer-corpus.spec.ts','BOUNDED_WORKFLOWS_PASS'],
+  ['ACCEPT-post-processors','Reading post/code processors, context and render-child lifecycle','e2e-desktop/markdown-plugins.spec.ts','reading processors render source bytes in order with real context and child lifecycle'],
+  ['ACCEPT-static-markdown','Sanitized static Markdown without recursive processors','e2e-desktop/markdown-plugins.spec.ts','static Markdown rendering uses the sanitized renderer without recursive processors'],
+  ['ACCEPT-render-cancellation','Canceled async render cannot alter its successor','e2e-desktop/markdown-plugins.spec.ts','canceling a slow render leaves the next document unmodified and children unloaded'],
+  ['ACCEPT-render-child-error','Render-child load error disables plugin and restores source','e2e-desktop/markdown-plugins.spec.ts','a render child startup error disables its plugin and restores the original code block'],
+  ['ACCEPT-render-disable-pending','Disable prevents pending render child startup','e2e-desktop/markdown-plugins.spec.ts','disabling a pending processor prevents late child startup and stale rendered output']
 ];
 for(const [id,title,file,test]of accepted){
   assert((await read(file)).includes(test),`Missing evidence for ${id}: ${file} / ${test}`);

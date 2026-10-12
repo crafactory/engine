@@ -11,7 +11,7 @@ function harness(){
   return {runtime,api:runtime.api as any,ui,settingCleanup,extensionCleanup,viewCleanup,updateOptions};
 }
 it('renderer export registry is documented, unique and disjoint from Worker exports',()=>{
-  expect(rendererExports).toHaveLength(16);expect(new Set(rendererExports).size).toBe(16);
+  expect(rendererExports).toHaveLength(18);expect(new Set(rendererExports).size).toBe(18);
   for(const name of rendererExports){expect(inventory.symbols.some(s=>s.name===name&&s.runtime)).toBe(true);expect(supportedExports).not.toContain(name);}
 });
 it('renderer MarkdownView exposes actual active document in reading mode',()=>{
@@ -39,5 +39,5 @@ it('renderer hook registrations dispose once and updateOptions reaches actual ho
   await h.runtime.stop();await h.runtime.stop();expect(h.settingCleanup).toHaveBeenCalledOnce();expect(h.extensionCleanup).toHaveBeenCalledOnce();expect(h.viewCleanup).toHaveBeenCalledOnce();
 });
 it('renderer keeps unsupported events and unrelated runtime exports explicit',()=>{
-  const h=harness();expect(()=>h.runtime.app.workspace.on('active-leaf-change',()=>{})).toThrow('Workspace event active-leaf-change');expect(()=>h.api.MarkdownRenderChild).toThrow('export MarkdownRenderChild');
+  const h=harness();expect(()=>h.runtime.app.workspace.on('active-leaf-change',()=>{})).toThrow('Workspace event active-leaf-change');expect(()=>h.api.MarkdownPreviewView).toThrow('export MarkdownPreviewView');
 });

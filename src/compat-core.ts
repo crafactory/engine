@@ -17,6 +17,8 @@ export interface CompatHost {
     statusBar():HTMLElement;settingTab(tab:any):()=>void;
     editorExtension(extension:unknown):()=>void;updateOptions():void;
     registerView(type:string,factory:(leaf:any)=>any):()=>void;
+    postProcessor?(callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
+    codeProcessor?(language:string,callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
   };
 }
 export class CompatibilityError extends Error {
@@ -47,16 +49,16 @@ export class Events {
   tryTrigger(ref:{callback:(...args:any[])=>void;ctx?:unknown},args:any[]){try{ref.callback.apply(ref.ctx,args);}catch(error){console.error(error);}}
 }
 export class Component {
-  private loaded=false;private cleanups:(()=>void)[]=[];private children:Component[]=[];
+  private loaded=false;private cleanups:(()=>unknown)[]=[];private children:Component[]=[];
   async load(){if(this.loaded)return;this.loaded=true;try{await this.onload();for(const child of this.children)await child.load();}catch(e){await this.unload();throw e;}}
   async unload(){if(!this.loaded)return;this.loaded=false;let first:unknown;
     try{await this.onunload();}catch(e){first=e;}
     for(const child of [...this.children].reverse())try{await child.unload();}catch(e){first??=e;}
-    for(const cleanup of this.cleanups.splice(0).reverse())try{cleanup();}catch(e){first??=e;}
+    for(const cleanup of this.cleanups.splice(0).reverse())try{await cleanup();}catch(e){first??=e;}
     if(first)throw first;
   }
   onload():unknown{return undefined;} onunload():unknown{return undefined;}
-  register(callback:()=>void){this.cleanups.push(callback);}
+  register(callback:()=>unknown){this.cleanups.push(callback);}
   registerEvent(ref:ReturnType<Events['on']>){this.register(()=>ref.emitter.offref(ref));}
   registerInterval(id:ReturnType<typeof setInterval>|number){this.register(()=>clearInterval(id));return id;}
   registerDomEvent(element?:EventTarget,type?:string,callback?:EventListener,options?:AddEventListenerOptions|boolean){
@@ -244,8 +246,8 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     registerExtensions(){return unsupported('Plugin.registerExtensions');}
     registerEditorExtension(extension:unknown){if(!host.ui)return unsupported('Plugin.registerEditorExtension');this.register(host.ui.editorExtension(extension));}
     registerEditorSuggest(){return unsupported('Plugin.registerEditorSuggest');}
-    registerMarkdownPostProcessor(){return unsupported('Plugin.registerMarkdownPostProcessor');}
-    registerMarkdownCodeBlockProcessor(){return unsupported('Plugin.registerMarkdownCodeBlockProcessor');}
+    registerMarkdownPostProcessor(callback:any,sortOrder?:number){if(!host.ui?.postProcessor)return unsupported('Plugin.registerMarkdownPostProcessor');const registration=host.ui.postProcessor(callback,sortOrder);this.register(registration.dispose);return registration.processor;}
+    registerMarkdownCodeBlockProcessor(language:string,callback:any,sortOrder?:number){if(!host.ui?.codeProcessor)return unsupported('Plugin.registerMarkdownCodeBlockProcessor');const registration=host.ui.codeProcessor(language,callback,sortOrder);this.register(registration.dispose);return registration.processor;}
     registerObsidianProtocolHandler(){return unsupported('Plugin.registerObsidianProtocolHandler');}
     registerHoverLinkSource(){return unsupported('Plugin.registerHoverLinkSource');}registerBasesView(){return unsupported('Plugin.registerBasesView');}
     registerCliHandler(){return unsupported('Plugin.registerCliHandler');}

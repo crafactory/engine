@@ -46,7 +46,7 @@ class BlockWidget extends WidgetType {
     };
     const ctx=this.context();
     root.render(this.block.kind==='table'?<LiveTable content={this.block.content} onChange={onChange}/>:
-      <Markdown content={this.block.content} notes={ctx.notes} path={ctx.path} onOpen={ctx.onOpen} onChange={onChange}/>);
+      <Markdown content={this.block.content} notes={ctx.notes} path={ctx.path} onOpen={ctx.onOpen} onChange={onChange} pluginProcessing={false}/>);
     requestAnimationFrame(()=>{if(host.isConnected)view.requestMeasure();});
     return host;
   }

@@ -1,9 +1,9 @@
-# Contributing
+# Development and review workflow
 
-Use Node.js 22.12+. Run `npm ci`, `npm run check`, and `npm run test:e2e` before submitting changes. New behavior should have a fixture/unit test and an end-to-end test where applicable.
+New development and build changes go through a feature branch and Pull Request. Do not push development directly to main.
 
-Do not import, decompile, translate, or adapt proprietary application code or assets. Public behavior documentation and open format specifications can inform an independently written implementation. State the provenance and license of every introduced resource.
+Before merging, wait for CodeRabbit to finish reviewing the latest revision, address every reported issue, request another review after fixes, and verify that no review issues remain unresolved. Passing tests alone does not replace the completed review. If review is unavailable or blocked, leave the PR open and report the blocker; do not bypass review or merge with unresolved findings.
 
-Update `docs/PARITY.md` with actual boundaries. A UI affordance is not evidence of completed functionality. Do not label a feature complete without comparison tests. Unsupported file syntax must produce a visible error rather than silently dropping data.
+PRs run regular verification and three-platform package builds. Formal Linux publication is restricted to main, after the reviewed PR has merged. Continue later development only after this review/repair/merge cycle is complete.
 
-Regenerate `THIRD_PARTY_NOTICES.md` after dependency updates. Keep original code MIT licensed and preserve all third-party license and notice requirements.
+Compatibility remains a clean-room, original MIT implementation based on public behavior. Keep all incomplete parent features unchecked. Test real upstream plugin bytes only in disposable vaults, without rewriting, incorporating or distributing those implementations.

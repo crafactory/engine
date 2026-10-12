@@ -1,0 +1,20 @@
+# Markdown plugin QA inventory
+
+Reference behavior: [MarkdownRenderChild](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownRenderChild), [post-processor registration](https://docs.obsidian.md/Reference/TypeScript+API/Plugin/registerMarkdownPostProcessor), [context](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownPostProcessorContext), and [MarkdownRenderer](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownRenderer).
+
+This increment is limited to reading-mode whole-host post-processing and named fenced-code blocks, not full section, nested embed or Live Preview equivalence.
+
+| Claim/control | Functional evidence | Visual inspection state |
+|---|---|---|
+| Sorted post-processors and original code bytes | Native fixture verifies LOW/HIGH order, button source and parent sourcePath/frontmatter | Reading note with rendered block |
+| Render-child lifecycle and native DOM events | Click persists counter; remove child unloads; source/reading reloads; disable balances load/unload | Before/after removal and disable |
+| Sanitized static rendering | Modal renders strong text, no script node or recursive processor markers | Static-render Modal, desktop/narrow |
+| Late async callback isolation | Switch mode and change source while callback waits; successor clean; disable removes late output | Re-rendered and disabled note |
+| Worker limitations preserved | Existing negative exports/method cases remain | Explicit errors/default mode |
+| PR review requirement | CodeRabbit latest review complete, findings fixed, tests green before merge | Public PR evidence, no direct-main development |
+
+Exploratory checks include rapid reading/source toggles, disabling during a pending render, removing a child while its load is pending, and repeated enable/disable. getSectionInfo deliberately returns documented nullable unknown rather than fabricated positions. Static rendering does not recursively invoke plugin processors. Error cleanup and viewport checks do not constitute comprehensive adversarial security or accessibility certification.
+
+## Executed visual pass
+
+Linux Electron: dark and light reading at 1440 × 900, sanitized Modal at 375 × 812, visible processor button/context/status, source/reading reload and disabled raw-code restoration. Normal UI inputs exercised the button, palette, settings runtime/permission, theme and enable/disable controls. Screenshots are `docs/images/markdown-plugins-*.png`; no inspected clipping, horizontal document overflow or layering defect was observed. The native session and disposable profile/vault were cleaned up. This does not sign off native mobile or reference DOM parity.

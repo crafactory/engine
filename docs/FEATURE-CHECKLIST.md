@@ -145,8 +145,8 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 ## Extensions, themes, and platform surface
 
 - [ ] **AREA-community-plugin-api Community plugin API**: partial. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
-  - Current scope: Default Worker plus explicit trusted-renderer subset with DOM settings/Modal, status items, dedicated views and actual host CodeMirror extensions. Pinned Reading Time has bounded Linux workflows; Calendar and Advanced Tables startup only; Dataview/Templater still fail. Default Worker still fails all five. Full member/overload/reference/platform coverage incomplete; see PLUGIN-COMPATIBILITY.md and TRUSTED-RENDERER-PLUGIN-TESTS.md.
-  - Remaining / boundary: Default Worker plus explicit trusted-renderer subset with DOM settings/Modal, status items, dedicated views and actual host CodeMirror extensions. Pinned Reading Time has bounded Linux workflows; Calendar and Advanced Tables startup only; Dataview/Templater still fail. Default Worker still fails all five. Full member/overload/reference/platform coverage incomplete; see PLUGIN-COMPATIBILITY.md and TRUSTED-RENDERER-PLUGIN-TESTS.md.
+  - Current scope: Default Worker plus explicit trusted renderer with DOM settings/Modal, dedicated views, host CodeMirror extensions, reading post/code processors and MarkdownRenderChild lifecycle. Whole-host context, null section mapping and non-recursive static rendering are bounded, not reference equivalent. Real plugins remain limited; see PLUGIN-COMPATIBILITY.md and per-mode reports. Full member/overload/reference/platform coverage incomplete.
+  - Remaining / boundary: Default Worker plus explicit trusted renderer with DOM settings/Modal, dedicated views, host CodeMirror extensions, reading post/code processors and MarkdownRenderChild lifecycle. Whole-host context, null section mapping and non-recursive static rendering are bounded, not reference equivalent. Real plugins remain limited; see PLUGIN-COMPATIBILITY.md and per-mode reports. Full member/overload/reference/platform coverage incomplete.
 - [ ] **AREA-community-catalog Community catalog**: missing. Reference: [public documentation](https://help.obsidian.md).
   - Current scope: No plugin/theme marketplace, unattended installation, updates or signing; local manual install only
   - Remaining / boundary: No plugin/theme marketplace, unattended installation, updates or signing; local manual install only
@@ -279,6 +279,21 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [x] **ACCEPT-reading-time Pinned Reading Time bounded workflows on Linux trusted renderer**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
   - Acceptance: Pinned Reading Time bounded workflows on Linux trusted renderer
   - Evidence: `e2e-desktop/renderer-corpus.spec.ts` / `BOUNDED_WORKFLOWS_PASS`.
+- [x] **ACCEPT-post-processors Reading post/code processors, context and render-child lifecycle**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Reading post/code processors, context and render-child lifecycle
+  - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `reading processors render source bytes in order with real context and child lifecycle`.
+- [x] **ACCEPT-static-markdown Sanitized static Markdown without recursive processors**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Sanitized static Markdown without recursive processors
+  - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `static Markdown rendering uses the sanitized renderer without recursive processors`.
+- [x] **ACCEPT-render-cancellation Canceled async render cannot alter its successor**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Canceled async render cannot alter its successor
+  - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `canceling a slow render leaves the next document unmodified and children unloaded`.
+- [x] **ACCEPT-render-child-error Render-child load error disables plugin and restores source**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Render-child load error disables plugin and restores source
+  - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `a render child startup error disables its plugin and restores the original code block`.
+- [x] **ACCEPT-render-disable-pending Disable prevents pending render child startup**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Disable prevents pending render child startup
+  - Evidence: `e2e-desktop/markdown-plugins.spec.ts` / `disabling a pending processor prevents late child startup and stale rendered output`.
 
 ## Unfinished parity gates
 

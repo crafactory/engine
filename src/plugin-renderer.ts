@@ -25,7 +25,7 @@ export function startRendererPlugin(manifest:PluginManifest,code:string,getSnaps
   });
   dom.setApp(runtime.app);
   async function stop(){
-    return stopPromise??=(async()=>{stopping=true;onCommands([]);try{await booting?.catch(()=>{});await runtime.stop();}finally{alive=false;await dom.dispose();}})();
+    return stopPromise??=(async()=>{stopping=true;onCommands([]);try{await booting?.catch(()=>{});await dom.stopProcessors();await runtime.stop();}finally{alive=false;await dom.dispose();}})();
   }
   function fail(reason:unknown){if(!alive||stopping)return;onNotice(manifest.name+': '+(reason instanceof Error?reason.message:String(reason)));void stop().catch(error=>onNotice(String(error))).finally(onFailure);}
   const slot='__engine_plugin_'+crypto.randomUUID().replaceAll('-','');
