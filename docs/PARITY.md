@@ -1,6 +1,6 @@
 # Functional parity ledger
 
-This file distinguishes implementation from completeness. The requested target is all non-subscription Obsidian functionality, independently implemented under MIT. **That target is not reached in 0.1.0.** No overall parity percentage is given because there is no comprehensive behavioral test corpus or fixed reference build.
+This file distinguishes implementation from completeness. The requested target is all non-subscription Obsidian functionality, independently implemented under MIT. **That target is not reached in 0.2.0.** No overall parity percentage is given because there is no comprehensive behavioral test corpus or fixed reference build.
 
 The reference inventory comes from [Obsidian's public core-plugin list](https://help.obsidian.md/plugins) and [help home](https://help.obsidian.md). Public behavior was consulted; application source was not used. Core plugin names alone are not an exhaustive specification, and third-party community-plugin functionality is not equivalent to the core feature set.
 
@@ -35,8 +35,8 @@ Public formatting behavior is described in [Basic formatting syntax](https://hel
 | Area | Status | Working behavior | Missing or unverified |
 |---|---|---|---|
 | Source editing | Implemented subset | CodeMirror 6, Markdown mode, undo/redo, search/replace, selection formatting, spellcheck, line numbers | Vim/Emacs parity, complete editing-shortcut set, table editor, fold/history semantics |
-| Live preview | Implemented subset | Inactive-line headings and bold/highlight/strike/code/wiki syntax decorations | Full block rendering/editing, interactive tables, live math/diagrams/embeds, cursor/selection parity, nested formatting |
-| Reading | Implemented subset | Markdown-it, tables, tasks, highlights, code, footnotes, comments, callout styling | HTML-in-note support, collapsible callouts, complete OFM grammar, syntax highlighting in reading code fences |
+| Live preview | Implemented subset | Inactive-line formatting; top-level tables, code, diagrams, callouts/quotes, math, standalone embeds/rules; source reveal on selection or edit action; table cell edits, undo/redo, task toggles | Full inline/nested grammar, list rendering, table row/column operations, all embeds, exact cursor/selection and reference editing behavior, huge-document performance |
+| Reading | Implemented subset | Markdown-it, tables, tasks, highlights, code, footnotes, comments, callout styling and nested collapsible callouts | HTML-in-note support, complete OFM grammar, syntax highlighting in reading code fences |
 | Math/diagrams | Implemented subset | KaTeX inline/display math, Mermaid strict rendering | Full syntax edge cases, editing behavior, complete compatibility/security audit |
 | Embeds | Implemented subset | Note/heading/block transclusion, image/audio/video attachments, PDF download | Recursive nested embeds, interactive PDFs, image-size wiki syntax, embedded Bases/Canvas, block edit actions |
 | Properties | Implemented subset | Typed YAML editing, add/remove, property search and vault keys | Reference type registry, date/link widgets, drag/reorder, field auto-completion and multi-file bulk edits |
@@ -105,3 +105,7 @@ Search behavior was informed by [Search documentation](https://help.obsidian.md/
 5. Run security/dependency/license reviews and publish the exact pass/fail evidence.
 
 Until those gates pass, describe Engine as an independently implemented workspace under development, not as a full clone.
+
+## Workspace and Live Preview revision
+
+The 0.2.0 revision removes the custom application/vault-name top bar. Vault switching remains available in the ribbon/sidebar; the OS window frame is not changed. Added behavior follows the public [views and editing-mode description](https://help.obsidian.md/edit-and-read), implemented independently. See `QA-LIVE-PREVIEW.md` for explicit test boundaries. No feature row is upgraded to full equivalence.

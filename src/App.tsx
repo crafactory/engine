@@ -3,7 +3,7 @@ import {
   Files,Search,Network,LayoutDashboard,CalendarDays,Terminal,Settings as SettingsIcon,
   PanelLeftClose,PanelLeftOpen,PanelRightClose,PanelRightOpen,Plus,X,ChevronRight,ChevronDown,
   FileText,Folder,FolderPlus,FilePlus,MoreHorizontal,BookOpen,Code2,Pencil,Bookmark,Hash,
-  List,ArrowLeft,ArrowRight,Link2,Check,HardDrive,Shield,Clock,Pin,Download,Trash2,
+  List,ArrowLeft,ArrowRight,Link2,Check,HardDrive,Clock,Pin,Download,Trash2,
   Copy,Scissors,Mic,Square,Table2,ExternalLink,RefreshCw,Star,Globe,Presentation,Layers,Menu
 } from 'lucide-react';
 import {parse,stringify} from 'yaml';
@@ -444,7 +444,6 @@ export function App(){
     <style>{settings.css}</style>
     <input ref={importInput} type="file" multiple accept=".md,.markdown,.txt,image/*,audio/*,video/*,.pdf,.canvas,.base" className="hidden" aria-label="Import files" onChange={e=>{importFiles(e.target.files);e.target.value='';}}/>
     <input ref={attachmentInput} type="file" multiple className="hidden" aria-label="Add attachment" onChange={e=>{importFiles(e.target.files);e.target.value='';}}/>
-    <header className="titlebar"><div className="app-wordmark"><Logo/><span>Crafactory <strong>Engine</strong></span><span className="version">0.1</span></div><div className="titlebar-center"><HardDrive size={12}/>{vaultName}</div><div className="titlebar-right">{bridge.desktop?<><Shield size={12}/>Local files</>:<><Clock size={12}/>Temporary preview</>}</div></header>
     <div className="workspace">
       <nav className="ribbon" aria-label="Workspace tools">
         <div className="ribbon-tools">

@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {X,Sun,Moon,Shield,Keyboard,FileText,Palette,Puzzle,Info,Folder,HardDrive,Check,Download} from 'lucide-react';
 import type {Settings as Preferences,PluginManifest} from './types';
 import {bridge} from './bridge';
+import {version} from '../package.json';
 export const corePlugins=[
   ['audio','Audio recorder','Record audio and insert it into the active note.'],
   ['backlinks','Backlinks','Follow linked and unlinked mentions.'],
@@ -67,7 +68,7 @@ export function Settings({value,onChange,onClose,plugins,enabled,onTogglePlugin}
         <div className="security-notice"><Shield size={20}/><div><strong>Restricted mode by default</strong><p>Engine plugins are a new, independent API. Existing Obsidian plugins are not compatible. Enabling a plugin lets its commands read and modify notes through the Engine API.</p></div></div>
         {!plugins.length?<div className="empty"><Puzzle size={28}/><h3>No local plugins installed</h3><p>Place a manifest.json and main.js in .crafactory/plugins/plugin-id, then reopen settings. An example plugin is included in the repository.</p></div>:plugins.map(p=>row(p.name,`${p.description||''} · ${p.version}`,<input key={p.id} type="checkbox" role="switch" aria-label={'Enable '+p.name} checked={enabled.includes(p.id)} onChange={()=>onTogglePlugin(p.id)}/>))}
       </>}
-      {tab==='about'&&<div className="about"><img src="./icon.svg" width="64" height="64" alt="Crafactory Engine"/><h2>Crafactory Engine</h2><p>Version 0.1.0 · MIT license</p><p>An independently implemented Markdown workspace. No Obsidian source code, branded assets, or subscription services are included.</p><p>{bridge.desktop?'Desktop mode: local filesystem vault.':'Browser preview: temporary in-memory vault. Refreshing resets your changes.'}</p><p>Functional parity is a project goal, not a claim of this release. See docs/PARITY.md for the current boundary.</p><a href="https://github.com/crafactory/engine" target="_blank" rel="noreferrer">Repository & documentation</a></div>}
+      {tab==='about'&&<div className="about"><img src="./icon.svg" width="64" height="64" alt="Crafactory Engine"/><h2>Crafactory Engine</h2><p>Version {version} · MIT license</p><p>An independently implemented Markdown workspace. No Obsidian source code, branded assets, or subscription services are included.</p><p>{bridge.desktop?'Desktop mode: local filesystem vault.':'Browser preview: temporary in-memory vault. Refreshing resets your changes.'}</p><p>Functional parity is a project goal, not a claim of this release. See docs/PARITY.md for the current boundary.</p><a href="https://github.com/crafactory/engine" target="_blank" rel="noreferrer">Repository & documentation</a></div>}
     </div>
   </section></div>;
 }

@@ -42,14 +42,42 @@ md.inline.ruler.before('escape','math',(state:any,silent:boolean)=>{
 });
 md.block.ruler.before('fence','math-block',(state:any,start:number,end:number,silent:boolean)=>{
   const begin=state.bMarks[start]+state.tShift[start],finish=state.eMarks[start];
-  if(state.src.slice(begin,finish).trim()!=='$$')return false;
+  const first=state.src.slice(begin,finish).trim();
+  if(/^\$\$.+\$\$$/.test(first)){
+    if(!silent){const token=state.push('html_block','',0);token.content=katex.renderToString(first.slice(2,-2),{displayMode:true,throwOnError:false,trust:false});token.map=[start,start+1];state.line=start+1;}
+    return true;
+  }
+  if(first!=='$$')return false;
   let next=start+1;while(next<end&&state.src.slice(state.bMarks[next],state.eMarks[next]).trim()!=='$$')next++;
   if(next>=end)return false;
   if(silent)return true;
   const token=state.push('html_block','',0);
   token.content=katex.renderToString(state.src.slice(state.bMarks[start+1],state.bMarks[next]),{displayMode:true,throwOnError:false,trust:false});
+  token.map=[start,next+1];
   state.line=next+1;return true;
 });
+md.core.ruler.after('inline','engine-callouts',(state:any)=>{
+  const tokens=state.tokens;
+  for(let i=0;i<tokens.length;i++){
+    const open=tokens[i],inline=tokens[i+2];
+    if(open.type!=='blockquote_open'||tokens[i+1]?.type!=='paragraph_open'||inline?.type!=='inline')continue;
+    const match=inline.content.match(/^\[!([a-z-]+)\]([+-]?)([^\n]*)(?:\n|$)/i);
+    if(!match)continue;
+    const type=match[1].toLowerCase(),fold=match[2],label=match[3].trim()||type[0].toUpperCase()+type.slice(1);
+    open.meta={callout:{type,fold,label}};
+    const close=tokens.slice(i+1).find((token:any)=>token.type==='blockquote_close'&&token.level===open.level);
+    if(close)close.meta=open.meta;
+    inline.content=inline.content.slice(match[0].length);inline.children=md.parseInline(inline.content,state.env)[0].children;
+  }
+});
+md.renderer.rules.blockquote_open=(tokens,idx)=>{
+  const callout=tokens[idx].meta?.callout;
+  if(!callout)return '<blockquote>\n';
+  const classes=`callout callout-${escape(callout.type)}`;
+  return callout.fold?`<details class="${classes}"${callout.fold==='+'?' open':''}><summary class="callout-title">${escape(callout.label)}</summary>\n`:
+    `<blockquote class="${classes}"><div class="callout-title">${escape(callout.label)}</div>\n`;
+};
+md.renderer.rules.blockquote_close=(tokens,idx)=>tokens[idx].meta?.callout?.fold?'</details>\n':'</blockquote>\n';
 const defaultLink=md.renderer.rules.link_open || ((tokens,idx,options,_env,self)=>self.renderToken(tokens,idx,options));
 md.renderer.rules.link_open=(tokens,idx,options,env,self)=>{
   const href=tokens[idx].attrGet('href') || '';
@@ -70,10 +98,7 @@ md.renderer.rules.heading_open=(tokens,idx,options,_env,self)=>{
 };
 export function renderMarkdown(content:string) {
   const body=frontmatter(content).body;
-  const html=md.render(body).replace(/<blockquote>\s*<p>\[!([a-z-]+)\]([+-]?)([^\n<]*)(?:\n|<\/p>)/gi,(_,type,fold,label)=>{
-    const labelText=label.trim()||type[0].toUpperCase()+type.slice(1);
-    return `<blockquote class="callout callout-${escape(type)}"><div class="callout-title">${escape(labelText)}</div><p>`;
-  });
+  const html=md.render(body);
   return DOMPurify.sanitize(html,{ADD_ATTR:['target','data-note','data-embed','data-asset'],FORBID_TAGS:['style','iframe','object','embed']});
 }
 export function Markdown({content,notes,path,onOpen,onChange,depth=0}:{

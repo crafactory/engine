@@ -2,7 +2,7 @@
 
 An independent, local-first Markdown knowledge workspace. Crafactory is a combination of Craft and Factory. Engine is the workspace for writing, linking, and arranging knowledge.
 
-Original code is released under the MIT license. No Obsidian application code or branded assets are used. Functional interoperability is the long-term goal, but **version 0.1.0 is not a complete 1:1 replacement**. See [the parity ledger](docs/PARITY.md) before migrating an important vault.
+Original code is released under the MIT license. No Obsidian application code or branded assets are used. Functional interoperability is the long-term goal, but **version 0.2.0 is not a complete 1:1 replacement**. See [the parity ledger](docs/PARITY.md) before migrating an important vault.
 
 中文交付范围、运行方式及未完成项见 [Crafactory Engine 交付说明](docs/Crafactory-Engine-交付说明.md)。该说明明确区分已有实现和完整复刻目标。
 
@@ -10,7 +10,7 @@ Original code is released under the MIT license. No Obsidian application code or
 
 ## Run
 
-Unsigned Linux x64 AppImage and Debian packages are available in [the v0.1.0 prerelease](https://github.com/crafactory/engine/releases/tag/v0.1.0). Back up your vault before testing; consult the release notes for known gaps and verification boundaries.
+Unsigned Linux x64 AppImage and Debian packages are available on [the releases page](https://github.com/crafactory/engine/releases). Back up your vault before testing; consult the release notes for known gaps and verification boundaries.
 
 Use Node.js 22.12 or newer and npm. A graphical session is required for the desktop app.
 
@@ -42,7 +42,7 @@ The browser preview has no durable storage and is not the desktop product. It in
 ## Included workflows
 
 - **Local vaults:** folders, plain Markdown, file watching, autosave, conflict detection, recoverable trash, previous-version snapshots.
-- **Writing:** CodeMirror 6 source editing, basic live inline formatting, reading view, undo/redo, selection formatting, find/replace, link/tag completion, slash insertions.
+- **Writing:** CodeMirror 6 source editing, live inline/block previews, editable table cells and task checkboxes, source reveal for selected blocks, reading view, undo/redo, selection formatting, find/replace, link/tag completion, slash insertions.
 - **Markdown:** wikilinks, aliases, heading/block references, transclusion, images/audio/video attachments, task checkboxes, tables, footnotes, highlights, callout styling, KaTeX, Mermaid.
 - **Connected thinking:** backlinks, unlinked mentions, outgoing links, outlines, nested tags, global/local force-directed graphs.
 - **Navigation:** tabs, tab reorder, back/forward, quick switcher, command palette, bookmarks, one split pane, saved workspaces.

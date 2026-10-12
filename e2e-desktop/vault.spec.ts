@@ -50,3 +50,14 @@ test('opt-in local plugin runs its independent Worker command',async()=>{
   await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Example: create note');await page.keyboard.press('Enter');
   await expect.poll(async()=>fs.readFile(path.join(root,'Plugin.md'),'utf8').catch(()=>'' )).toContain('Written by Worker.');
 });
+test('native live table and task edits persist exact Markdown without the custom header',async()=>{
+  await expect(page.locator('.titlebar')).toHaveCount(0);
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+a');
+  await page.keyboard.insertText('---\naliases: [Original]\n---\n# Persist\n\n| Name | State |\n| --- | --- |\n| One | Open |\n\n- [ ] Verify native save\n\nEnd.\n');
+  await page.getByTestId('mode-live').click();
+  await page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true}).click();
+  await page.getByRole('textbox',{name:'Cell row 2 column 2',exact:true}).fill('Saved | native');await page.keyboard.press('Enter');
+  await page.getByRole('checkbox',{name:'Toggle task: Verify native save',exact:true}).check();
+  await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('| One | Saved \\| native |');
+  const content=await fs.readFile(path.join(root,'Persist.md'),'utf8');expect(content).toContain('- [x] Verify native save');expect(content).toContain('aliases: [Original]');
+});

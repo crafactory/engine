@@ -1,6 +1,6 @@
 import {forwardRef,useEffect,useImperativeHandle,useRef} from 'react';
-import {EditorState,RangeSetBuilder} from '@codemirror/state';
-import {EditorView,keymap,lineNumbers,highlightActiveLine,Decoration,ViewPlugin,ViewUpdate,WidgetType} from '@codemirror/view';
+import {EditorState} from '@codemirror/state';
+import {EditorView,keymap,lineNumbers,highlightActiveLine} from '@codemirror/view';
 import {markdown,markdownKeymap} from '@codemirror/lang-markdown';
 import {defaultKeymap,history,historyKeymap,indentWithTab} from '@codemirror/commands';
 import {searchKeymap,highlightSelectionMatches} from '@codemirror/search';
@@ -9,6 +9,7 @@ import {syntaxHighlighting,HighlightStyle} from '@codemirror/language';
 import {tags as syntaxTags} from '@lezer/highlight';
 import {isNote,tags,title,frontmatter} from './knowledge';
 import type {Note,Settings} from './types';
+import {livePreview,refreshLivePreview} from './LivePreview';
 export interface EditorHandle {insert(text:string):void;selection():string;replaceSelection(text:string):void;jump(offset:number):void;focus():void;find():void}
 const engineHighlight=HighlightStyle.define([
   {tag:syntaxTags.heading,fontWeight:'600',color:'var(--text)'},
@@ -25,41 +26,6 @@ function wrap(view:EditorView,marker:string) {
   view.dispatch({changes:{from:range.from,to:range.to,insert:marker+selected+marker},selection:{anchor:range.from+marker.length,head:range.to+marker.length}});
   view.focus();return true;
 }
-const liveDecorations=ViewPlugin.fromClass(class {
-  decorations:any;
-  constructor(view:EditorView){this.decorations=this.build(view);}
-  update(update:ViewUpdate){if(update.docChanged||update.selectionSet||update.viewportChanged)this.decorations=this.build(update.view);}
-  build(view:EditorView) {
-    const builder=new RangeSetBuilder<Decoration>();
-    const current=view.state.doc.lineAt(view.state.selection.main.head).number;
-    const ranges:{from:number;to:number;dec:Decoration}[]=[];
-    let fence=false;
-    for(let number=1;number<=view.state.doc.lines;number++) {
-      const line=view.state.doc.line(number);
-      if(/^\s*(```|~~~)/.test(line.text)){fence=!fence;continue;}
-      if(fence||number===current)continue;
-      const heading=line.text.match(/^(#{1,6}) /);
-      if(heading){ranges.push({from:line.from,to:line.from,dec:Decoration.line({class:'live-heading live-h'+heading[1].length})});ranges.push({from:line.from,to:line.from+heading[0].length,dec:Decoration.replace({})});}
-      for(const match of line.text.matchAll(/(\*\*|==|~~|`)(.+?)\1|\[\[([^\]]+)\]\]/g)) {
-        const from=line.from+match.index!,to=from+match[0].length;
-        if(match[3]) {
-          ranges.push({from,to,dec:Decoration.mark({class:'live-link'})});
-          ranges.push({from,to:from+2,dec:Decoration.replace({})});
-          const pipe=match[0].indexOf('|');
-          if(pipe>=0)ranges.push({from:from+2,to:from+pipe+1,dec:Decoration.replace({})});
-          ranges.push({from:to-2,to,dec:Decoration.replace({})});
-        }else{
-          const marker=match[1],length=marker.length;
-          ranges.push({from,to,dec:Decoration.mark({class:marker==='**'?'live-bold':marker==='=='?'live-mark':marker==='~~'?'live-strike':'live-code'})});
-          ranges.push({from,to:from+length,dec:Decoration.replace({})});ranges.push({from:to-length,to,dec:Decoration.replace({})});
-        }
-      }
-    }
-    ranges.sort((a,b)=>a.from-b.from||a.dec.startSide-b.dec.startSide||a.to-b.to);
-    for(const r of ranges)builder.add(r.from,r.to,r.dec);
-    return builder.finish();
-  }
-},{decorations:v=>v.decorations});
 export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Settings;onChange:(content:string)=>void;onOpen:(target:string)=>void;onCommand:(command:string)=>void}>(
 function Editor({note,notes,settings,onChange,onOpen,onCommand},handle) {
   const container=useRef<HTMLDivElement>(null),view=useRef<EditorView>();
@@ -97,7 +63,7 @@ function Editor({note,notes,settings,onChange,onOpen,onCommand},handle) {
       parent:container.current!,state:EditorState.create({doc:viewContent,extensions:[
         markdown(),history(),syntaxHighlighting(engineHighlight),highlightSelectionMatches(),EditorView.lineWrapping,
         ...(settings.lineNumbers?[lineNumbers()]:[]),
-        ...(settings.mode==='live'?[liveDecorations]:[highlightActiveLine()]),
+        ...(settings.mode==='live'?livePreview(()=>({path:note.path,notes:callbacks.current.notes,onOpen:target=>callbacks.current.onOpen(target)})):[highlightActiveLine()]),
         autocompletion({override:[complete]}),
         keymap.of([
           {key:'Mod-b',run:v=>wrap(v,'**')},{key:'Mod-i',run:v=>wrap(v,'*')},
@@ -121,5 +87,6 @@ function Editor({note,notes,settings,onChange,onOpen,onCommand},handle) {
     return()=>{editor.destroy();};
   },[note.path,settings.mode,settings.lineNumbers,settings.fontSize,settings.theme,settings.spellcheck,settings.disabledPlugins]);
   useEffect(()=>{const v=view.current;if(v&&v.state.doc.toString()!==viewContent){external.current=true;v.dispatch({changes:{from:0,to:v.state.doc.length,insert:viewContent}});external.current=false;}},[viewContent]);
+  useEffect(()=>{if(settings.mode==='live')view.current?.dispatch({effects:refreshLivePreview.of(null)});},[notes,settings.mode]);
   return <div ref={container} className={'editor '+(settings.readableWidth?'readable':'')} data-testid="editor-surface"/>;
 });
