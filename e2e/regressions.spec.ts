@@ -22,6 +22,13 @@ test('Canvas embeds render read-only nodes and edges in reading and Live modes',
     await expect(embed.locator('.canvas-edit')).toHaveCount(0);
     await expect(embed.getByTestId('canvas-add-text')).toHaveCount(0);
     await expect(embed).toBeVisible();
+    await page.setViewportSize({width:375,height:940});
+    if(await page.getByRole('button',{name:'Collapse sidebar',exact:true}).isVisible())await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+    await expect.poll(async()=>embed.evaluate(el=>{
+      const box=el.getBoundingClientRect();
+      return [...el.querySelectorAll('.react-flow__node')].every(node=>{const r=node.getBoundingClientRect();return r.left>=box.left-1&&r.right<=box.right+1&&r.top>=box.top-1&&r.bottom<=box.bottom+1;});
+    })).toBe(true);
+    await page.setViewportSize({width:1440,height:940});
   }
   await page.locator('.embed-title').click();
   await expect(page.getByTestId('canvas-add-text')).toBeVisible();
@@ -46,6 +53,14 @@ test('Canvas rename rejects accidental Markdown conversion',async({page})=>{
   await expect(page.getByTestId('file-Projects/Engine.canvas')).toBeVisible();
   await expect(page.getByTestId('file-Projects/Broken.md')).toHaveCount(0);
 });
+for(const [from,to,view] of [['Projects/Engine.canvas','Projects/Upper.CANVAS','canvas-add-text'],['Projects/Library.base','Projects/Upper.BASE','base-table']]){
+  test(`case-preserving rename opens the original format: ${to}`,async({page})=>{
+    await page.goto('/');await page.getByTestId('file-'+from).click();await page.getByTestId('mode-live').click();
+    await command(page,'Rename or move current file');await page.getByTestId('dialog-input').fill(to);await page.getByTestId('dialog-submit').click();
+    await expect(page.getByTestId('file-'+to)).toBeVisible();await expect(page.getByTestId(view)).toBeVisible();
+    await page.getByTestId('file-Welcome.md').click();await page.getByTestId('file-'+to).click();await expect(page.getByTestId(view)).toBeVisible();
+  });
+}
 test('inactive Live wiki aliases and Markdown links navigate on click',async({page})=>{
   await host(page,'# Links\n\n[[Welcome|Wiki destination]] and [Markdown destination](Guides/Getting%20started.md)\n\nTail');
   await page.getByTestId('mode-live').click();
@@ -77,16 +92,35 @@ test('long document with a tall table keeps the typing caret in the editor viewp
   await page.keyboard.press('Control+z');await page.keyboard.press('Control+Shift+z');
   await expect(page.getByTestId('note-editor')).toContainText('typed after table');
 });
+test('editing a cell near the bottom of a tall table keeps the focused input and committed cell visible',async({page})=>{
+  const table='| Name | State |\n| --- | --- |\n'+Array.from({length:100},(_,i)=>`| Row ${i} | Open |`).join('\n');
+  await host(page,'# Long table\n\n'+table+'\n\nTail');await page.getByTestId('mode-live').click();
+  const cell=page.getByRole('button',{name:'Edit cell row 96 column 2',exact:true});await cell.click();
+  const input=page.getByRole('textbox',{name:'Cell row 96 column 2',exact:true});
+  await input.fill('Editing near bottom');await input.press('End');await page.keyboard.type(' safely');
+  await expect(input).toBeFocused();
+  const bounds=await input.boundingBox(),viewport=await page.locator('.cm-scroller').boundingBox();
+  expect(bounds!.y).toBeGreaterThanOrEqual(viewport!.y-2);expect(bounds!.y+bounds!.height).toBeLessThanOrEqual(viewport!.y+viewport!.height+2);
+  await page.keyboard.press('Enter');await expect(cell).toHaveText('Editing near bottom safely');
+  const committed=await cell.boundingBox();
+  expect(committed!.y).toBeGreaterThanOrEqual(viewport!.y-2);expect(committed!.y+committed!.height).toBeLessThanOrEqual(viewport!.y+viewport!.height+2);
+});
 test('plugin status occupies reserved space instead of overlaying workspace',async({page})=>{
   await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
   // Stage plugin-produced text; inspect geometry rather than simulating plugin compatibility.
   await page.locator('#plugin-status').evaluate(el=>{el.textContent='Plugin regression status';});
-  for(const width of [1440,375]){
-    await page.setViewportSize({width,height:940});
-    const status=await page.locator('#plugin-status').boundingBox(),footer=await page.locator('.statusbar').boundingBox();
-    expect(status!.y).toBeGreaterThanOrEqual(footer!.y+footer!.height-1);
-    expect(status!.y+status!.height).toBeLessThanOrEqual(941);
+  for(const theme of ['dark','light']){
+    await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByTestId('theme-'+theme).click();await page.getByTestId('settings-close').click();
+    for(const width of [1440,375]){
+      await page.setViewportSize({width,height:940});
+      const link=page.getByRole('button',{name:'Explore local graph',exact:true});await expect(link).toBeVisible();
+      const status=await page.locator('#plugin-status').boundingBox(),footer=await page.locator('.statusbar').boundingBox(),bounds=await link.boundingBox();
+      expect(status!.y).toBeGreaterThanOrEqual(footer!.y+footer!.height-1);
+      expect(bounds!.y+bounds!.height).toBeLessThanOrEqual(status!.y);
+      expect(status!.y+status!.height).toBeLessThanOrEqual(941);
+    }
   }
+  await page.getByRole('button',{name:'Explore local graph',exact:true}).click();await expect(page.getByTestId('graph')).toBeVisible();
 });
 test('empty and malformed Canvas embeds remain bounded and never expose JSON as Markdown',async({page})=>{
   for(const [name,content] of [['Empty.canvas','{"nodes":[],"edges":[]}'],['Invalid.canvas','not valid JSON']]){

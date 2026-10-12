@@ -70,7 +70,8 @@ const accepted=[
   ['ACCEPT-live-links','Inactive Live wiki and Markdown link click navigation','e2e/regressions.spec.ts','inactive Live wiki aliases and Markdown links navigate on click'],
   ['ACCEPT-live-table-stability','Reuse measured table widgets after typing above and remap edit positions','e2e/regressions.spec.ts','typing above a table preserves measured widget DOM and remaps edit callbacks'],
   ['ACCEPT-long-table-caret','Typing after a 100-row table keeps caret in editor viewport','e2e/regressions.spec.ts','long document with a tall table keeps the typing caret in the editor viewport'],
-  ['ACCEPT-plugin-status-layout','Plugin status occupies normal-flow space, not an overlay','e2e/regressions.spec.ts','plugin status occupies reserved space instead of overlaying workspace']
+  ['ACCEPT-plugin-status-layout','Plugin status occupies normal-flow space, not an overlay','e2e/regressions.spec.ts','plugin status occupies reserved space instead of overlaying workspace'],
+  ['ACCEPT-tall-table-cell-viewport','Bottom-cell editing and commit retain focused input and visible cell','e2e/regressions.spec.ts','editing a cell near the bottom of a tall table keeps the focused input and committed cell visible']
 ];
 for(const [id,title,file,test]of accepted){
   assert((await read(file)).includes(test),`Missing evidence for ${id}: ${file} / ${test}`);

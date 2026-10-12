@@ -330,6 +330,9 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [x] **ACCEPT-plugin-status-layout Plugin status occupies normal-flow space, not an overlay**: verified-subset. Reference: [public documentation](https://docs.obsidian.md/Reference/TypeScript+API/index).
   - Acceptance: Plugin status occupies normal-flow space, not an overlay
   - Evidence: `e2e/regressions.spec.ts` / `plugin status occupies reserved space instead of overlaying workspace`.
+- [x] **ACCEPT-tall-table-cell-viewport Bottom-cell editing and commit retain focused input and visible cell**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Bottom-cell editing and commit retain focused input and visible cell
+  - Evidence: `e2e/regressions.spec.ts` / `editing a cell near the bottom of a tall table keeps the focused input and committed cell visible`.
 
 ## Unfinished parity gates
 

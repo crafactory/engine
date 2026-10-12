@@ -75,3 +75,11 @@ export function replaceTableCell(content:string,cell:TableCell,value:string):str
   const escaped=value.replace(/[\r\n]+/g,' ').replace(/(?<!\\)\|/g,'\\|');
   return content.slice(0,cell.from)+leading+escaped+(previous.trim()?trailing:leading? '':' ')+content.slice(cell.to);
 }
+/** Reduce a block replacement to the changed UTF-16 span so unchanged source and widgets can map forward. */
+export function minimalBlockChange(from:number,before:string,after:string):{from:number;to:number;insert:string}|null {
+  if(before===after)return null;
+  let start=0,endBefore=before.length,endAfter=after.length;
+  while(start<endBefore&&start<endAfter&&before[start]===after[start])start++;
+  while(endBefore>start&&endAfter>start&&before[endBefore-1]===after[endAfter-1]){endBefore--;endAfter--;}
+  return {from:from+start,to:from+endBefore,insert:after.slice(start,endAfter)};
+}

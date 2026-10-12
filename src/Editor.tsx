@@ -29,6 +29,7 @@ function wrap(view:EditorView,marker:string) {
   view.focus();return true;
 }
 export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Settings;pluginExtensions?:Extension[];onChange:(content:string)=>void;onOpen:(target:string)=>void;onCommand:(command:string)=>void}>(
+/** Maintain the current CodeMirror document and independently refresh only external preview dependencies. */
 function Editor({note,notes,settings,pluginExtensions=[],onChange,onOpen,onCommand},handle) {
   const container=useRef<HTMLDivElement>(null),view=useRef<EditorView>();
   const pluginCompartment=useRef(new Compartment());

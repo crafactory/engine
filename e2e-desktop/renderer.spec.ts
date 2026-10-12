@@ -27,8 +27,8 @@ test('real plugin status stays below workspace footer and releases its reserved 
   await expect(page.locator('.plugin-status-item')).toBeVisible();
   const status=await page.locator('#plugin-status').boundingBox(),footer=await page.locator('.statusbar').boundingBox();
   expect(status!.y).toBeGreaterThanOrEqual(footer!.y+footer!.height-1);
-  const context=await page.locator('.context-footer').boundingBox();
-  if(context)expect(context.y+context.height).toBeLessThanOrEqual(status!.y);
+  const link=page.getByRole('button',{name:'Explore local graph',exact:true});await expect(link).toBeVisible();
+  const context=await link.boundingBox();expect(context!.y+context!.height).toBeLessThanOrEqual(status!.y);
   await settings();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();
   await page.getByTestId('settings-close').click();await expect(page.locator('#plugin-status')).toBeHidden();
 });

@@ -97,7 +97,7 @@ test('table header edits commit on blur and Tab commits a body cell',async({page
   await page.getByRole('textbox',{name:'Cell row 1 column 1',exact:true}).fill('Title');
   await page.getByRole('button',{name:'Edit cell row 2 column 1',exact:true}).click();
   await expect(page.getByRole('button',{name:'Edit cell row 1 column 1',exact:true})).toHaveText('Title');
-  await page.getByRole('button',{name:'Edit cell row 2 column 1',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Cell row 2 column 1',exact:true})).toBeVisible();
   await page.getByRole('textbox',{name:'Cell row 2 column 1',exact:true}).fill('Renamed');await page.keyboard.press('Tab');
   await expect(page.getByRole('button',{name:'Edit cell row 2 column 1',exact:true})).toHaveText('Renamed');
 });

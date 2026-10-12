@@ -7,12 +7,12 @@ Independent original MIT implementation. This is a bounded bug-fix increment and
 - Canvas embeds display actual read-only Canvas nodes and edges in reading and Live modes instead of rendering JSON as Markdown.
 - Renaming an extensionless Canvas name preserves `.canvas`; known file-type changes are rejected rather than silently pretending to convert content. Native regression checks exact JSON bytes and updated Markdown embeds.
 - Live wiki aliases and bounded Markdown links have actual anchor navigation; active source stays editable. Unsafe schemes, escaped links, images and code spans do not become active links.
-- Unchanged live block widgets reuse their measured DOM after source-position changes, with callbacks rebound to current coordinates. Typing in the current note no longer triggers an additional full dependency refresh. CodeMirror selection drawing is explicit; a 100-row table / 120-paragraph regression checks caret visibility.
-- Plugin status occupies a reserved normal-flow strip instead of overlaying the right-hand context footer.
+- Unchanged live block widgets reuse their measured DOM after source-position changes, with callbacks rebound to current coordinates. Block edits use minimal source changes and CodeMirror scroll snapshots; editing and committing a bottom table cell retains the edited region. Typing in the current note no longer triggers an additional full dependency refresh. CodeMirror selection drawing is explicit; a 100-row table / 120-paragraph regression checks caret visibility.
+- Plugin status occupies a reserved normal-flow strip instead of overlaying the right-hand context footer. A compact local-graph entry remains available when the narrow layout hides the right sidebar.
 
 ## Tracking and architecture
 
-The Feature checklist contains 116 stable entries, including all 29 core plugins, 50 bounded acceptance checkpoints and an unchecked native-plugin-kernel gate. Parent parity areas remain incomplete.
+The Feature checklist contains 117 stable entries, including all 29 core plugins, 51 bounded acceptance checkpoints and an unchecked native-plugin-kernel gate. Parent parity areas remain incomplete.
 
 `NATIVE-PLUGIN-ARCHITECTURE.md` proposes an assembly/service/lifecycle kernel with all product features, including editors, implemented as native providers; the Obsidian facade becomes an optional adapter. The migration has not been implemented in this release.
 

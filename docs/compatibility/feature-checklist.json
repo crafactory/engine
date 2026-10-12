@@ -1338,6 +1338,21 @@
       ]
     },
     {
+      "id": "ACCEPT-tall-table-cell-viewport",
+      "section": "Bounded acceptance checks",
+      "title": "Bottom-cell editing and commit retain focused input and visible cell",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Bottom-cell editing and commit retain focused input and visible cell",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/regressions.spec.ts",
+          "test": "editing a cell near the bottom of a tall table keeps the focused input and committed cell visible"
+        }
+      ]
+    },
+    {
       "id": "GATE-reference",
       "section": "Unfinished parity gates",
       "title": "Pin an installed reference version for clean-room black-box comparisons",
