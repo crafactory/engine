@@ -20,6 +20,8 @@ Interactive Electron QA inspected dark/light reading at 1440 × 900, static-rend
 
 The subsequent browser focus replay used the same controlled creation clock and actual palette/keyboard inputs: focus remained in the template input after advancing the creation timer, and Discussion appeared after Enter. The unchanged dark desktop layout was visually inspected with the inserted template. This browser check is not native platform acceptance.
 
+The completed review of `79427c97df710b6022f780fbc89e74323939887a` established no further issue and no retained architecture concern, but its expanded docstring analysis failed at 71.88% over 32 functions. No merge occurred. Additional workspace, deferred-focus and inert external-store helper documentation is included for re-review, without lowering or disabling the 80% gate. The [79427c9 PR verification](https://github.com/crafactory/engine/actions/runs/38217336127), [three-platform builds](https://github.com/crafactory/engine/actions/runs/38217336320) and [separate two-mode corpus](https://github.com/crafactory/engine/actions/runs/38217330367) passed; these do not satisfy the still-open latest-head review gate by themselves.
+
 Pinned external plugin bytes were unchanged. Renderer Dataview now reaches an `App.appId` unsupported boundary rather than the previous missing render-child export; this is still startup failure, not functional compatibility. Templater remains a generic class load error, Calendar/Advanced Tables startup-only, and Reading Time retains its eight bounded workflows. Worker still rejects all five. Updated per-mode reports retain timestamps and hashes; no third-party implementation is committed or distributed.
 
 ## v0.4.0 local verification

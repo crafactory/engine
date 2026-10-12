@@ -37,6 +37,7 @@ function download(name:string,content:string|Blob,type='text/plain'){
   const url=URL.createObjectURL(typeof content==='string'?new Blob([content],{type}):content);
   const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
+/** Compose the local-first vault workspace and explicitly authorized plugin controllers. */
 export function App(){
   const [notes,setNotes]=useState<Note[]>([]),[entries,setEntries]=useState<Entry[]>([]);
   const [vaultName,setVaultName]=useState('Crafactory Vault'),[root,setRoot]=useState('');
@@ -195,12 +196,14 @@ export function App(){
       updateNotes([...notesRef.current.filter(n=>n.path!==path),result]);setEntries(await bridge.list());open(path);
       setMode(isNote(path)?settings.mode:'reading');
       const focusOrigin=document.activeElement;
-      setTimeout(()=>{
+      /** Preserve subsequent modal/input/document focus instead of stealing it after creation. */
+      function focusCreatedNote(){
         // A later dialog, input or note switch takes precedence over deferred creation focus.
         if(editor.current?.path()!==path||document.querySelector('[aria-modal="true"],.modal-backdrop'))return;
         if(document.activeElement!==focusOrigin&&document.activeElement!==document.body)return;
         editor.current?.focus();
-      },100);
+      }
+      setTimeout(focusCreatedNote,100);
     }catch(e){report(e);}
   }
   async function newFolder(){

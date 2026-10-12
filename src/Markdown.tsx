@@ -11,8 +11,13 @@ import {frontmatter,resolveLink,section,title,search} from './knowledge';
 import type {Note} from './types';
 
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
-const noProcessors=()=>()=>{};
-const zeroRevision=()=>0;
+/** Supply an inert external-store subscription for reading-only processors disabled in live widgets. */
+function noProcessors(){
+  /** No resources are acquired by this disabled subscription. */
+  return function unsubscribe(){};
+}
+/** Keep disabled processor consumers at a stable revision without subscribing. */
+function zeroRevision(){return 0;}
 const md=new MarkdownIt({html:false,linkify:true,breaks:false,typographer:false}).use(footnote).use(mark).use(tasks,{enabled:true,label:true});
 md.inline.ruler.before('link','wiki',(state:any,silent:boolean)=>{
   const start=state.pos;
