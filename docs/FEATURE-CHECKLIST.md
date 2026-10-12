@@ -333,6 +333,9 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [x] **ACCEPT-tall-table-cell-viewport Bottom-cell editing and commit retain focused input and visible cell**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
   - Acceptance: Bottom-cell editing and commit retain focused input and visible cell
   - Evidence: `e2e/regressions.spec.ts` / `editing a cell near the bottom of a tall table keeps the focused input and committed cell visible`.
+- [x] **ACCEPT-embedded-task-ownership Embedded Canvas/Markdown tasks cannot acquire host-source write ownership**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Embedded Canvas/Markdown tasks cannot acquire host-source write ownership
+  - Evidence: `e2e-desktop/vault.spec.ts` / `native embedded tasks cannot mutate a different host task or embedded source`.
 
 ## Unfinished parity gates
 

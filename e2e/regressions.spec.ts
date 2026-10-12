@@ -1,4 +1,24 @@
 import {test,expect,type Page} from '@playwright/test';
+test('embedded task controls cannot acquire host task source ownership',async({page})=>{
+  await page.goto('/');
+  const canvas=JSON.stringify({nodes:[{id:'task',type:'text',x:0,y:0,width:260,height:160,text:'- [ ] Canvas task'}],edges:[]});
+  await page.locator('input[aria-label="Import files"]').setInputFiles([
+    {name:'Task board.canvas',mimeType:'application/json',buffer:Buffer.from(canvas)},
+    {name:'Embedded task.md',mimeType:'text/markdown',buffer:Buffer.from('- [ ] Embedded task')}
+  ]);
+  await expect(page.getByTestId('file-Task board.canvas')).toBeVisible();
+  await expect(page.getByTestId('file-Embedded task.md')).toBeVisible();
+  const source='---\nstatus: pending\n---\n# Host\n\n- [ ] First\n\n![[Task board.canvas]]\n\n![[Embedded task.md]]\n\n- [ ] Second\n\n> - [ ] Quoted\n\n1. [ ] Ordered\n';
+  await page.getByRole('button',{name:'New note',exact:true}).click();await page.getByTestId('dialog-input').fill('Task owner.md');await page.getByTestId('dialog-submit').click();
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+a');await page.keyboard.insertText(source);
+  await page.getByTestId('mode-reading').click();
+  await expect(page.getByRole('checkbox',{name:'Canvas task',exact:true})).toBeDisabled();
+  await expect(page.getByRole('checkbox',{name:'Embedded task',exact:true})).toBeDisabled();
+  for(const name of ['Second','Quoted','Ordered'])await page.getByRole('checkbox',{name,exact:true}).check();
+  await expect(page.getByRole('checkbox',{name:'First',exact:true})).not.toBeChecked();
+  await page.getByTestId('mode-source').click();
+  await expect(page.getByTestId('note-editor')).toContainText(source.replace('- [ ] Second','- [x] Second').replace('- [ ] Quoted','- [x] Quoted').replace('1. [ ] Ordered','1. [x] Ordered'));
+});
 test('new files use create-only storage when listing misses a case-insensitive collision',async({page})=>{
   await page.addInitScript(()=>{
     const files=new Map([['Welcome.md','# Welcome'],['Board.canvas','{"nodes":[],"edges":[],"original":true}']]);

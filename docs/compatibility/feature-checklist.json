@@ -1353,6 +1353,21 @@
       ]
     },
     {
+      "id": "ACCEPT-embedded-task-ownership",
+      "section": "Bounded acceptance checks",
+      "title": "Embedded Canvas/Markdown tasks cannot acquire host-source write ownership",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Embedded Canvas/Markdown tasks cannot acquire host-source write ownership",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/vault.spec.ts",
+          "test": "native embedded tasks cannot mutate a different host task or embedded source"
+        }
+      ]
+    },
+    {
       "id": "GATE-reference",
       "section": "Unfinished parity gates",
       "title": "Pin an installed reference version for clean-room black-box comparisons",

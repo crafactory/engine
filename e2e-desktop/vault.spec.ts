@@ -24,6 +24,23 @@ test('native watcher reloads external edits',async()=>{
   await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\nEdited externally.\n');
   await expect(page.getByTestId('note-editor')).toContainText('Edited externally.');
 });
+test('native embedded tasks cannot mutate a different host task or embedded source',async()=>{
+  const canvas=JSON.stringify({nodes:[{id:'task',type:'text',x:0,y:0,width:260,height:160,text:'- [ ] Canvas task'}],edges:[]},null,2);
+  const embedded='- [ ] Embedded task\n';
+  const source='---\nstatus: pending\n---\n# Persist\n\n- [ ] First\n\n![[Tasks.canvas]]\n\n![[Embedded.md]]\n\n- [ ] Second\n\n> - [ ] Quoted\n\n1. [ ] Ordered\n'.replace(/\n/g,'\r\n');
+  await fs.writeFile(path.join(root,'Tasks.canvas'),canvas);await fs.writeFile(path.join(root,'Embedded.md'),embedded);
+  await fs.writeFile(path.join(root,'Persist.md'),source);
+  await expect(page.getByTestId('note-editor')).toContainText('![[Tasks.canvas]]');
+  await expect(page.getByTestId('file-Tasks.canvas')).toBeVisible();await expect(page.getByTestId('file-Embedded.md')).toBeVisible();
+  await page.getByTestId('mode-reading').click();
+  await expect(page.getByRole('checkbox',{name:'Canvas task',exact:true})).toBeDisabled();
+  await expect(page.getByRole('checkbox',{name:'Embedded task',exact:true})).toBeDisabled();
+  for(const name of ['Second','Quoted','Ordered'])await page.getByRole('checkbox',{name,exact:true}).check();
+  await expect(page.getByRole('checkbox',{name:'First',exact:true})).not.toBeChecked();
+  await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toBe(source.replace('- [ ] Second','- [x] Second').replace('- [ ] Quoted','- [x] Quoted').replace('1. [ ] Ordered','1. [x] Ordered'));
+  expect(await fs.readFile(path.join(root,'Tasks.canvas'),'utf8')).toBe(canvas);
+  expect(await fs.readFile(path.join(root,'Embedded.md'),'utf8')).toBe(embedded);
+});
 test('native Canvas embed and rename preserve exact JSON bytes and file type',async()=>{
   const content=JSON.stringify({custom:'retain me',nodes:[{id:'a',type:'text',x:0,y:0,width:260,height:160,text:'# Canvas marker'}],edges:[]},null,2);
   await fs.writeFile(path.join(root,'Board.canvas'),content);

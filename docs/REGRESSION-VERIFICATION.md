@@ -30,6 +30,10 @@ Additional Canvas guards validate fields actually consumed by the renderer and p
 
 ## Boundaries
 
+The completed review of `9c345f92ec6fc193b683b5a7c5ff7937e779f7b3` passed the unchanged docstring gate at 86.00% and marked its three inline findings resolved, but retained a medium security architecture concern: descendant Canvas task inputs could shift the host Markdown checkbox ordinal and mutate a different task. Merge remained blocked despite green CI/build/corpus and the summary's “Minimal” merge-risk label.
+
+The next candidate replaces ordinal mapping with parser-derived source offsets and a WeakMap of host-owned input identities, captured before embeddings or plugin DOM are admitted. Embedded/static task controls are disabled and cannot acquire containing-document write ownership. New browser and native cases verify later host tasks, blockquote/ordered tasks, frontmatter preservation, and exact unchanged embedded Markdown/Canvas bytes. Editable embedded tasks would require a distinct owning-document transaction; this candidate does not claim that behavior.
+
 100-row table plus 120 paragraphs is a regression fixture, not large-Vault performance certification. Inline links support bounded destinations; nested parentheses, escaped labels and full inline grammar remain incomplete. Canvas file-card rendering and recursive embedding are not declared equivalent. Native Windows/macOS installation and running, mobile, signed packages, accessibility/security audits and exhaustive Obsidian plugin behavior remain unverified.
 
 `NATIVE-PLUGIN-ARCHITECTURE.md` is a proposal with unchecked migration gates. No all-plugin kernel implementation is claimed.
