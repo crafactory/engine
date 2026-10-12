@@ -70,12 +70,13 @@ export function section(content:string,fragment:string) {
   const end=hs.slice(index+1).find(h=>h.level<=hs[index].level)?.offset ?? content.length;
   return content.slice(hs[index].offset,end);
 }
+/** Rewrite resolvable Markdown links while retaining aliases, fragments and non-Markdown extensions. */
 export function rewriteLinks(content:string,from:string,to:string,source:string,notes:Note[]) {
   return content.replace(/(!?)\[\[([^\]]+)\]\]/g,(whole,bang,inner)=>{
     const [destination,...alias]=inner.split('|'),[target,...fragment]=destination.split('#');
     const resolved=resolveLink(target,source,notes);
     if(resolved?.path!==from)return whole;
-    const next=target.includes('/')?to.replace(/\.md$/i,''):title(to);
+    const next=target.includes('/')?to.replace(/\.md$/i,''):isNote(to)?title(to):to.split('/').pop()!;
     return `${bang}[[${next}${fragment.length?'#'+fragment.join('#'):''}${alias.length?'|'+alias.join('|'):''}]]`;
   }).replace(/(!?)\[([^\]]*)\]\(([^)]+)\)/g,(whole,bang,label,href)=>{
     const [target,...fragment]=href.split('#');

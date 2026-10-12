@@ -13,14 +13,27 @@ test.beforeEach(async()=>{
   page=await app.firstWindow();await expect(page.locator('.note-title h1')).toHaveText('Test');
 });
 test.afterEach(async()=>{await app?.close();await fs.rm(root,{recursive:true,force:true});await fs.rm(profile,{recursive:true,force:true});});
+/** Open the native application's community-plugin settings using visible controls. */
 async function settings(){await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();}
+/** Explicitly authorize and enable the original trusted-renderer fixture. */
 async function enable(){await settings();await page.getByLabel('Runtime for Renderer fixture',{exact:true}).selectOption('renderer');await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();await page.getByTestId('dialog-submit').click();await expect(page.getByRole('switch',{name:'Enable Renderer fixture',exact:true})).toBeChecked();}
+/** Execute a fixture command through the application's command palette. */
 async function command(name:string){await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Renderer fixture: '+name);await page.keyboard.press('Enter');}
 test('trusted renderer requires explicit mode and cancellable permission',async()=>{
   await settings();await expect(page.getByLabel('Runtime for Renderer fixture',{exact:true})).toHaveValue('worker');
   await page.getByLabel('Runtime for Renderer fixture',{exact:true}).selectOption('renderer');await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();
   await expect(page.getByRole('dialog',{name:'Enable Renderer fixture?'})).toContainText('NOT sandboxed');
   await page.getByRole('button',{name:'Cancel',exact:true}).click();await expect(page.getByRole('switch',{name:'Enable Renderer fixture',exact:true})).not.toBeChecked();await expect(page.locator('.plugin-status-item')).toHaveCount(0);
+});
+test('real plugin status stays below workspace footer and releases its reserved strip on unload',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  await expect(page.locator('.plugin-status-item')).toBeVisible();
+  const status=await page.locator('#plugin-status').boundingBox(),footer=await page.locator('.statusbar').boundingBox();
+  expect(status!.y).toBeGreaterThanOrEqual(footer!.y+footer!.height-1);
+  const link=page.getByRole('button',{name:'Explore local graph',exact:true});await expect(link).toBeVisible();
+  const context=await link.boundingBox();expect(context!.y+context!.height).toBeLessThanOrEqual(status!.y);
+  await settings();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();
+  await page.getByTestId('settings-close').click();await expect(page.locator('#plugin-status')).toBeHidden();
 });
 test('renderer settings controls persist and modal traps focus and closes',async()=>{
   await enable();await page.getByRole('button',{name:'Plugin settings Renderer fixture',exact:true}).click();

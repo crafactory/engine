@@ -1,6 +1,6 @@
 import {forwardRef,useEffect,useImperativeHandle,useRef} from 'react';
 import {EditorState,Compartment,type Extension} from '@codemirror/state';
-import {EditorView,keymap,lineNumbers,highlightActiveLine} from '@codemirror/view';
+import {EditorView,keymap,lineNumbers,highlightActiveLine,drawSelection} from '@codemirror/view';
 import {markdown,markdownKeymap} from '@codemirror/lang-markdown';
 import {defaultKeymap,history,historyKeymap,indentWithTab} from '@codemirror/commands';
 import {searchKeymap,highlightSelectionMatches} from '@codemirror/search';
@@ -10,6 +10,8 @@ import {tags as syntaxTags} from '@lezer/highlight';
 import {isNote,tags,title,frontmatter} from './knowledge';
 import type {Note,Settings} from './types';
 import {livePreview,refreshLivePreview} from './LivePreview';
+import {inlineLinks} from './inline-links';
+import {liveRegions} from './live-model';
 export interface EditorHandle {path():string;insert(text:string):void;selection():string;replaceSelection(text:string):void;jump(offset:number):void;focus():void;find():void;snapshot():{text:string;from:number;to:number};applyPluginEdit(base:string,text:string,from:number,to:number):boolean}
 const engineHighlight=HighlightStyle.define([
   {tag:syntaxTags.heading,fontWeight:'600',color:'var(--text)'},
@@ -20,6 +22,7 @@ const engineHighlight=HighlightStyle.define([
   {tag:[syntaxTags.contentSeparator,syntaxTags.processingInstruction],color:'var(--faint)'},
   {tag:syntaxTags.strikethrough,textDecoration:'line-through'}
 ]);
+/** Wrap the current selection and retain its selected inner text for continued editing. */
 function wrap(view:EditorView,marker:string) {
   const range=view.state.selection.main;
   const selected=view.state.sliceDoc(range.from,range.to);
@@ -27,6 +30,7 @@ function wrap(view:EditorView,marker:string) {
   view.focus();return true;
 }
 export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Settings;pluginExtensions?:Extension[];onChange:(content:string)=>void;onOpen:(target:string)=>void;onCommand:(command:string)=>void}>(
+/** Maintain the current CodeMirror document and independently refresh only external preview dependencies. */
 function Editor({note,notes,settings,pluginExtensions=[],onChange,onOpen,onCommand},handle) {
   const container=useRef<HTMLDivElement>(null),view=useRef<EditorView>();
   const pluginCompartment=useRef(new Compartment());
@@ -75,7 +79,7 @@ function Editor({note,notes,settings,pluginExtensions=[],onChange,onOpen,onComma
     };
     const editor=new EditorView({
       parent:container.current!,state:EditorState.create({doc:viewContent,extensions:[
-        markdown(),history(),syntaxHighlighting(engineHighlight),highlightSelectionMatches(),EditorView.lineWrapping,pluginCompartment.current.of(pluginExtensions),
+        markdown(),history(),drawSelection(),syntaxHighlighting(engineHighlight),highlightSelectionMatches(),EditorView.lineWrapping,pluginCompartment.current.of(pluginExtensions),
         ...(settings.lineNumbers?[lineNumbers()]:[]),
         ...(settings.mode==='live'?livePreview(()=>({path:note.path,notes:callbacks.current.notes,onOpen:target=>callbacks.current.onOpen(target)})):[highlightActiveLine()]),
         autocompletion({override:[complete]}),
@@ -87,11 +91,17 @@ function Editor({note,notes,settings,pluginExtensions=[],onChange,onOpen,onComma
         EditorView.contentAttributes.of({spellcheck:String(settings.spellcheck),'aria-label':'Note editor','data-testid':'note-editor'}),
         EditorView.updateListener.of(update=>{if(update.docChanged&&!external.current)callbacks.current.onChange(prefix.current+update.state.doc.toString());}),
         EditorView.domEventHandlers({
+          /** Follow modifier-clicked supported links without intercepting ordinary source editing. */
           click(event,v){
             if(!(event.ctrlKey||event.metaKey))return false;
             const pos=v.posAtCoords({x:event.clientX,y:event.clientY});if(pos===null)return false;
+            if(liveRegions(v.state.doc.toString()).literal.some(r=>pos>=r.from&&pos<r.to))return false;
             const line=v.state.doc.lineAt(pos);
-            for(const m of line.text.matchAll(/\[\[([^\]]+)\]\]/g)){if(pos>=line.from+m.index!&&pos<=line.from+m.index!+m[0].length){callbacks.current.onOpen(m[1].split('|')[0]);return true;}}
+            for(const link of inlineLinks(line.text)){if(pos>=line.from+link.from&&pos<=line.from+link.to){
+              event.preventDefault();
+              if(link.external)window.open(link.target,'_blank','noopener,noreferrer');else callbacks.current.onOpen(link.target);
+              return true;
+            }}
             return false;
           }
         }),
@@ -101,7 +111,9 @@ function Editor({note,notes,settings,pluginExtensions=[],onChange,onOpen,onComma
     return()=>{editor.destroy();};
   },[note.path,settings.mode,settings.lineNumbers,settings.fontSize,settings.theme,settings.spellcheck,settings.disabledPlugins]);
   useEffect(()=>{const v=view.current;if(v&&v.state.doc.toString()!==viewContent){external.current=true;v.dispatch({changes:{from:0,to:v.state.doc.length,insert:viewContent}});external.current=false;}},[viewContent]);
-  useEffect(()=>{if(settings.mode==='live')view.current?.dispatch({effects:refreshLivePreview.of(null)});},[notes,settings.mode]);
+  // Current-document edits already rebuild the field in their CM transaction.
+  const linkedRevision=notes.filter(n=>n.path!==note.path).map(n=>n.path+'\0'+n.content).join('\0');
+  useEffect(()=>{if(settings.mode==='live')view.current?.dispatch({effects:refreshLivePreview.of(null)});},[linkedRevision,settings.mode]);
   useEffect(()=>{view.current?.dispatch({effects:pluginCompartment.current.reconfigure(pluginExtensions)});},[pluginExtensions]);
   return <div ref={container} className={'editor '+(settings.readableWidth?'readable':'')} data-testid="editor-surface"/>;
 });

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import {parse,stringify} from 'yaml';
 import {bridge,defaults} from './bridge';
+import {renameDestination} from './file-path';
 import {title,isNote,frontmatter,setProperties,links,resolveLink,tags,headings,search,applyTemplate,rewriteLinks} from './knowledge';
 import type {EditorHandle} from './Editor';
 import {Markdown,renderMarkdown} from './Markdown';
@@ -191,7 +192,7 @@ export function App(){
       const path=value.match(/\.(md|canvas|base|txt|csv|json)$/i)?value:value+'.md';
       if(!validPath(path))throw new Error('Use a relative path without hidden folders or parent segments.');
       if(entries.some(e=>e.path===path)){open(path);return;}
-      const result=await bridge.write(path,content ?? (isNote(path)?`# ${title(path)}\n\n`:''));
+      const result=await bridge.create(path,content ?? (isNote(path)?`# ${title(path)}\n\n`:''));
       versions.current.set(path,result.version);savedContent.current.set(path,result.content);
       updateNotes([...notesRef.current.filter(n=>n.path!==path),result]);setEntries(await bridge.list());open(path);
       setMode(isNote(path)?settings.mode:'reading');
@@ -210,10 +211,13 @@ export function App(){
     const path=await dialog.ask('New folder','New folder');
     if(path)try{if(!validPath(path))throw new Error('Invalid folder path');await bridge.mkdir(path);setEntries(await bridge.list());setExpanded(e=>new Set([...e,path]));}catch(e){report(e);}
   }
+  /** Rename without changing file format, then remap workspace identities and resolved Markdown links. */
   async function renamePath(from:string,requested?:string){
-    const to=requested || await dialog.ask('Rename or move',from,'Internal links will be updated where their targets can be resolved.');
-    if(!to||to===from)return;
+    const input=requested || await dialog.ask('Rename or move',from,'The original file extension is preserved. Internal links will be updated where their targets can be resolved.');
+    if(!input)return;
     try{
+      const to=renameDestination(from,input,entries.some(e=>e.path===from&&e.folder));
+      if(to===from)return;
       if(!validPath(to))throw new Error('Invalid destination path');await flush();
       const before=[...notesRef.current];
       await bridge.rename(from,to);
@@ -225,7 +229,7 @@ export function App(){
       for(const note of before){
         const newPath=mappings.find(p=>p.from===note.path)?.to||note.path;
         let content=note.content;
-        for(const pair of mappings)content=rewriteLinks(content,pair.from,pair.to,note.path,before);
+        if(isNote(note.path))for(const pair of mappings)content=rewriteLinks(content,pair.from,pair.to,note.path,before);
         if(content!==note.content)editNote(newPath,content);
       }
       const remap=(p:string)=>mappings.find(pair=>pair.from===p)?.to||p;
@@ -247,8 +251,10 @@ export function App(){
     const template=notes.find(n=>n.path===settings.dailyTemplate)?.content||'# {{date}}\n\n';
     await createNote(path,applyTemplate(template,date));
   }
-  async function createCanvas(){const name=await dialog.ask('New canvas','Untitled.canvas');if(name)createNote(name.endsWith('.canvas')?name:name+'.canvas','{"nodes":[],"edges":[]}');}
-  async function createBase(){const name=await dialog.ask('New base','Library.base');if(name)createNote(name.endsWith('.base')?name:name+'.base','views:\n  - type: table\n    name: All notes\n    order: [file.name, note.status, note.tags, file.folder]\n');}
+  /** Create a Canvas while retaining the requested extension spelling. */
+  async function createCanvas(){const name=await dialog.ask('New canvas','Untitled.canvas');if(name)createNote(/\.canvas$/i.test(name)?name:name+'.canvas','{"nodes":[],"edges":[]}');}
+  /** Create a Base while retaining the requested extension spelling. */
+  async function createBase(){const name=await dialog.ask('New base','Library.base');if(name)createNote(/\.base$/i.test(name)?name:name+'.base','views:\n  - type: table\n    name: All notes\n    order: [file.name, note.status, note.tags, file.folder]\n');}
   function toggleBookmark(){if(active)setBookmarks(b=>b.includes(active)?b.filter(p=>p!==active):[...b,active]);}
   async function insertTemplate(path:string){
     if(!activeNote||!isNote(active)){toast('Open a Markdown note first.');return;}
@@ -461,7 +467,7 @@ export function App(){
   const tagCounts=useMemo(()=>{
     const counts=new Map<string,number>();for(const note of notes.filter(n=>isNote(n.path)))for(const tag of tags(note.content))counts.set(tag,(counts.get(tag)||0)+1);return [...counts].sort((a,b)=>b[1]-a[1]);
   },[notes]);
-  const results=useMemo(()=>search(notes.filter(n=>isNote(n.path)||n.path.endsWith('.canvas')),query,caseSensitive).sort((a,b)=>searchSort==='modified'?(entries.find(e=>e.path===b.path)?.mtime||0)-(entries.find(e=>e.path===a.path)?.mtime||0):a.path.localeCompare(b.path)),[notes,query,caseSensitive,searchSort,entries]);
+  const results=useMemo(()=>search(notes.filter(n=>isNote(n.path)||/\.canvas$/i.test(n.path)),query,caseSensitive).sort((a,b)=>searchSort==='modified'?(entries.find(e=>e.path===b.path)?.mtime||0)-(entries.find(e=>e.path===a.path)?.mtime||0):a.path.localeCompare(b.path)),[notes,query,caseSensitive,searchSort,entries]);
   const incoming=activeNote?notes.filter(n=>n.path!==active&&links(n.content).some(l=>resolveLink(l.target,n.path,notes)?.path===active)):[];
   const outgoing=activeNote?links(activeNote.content):[];
   const mentions=activeNote?notes.filter(n=>n.path!==active&&!incoming.includes(n)&&isNote(n.path)&&frontmatter(n.content).body.toLowerCase().includes(title(active).toLowerCase())):[];
@@ -476,7 +482,7 @@ export function App(){
         onDrop={e=>{if(entry.folder){e.preventDefault();const path=e.dataTransfer.getData('engine/path');if(path&&path!==entry.path&&!entry.path.startsWith(path+'/'))renamePath(path,entry.path+'/'+path.split('/').pop());}}}
         data-testid={'file-'+entry.path}>
         {entry.folder?(expanded.has(entry.path)?<ChevronDown size={13}/>:<ChevronRight size={13}/>):<span className="tree-indent"/>}
-        {entry.folder?<Folder size={14}/>:entry.path.endsWith('.canvas')?<LayoutDashboard size={14}/>:entry.path.endsWith('.base')?<Table2 size={14}/>:<FileText size={14}/>}
+        {entry.folder?<Folder size={14}/>:/\.canvas$/i.test(entry.path)?<LayoutDashboard size={14}/>:/\.base$/i.test(entry.path)?<Table2 size={14}/>:<FileText size={14}/>}
         <span>{entry.folder?entry.name:title(entry.path)}</span>
       </button>{entry.folder&&expanded.has(entry.path)&&tree(entry.path)}
     </div>);
@@ -488,6 +494,7 @@ export function App(){
       <div className="property-list">{Object.entries(props).map(([key,value])=><div className="property-row" key={key}><span><Hash size={12}/>{key}</span><button title={'Edit '+key} onClick={async()=>{const v=await dialog.ask('Edit '+key,stringify(value).trim(),'Use a YAML value: text, number, true / false, or [a, b].');if(v!==null)try{editNote(note.path,setProperties(note.content,{...props,[key]:parse(v)}));}catch(e){report(e);}}}>{Array.isArray(value)?value.map((v,i)=><span className="property-chip" key={i}>{String(v)}</span>):String(value??'Empty')}</button><button className="property-remove" aria-label={'Remove '+key} onClick={()=>{const p={...props};delete p[key];try{editNote(note.path,setProperties(note.content,p));}catch(e){report(e);}}}><X size={12}/></button></div>)}
       <button className="add-property" onClick={async()=>{const key=await dialog.ask('Add property','property');if(key&& !['__proto__','constructor','prototype'].includes(key))try{editNote(note.path,setProperties(note.content,{...props,[key]:''}));}catch(e){report(e);}}}><Plus size={13}/>Add property</button></div></details>;
   }
+  /** Select the built-in view by case-insensitive format, without converting its contents. */
   function showNote(path:string,secondary=false){
     const note=notes.find(n=>n.path===path);
     if(path==='@graph'||path.startsWith('@local:'))return <Graph notes={notes} active={path.startsWith('@local:')?path.slice(7):recent.find(p=>isNote(p))||''} onOpen={open} local={path.startsWith('@local:')}/>;
@@ -496,8 +503,8 @@ export function App(){
       if(path&&entries.some(e=>e.path===path&&!e.folder))return <Attachment path={path}/>;
       return <div className="empty workspace-empty"><Logo/><h1>A place to think</h1><p>Create a note, open a vault, or follow an idea.<br/>Your files stay yours.</p><button className="primary" onClick={()=>createNote()}><Plus size={15}/>Create a note</button><button onClick={()=>chooseVault()}><Folder size={15}/>Open local vault</button><small>{bridge.desktop?'Local-first · Markdown · MIT':'Temporary preview · Install desktop for local files'}</small></div>;
     }
-    if(note.path.endsWith('.canvas')&&mode!=='source'&&enabled('canvas'))return <Canvas note={note} notes={notes} onChange={value=>editNote(note.path,value)} onOpen={open}/>;
-    if(note.path.endsWith('.base')&&mode!=='source'&&enabled('bases'))return <Bases note={note} notes={notes} entries={entries} onOpen={open} onChange={value=>editNote(note.path,value)} onNoteChange={editNote} ask={dialog.ask}/>;
+    if(/\.canvas$/i.test(note.path)&&mode!=='source'&&enabled('canvas'))return <Canvas note={note} notes={notes} onChange={value=>editNote(note.path,value)} onOpen={open}/>;
+    if(/\.base$/i.test(note.path)&&mode!=='source'&&enabled('bases'))return <Bases note={note} notes={notes} entries={entries} onOpen={open} onChange={value=>editNote(note.path,value)} onNoteChange={editNote} ask={dialog.ask}/>;
     return <div className="note-document" onDragOver={e=>e.preventDefault()} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();importFiles(e.dataTransfer.files);}}}>
       <div className={'document-inner '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>
         <div className="note-title"><h1>{title(note.path)}</h1><button className={bookmarks.includes(path)?'is-bookmarked':''} onClick={()=>setBookmarks(b=>b.includes(path)?b.filter(p=>p!==path):[...b,path])} aria-label="Bookmark note" title="Bookmark note"><Bookmark size={19} fill={bookmarks.includes(path)?'currentColor':'none'}/></button></div>
@@ -554,7 +561,7 @@ export function App(){
           {!left&&<IconButton label="Expand sidebar" onClick={()=>setLeft(true)}><PanelLeftOpen size={17}/></IconButton>}
           <div className="tabs" role="tablist" aria-label="Open files">{tabs.map(path=><div className={'tab '+(active===path?'active':'')} role="tab" aria-selected={active===path} key={path} draggable
             onDragStart={e=>e.dataTransfer.setData('engine/tab',path)} onDragOver={e=>e.preventDefault()} onDrop={e=>{const from=e.dataTransfer.getData('engine/tab');if(from){const next=tabs.filter(t=>t!==from);next.splice(next.indexOf(path),0,from);setTabs(next);}}}>
-            <button onClick={()=>open(path,false)}>{path==='@graph'||path.startsWith('@local:')?<Network size={14}/>:path.endsWith('.canvas')?<LayoutDashboard size={14}/>:path.endsWith('.base')?<Table2 size={14}/>:<FileText size={14}/>}<span>{tabTitle(path)}</span></button><button aria-label={'Close '+tabTitle(path)} onClick={()=>closeTab(path)}><X size={12}/></button>
+            <button onClick={()=>open(path,false)}>{path==='@graph'||path.startsWith('@local:')?<Network size={14}/>:/\.canvas$/i.test(path)?<LayoutDashboard size={14}/>:/\.base$/i.test(path)?<Table2 size={14}/>:<FileText size={14}/>}<span>{tabTitle(path)}</span></button><button aria-label={'Close '+tabTitle(path)} onClick={()=>closeTab(path)}><X size={12}/></button>
           </div>)}</div><IconButton label="Create note" onClick={()=>createNote()}><Plus size={17}/></IconButton>
           <IconButton label={right?'Collapse right sidebar':'Expand right sidebar'} onClick={()=>setRight(r=>!r)}>{right?<PanelRightClose size={17}/>:<PanelRightOpen size={17}/>}</IconButton>
         </div>
@@ -574,6 +581,7 @@ export function App(){
       </aside>}
     </div>
     <footer className="statusbar"><span><span className={'status-dot '+(dirtyCount?'pending':'')}/>{dirtyCount?`${dirtyCount} unsaved`:bridge.desktop?'Saved locally':'Preview vault'}</span><span>{activeMarkdown&&enabled('words')?<>{words.toLocaleString()} words<span className="status-divider"/>{activeNote!.content.length.toLocaleString()} characters</>:activeNote?active.split('.').pop()?.toUpperCase():''}</span><span>{recording&&<button onClick={audio}><Square size={12}/>Recording · Stop</button>}{mode==='reading'?'Reading':mode==='live'?'Live editing':'Source'}<span className="status-divider"/>{bridge.desktop?'Local-first':'Changes reset on refresh'}</span></footer>
+    {enabled('graph')&&activeNote&&<nav className="compact-context" aria-label="Compact note context"><button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button></nav>}
     <div id="plugin-views" aria-label="Plugin views"/>
     <div id="plugin-status" aria-label="Plugin status"/>
     {notice&&<div className="toast" role="status"><Check size={15}/>{notice}</div>}

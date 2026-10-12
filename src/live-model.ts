@@ -29,8 +29,10 @@ export function liveRegions(content:string):{blocks:LiveBlock[];literal:{from:nu
   }
   return {blocks,literal};
 }
+/** Return only renderable top-level blocks, excluding the literal-region inventory. */
 export function liveBlocks(content:string):LiveBlock[]{return liveRegions(content).blocks;}
 
+/** Test half-open source overlap, including a caret located inside a block. */
 export function touchesRange(from:number,to:number,ranges:readonly {from:number;to:number}[]):boolean {
   return ranges.some(r=>r.from===r.to?r.from>=from&&r.from<to:r.from<to&&r.to>from);
 }
@@ -60,6 +62,7 @@ export function tableCells(line:string,offset=0):TableCell[] {
   }
   return cells;
 }
+/** Map header and body cells to source offsets while omitting the Markdown separator row. */
 export function tableRows(content:string):TableRow[] {
   const rows:TableRow[]=[];let offset=0;
   content.split('\n').forEach((line,index)=>{
@@ -68,10 +71,19 @@ export function tableRows(content:string):TableRow[] {
   });
   return rows;
 }
+/** Replace one cell, preserving surrounding whitespace and escaping structural pipes. */
 export function replaceTableCell(content:string,cell:TableCell,value:string):string {
   if(value===cell.value)return content;
   const previous=content.slice(cell.from,cell.to);
   const leading=previous.match(/^\s*/)?.[0]||'',trailing=previous.match(/\s*$/)?.[0]||'';
   const escaped=value.replace(/[\r\n]+/g,' ').replace(/(?<!\\)\|/g,'\\|');
   return content.slice(0,cell.from)+leading+escaped+(previous.trim()?trailing:leading? '':' ')+content.slice(cell.to);
+}
+/** Reduce a block replacement to the changed UTF-16 span so unchanged source and widgets can map forward. */
+export function minimalBlockChange(from:number,before:string,after:string):{from:number;to:number;insert:string}|null {
+  if(before===after)return null;
+  let start=0,endBefore=before.length,endAfter=after.length;
+  while(start<endBefore&&start<endAfter&&before[start]===after[start])start++;
+  while(endBefore>start&&endAfter>start&&before[endBefore-1]===after[endAfter-1]){endBefore--;endAfter--;}
+  return {from:from+start,to:from+endBefore,insert:after.slice(start,endAfter)};
 }

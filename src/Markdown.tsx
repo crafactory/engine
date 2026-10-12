@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState,useMemo,useSyncExternalStore} from 'react';
+import {createRoot,type Root} from 'react-dom/client';
 import {getProcessorRevision,subscribeProcessors,processMarkdown} from './markdown-plugins';
 import MarkdownIt from 'markdown-it';
 import footnote from 'markdown-it-footnote';
@@ -9,6 +10,7 @@ import katex from 'katex';
 import {bridge} from './bridge';
 import {frontmatter,resolveLink,section,title,search} from './knowledge';
 import type {Note} from './types';
+import {taskMarker,setTaskChecked} from './task-source';
 
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 /** Supply an inert external-store subscription for reading-only processors disabled in live widgets. */
@@ -19,6 +21,23 @@ function noProcessors(){
 /** Keep disabled processor consumers at a stable revision without subscribing. */
 function zeroRevision(){return 0;}
 const md=new MarkdownIt({html:false,linkify:true,breaks:false,typographer:false}).use(footnote).use(mark).use(tasks,{enabled:true,label:true});
+/** Bind generated task inputs to parser source lines; static and embedded controls remain read-only. */
+md.core.ruler.after('github-task-lists','engine-task-ownership',(state:any)=>{
+  // Parser line numbers survive newline normalization; offsets must use the original CRLF/LF source.
+  const source=typeof state.env.engineTaskSource==='string'?state.env.engineTaskSource:state.src;
+  const lines=source.split('\n'),starts:number[]=[];let offset=0;
+  for(const line of lines){starts.push(offset);offset+=line.length+1;}
+  for(const token of state.tokens){
+    if(token.type!=='inline'||!token.children)continue;
+    const line=token.map?.[0],marker=line===undefined?null:taskMarker(lines[line]||'');
+    const owned=typeof state.env.engineTaskPrefix==='number'&&marker!==null;
+    for(const child of token.children)if(child.type==='html_inline'&&child.content.includes('task-list-item-checkbox')){
+      child.content=child.content.replace(/<input\b([^>]*)>/g,(_input:string,attributes:string)=>
+        owned?`<input${attributes} data-engine-task-offset="${state.env.engineTaskPrefix+starts[line]+marker!}">`:
+          `<input${attributes} disabled="">`);
+    }
+  }
+});
 md.inline.ruler.before('link','wiki',(state:any,silent:boolean)=>{
   const start=state.pos;
   const embed=state.src.startsWith('![[',start);
@@ -105,23 +124,31 @@ md.renderer.rules.heading_open=(tokens,idx,options,_env,self)=>{
   return self.renderToken(tokens,idx,options);
 };
 /** Render original Engine Markdown with raw HTML disabled and sanitized output. */
-export function renderMarkdown(content:string) {
-  const body=frontmatter(content).body;
-  const html=md.render(body);
-  return DOMPurify.sanitize(html,{ADD_ATTR:['target','data-note','data-embed','data-asset'],FORBID_TAGS:['style','iframe','object','embed']});
+export function renderMarkdown(content:string,editableTasks=false) {
+  const meta=frontmatter(content);
+  const html=md.render(meta.body,editableTasks?{engineTaskPrefix:meta.raw.length,engineTaskSource:meta.body}:{});
+  return DOMPurify.sanitize(html,{ADD_ATTR:['target','data-note','data-embed','data-asset','data-engine-task-offset'],FORBID_TAGS:['style','iframe','object','embed']});
 }
 /** Render an immutable reading host; dispose owned processing when content or registry changes. */
 export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProcessing=true}:{
   content:string;notes:Note[];path:string;onOpen:(target:string)=>void;onChange?:(content:string)=>void;depth?:number;pluginProcessing?:boolean;
 }) {
   const ref=useRef<HTMLDivElement>(null);
+  const taskOwners=useRef(new WeakMap<HTMLInputElement,number>());
   const [hover,setHover]=useState<{note:Note;x:number;y:number}|null>(null);
   const revision=useSyncExternalStore(pluginProcessing?subscribeProcessors:noProcessors,pluginProcessing?getProcessorRevision:zeroRevision);
   // Each session gets a distinct DOM root so late asynchronous plugin writes cannot corrupt its successor.
-  const renderKey=useMemo(()=>crypto.randomUUID(),[content,notes,path,depth,revision]);
+  const renderKey=useMemo(()=>crypto.randomUUID(),[content,notes,path,depth,revision,!!onChange]);
   useEffect(()=>{
     let disposed=false;const root=ref.current;if(!root)return;
+    // Capture identities before resolving embeds or admitting plugin DOM; neither may acquire host write ownership.
+    taskOwners.current=new WeakMap();
+    for(const input of root.querySelectorAll<HTMLInputElement>('input[data-engine-task-offset]')){
+      const offset=Number(input.dataset.engineTaskOffset);
+      if(Number.isInteger(offset))taskOwners.current.set(input,offset);
+    }
     let processorSession:ReturnType<typeof processMarkdown>|undefined;
+    const canvasRoots:Root[]=[];
     /** Resolve original built-ins, then process only the still-current reading host. */
     const load=async()=>{
       for(const img of root.querySelectorAll<HTMLImageElement>('img[data-asset]')) {
@@ -130,12 +157,22 @@ export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProce
         try {const asset=await bridge.asset(relative);if(!disposed)img.src=asset;}catch {img.alt='Attachment not found: '+name;}
       }
       for(const slot of root.querySelectorAll<HTMLElement>('[data-embed]')) {
+        if(disposed)return;
         const target=slot.dataset.embed!,[name,...fragment]=target.split('#');
         const linked=resolveLink(name,path,notes);
         if(depth>=3){slot.textContent='Embed depth limit';continue;}
         if(linked) {
           slot.className='embedded-note';
-          slot.innerHTML=`<button class="embed-title" data-note="${escape(target)}">${escape(title(linked.path))}</button>${renderMarkdown(section(linked.content,fragment.join('#')))}`;
+          slot.innerHTML=`<button class="embed-title" data-note="${escape(target)}">${escape(title(linked.path))}</button>`;
+          if(/\.canvas$/i.test(linked.path)){
+            try{
+              const {Canvas}=await import('./Canvas');
+              if(disposed)return;
+              const body=document.createElement('div');body.className='canvas-embed-host';slot.append(body);
+              const canvasRoot=createRoot(body);canvasRoots.push(canvasRoot);
+              canvasRoot.render(<Canvas note={linked} notes={notes} readOnly onChange={()=>{}} onOpen={onOpen}/>);
+            }catch{if(!disposed)slot.append(document.createTextNode('Canvas preview unavailable. Open the file to inspect it.'));}
+          }else slot.insertAdjacentHTML('beforeend',renderMarkdown(section(linked.content,fragment.join('#'))));
         }else if(/\.(png|jpe?g|gif|webp|svg|pdf|mp3|wav|webm|ogg|mp4)$/i.test(name)){
           try{
             const asset=await bridge.asset(name);if(disposed)continue;
@@ -165,27 +202,24 @@ export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProce
       if(!disposed&&pluginProcessing){processorSession=processMarkdown(root,content,path);await processorSession.ready;}
     };
     load();
-    return()=>{disposed=true;void processorSession?.close();};
-  },[content,notes,path,depth,pluginProcessing,renderKey]);
+    return()=>{disposed=true;void processorSession?.close();queueMicrotask(()=>canvasRoots.forEach(root=>root.unmount()));};
+  },[content,notes,path,depth,pluginProcessing,renderKey,!!onChange]);
+  /** Route note links and persist only task inputs captured from this host's own parsed source. */
   function click(e:React.MouseEvent) {
     const target=e.target as HTMLElement;
     const link=target.closest<HTMLElement>('[data-note]');
     if(link){e.preventDefault();onOpen(link.dataset.note!);return;}
     if(target instanceof HTMLInputElement&&target.type==='checkbox'&&onChange) {
-      const boxes=Array.from(ref.current!.querySelectorAll('input[type=checkbox]'));
-      const index=boxes.indexOf(target);let count=0,fence=false;
-      const next=content.split('\n').map(line=>{
-        if(/^\s*(```|~~~)/.test(line))fence=!fence;
-        if(!fence&&/^\s*[-*+] \[[^\]]\]/.test(line)){if(count++===index)return line.replace(/\[.\]/,target.checked?'[x]':'[ ]');}
-        return line;
-      }).join('\n');
-      onChange(next);
+      const offset=taskOwners.current.get(target);
+      if(offset===undefined)return;
+      const next=setTaskChecked(content,offset,target.checked);
+      if(next!==null&&next!==content)onChange(next);
     }
   }
   return <div className="markdown-container">
     <div className="markdown" key={renderKey} ref={ref} onClick={click}
       onMouseOver={e=>{const link=(e.target as HTMLElement).closest<HTMLElement>('[data-note]');if(link){const note=resolveLink(link.dataset.note!.split('#')[0],path,notes);if(note){const bounds=link.getBoundingClientRect();setHover({note,x:Math.min(bounds.left,window.innerWidth-350),y:Math.min(bounds.bottom+8,window.innerHeight-240)});}}}}
-      onMouseOut={()=>setHover(null)} dangerouslySetInnerHTML={{__html:renderMarkdown(content)}} />
+      onMouseOut={()=>setHover(null)} dangerouslySetInnerHTML={{__html:renderMarkdown(content,!!onChange)}} />
     {hover&&<aside className="hover-preview" style={{left:hover.x,top:hover.y}}><strong>{title(hover.note.path)}</strong><div dangerouslySetInnerHTML={{__html:renderMarkdown(frontmatter(hover.note.content).body.slice(0,650))}}/></aside>}
   </div>;
 }

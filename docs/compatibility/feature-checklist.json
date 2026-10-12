@@ -133,8 +133,8 @@
       "title": "Live preview",
       "status": "partial",
       "reference": "https://help.obsidian.md",
-      "implemented": "Inactive-line formatting; top-level tables, code, diagrams, callouts/quotes, math, standalone embeds/rules; source reveal on selection or edit action; table cell edits, undo/redo, task toggles",
-      "remaining": "Full inline/nested grammar, list rendering, table row/column operations, all embeds, exact cursor/selection and reference editing behavior, huge-document performance",
+      "implemented": "Inactive-line formatting and bounded wiki/Markdown link navigation; top-level tables, code, diagrams, callouts/quotes, math, standalone embeds/rules; source reveal; table cell edits, widget reuse on position changes, undo/redo, task toggles",
+      "remaining": "Full inline/nested grammar, nested/escaped Markdown link destinations, list rendering, table row/column operations, all embeds, exact cursor/selection and reference editing behavior, huge-document performance",
       "evidence": []
     },
     {
@@ -163,8 +163,8 @@
       "title": "Embeds",
       "status": "partial",
       "reference": "https://help.obsidian.md",
-      "implemented": "Note/heading/block transclusion, image/audio/video attachments, PDF download",
-      "remaining": "Recursive nested embeds, interactive PDFs, image-size wiki syntax, embedded Bases/Canvas, block edit actions",
+      "implemented": "Note/heading/block transclusion, read-only Canvas geometry, image/audio/video attachments, PDF download",
+      "remaining": "Recursive nested embeds, embedded Canvas file-card format parity, interactive PDFs, image-size wiki syntax, embedded Bases, block edit actions",
       "evidence": []
     },
     {
@@ -1248,6 +1248,126 @@
       ]
     },
     {
+      "id": "ACCEPT-canvas-embed",
+      "section": "Bounded acceptance checks",
+      "title": "Read-only Canvas nodes and edges in reading and Live modes",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Read-only Canvas nodes and edges in reading and Live modes",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/regressions.spec.ts",
+          "test": "Canvas embeds render read-only nodes and edges in reading and Live modes"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-canvas-rename",
+      "section": "Bounded acceptance checks",
+      "title": "Native Canvas rename retains exact JSON bytes, type and resolved embed",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Native Canvas rename retains exact JSON bytes, type and resolved embed",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/vault.spec.ts",
+          "test": "native Canvas embed and rename preserve exact JSON bytes and file type"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-live-links",
+      "section": "Bounded acceptance checks",
+      "title": "Inactive Live wiki and Markdown link click navigation",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Inactive Live wiki and Markdown link click navigation",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/regressions.spec.ts",
+          "test": "inactive Live wiki aliases and Markdown links navigate on click"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-live-table-stability",
+      "section": "Bounded acceptance checks",
+      "title": "Reuse measured table widgets after typing above and remap edit positions",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Reuse measured table widgets after typing above and remap edit positions",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/regressions.spec.ts",
+          "test": "typing above a table preserves measured widget DOM and remaps edit callbacks"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-long-table-caret",
+      "section": "Bounded acceptance checks",
+      "title": "Typing after a 100-row table keeps caret in editor viewport",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Typing after a 100-row table keeps caret in editor viewport",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/regressions.spec.ts",
+          "test": "long document with a tall table keeps the typing caret in the editor viewport"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-plugin-status-layout",
+      "section": "Bounded acceptance checks",
+      "title": "Plugin status occupies normal-flow space, not an overlay",
+      "status": "verified-subset",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "Plugin status occupies normal-flow space, not an overlay",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/regressions.spec.ts",
+          "test": "plugin status occupies reserved space instead of overlaying workspace"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-tall-table-cell-viewport",
+      "section": "Bounded acceptance checks",
+      "title": "Bottom-cell editing and commit retain focused input and visible cell",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Bottom-cell editing and commit retain focused input and visible cell",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/regressions.spec.ts",
+          "test": "editing a cell near the bottom of a tall table keeps the focused input and committed cell visible"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-embedded-task-ownership",
+      "section": "Bounded acceptance checks",
+      "title": "Embedded Canvas/Markdown tasks cannot acquire host-source write ownership",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Embedded Canvas/Markdown tasks cannot acquire host-source write ownership",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/vault.spec.ts",
+          "test": "native embedded tasks cannot mutate a different host task or embedded source"
+        }
+      ]
+    },
+    {
       "id": "GATE-reference",
       "section": "Unfinished parity gates",
       "title": "Pin an installed reference version for clean-room black-box comparisons",
@@ -1355,6 +1475,16 @@
       "reference": "https://help.obsidian.md",
       "implemented": "None signed off",
       "remaining": "Expand every partial parent into exhaustive per-workflow acceptance",
+      "evidence": []
+    },
+    {
+      "id": "GATE-native-plugin-kernel",
+      "section": "Unfinished parity gates",
+      "title": "Migrate all product capabilities including editor to native providers, with Obsidian only an optional compatibility adapter",
+      "status": "missing",
+      "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
+      "implemented": "None signed off",
+      "remaining": "Migrate all product capabilities including editor to native providers, with Obsidian only an optional compatibility adapter",
       "evidence": []
     }
   ]

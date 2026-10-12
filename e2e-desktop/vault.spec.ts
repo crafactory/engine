@@ -24,6 +24,46 @@ test('native watcher reloads external edits',async()=>{
   await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\nEdited externally.\n');
   await expect(page.getByTestId('note-editor')).toContainText('Edited externally.');
 });
+test('native embedded tasks cannot mutate a different host task or embedded source',async()=>{
+  const canvas=JSON.stringify({nodes:[{id:'task',type:'text',x:0,y:0,width:260,height:160,text:'- [ ] Canvas task'}],edges:[]},null,2);
+  const embedded='- [ ] Embedded task\n';
+  const source='---\nstatus: pending\n---\n# Persist\n\n- [ ] First\n\n![[Tasks.canvas]]\n\n![[Embedded.md]]\n\n- [ ] Second\n\n> - [ ] Quoted\n\n1. [ ] Ordered\n'.replace(/\n/g,'\r\n');
+  await page.getByTestId('mode-source').click();
+  await fs.writeFile(path.join(root,'Tasks.canvas'),canvas);await fs.writeFile(path.join(root,'Embedded.md'),embedded);
+  await fs.writeFile(path.join(root,'Persist.md'),source);
+  await expect.poll(async()=>(await page.getByTestId('note-editor').locator('.cm-line').allTextContents()).join('\n')).toBe(source.replace(/\r\n/g,'\n'));
+  await expect(page.getByTestId('file-Tasks.canvas')).toBeVisible();await expect(page.getByTestId('file-Embedded.md')).toBeVisible();
+  await page.getByTestId('mode-reading').click();
+  await expect(page.getByRole('checkbox',{name:'Canvas task',exact:true})).toBeDisabled();
+  await expect(page.getByRole('checkbox',{name:'Embedded task',exact:true})).toBeDisabled();
+  for(const name of ['Second','Quoted','Ordered'])await page.getByRole('checkbox',{name,exact:true}).check();
+  await expect(page.getByRole('checkbox',{name:'First',exact:true})).not.toBeChecked();
+  await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toBe(source.replace('- [ ] Second','- [x] Second').replace('- [ ] Quoted','- [x] Quoted').replace('1. [ ] Ordered','1. [x] Ordered'));
+  expect(await fs.readFile(path.join(root,'Tasks.canvas'),'utf8')).toBe(canvas);
+  expect(await fs.readFile(path.join(root,'Embedded.md'),'utf8')).toBe(embedded);
+});
+test('native Canvas embed and rename preserve exact JSON bytes and file type',async()=>{
+  const content=JSON.stringify({custom:'retain me',nodes:[{id:'a',type:'text',x:0,y:0,width:260,height:160,text:'# Canvas marker'}],edges:[]},null,2);
+  await fs.writeFile(path.join(root,'Board.canvas'),content);
+  await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\n![[Board.canvas]]');
+  await expect(page.getByTestId('file-Board.canvas')).toBeVisible();
+  await page.getByTestId('mode-reading').click();
+  await expect(page.locator('.embedded-note .react-flow__node')).toHaveCount(1);
+  await expect(page.locator('.embedded-note .canvas-markdown')).toContainText('Canvas marker');
+  await expect(page.locator('.embedded-note .canvas-edit')).toHaveCount(0);
+  expect(await fs.readFile(path.join(root,'Board.canvas'),'utf8')).toBe(content);
+  await page.locator('.embed-title').click();await expect(page.getByTestId('canvas-add-text')).toBeVisible();
+  await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Rename or move current file');await page.keyboard.press('Enter');
+  await page.getByTestId('dialog-input').fill('Renamed');await page.getByTestId('dialog-submit').click();
+  await expect.poll(async()=>fs.readFile(path.join(root,'Renamed.canvas'),'utf8').catch(()=>null)).toBe(content);
+  expect(await fs.stat(path.join(root,'Renamed.md')).catch(()=>null)).toBeNull();
+  expect(await fs.stat(path.join(root,'Board.canvas')).catch(()=>null)).toBeNull();
+  await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('![[Renamed.canvas]]');
+  await page.getByTestId('file-Persist.md').click();await page.getByTestId('mode-live').click();
+  await expect(page.locator('.embedded-note .react-flow__node')).toHaveCount(1);
+  await page.locator('.embed-title').click();await expect(page.getByTestId('canvas-add-text')).toBeVisible();
+  expect(await fs.readFile(path.join(root,'Renamed.canvas'),'utf8')).toBe(content);
+});
 test('native rename rewrites resolved links and trash preserves content',async()=>{
   await fs.writeFile(path.join(root,'Ref.md'),'# Ref\n\n[[Persist]]\n');
   await expect(page.getByTestId('file-Ref.md')).toBeVisible();
@@ -61,6 +101,7 @@ test('native live table and task edits persist exact Markdown without the custom
   await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('| One | Saved \\| native |');
   const content=await fs.readFile(path.join(root,'Persist.md'),'utf8');expect(content).toContain('- [x] Verify native save');expect(content).toContain('aliases: [Original]');
 });
+/** Install an original compatibility fixture into the temporary native vault. */
 async function installCompat(code?:string,id='compat-fixture',name='Compatibility fixture'){
   const dir=path.join(root,'.crafactory/plugins',id);await fs.mkdir(dir,{recursive:true});
   await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id,name,version:'1.0.0'}));
@@ -69,6 +110,7 @@ async function installCompat(code?:string,id='compat-fixture',name='Compatibilit
   await page.getByRole('switch',{name:'Enable '+name,exact:true}).click();await page.getByTestId('dialog-submit').click();
   return page.getByRole('switch',{name:'Enable '+name,exact:true});
 }
+/** Invoke a compatibility-fixture command through the visible palette. */
 async function pluginCommand(name:string){
   await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill(name);await page.keyboard.press('Enter');
 }
