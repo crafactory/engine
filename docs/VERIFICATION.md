@@ -1,5 +1,36 @@
 # Verification results
 
+## Native plugin kernel stage 1 (post-0.6.0 development)
+
+This section records source verification for the first migration stage in
+[NATIVE-PLUGIN-ARCHITECTURE.md](NATIVE-PLUGIN-ARCHITECTURE.md), whose fixed contracts are
+in [KERNEL-SPEC.md](KERNEL-SPEC.md). It is an internal assembly kernel; **no product
+feature has been migrated and the running application does not use it yet.** This is not
+community-plugin compatibility and does not complete the native-plugin-kernel gate.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 603 passed (14 files) | 565 existing plus 38 new kernel cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `tests/kernel.test.ts` | 38 passed | Assembly, scopes, services, events, effects and lifecycle |
+
+The 38 kernel cases cover: bounded semantic-version matching (caret/tilde/comparator/
+wildcard/alternative, partial-bound rounding, prerelease ordering/gating and the numeric representability bound);
+provider-before-consumer ordering and versioned service resolution; missing provider,
+optional provider, version mismatch, duplicate provider, dependency cycle, engine
+mismatch and contract allowlist; manifest validation; startup rollback including
+reverse-order effect cleanup and recorded cleanup failures; unsupplied declared
+provisions and a provision whose supplied version differs from the declaration; effect ordering, late registration after disposal, abort-signal delivery
+and event revocation; cross-vault scope isolation with rejection of an upward
+runtime-to-vault dependency; reload with descendant-scope teardown and a serialized
+restart behind an in-flight stop; all four declared event strategies; and the
+diagnostic observer including containment of a throwing observer.
+
+These are assembly-unit results. They do not exercise the packaged desktop application,
+real plugins, file I/O or rendering, and they do not certify the kernel as a sandbox.
+Later stages remain unchecked, and the native-plugin-kernel gate stays open.
+
 ## v0.5.0 review candidate
 
 This section records feature-branch candidate verification before publication, not a claim that candidate builds are releases. Final review, merge and publication outcomes are recorded in the [PR verification updates](https://github.com/crafactory/engine/pull/1) and corresponding release. Merge is gated on completed CodeRabbit review of the latest revision, repaired findings, re-review and green CI. No subsequent development increment may bypass this gate. See [contribution workflow](https://github.com/crafactory/engine/blob/main/CONTRIBUTING.md).

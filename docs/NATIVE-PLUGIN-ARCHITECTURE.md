@@ -1,6 +1,6 @@
 # Crafactory Engine 原生插件架构提案
 
-状态：RFC，尚未实现或完成迁移。本轮修复现有应用的 Canvas 和 Live Edit 路径，不把这些修改说成全插件内核已经交付。原创应用代码继续 MIT；不复制 Obsidian 应用、SDK、类型声明或示例代码。
+状态：阶段 1（组装内核）已实现，其余迁移阶段未开始。实现为原生插件 manifest、作用域、服务契约、事件策略和效果所有权内核，规格见 [KERNEL-SPEC.md](KERNEL-SPEC.md)，单元证据见 `tests/kernel.test.ts`。产品功能（含编辑器）尚未迁移，全文其余勾选框保持未勾选是有意的。原创应用代码继续 MIT；不复制 Obsidian 应用、SDK、类型声明或示例代码。
 
 ## 路线结论
 
@@ -58,7 +58,7 @@ DeepSeek Harness 的 Claude Code Mods bridge 确实加入同一 Cordis 组合机
 
 ## 渐进迁移与验收门槛
 
-- [ ] 固定原生 manifest、作用域、服务版本、事件策略和效果所有权规格；增加缺依赖、环、重复服务、启动回滚、迟到回调和跨 Vault 隔离测试。
+- [x] 固定原生 manifest、作用域、服务版本、事件策略和效果所有权规格；增加缺依赖、环、重复服务、启动回滚、迟到回调和跨 Vault 隔离测试。规格见 [KERNEL-SPEC.md](KERNEL-SPEC.md)；证据为 `tests/kernel.test.ts`（38 个组装/生命周期/事件用例）。这不迁移任何产品功能，也不构成社区插件兼容。
 - [ ] 从 storage/documents/commands 提取默认提供者，用预览/本地两套提供者跑同一契约套件；保留旧应用入口直到行为回归通过。
 - [ ] 工作区改成视图槽/格式注册插件；Markdown、Canvas、Bases 注册自己的格式视图；确认 kernel 没有这些实现的 import。
 - [ ] 编辑器改成默认 CodeMirror 提供者，增加第二提供者做替换证明；草稿恢复、冲突和视口迁移全部有正向测试。
@@ -67,4 +67,4 @@ DeepSeek Harness 的 Claude Code Mods bridge 确实加入同一 Cordis 组合机
 - [ ] profile/包校验、权限和诊断验收；空插件配置下 kernel 不包含隐式产品能力。
 - [ ] 每个阶段独立 PR，经 CodeRabbit 最新提交审查、修复、复审和全套 CI 后再合并，上一阶段未合并不开始后续实施。
 
-以上全部未勾选是有意的：这是架构方向和迁移门槛，不是本轮已经完成的重写。现有功能 checklist 的未完成总项仍保留，完整 1:1、移动端及社区插件全兼容目标不因架构提案而变成完成。
+阶段 1 已勾选；其余未勾选仍然是有意的：这是架构方向和迁移门槛，不是已经完成的重写。现有功能 checklist 的未完成总项仍保留，完整 1:1、移动端及社区插件全兼容目标不因架构提案而变成完成。
