@@ -1,5 +1,40 @@
 # Verification results
 
+## Native service providers stage 2 (post-0.6.0 development)
+
+This section records source verification for the second migration stage in
+[NATIVE-PLUGIN-ARCHITECTURE.md](NATIVE-PLUGIN-ARCHITECTURE.md), whose contracts are in
+[SERVICES-SPEC.md](SERVICES-SPEC.md). It extracts native storage, commands and documents
+providers; **the application UI is not switched to them and `src/bridge.ts` remains the
+running entry.** This does not complete the native-plugin-kernel gate.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 646 passed (15 files) | 603 prior plus 43 new service cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `tests/services.test.ts` | 43 passed | One shared storage contract suite on two providers, commands, documents, kernel composition |
+
+The shared `engine.storage/v1` contract suite runs the same assertions against the
+in-memory preview provider and the local-filesystem provider wrapping `core/vault.mjs`:
+create-only semantics and competing creates, optimistic conflict detection, serialized
+appends, listing/hiding metadata, path validation, executable-format refusal, rename and
+subtree moves, trash, snapshot/restore with no-op detection, plugin-data isolation and
+size bounds, state round-trip, attachment storage and Unicode paths. A local-only case
+covers symlink-escape rejection. `engine.commands/v1` and `engine.documents/v1` have their
+own contract cases, and a composition case verifies the documents provider is activated
+after storage with empty diagnostics.
+
+Local browser e2e was exercised on macOS here as a sanity check: 43 of 50 pass, and the
+seven failures are `Control+...` keybinding cases (`Control+Home/End/z/a/Shift+ArrowLeft`)
+whose macOS equivalents are `Cmd`-based. They are platform differences, not regressions,
+and are green on the Linux CI runner; the kernel and service providers are not imported
+by the application, so they cannot affect those flows.
+
+These are unit/composition results. They do not exercise the packaged desktop application
+or the UI on the new providers, and they do not certify cross-process atomicity, crash
+durability or a permission model.
+
 ## Native plugin kernel stage 1 (post-0.6.0 development)
 
 This section records source verification for the first migration stage in
