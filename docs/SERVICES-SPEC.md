@@ -65,25 +65,60 @@ Built-in formats cover `md`, `markdown`, `canvas`, `base`, `txt`, `csv`, `json` 
 Vault behavior; link rewriting and workspace identity remapping stay in the application
 until the workspace and editor providers are migrated.
 
+### `engine.render/v1`
+
+A format maps a file extension to a view type. `registerFormat` returns a disposer that
+acts only while its registration is current; `resolve` matches the path's lowercase
+extension and returns the format or `undefined`; `list` returns formats in registration
+order. A disposed registration is marked revoked, so removing a later registration
+restores the nearest non-revoked predecessor instead of resurrecting a stopped scope.
+
+### `engine.workspace/v1`
+
+View slots (`main`/`left`/`right`/`auxiliary`). `registerView` adds a view type to a slot;
+`viewsForSlot` orders by `order`; `resolveView(path)` maps a path through
+`engine.render/v1` to its view. Revocation follows the same nearest-active-predecessor
+rule as formats. The workspace provider declares a dependency on the render contract,
+constructs its service from the render provider resolved at activation time, and is
+rejected when render is missing. Binding to the consumed provider avoids a mismatch when
+a kernel supplies separate render and workspace instances.
+
+### Format view plugins
+
+`engine.format.markdown`, `engine.format.canvas` and `engine.format.bases` each consume
+the render and workspace contracts and register their own extension → view type mappings
+and their view slot. Each plugin owns its registrations through `context.effect`, so
+stopping the scope revokes them. A format plugin never imports the corresponding
+user-interface component; the mapping from view type to component stays in the
+application shell.
+
 ## Composition
 
 `registerDefaultServices(kernel, {storage: 'memory' | 'local', vault?})` registers the
-three provider plugins on a kernel. `engine.documents` declares a dependency on
-`engine.storage/v1`, so the kernel activates storage first and rejects documents with a
-missing-provider diagnostic when storage is absent. The local profile requires a vault.
+storage, commands and documents provider plugins. `createWorkspaceRuntime()` registers the
+render and workspace providers plus the three format view plugins on a kernel, starts it,
+and returns the kernel, the live render service and the workspace service resolved from
+the same kernel. `engine.documents` depends on `engine.storage/v1`, the workspace provider
+depends on `engine.render/v1`, and each format plugin depends on both, so the kernel
+activates them in dependency order and rejects missing providers. The local profile
+requires a vault.
 
 ## Bounded evidence
 
 `tests/services.test.ts` runs one shared storage contract suite against both the memory
 and local providers, plus a local-only symlink test, the commands contract, the documents
-contract and kernel composition (activation order, resolved contracts, missing-vault
-error, empty diagnostics).
+contract and provider composition (activation order, resolved contracts, missing-vault
+error, empty diagnostics). `tests/workspace.test.ts` covers format registration/resolution,
+view slots, the render→workspace dependency, scope-stop revocation and a static check that
+every `src/kernel/` import is a sibling relative module, so the kernel cannot import a
+Markdown, Canvas or Bases implementation.
 
 ## Not yet done
 
-- The application UI is not switched to these providers; `src/bridge.ts` and the existing
-  bridge entry remain the running path until workspace/editor providers exist.
+- Storage, documents and commands providers are not yet consumed by the application; the
+  running path still uses `src/bridge.ts` for persistence. The workspace/render services
+  only drive format → view dispatch in `src/App.tsx`.
 - No Electron/worker IPC adapter over these contracts is implemented.
-- `engine.index/v1`, `engine.editor/v1`, `engine.render/v1` and `engine.workspace/v1`
-  remain unimplemented; the corresponding migration stages stay unchecked.
+- `engine.index/v1` and `engine.editor/v1` remain unimplemented; the corresponding
+  migration stages stay unchecked.
 - Cross-process atomicity, crash durability and a permission model remain open.

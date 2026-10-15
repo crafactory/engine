@@ -22,6 +22,7 @@ import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
+import {createWorkspaceRuntime,type WorkspaceRuntime,type WorkspaceViewService} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
 const Canvas=lazy(()=>import('./Canvas').then(m=>({default:m.Canvas})));
@@ -65,6 +66,7 @@ export function App(){
   const importInput=useRef<HTMLInputElement>(null),attachmentInput=useRef<HTMLInputElement>(null);
   const pluginStops=useRef(new Map<string,PluginController>()),loaded=useRef(false),vaultGeneration=useRef(0);
   const pluginStarting=useRef(new Set<string>()),pluginRequests=useRef(new Set<Promise<unknown>>());
+  const workspaceRuntime=useRef<WorkspaceRuntime|null>(null),workspaceViews=useRef<WorkspaceViewService|null>(null),unmounted=useRef(false);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   function pluginSnapshot():PluginSnapshot{
     const s=pluginState.current;
@@ -88,6 +90,11 @@ export function App(){
   async function initialize(){
     setLoading(true);setError('');
     try {
+      if(!workspaceRuntime.current){
+        const runtime=await createWorkspaceRuntime();
+        if(unmounted.current){void runtime.kernel.stop();return;}
+        if(workspaceRuntime.current)void runtime.kernel.stop();else{workspaceRuntime.current=runtime;workspaceViews.current=runtime.workspace;}
+      }
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));
       vaultGeneration.current++;
@@ -101,7 +108,7 @@ export function App(){
       loaded.current=true;setPluginList(await bridge.plugins());
     }catch(e){report(e);}finally{setLoading(false);}
   }
-  useEffect(()=>{initialize();return()=>{for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();};},[]);
+  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();};},[]);
   useEffect(()=>{for(const controller of pluginStops.current.values())controller.sync(pluginSnapshot());},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
@@ -494,7 +501,9 @@ export function App(){
       <div className="property-list">{Object.entries(props).map(([key,value])=><div className="property-row" key={key}><span><Hash size={12}/>{key}</span><button title={'Edit '+key} onClick={async()=>{const v=await dialog.ask('Edit '+key,stringify(value).trim(),'Use a YAML value: text, number, true / false, or [a, b].');if(v!==null)try{editNote(note.path,setProperties(note.content,{...props,[key]:parse(v)}));}catch(e){report(e);}}}>{Array.isArray(value)?value.map((v,i)=><span className="property-chip" key={i}>{String(v)}</span>):String(value??'Empty')}</button><button className="property-remove" aria-label={'Remove '+key} onClick={()=>{const p={...props};delete p[key];try{editNote(note.path,setProperties(note.content,p));}catch(e){report(e);}}}><X size={12}/></button></div>)}
       <button className="add-property" onClick={async()=>{const key=await dialog.ask('Add property','property');if(key&& !['__proto__','constructor','prototype'].includes(key))try{editNote(note.path,setProperties(note.content,{...props,[key]:''}));}catch(e){report(e);}}}><Plus size={13}/>Add property</button></div></details>;
   }
-  /** Select the built-in view by case-insensitive format, without converting its contents. */
+  /** Resolve a path to its registered format view, defaulting to Markdown. */
+  function viewType(path:string){return workspaceViews.current?.resolveView(path)?.viewType??'markdown';}
+  /** Select the registered format view, without converting the file's contents. */
   function showNote(path:string,secondary=false){
     const note=notes.find(n=>n.path===path);
     if(path==='@graph'||path.startsWith('@local:'))return <Graph notes={notes} active={path.startsWith('@local:')?path.slice(7):recent.find(p=>isNote(p))||''} onOpen={open} local={path.startsWith('@local:')}/>;
@@ -503,8 +512,8 @@ export function App(){
       if(path&&entries.some(e=>e.path===path&&!e.folder))return <Attachment path={path}/>;
       return <div className="empty workspace-empty"><Logo/><h1>A place to think</h1><p>Create a note, open a vault, or follow an idea.<br/>Your files stay yours.</p><button className="primary" onClick={()=>createNote()}><Plus size={15}/>Create a note</button><button onClick={()=>chooseVault()}><Folder size={15}/>Open local vault</button><small>{bridge.desktop?'Local-first · Markdown · MIT':'Temporary preview · Install desktop for local files'}</small></div>;
     }
-    if(/\.canvas$/i.test(note.path)&&mode!=='source'&&enabled('canvas'))return <Canvas note={note} notes={notes} onChange={value=>editNote(note.path,value)} onOpen={open}/>;
-    if(/\.base$/i.test(note.path)&&mode!=='source'&&enabled('bases'))return <Bases note={note} notes={notes} entries={entries} onOpen={open} onChange={value=>editNote(note.path,value)} onNoteChange={editNote} ask={dialog.ask}/>;
+    if(viewType(note.path)==='canvas'&&mode!=='source'&&enabled('canvas'))return <Canvas note={note} notes={notes} onChange={value=>editNote(note.path,value)} onOpen={open}/>;
+    if(viewType(note.path)==='base'&&mode!=='source'&&enabled('bases'))return <Bases note={note} notes={notes} entries={entries} onOpen={open} onChange={value=>editNote(note.path,value)} onNoteChange={editNote} ask={dialog.ask}/>;
     return <div className="note-document" onDragOver={e=>e.preventDefault()} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();importFiles(e.dataTransfer.files);}}}>
       <div className={'document-inner '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>
         <div className="note-title"><h1>{title(note.path)}</h1><button className={bookmarks.includes(path)?'is-bookmarked':''} onClick={()=>setBookmarks(b=>b.includes(path)?b.filter(p=>p!==path):[...b,path])} aria-label="Bookmark note" title="Bookmark note"><Bookmark size={19} fill={bookmarks.includes(path)?'currentColor':'none'}/></button></div>

@@ -1,5 +1,39 @@
 # Verification results
 
+## Native workspace and format views stage 3 (post-0.6.0 development)
+
+This section records source verification for the third migration stage in
+[NATIVE-PLUGIN-ARCHITECTURE.md](NATIVE-PLUGIN-ARCHITECTURE.md), specified in
+[SERVICES-SPEC.md](SERVICES-SPEC.md) (`engine.render/v1`, `engine.workspace/v1` and the
+format view plugins). `src/App.tsx` now resolves a note's format view through the native
+workspace service instead of hardcoded extension checks; storage/documents/commands still
+run through `src/bridge.ts`. This does not complete the native-plugin-kernel gate.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 660 passed (16 files) | 646 prior plus 14 new workspace cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `tests/workspace.test.ts` | 14 passed | Format registry, view slots, composition, kernel-import purity |
+| `npm run test:e2e` (macOS) | 43 passed / 7 failed | Identical to the pre-change baseline; failures are `Control+...` keybinding cases |
+| `npm run test:desktop` (macOS) | 35 passed / 1 failed / 10 skipped | One `Control+Home/Shift+End` platform failure; ten optional corpus cases skipped |
+
+The new cases cover case-insensitive format resolution, revoked-registration chains that
+must not resurrect a stopped scope, view-slot ordering and resolution through the render
+service, binding the workspace service to the render provider it consumes, activation
+order and missing-provider rejection for the workspace provider, scope-stop revocation of
+format/view registrations, additive composition with the storage/document/commands
+providers, and a static check that every import under `src/kernel/` is a sibling relative
+module — so the kernel cannot import
+a Markdown, Canvas or Bases implementation.
+
+The browser suite shows no new failures: the same seven macOS `Control+...` keybinding
+cases fail as before the change, and the Canvas/Bases format-dispatch flows pass. The
+desktop suite adds one platform-specific keybinding failure in a CommonJS-editor test;
+both are `Cmd`-vs-`Control` differences and are green on the Linux CI runner, not
+regressions. These are still unit/composition and local checks, not packaged-binary
+acceptance.
+
 ## Native service providers stage 2 (post-0.6.0 development)
 
 This section records source verification for the second migration stage in
