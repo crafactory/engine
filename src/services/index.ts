@@ -16,6 +16,7 @@ export * from './render';
 export * from './workspace';
 export * from './formats';
 export * from './editor';
+export * from './bookmarks';
 export {ENGINE_VERSION};
 
 export interface DefaultServiceOptions {

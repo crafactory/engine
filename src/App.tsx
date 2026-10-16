@@ -22,7 +22,7 @@ import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
-import {createWorkspaceRuntime,createEditorRuntime,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession} from './services';
+import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
 const Canvas=lazy(()=>import('./Canvas').then(m=>({default:m.Canvas})));
@@ -68,6 +68,7 @@ export function App(){
   const pluginStarting=useRef(new Set<string>()),pluginRequests=useRef(new Set<Promise<unknown>>());
   const workspaceRuntime=useRef<WorkspaceRuntime|null>(null),workspaceViews=useRef<WorkspaceViewService|null>(null),unmounted=useRef(false);
   const editorRuntime=useRef<EditorRuntime|null>(null),editorSessions=useRef(new Map<string,EditorSession>());
+  const bookmarksRuntime=useRef<BookmarksRuntime|null>(null),bookmarksUnsub=useRef<(()=>void)|null>(null);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   function pluginSnapshot():PluginSnapshot{
     const s=pluginState.current;
@@ -97,6 +98,7 @@ export function App(){
         if(workspaceRuntime.current)void runtime.kernel.stop();else{workspaceRuntime.current=runtime;workspaceViews.current=runtime.workspace;}
       }
       if(!editorRuntime.current){const runtime=await createEditorRuntime('codemirror');if(unmounted.current){void runtime.kernel.stop();return;}editorRuntime.current=runtime;}
+      if(!bookmarksRuntime.current){const runtime=await createBookmarksRuntime();if(unmounted.current){void runtime.kernel.stop();return;}bookmarksRuntime.current=runtime;bookmarksUnsub.current=runtime.service.subscribe(next=>setBookmarks(next));}
       editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));
@@ -105,13 +107,13 @@ export function App(){
       updateNotes(all);setEntries(vault.entries);setVaultName(vault.name);setRoot(vault.root);
       const state=vault.state;
       const pref={...defaults,...state.settings};setSettings(pref);setMode(bridge.desktop?pref.mode:'reading');
-      setBookmarks(state.bookmarks||[]);setWorkspaces(state.workspaces||{});setRecent(state.recent||[]);
+      setBookmarksFromService(state.bookmarks||[]);setWorkspaces(state.workspaces||{});setRecent(state.recent||[]);
       const path=all.find(n=>n.path==='Welcome.md')?.path||all.find(n=>isNote(n.path))?.path||all[0]?.path||'';
       setTabs(path?[path]:[]);setActive(path);setSplit(null);history.current=path?[path]:[];historyIndex.current=path?0:-1;
       loaded.current=true;setPluginList(await bridge.plugins());
     }catch(e){report(e);}finally{setLoading(false);}
   }
-  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();};},[]);
+  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();};},[]);
   useEffect(()=>{for(const controller of pluginStops.current.values())controller.sync(pluginSnapshot());},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
@@ -243,14 +245,14 @@ export function App(){
         if(content!==note.content)editNote(newPath,content);
       }
       const remap=(p:string)=>mappings.find(pair=>pair.from===p)?.to||p;
-      setTabs(t=>t.map(remap));setActive(remap);setBookmarks(b=>b.map(remap));setRecent(r=>r.map(remap));
+      setTabs(t=>t.map(remap));setActive(remap);setBookmarksFromService(bookmarkPaths().map(remap));setRecent(r=>r.map(remap));
       setEntries(await bridge.list());await flush();toast('Moved file and updated resolvable note links.');
     }catch(e){report(e);}
   }
   async function deletePath(path:string){
     setContext(null);
     if(!await dialog.confirm('Move to trash?',`${path} will be moved out of the vault. Desktop files are retained in .crafactory/trash.`,true))return;
-    try{await flush();await bridge.trash(path);const removed=(p:string)=>p===path||p.startsWith(path+'/');updateNotes(notesRef.current.filter(n=>!removed(n.path)));for(const p of [...editorSessions.current.keys()])if(removed(p))editorSessions.current.delete(p);setEntries(await bridge.list());setTabs(t=>t.filter(p=>!removed(p)));if(removed(active))setActive('');setBookmarks(b=>b.filter(p=>!removed(p)));toast('Moved to trash.');}catch(e){report(e);}
+    try{await flush();await bridge.trash(path);const removed=(p:string)=>p===path||p.startsWith(path+'/');updateNotes(notesRef.current.filter(n=>!removed(n.path)));for(const p of [...editorSessions.current.keys()])if(removed(p))editorSessions.current.delete(p);setEntries(await bridge.list());setTabs(t=>t.filter(p=>!removed(p)));if(removed(active))setActive('');setBookmarksFromService(bookmarkPaths().filter(p=>!removed(p)));toast('Moved to trash.');}catch(e){report(e);}
   }
   async function chooseVault(create=false){
     try{await stopPlugins();await flush();await bridge.state({settings,bookmarks,workspaces,recent});if(await bridge.choose(create))await initialize();}catch(e){report(e);}
@@ -265,7 +267,7 @@ export function App(){
   async function createCanvas(){const name=await dialog.ask('New canvas','Untitled.canvas');if(name)createNote(/\.canvas$/i.test(name)?name:name+'.canvas','{"nodes":[],"edges":[]}');}
   /** Create a Base while retaining the requested extension spelling. */
   async function createBase(){const name=await dialog.ask('New base','Library.base');if(name)createNote(/\.base$/i.test(name)?name:name+'.base','views:\n  - type: table\n    name: All notes\n    order: [file.name, note.status, note.tags, file.folder]\n');}
-  function toggleBookmark(){if(active)setBookmarks(b=>b.includes(active)?b.filter(p=>p!==active):[...b,active]);}
+  function toggleBookmark(){if(active)toggleBookmarkPath(active);}
   async function insertTemplate(path:string){
     if(!activeNote||!isNote(active)){toast('Open a Markdown note first.');return;}
     const template=notes.find(n=>n.path===path);if(!template)return;
@@ -513,6 +515,14 @@ export function App(){
     if(!session){const note=notesRef.current.find(n=>n.path===path);session=editorRuntime.current.provider.open(path,{text:note?.content??'',version:savedContent.current.get(path)??''});editorSessions.current.set(path,session);}
     return session;
   }
+  /** Current bookmark paths from the native plugin, or local state before it is ready. */
+  function bookmarkPaths(){return bookmarksRuntime.current?.service.list()??bookmarks;}
+  /** Replace bookmarks through the native plugin, falling back to local state. */
+  function setBookmarksFromService(paths:string[]){const service=bookmarksRuntime.current?.service;if(service)service.replace(paths);else setBookmarks(paths);}
+  /** Toggle a bookmark through the native plugin, falling back to local state. */
+  function toggleBookmarkPath(path:string){const service=bookmarksRuntime.current?.service;if(service)service.toggle(path);else setBookmarks(b=>b.includes(path)?b.filter(p=>p!==path):[...b,path]);}
+  /** Remove a bookmark through the native plugin, falling back to local state. */
+  function removeBookmarkPath(path:string){const service=bookmarksRuntime.current?.service;if(service)service.remove(path);else setBookmarks(b=>b.filter(p=>p!==path));}
   /** Select the registered format view, without converting the file's contents. */
   function showNote(path:string,secondary=false){
     const note=notes.find(n=>n.path===path);
@@ -526,7 +536,7 @@ export function App(){
     if(viewType(note.path)==='base'&&mode!=='source'&&enabled('bases'))return <Bases note={note} notes={notes} entries={entries} onOpen={open} onChange={value=>editNote(note.path,value)} onNoteChange={editNote} ask={dialog.ask}/>;
     return <div className="note-document" onDragOver={e=>e.preventDefault()} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();importFiles(e.dataTransfer.files);}}}>
       <div className={'document-inner '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>
-        <div className="note-title"><h1>{title(note.path)}</h1><button className={bookmarks.includes(path)?'is-bookmarked':''} onClick={()=>setBookmarks(b=>b.includes(path)?b.filter(p=>p!==path):[...b,path])} aria-label="Bookmark note" title="Bookmark note"><Bookmark size={19} fill={bookmarks.includes(path)?'currentColor':'none'}/></button></div>
+        <div className="note-title"><h1>{title(note.path)}</h1><button className={bookmarks.includes(path)?'is-bookmarked':''} onClick={()=>toggleBookmarkPath(path)} aria-label="Bookmark note" title="Bookmark note"><Bookmark size={19} fill={bookmarks.includes(path)?'currentColor':'none'}/></button></div>
         {enabled('properties')&&isNote(note.path)&&propertyEditor(note)}
       </div>
       {mode==='reading'&&isNote(note.path)?<div className={'reading-surface '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}><Markdown content={note.content} notes={notes} path={note.path} onOpen={openLink} onChange={content=>editNote(note.path,content)}/></div>:
@@ -572,7 +582,7 @@ export function App(){
         {sideTab==='search'&&<><label className="search-input"><Search size={15}/><input autoFocus placeholder="Search notes…" value={query} onChange={e=>setQuery(e.target.value)} aria-label="Search notes" data-testid="search-input"/><button onClick={()=>setCaseSensitive(v=>!v)} className={caseSensitive?'selected':''} aria-label="Match case">Aa</button></label><div className="search-meta"><span>{results.length} results</span><select aria-label="Sort search results" value={searchSort} onChange={e=>setSearchSort(e.target.value)}><option value="name">Name ↑</option><option value="modified">Modified ↓</option></select><button aria-label="Copy search results" onClick={()=>navigator.clipboard?.writeText(results.map(n=>`[[${n.path.replace(/\.md$/,'')}]]`).join('\n')).then(()=>toast('Search results copied.')).catch(report)}><Copy size={13}/></button></div>
           <div className="search-results">{results.map(n=><button key={n.path} onClick={()=>open(n.path)} data-testid={'search-result-'+n.path}><span><FileText size={13}/>{title(n.path)}</span><small>{n.path}</small>{query&&<p>{frontmatter(n.content).body.replace(/[#*`\[\]]/g,'').slice(0,140)}</p>}</button>)}</div><p className="search-help">Try tag:#thinking, path:Ideas, task-todo: or /regex/. Operators can be grouped with parentheses and OR.</p></>}
         {sideTab==='tags'&&<div className="tag-list">{tagCounts.map(([tag,count])=><button key={tag} onClick={()=>{setQuery('tag:#'+tag);setSideTab('search');}}><Hash size={14}/><span>{tag}</span><small>{count}</small></button>)}</div>}
-        {(sideTab==='bookmarks'||sideTab==='recent')&&<div className="bookmark-list">{(sideTab==='bookmarks'?bookmarks:recent.filter(p=>notes.some(n=>n.path===p))).map(path=><button key={path} onClick={()=>open(path)}><FileText size={14}/><span>{tabTitle(path)}</span>{sideTab==='bookmarks'&&<span role="button" aria-label="Remove bookmark" onClick={e=>{e.stopPropagation();setBookmarks(b=>b.filter(p=>p!==path));}}><X size={12}/></span>}</button>)}{sideTab==='bookmarks'&&!bookmarks.length&&<div className="empty"><Bookmark size={24}/><p>Bookmark a note to keep it here.</p></div>}</div>}
+        {(sideTab==='bookmarks'||sideTab==='recent')&&<div className="bookmark-list">{(sideTab==='bookmarks'?bookmarks:recent.filter(p=>notes.some(n=>n.path===p))).map(path=><button key={path} onClick={()=>open(path)}><FileText size={14}/><span>{tabTitle(path)}</span>{sideTab==='bookmarks'&&<span role="button" aria-label="Remove bookmark" onClick={e=>{e.stopPropagation();removeBookmarkPath(path);}}><X size={12}/></span>}</button>)}{sideTab==='bookmarks'&&!bookmarks.length&&<div className="empty"><Bookmark size={24}/><p>Bookmark a note to keep it here.</p></div>}</div>}
         <footer className="sidebar-footer"><button onClick={()=>chooseVault()}><HardDrive size={14}/><span>{vaultName}</span><ChevronDown size={13}/></button><span>{entries.filter(e=>!e.folder&&isNote(e.path)).length} notes</span></footer>
       </aside>}
       <main className="main-workspace">
@@ -604,7 +614,7 @@ export function App(){
     <div id="plugin-views" aria-label="Plugin views"/>
     <div id="plugin-status" aria-label="Plugin status"/>
     {notice&&<div className="toast" role="status"><Check size={15}/>{notice}</div>}
-    {context&&<div className="context-menu" style={{left:context.x,top:context.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>{open(context.path);setContext(null);}}><FileText size={14}/>Open</button><button onClick={()=>{setSplit(context.path);setContext(null);}}><PanelRightOpen size={14}/>Open in split</button><button onClick={()=>{setContext(null);renamePath(context.path);}}><Pencil size={14}/>Rename or move</button><button onClick={()=>{setBookmarks(b=>b.includes(context.path)?b:[...b,context.path]);setContext(null);}}><Bookmark size={14}/>Bookmark</button><button onClick={()=>{navigator.clipboard?.writeText(context.path);setContext(null);}}><Copy size={14}/>Copy path</button><hr/><button className="danger-text" onClick={()=>deletePath(context.path)}><Trash2 size={14}/>Move to trash</button></div>}
+    {context&&<div className="context-menu" style={{left:context.x,top:context.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>{open(context.path);setContext(null);}}><FileText size={14}/>Open</button><button onClick={()=>{setSplit(context.path);setContext(null);}}><PanelRightOpen size={14}/>Open in split</button><button onClick={()=>{setContext(null);renamePath(context.path);}}><Pencil size={14}/>Rename or move</button><button onClick={()=>{if(!bookmarkPaths().includes(context.path))toggleBookmarkPath(context.path);setContext(null);}}><Bookmark size={14}/>Bookmark</button><button onClick={()=>{navigator.clipboard?.writeText(context.path);setContext(null);}}><Copy size={14}/>Copy path</button><hr/><button className="danger-text" onClick={()=>deletePath(context.path)}><Trash2 size={14}/>Move to trash</button></div>}
     {palette&&<Palette key={palette} title={palette==='commands'?'Command palette':palette==='files'?'Quick switcher':palette==='templates'?'Insert template':palette==='merge'?'Merge into note':'Load workspace'} items={paletteItems} onClose={()=>setPalette(null)} onCreate={palette==='files'?name=>createNote(name):undefined}/>}
     {showSettings&&<Settings value={settings} onChange={s=>{setSettings(s);if(s.mode!==settings.mode)setMode(s.mode);}} onClose={()=>setShowSettings(false)} plugins={pluginList.map(p=>p.manifest)} enabled={enabledPlugins} onTogglePlugin={togglePlugin} pluginTabs={Object.values(pluginTabs).flat()} modes={pluginModes} onMode={(id,mode)=>{if(!enabledPlugins.includes(id)&&!pluginStarting.current.has(id))setPluginModes(m=>({...m,[id]:mode}));}}/>}
     {recovery&&<div className="modal-backdrop"><section className="modal recovery-modal" role="dialog" aria-label="File recovery"><header><h2>File recovery</h2><button onClick={()=>setRecovery(null)} aria-label="Close recovery"><X size={18}/></button></header><p>Previous saved versions of {active}. Restoring a version also snapshots the current content.</p>{recovery.length?recovery.map(s=><button key={s.id} onClick={()=>restoreSnapshot(s.id)}><Clock size={15}/>{new Date(s.time).toLocaleString()}<span>Restore</span></button>):<div className="empty"><Clock size={25}/><p>No previous versions yet. Snapshots are created when saved content changes.</p></div>}</section></div>}

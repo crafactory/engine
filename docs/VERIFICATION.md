@@ -1,5 +1,26 @@
 # Verification results
 
+## First core-feature plugin: bookmarks (stage 5, in progress)
+
+This section records source verification for the first core-feature migration in
+[NATIVE-PLUGIN-ARCHITECTURE.md](NATIVE-PLUGIN-ARCHITECTURE.md) stage 5. The
+`engine.bookmarks/v1` contract, its default plugin and the application wiring are
+delivered; the rest of the core features are not migrated, so stage 5 stays unchecked and
+the native-plugin-kernel gate stays open.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 692 passed (18 files) | 686 prior plus 6 new bookmarks cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `tests/bookmarks.test.ts` | 6 passed | Service behavior, subscription and kernel composition |
+| `npm run test:e2e` (macOS) | 45 passed / 6 failed | Unchanged baseline; the 6 are the known `Control+…` platform cases |
+
+The application now consumes `engine.bookmarks/v1` for toggling/adding/removing bookmarks
+and mirrors it into render state through `subscribe`; the bookmark e2e case passes.
+Persistence remains application-side until the storage providers are wired into the UI.
+These are unit/composition and local checks, not packaged-binary acceptance.
+
 ## Native editor providers and UI wiring stage 4 (post-0.6.0 development)
 
 This section records source verification for the fourth migration stage in
