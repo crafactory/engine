@@ -21,6 +21,7 @@ export const CODEMIRROR_EDITOR_VERSION = '1.0.0';
 
 export interface EditorSelection {anchor: number; head: number}
 export interface EditorViewport {anchor: number; head: number}
+export interface EditorChange {from: number; to: number; inserted: number}
 export interface EditorDraft {path: string; text: string; selection: EditorSelection; viewport: EditorViewport; version: string; dirty: boolean}
 export interface EditorCapabilities {codeMirrorExtensions: boolean; livePreview: boolean}
 export interface EditorOpenOptions {text: string; version: string}
@@ -32,7 +33,7 @@ export interface EditorSession {
   version(): string;
   isDirty(): boolean;
   setText(text: string, options?: {expected?: string}): boolean;
-  track(text: string): void;
+  track(text: string, changes?: readonly EditorChange[]): void;
   insert(text: string): boolean;
   selection(): EditorSelection;
   setSelection(selection: EditorSelection): void;
@@ -142,12 +143,20 @@ abstract class EditorSessionBase implements EditorSession {
    * without touching undo history, the selection is preserved (clamped) and the viewport
    * shifts by the changed range.
    */
-  track(text: string): void {
+  track(text: string, changes: readonly EditorChange[] = []): void {
     const {text: current, selection} = this.read();
     if (text === current) return;
-    const prefix = commonPrefix(current, text);
-    const suffix = commonSuffix(current, text, prefix);
-    this.viewportValue = adjustViewport(this.viewportValue, prefix, current.length - suffix, text.length - prefix - suffix);
+    if (changes.length) {
+      let shift = 0;
+      for (const change of changes) {
+        this.viewportValue = adjustViewport(this.viewportValue, change.from + shift, change.to + shift, change.inserted);
+        shift += change.inserted - (change.to - change.from);
+      }
+    } else {
+      const prefix = commonPrefix(current, text);
+      const suffix = commonSuffix(current, text, prefix);
+      this.viewportValue = adjustViewport(this.viewportValue, prefix, current.length - suffix, text.length - prefix - suffix);
+    }
     this.write(text, clamp(selection, text.length));
     this.dirty = true;
   }

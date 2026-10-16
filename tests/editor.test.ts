@@ -84,6 +84,13 @@ function editorContract(label: string, create: () => EditorProvider): void {
       session.setSelection({anchor: 30, head: 30});
       expect(session.selection()).toEqual({anchor: 30, head: 30});
     });
+    it('applies explicit change ranges with a cumulative shift', () => {
+      const session = create().open('N.md', {text: 'abcdef', version: '1'});
+      session.setViewport({anchor: 5, head: 5});
+      session.track('Xabcdf', [{from: 0, to: 0, inserted: 1}, {from: 4, to: 5, inserted: 0}]);
+      expect(session.text()).toBe('Xabcdf');
+      expect(session.viewport()).toEqual({anchor: 5, head: 5});
+    });
     it('rejects a draft for a different path without changing the session', () => {
       const session = create().open('N.md', {text: 'abc', version: '1'});
       expect(() => session.restore({...session.draft(), path: 'Other.md'})).toThrow();

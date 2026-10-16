@@ -13,9 +13,9 @@ native-plugin-kernel gate stays open.
 | Check | Observed result | Scope |
 |---|---|---|
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
-| `npm run test` | 684 passed (17 files) | 660 prior plus 24 new editor cases |
+| `npm run test` | 686 passed (17 files) | 660 prior plus 26 new editor cases |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
-| `tests/editor.test.ts` | 24 passed | Shared contract on two providers, drafts, conflicts, viewport migration, capabilities |
+| `tests/editor.test.ts` | 26 passed | Shared contract on two providers, drafts, conflicts, viewport migration, capabilities |
 | `npm run test:e2e` (macOS) | 44 passed / 7 failed | Baseline 43 plus the new scroll-restore case; the 7 are the known `Control+…` platform cases |
 
 One shared `engine.editor/v1` contract suite runs against the CodeMirror `@codemirror/state`

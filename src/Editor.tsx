@@ -12,7 +12,7 @@ import type {Note,Settings} from './types';
 import {livePreview,refreshLivePreview} from './LivePreview';
 import {inlineLinks} from './inline-links';
 import {liveRegions} from './live-model';
-import {toDocumentOffset,toViewOffset,type EditorSession} from './services/editor';
+import {toDocumentOffset,toViewOffset,type EditorChange,type EditorSession} from './services/editor';
 export interface EditorHandle {path():string;insert(text:string):void;selection():string;replaceSelection(text:string):void;jump(offset:number):void;focus():void;find():void;snapshot():{text:string;from:number;to:number};applyPluginEdit(base:string,text:string,from:number,to:number):boolean}
 const engineHighlight=HighlightStyle.define([
   {tag:syntaxTags.heading,fontWeight:'600',color:'var(--text)'},
@@ -96,7 +96,7 @@ function Editor({note,notes,settings,pluginExtensions=[],session,onChange,onOpen
         ]),
         EditorView.contentAttributes.of({spellcheck:String(settings.spellcheck),'aria-label':'Note editor','data-testid':'note-editor'}),
         EditorView.updateListener.of(update=>{
-          if(update.docChanged){const text=update.state.doc.toString();if(!external.current)callbacks.current.onChange(prefix.current+text);sessionRef.current?.track(prefix.current+text);}
+          if(update.docChanged){const text=update.state.doc.toString(),prefixLength=prefix.current.length;if(!external.current){callbacks.current.onChange(prefix.current+text);const changes:EditorChange[]=[];update.changes.iterChanges((fromA,toA,_fromB,_toB,inserted)=>changes.push({from:fromA+prefixLength,to:toA+prefixLength,inserted:inserted.length}));sessionRef.current?.track(prefix.current+text,changes);}else sessionRef.current?.track(prefix.current+text);}
           if(update.selectionSet||update.docChanged){const range=update.state.selection.main,prefixLength=prefix.current.length;sessionRef.current?.setSelection({anchor:toDocumentOffset(range.anchor,prefixLength),head:toDocumentOffset(range.head,prefixLength)});}
         }),
         EditorView.domEventHandlers({
