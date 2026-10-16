@@ -94,7 +94,7 @@ function Editor({note,notes,settings,pluginExtensions=[],session,onChange,onOpen
         ]),
         EditorView.contentAttributes.of({spellcheck:String(settings.spellcheck),'aria-label':'Note editor','data-testid':'note-editor'}),
         EditorView.updateListener.of(update=>{
-          if(update.docChanged&&!external.current)callbacks.current.onChange(prefix.current+update.state.doc.toString());
+          if(update.docChanged){const text=update.state.doc.toString();if(!external.current)callbacks.current.onChange(prefix.current+text);sessionRef.current?.track(text);}
           if(update.selectionSet||update.docChanged){const range=update.state.selection.main;sessionRef.current?.setSelection({anchor:range.anchor,head:range.head});}
         }),
         EditorView.domEventHandlers({

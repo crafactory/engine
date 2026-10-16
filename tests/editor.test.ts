@@ -74,6 +74,16 @@ function editorContract(label: string, create: () => EditorProvider): void {
       session.setText('XYabcdef');
       expect(session.viewport()).toEqual({anchor: 6, head: 6});
     });
+    it('tracks a view-driven change without touching history and updates reachable selection', () => {
+      const session = create().open('N.md', {text: 'short', version: '1'});
+      session.setSelection({anchor: 5, head: 5});
+      session.track('a much longer document with content');
+      expect(session.text()).toBe('a much longer document with content');
+      expect(session.selection()).toEqual({anchor: 5, head: 5});
+      expect(session.isDirty()).toBe(true);
+      session.setSelection({anchor: 30, head: 30});
+      expect(session.selection()).toEqual({anchor: 30, head: 30});
+    });
     it('rejects a draft for a different path without changing the session', () => {
       const session = create().open('N.md', {text: 'abc', version: '1'});
       expect(() => session.restore({...session.draft(), path: 'Other.md'})).toThrow();

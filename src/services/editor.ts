@@ -32,6 +32,7 @@ export interface EditorSession {
   version(): string;
   isDirty(): boolean;
   setText(text: string, options?: {expected?: string}): boolean;
+  track(text: string): void;
   insert(text: string): boolean;
   selection(): EditorSelection;
   setSelection(selection: EditorSelection): void;
@@ -126,6 +127,21 @@ abstract class EditorSessionBase implements EditorSession {
     this.write(text, clamp({anchor: 0, head: 0}, text.length));
     this.dirty = true;
     return true;
+  }
+
+  /**
+   * Synchronize the model with a document a view already changed. Text is replaced
+   * without touching undo history, the selection is preserved (clamped) and the viewport
+   * shifts by the changed range.
+   */
+  track(text: string): void {
+    const {text: current, selection} = this.read();
+    if (text === current) return;
+    const prefix = commonPrefix(current, text);
+    const suffix = commonSuffix(current, text, prefix);
+    this.viewportValue = adjustViewport(this.viewportValue, prefix, current.length - suffix, text.length - prefix - suffix);
+    this.write(text, clamp(selection, text.length));
+    this.dirty = true;
   }
 
   /** Insert text at the current selection, replacing it. */
