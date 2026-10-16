@@ -149,6 +149,16 @@ Computes today's daily note from `{folder, templateContent, date?}` and returns
 `{path, content, date}`. It consumes `engine.templates/v1`, so the two migrate together
 with a tested dependency edge; the kernel rejects daily notes when templates is missing.
 
+### `engine.index/v1`
+
+A derived metadata and search index over Markdown notes: `rebuild`/`update`/`remove`,
+`note` (title, aliases, tags, headings, links, properties, body), `outgoing`, `backlinks`,
+`tags` (counts), `headings`, `properties`, `resolve` (link → path) and `search`
+(case-sensitive option). It builds from caller-supplied note content and caches per-note
+derivations, so it imports no editor or UI module. Search, graph and properties features
+are expected to consume this contract instead of recomputing per-note metadata; this stage
+delivers the dependency and its tests, and those consumers are migrated next.
+
 ## Composition
 
 `registerDefaultServices(kernel, {storage: 'memory' | 'local', vault?})` registers the
@@ -180,7 +190,9 @@ conflict refusal, viewport migration across an edit and between providers, and t
 CodeMirror capability difference. `tests/bookmarks.test.ts` covers the migrated bookmarks
 service and its kernel composition; `tests/templates.test.ts` covers template
 interpolation, daily-note computation and the templates→daily-notes dependency edge;
-`tests/dependency-flow.test.ts` covers provider disable/enable/rebind flow.
+`tests/dependency-flow.test.ts` covers provider disable/enable/rebind flow, and
+`tests/notes-index.test.ts` covers index derivation, resolution, backlinks, tags, search,
+updates and the index dependency flow.
 
 ## Not yet done
 
@@ -190,6 +202,8 @@ interpolation, daily-note computation and the templates→daily-notes dependency
 - Bookmarks and templates/daily notes are consumed by the application; their persistence
   is still application-side, and the migrated core features are a subset of the 29 core
   plugins.
+- `engine.index/v1` is implemented and tested but not yet consumed by the application;
+  search, graph and properties migrate onto it next.
 - The editor has two providers and the app uses the CodeMirror provider for
   selection/viewport; body-text drafts and write conflicts still use the application's
   existing draft and bridge-conflict logic rather than the provider's text APIs.
