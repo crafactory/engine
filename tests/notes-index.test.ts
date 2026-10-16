@@ -88,6 +88,11 @@ describe('notes index', () => {
     expect(index.tags(['Ideas/Alpha.md'])).toEqual([{tag: 'inline', count: 1}, {tag: 'project', count: 1}]);
     expect(index.tags(['Ideas/Beta.md'])).toEqual([]);
   });
+  it('lists unique frontmatter property keys in first-seen order', () => {
+    const index = new NotesIndex();
+    index.rebuild(notes);
+    expect(index.propertyKeys()).toEqual(['aliases', 'tags', 'status', 'alias']);
+  });
   it('searches with optional case sensitivity', () => {
     const index = new NotesIndex();
     index.rebuild(notes);

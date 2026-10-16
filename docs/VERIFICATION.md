@@ -1,5 +1,25 @@
 # Verification results
 
+## Properties consumer (stage 5 continuation)
+
+This section records source verification for migrating the properties view onto
+`engine.index/v1`. The inline property editor reads property values from
+`index.properties(path)`, and the "Vault properties" list uses `index.propertyKeys()`
+instead of scanning every note's frontmatter; writes still go through `setProperties`.
+Other core features remain to be migrated, so stage 5 stays unchecked.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 727 passed (21 files) | 726 prior plus the property-keys index case |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | 45 passed / 6 failed | Unchanged baseline; the properties/bookmarks case passes |
+
+The invalid-YAML guard still uses `frontmatter(...).error` so a broken frontmatter block is
+reported rather than silently emptied. The browser case that checks typed YAML properties
+and bookmarks passes, and the wider suite shows the same six macOS `Control+…` platform
+failures.
+
 ## Graph consumer (stage 5 continuation)
 
 This section records source verification for migrating the graph view onto
