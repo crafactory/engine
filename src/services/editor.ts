@@ -21,6 +21,7 @@ export const CODEMIRROR_EDITOR_VERSION = '1.0.0';
 
 export interface EditorSelection {anchor: number; head: number}
 export interface EditorViewport {anchor: number; head: number}
+export interface EditorChange {from: number; to: number; inserted: number}
 export interface EditorDraft {path: string; text: string; selection: EditorSelection; viewport: EditorViewport; version: string; dirty: boolean}
 export interface EditorCapabilities {codeMirrorExtensions: boolean; livePreview: boolean}
 export interface EditorOpenOptions {text: string; version: string}
@@ -32,6 +33,7 @@ export interface EditorSession {
   version(): string;
   isDirty(): boolean;
   setText(text: string, options?: {expected?: string}): boolean;
+  track(text: string, changes?: readonly EditorChange[]): void;
   insert(text: string): boolean;
   selection(): EditorSelection;
   setSelection(selection: EditorSelection): void;
@@ -57,6 +59,14 @@ interface HistoryEntry {text: string; selection: EditorSelection}
 /** Clamp a selection or viewport into the document bounds. */
 function clamp(range: EditorSelection, length: number): EditorSelection {
   return {anchor: Math.max(0, Math.min(length, range.anchor)), head: Math.max(0, Math.min(length, range.head))};
+}
+
+/** Convert a view offset (excluding a hidden frontmatter prefix) to a full-document offset. */
+export function toDocumentOffset(viewOffset: number, prefixLength: number): number { return viewOffset + prefixLength; }
+
+/** Convert a full-document offset to a view offset, clamping into the visible document. */
+export function toViewOffset(documentOffset: number, prefixLength: number, viewLength: number): number {
+  return Math.max(0, Math.min(viewLength, documentOffset - prefixLength));
 }
 
 /** Length of the common prefix of two strings. */
@@ -126,6 +136,29 @@ abstract class EditorSessionBase implements EditorSession {
     this.write(text, clamp({anchor: 0, head: 0}, text.length));
     this.dirty = true;
     return true;
+  }
+
+  /**
+   * Synchronize the model with a document a view already changed. Text is replaced
+   * without touching undo history, the selection is preserved (clamped) and the viewport
+   * shifts by the changed range.
+   */
+  track(text: string, changes: readonly EditorChange[] = []): void {
+    const {text: current, selection} = this.read();
+    if (text === current) return;
+    if (changes.length) {
+      let shift = 0;
+      for (const change of changes) {
+        this.viewportValue = adjustViewport(this.viewportValue, change.from + shift, change.to + shift, change.inserted);
+        shift += change.inserted - (change.to - change.from);
+      }
+    } else {
+      const prefix = commonPrefix(current, text);
+      const suffix = commonSuffix(current, text, prefix);
+      this.viewportValue = adjustViewport(this.viewportValue, prefix, current.length - suffix, text.length - prefix - suffix);
+    }
+    this.write(text, clamp(selection, text.length));
+    this.dirty = true;
   }
 
   /** Insert text at the current selection, replacing it. */

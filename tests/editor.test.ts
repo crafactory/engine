@@ -2,8 +2,8 @@ import {describe,it,expect} from 'vitest';
 import {AssemblyError, Kernel} from '../src/kernel';
 import {
   CodeMirrorEditorProvider, PlainEditorProvider, createPlainEditorPlugin,
-  createEditorRuntime, migrateSession, EDITOR_CONTRACT, CODEMIRROR_EDITOR_CONTRACT,
-  type EditorProvider
+  createEditorRuntime, migrateSession, toDocumentOffset, toViewOffset,
+  EDITOR_CONTRACT, CODEMIRROR_EDITOR_CONTRACT, type EditorProvider
 } from '../src/services/editor';
 
 /** Run the identical editor contract against a provider factory. */
@@ -74,6 +74,23 @@ function editorContract(label: string, create: () => EditorProvider): void {
       session.setText('XYabcdef');
       expect(session.viewport()).toEqual({anchor: 6, head: 6});
     });
+    it('tracks a view-driven change without touching history and updates reachable selection', () => {
+      const session = create().open('N.md', {text: 'short', version: '1'});
+      session.setSelection({anchor: 5, head: 5});
+      session.track('a much longer document with content');
+      expect(session.text()).toBe('a much longer document with content');
+      expect(session.selection()).toEqual({anchor: 5, head: 5});
+      expect(session.isDirty()).toBe(true);
+      session.setSelection({anchor: 30, head: 30});
+      expect(session.selection()).toEqual({anchor: 30, head: 30});
+    });
+    it('applies explicit change ranges with a cumulative shift', () => {
+      const session = create().open('N.md', {text: 'abcdef', version: '1'});
+      session.setViewport({anchor: 5, head: 5});
+      session.track('Xabcdf', [{from: 0, to: 0, inserted: 1}, {from: 4, to: 5, inserted: 0}]);
+      expect(session.text()).toBe('Xabcdf');
+      expect(session.viewport()).toEqual({anchor: 5, head: 5});
+    });
     it('rejects a draft for a different path without changing the session', () => {
       const session = create().open('N.md', {text: 'abc', version: '1'});
       expect(() => session.restore({...session.draft(), path: 'Other.md'})).toThrow();
@@ -128,5 +145,16 @@ describe('editor provider replacement', () => {
     const session = runtime.provider.open('N.md', {text: 'x', version: '1'});
     expect(runtime.provider.id).toBe('engine.editor.plain');
     expect(session.text()).toBe('x');
+  });
+});
+
+describe('offset translation across a hidden frontmatter prefix', () => {
+  it('converts view offsets to document offsets and clamps back into the view', () => {
+    expect(toDocumentOffset(0, 12)).toBe(12);
+    expect(toDocumentOffset(5, 0)).toBe(5);
+    expect(toViewOffset(12, 12, 5)).toBe(0);
+    expect(toViewOffset(14, 12, 5)).toBe(2);
+    expect(toViewOffset(2, 12, 5)).toBe(0);
+    expect(toViewOffset(999, 12, 5)).toBe(5);
   });
 });
