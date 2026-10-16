@@ -12,6 +12,7 @@ import type {Note,Settings} from './types';
 import {livePreview,refreshLivePreview} from './LivePreview';
 import {inlineLinks} from './inline-links';
 import {liveRegions} from './live-model';
+import type {EditorSession} from './services/editor';
 export interface EditorHandle {path():string;insert(text:string):void;selection():string;replaceSelection(text:string):void;jump(offset:number):void;focus():void;find():void;snapshot():{text:string;from:number;to:number};applyPluginEdit(base:string,text:string,from:number,to:number):boolean}
 const engineHighlight=HighlightStyle.define([
   {tag:syntaxTags.heading,fontWeight:'600',color:'var(--text)'},
@@ -29,11 +30,14 @@ function wrap(view:EditorView,marker:string) {
   view.dispatch({changes:{from:range.from,to:range.to,insert:marker+selected+marker},selection:{anchor:range.from+marker.length,head:range.to+marker.length}});
   view.focus();return true;
 }
-export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Settings;pluginExtensions?:Extension[];onChange:(content:string)=>void;onOpen:(target:string)=>void;onCommand:(command:string)=>void}>(
+/** Read the document offset at the top of the editor's visible area. */
+function viewportTop(v:EditorView){const rect=v.scrollDOM.getBoundingClientRect();const pos=v.posAtCoords({x:rect.left+2,y:rect.top+2});return Math.max(0,Math.min(v.state.doc.length,pos??0));}
+export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Settings;pluginExtensions?:Extension[];session?:EditorSession;onChange:(content:string)=>void;onOpen:(target:string)=>void;onCommand:(command:string)=>void}>(
 /** Maintain the current CodeMirror document and independently refresh only external preview dependencies. */
-function Editor({note,notes,settings,pluginExtensions=[],onChange,onOpen,onCommand},handle) {
+function Editor({note,notes,settings,pluginExtensions=[],session,onChange,onOpen,onCommand},handle) {
   const container=useRef<HTMLDivElement>(null),view=useRef<EditorView>();
   const pluginCompartment=useRef(new Compartment());
+  const sessionRef=useRef(session);sessionRef.current=session;
   const meta=frontmatter(note.content),hideMeta=settings.mode==='live'&&!meta.error;
   const viewContent=hideMeta?meta.body:note.content;
   const prefix=useRef('');prefix.current=hideMeta?meta.raw:'';
@@ -89,7 +93,10 @@ function Editor({note,notes,settings,pluginExtensions=[],onChange,onOpen,onComma
           ...markdownKeymap,...defaultKeymap,...historyKeymap,...searchKeymap,indentWithTab
         ]),
         EditorView.contentAttributes.of({spellcheck:String(settings.spellcheck),'aria-label':'Note editor','data-testid':'note-editor'}),
-        EditorView.updateListener.of(update=>{if(update.docChanged&&!external.current)callbacks.current.onChange(prefix.current+update.state.doc.toString());}),
+        EditorView.updateListener.of(update=>{
+          if(update.docChanged&&!external.current)callbacks.current.onChange(prefix.current+update.state.doc.toString());
+          if(update.selectionSet||update.docChanged){const range=update.state.selection.main;sessionRef.current?.setSelection({anchor:range.anchor,head:range.head});}
+        }),
         EditorView.domEventHandlers({
           /** Follow modifier-clicked supported links without intercepting ordinary source editing. */
           click(event,v){
@@ -108,7 +115,12 @@ function Editor({note,notes,settings,pluginExtensions=[],onChange,onOpen,onComma
         EditorView.theme({'&':{height:'100%',fontSize:settings.fontSize+'px'},'.cm-scroller':{overflow:'auto',fontFamily:'inherit'},'.cm-content':{padding:'24px 0 100px'},'.cm-line':{padding:'0 4px'},'.cm-gutters':{background:'transparent',border:'none',color:'var(--muted)'},'.cm-activeLine':{background:'var(--hover)'},'.cm-cursor':{borderLeftColor:'var(--accent)'},'.cm-selectionBackground':{background:'var(--selection) !important'},'.cm-tooltip':{background:'var(--panel)',color:'var(--text)',border:'1px solid var(--border)'},'.cm-panels':{background:'var(--panel)',color:'var(--text)'}},{dark:settings.theme==='dark'})
       ]})
     });view.current=editor;
-    return()=>{editor.destroy();};
+    const activeSession=sessionRef.current,draft=activeSession?.draft();
+    if(draft){const max=editor.state.doc.length;editor.dispatch({selection:{anchor:Math.max(0,Math.min(max,draft.selection.anchor)),head:Math.max(0,Math.min(max,draft.selection.head))}});if(draft.viewport.anchor>0)editor.dispatch({effects:EditorView.scrollIntoView(Math.max(0,Math.min(max,draft.viewport.anchor)),{y:'start'})});}
+    /** Persist the scroll anchor through the editor session so it survives remounts. */
+    const trackScroll=()=>{const offset=viewportTop(editor);sessionRef.current?.setViewport({anchor:offset,head:offset});};
+    editor.scrollDOM.addEventListener('scroll',trackScroll,{passive:true});
+    return()=>{editor.scrollDOM.removeEventListener('scroll',trackScroll);editor.destroy();};
   },[note.path,settings.mode,settings.lineNumbers,settings.fontSize,settings.theme,settings.spellcheck,settings.disabledPlugins]);
   useEffect(()=>{const v=view.current;if(v&&v.state.doc.toString()!==viewContent){external.current=true;v.dispatch({changes:{from:0,to:v.state.doc.length,insert:viewContent}});external.current=false;}},[viewContent]);
   // Current-document edits already rebuild the field in their CM transaction.

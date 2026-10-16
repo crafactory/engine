@@ -22,7 +22,7 @@ import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
-import {createWorkspaceRuntime,type WorkspaceRuntime,type WorkspaceViewService} from './services';
+import {createWorkspaceRuntime,createEditorRuntime,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
 const Canvas=lazy(()=>import('./Canvas').then(m=>({default:m.Canvas})));
@@ -67,6 +67,7 @@ export function App(){
   const pluginStops=useRef(new Map<string,PluginController>()),loaded=useRef(false),vaultGeneration=useRef(0);
   const pluginStarting=useRef(new Set<string>()),pluginRequests=useRef(new Set<Promise<unknown>>());
   const workspaceRuntime=useRef<WorkspaceRuntime|null>(null),workspaceViews=useRef<WorkspaceViewService|null>(null),unmounted=useRef(false);
+  const editorRuntime=useRef<EditorRuntime|null>(null),editorSessions=useRef(new Map<string,EditorSession>());
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   function pluginSnapshot():PluginSnapshot{
     const s=pluginState.current;
@@ -95,6 +96,8 @@ export function App(){
         if(unmounted.current){void runtime.kernel.stop();return;}
         if(workspaceRuntime.current)void runtime.kernel.stop();else{workspaceRuntime.current=runtime;workspaceViews.current=runtime.workspace;}
       }
+      if(!editorRuntime.current){const runtime=await createEditorRuntime('codemirror');if(unmounted.current){void runtime.kernel.stop();return;}editorRuntime.current=runtime;}
+      editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));
       vaultGeneration.current++;
@@ -108,7 +111,7 @@ export function App(){
       loaded.current=true;setPluginList(await bridge.plugins());
     }catch(e){report(e);}finally{setLoading(false);}
   }
-  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();};},[]);
+  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();};},[]);
   useEffect(()=>{for(const controller of pluginStops.current.values())controller.sync(pluginSnapshot());},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
@@ -230,7 +233,7 @@ export function App(){
       await bridge.rename(from,to);
       const moved=before.filter(n=>n.path===from||n.path.startsWith(from+'/'));
       const mappings=moved.map(n=>({from:n.path,to:to+n.path.slice(from.length)}));
-      for(const pair of mappings){savedContent.current.set(pair.to,savedContent.current.get(pair.from)!);versions.current.set(pair.to,versions.current.get(pair.from));savedContent.current.delete(pair.from);versions.current.delete(pair.from);}
+      for(const pair of mappings){savedContent.current.set(pair.to,savedContent.current.get(pair.from)!);versions.current.set(pair.to,versions.current.get(pair.from));savedContent.current.delete(pair.from);versions.current.delete(pair.from);editorSessions.current.delete(pair.from);}
       const updated=before.map(n=>({...n,path:mappings.find(p=>p.from===n.path)?.to||n.path}));
       updateNotes(updated);
       for(const note of before){
@@ -247,7 +250,7 @@ export function App(){
   async function deletePath(path:string){
     setContext(null);
     if(!await dialog.confirm('Move to trash?',`${path} will be moved out of the vault. Desktop files are retained in .crafactory/trash.`,true))return;
-    try{await flush();await bridge.trash(path);const removed=(p:string)=>p===path||p.startsWith(path+'/');updateNotes(notesRef.current.filter(n=>!removed(n.path)));setEntries(await bridge.list());setTabs(t=>t.filter(p=>!removed(p)));if(removed(active))setActive('');setBookmarks(b=>b.filter(p=>!removed(p)));toast('Moved to trash.');}catch(e){report(e);}
+    try{await flush();await bridge.trash(path);const removed=(p:string)=>p===path||p.startsWith(path+'/');updateNotes(notesRef.current.filter(n=>!removed(n.path)));for(const p of [...editorSessions.current.keys()])if(removed(p))editorSessions.current.delete(p);setEntries(await bridge.list());setTabs(t=>t.filter(p=>!removed(p)));if(removed(active))setActive('');setBookmarks(b=>b.filter(p=>!removed(p)));toast('Moved to trash.');}catch(e){report(e);}
   }
   async function chooseVault(create=false){
     try{await stopPlugins();await flush();await bridge.state({settings,bookmarks,workspaces,recent});if(await bridge.choose(create))await initialize();}catch(e){report(e);}
@@ -503,6 +506,13 @@ export function App(){
   }
   /** Resolve a path to its registered format view, defaulting to Markdown. */
   function viewType(path:string){return workspaceViews.current?.resolveView(path)?.viewType??'markdown';}
+  /** Return the provider-backed editing session for a note, created on first use. */
+  function editorSession(path:string){
+    if(!editorRuntime.current)return undefined;
+    let session=editorSessions.current.get(path);
+    if(!session){const note=notesRef.current.find(n=>n.path===path);session=editorRuntime.current.provider.open(path,{text:note?.content??'',version:savedContent.current.get(path)??''});editorSessions.current.set(path,session);}
+    return session;
+  }
   /** Select the registered format view, without converting the file's contents. */
   function showNote(path:string,secondary=false){
     const note=notes.find(n=>n.path===path);
@@ -520,7 +530,7 @@ export function App(){
         {enabled('properties')&&isNote(note.path)&&propertyEditor(note)}
       </div>
       {mode==='reading'&&isNote(note.path)?<div className={'reading-surface '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}><Markdown content={note.content} notes={notes} path={note.path} onOpen={openLink} onChange={content=>editNote(note.path,content)}/></div>:
-        <Editor ref={secondary?undefined:editor} note={note} notes={notes} pluginExtensions={secondary?undefined:allPluginExtensions} settings={{...settings,mode:mode==='reading'?'source':mode}} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand}/>}
+        <Editor ref={secondary?undefined:editor} note={note} notes={notes} session={secondary?undefined:editorSession(note.path)} pluginExtensions={secondary?undefined:allPluginExtensions} settings={{...settings,mode:mode==='reading'?'source':mode}} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand}/>}
     </div>;
   }
   let paletteItems:Choice[]=[];

@@ -99,6 +99,12 @@ Two independent providers satisfy the contract:
 | `CodeMirrorEditorProvider` | `src/services/editor.ts` | backed by `@codemirror/state`; advertises `engine.editor.codemirror/v1` |
 | `PlainEditorProvider` | `src/services/editor.ts` | plain text; deliberately no CodeMirror capability |
 
+The application opens one session per active note from the default CodeMirror provider and
+uses it to restore and report selection and viewport for the editing surface, so caret and
+scroll survive tab switches, mode changes and editor remounts. Body-text drafts and write
+conflicts still use the application's existing mechanism; the provider's text, draft and
+expected-base conflict APIs are covered by the contract suite.
+
 ### `engine.editor.codemirror/v1`
 
 An optional capability contract provided only by the CodeMirror editor. It exposes
@@ -148,9 +154,9 @@ CodeMirror capability difference.
 - Storage, documents and commands providers are not yet consumed by the application; the
   running path still uses `src/bridge.ts` for persistence. The workspace/render services
   only drive format → view dispatch in `src/App.tsx`.
-- The editor contract has two providers and a migration path, but the application's React
-  CodeMirror view is not yet wired to `engine.editor/v1`; draft/conflict/viewport in the
-  UI still use the existing in-app logic.
+- The editor has two providers and the app uses the CodeMirror provider for
+  selection/viewport; body-text drafts and write conflicts still use the application's
+  existing draft and bridge-conflict logic rather than the provider's text APIs.
 - No Electron/worker IPC adapter over these contracts is implemented.
 - `engine.index/v1` remains unimplemented; the corresponding migration stages stay
   unchecked.

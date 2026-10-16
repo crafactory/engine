@@ -201,3 +201,21 @@ test('active Live link source remains editable and safe external links are ancho
   await page.keyboard.press('Control+End');
   await expect(page.getByRole('link',{name:'Alias',exact:true})).toBeVisible();
 });
+test('editor session restores scroll position across tab switches',async({page})=>{
+  await page.goto('/');
+  const long=Array.from({length:240},(_,i)=>`Line ${i} has enough text to make the editor surface scroll vertically.`).join('\n');
+  await page.locator('input[aria-label="Import files"]').setInputFiles([
+    {name:'Long scroll.md',mimeType:'text/markdown',buffer:Buffer.from(long)},
+    {name:'Other note.md',mimeType:'text/markdown',buffer:Buffer.from('Other')}
+  ]);
+  await expect(page.getByTestId('file-Long scroll.md')).toBeVisible();
+  await page.getByTestId('file-Long scroll.md').click();
+  await page.getByTestId('mode-source').click();
+  const scroller=page.getByTestId('editor-surface').locator('.cm-scroller');
+  await expect(scroller).toBeVisible();
+  await scroller.evaluate(element=>{element.scrollTop=700;});
+  await page.waitForTimeout(150);
+  await page.getByTestId('file-Other note.md').click();
+  await page.getByTestId('file-Long scroll.md').click();
+  await expect.poll(()=>scroller.evaluate(element=>element.scrollTop)).toBeGreaterThan(150);
+});

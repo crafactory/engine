@@ -1,6 +1,6 @@
 # Crafactory Engine 原生插件架构提案
 
-状态：阶段 1（组装内核）、阶段 2（storage/documents/commands 默认提供者，内存/本地双提供者同一契约套件）与阶段 3（render/workspace 视图槽与格式注册，Markdown/Canvas/Bases 各自注册格式视图）已实现，其余迁移阶段未开始。阶段 1 规格见 [KERNEL-SPEC.md](KERNEL-SPEC.md)，阶段 2/3 规格见 [SERVICES-SPEC.md](SERVICES-SPEC.md)，单元证据见 `tests/kernel.test.ts`、`tests/services.test.ts` 与 `tests/workspace.test.ts`。阶段 4 进行中：`engine.editor/v1` 与两套提供者已实现（证据 `tests/editor.test.ts`），但应用内 React CodeMirror 视图尚未接入。格式分发已接入 `src/App.tsx`，但 storage/documents/commands 仍由 `src/bridge.ts` 提供，产品功能（含编辑器 UI）尚未完成迁移，全文其余勾选框保持未勾选是有意的。原创应用代码继续 MIT；不复制 Obsidian 应用、SDK、类型声明或示例代码。
+状态：阶段 1（组装内核）、阶段 2（storage/documents/commands 默认提供者，内存/本地双提供者同一契约套件）与阶段 3（render/workspace 视图槽与格式注册，Markdown/Canvas/Bases 各自注册格式视图）已实现，其余迁移阶段未开始。阶段 1 规格见 [KERNEL-SPEC.md](KERNEL-SPEC.md)，阶段 2/3 规格见 [SERVICES-SPEC.md](SERVICES-SPEC.md)，单元证据见 `tests/kernel.test.ts`、`tests/services.test.ts` 与 `tests/workspace.test.ts`。阶段 4 已接入：`engine.editor/v1` 与两套提供者已实现，应用以默认 CodeMirror provider 为活动笔记开 session，选区/视口经 provider 恢复（证据 `tests/editor.test.ts`、`e2e/regressions.spec.ts`）；正文草稿与写入冲突仍沿用应用既有机制。格式分发已接入 `src/App.tsx`，但 storage/documents/commands 仍由 `src/bridge.ts` 提供，产品功能其余部分尚未完成迁移，全文其余勾选框保持未勾选是有意的。原创应用代码继续 MIT；不复制 Obsidian 应用、SDK、类型声明或示例代码。
 
 ## 路线结论
 
@@ -61,10 +61,10 @@ DeepSeek Harness 的 Claude Code Mods bridge 确实加入同一 Cordis 组合机
 - [x] 固定原生 manifest、作用域、服务版本、事件策略和效果所有权规格；增加缺依赖、环、重复服务、启动回滚、迟到回调和跨 Vault 隔离测试。规格见 [KERNEL-SPEC.md](KERNEL-SPEC.md)；证据为 `tests/kernel.test.ts`（38 个组装/生命周期/事件用例）。这不迁移任何产品功能，也不构成社区插件兼容。
 - [x] 从 storage/documents/commands 提取默认提供者，用预览/本地两套提供者跑同一契约套件；保留旧应用入口直到行为回归通过。规格见 [SERVICES-SPEC.md](SERVICES-SPEC.md)；证据为 `tests/services.test.ts`（同一 storage 契约套件跑内存与本地两套提供者，另含 commands/documents 与 kernel 组装）。应用 UI 尚未切换到这些提供者，`src/bridge.ts` 仍是运行入口。
 - [x] 工作区改成视图槽/格式注册插件；Markdown、Canvas、Bases 注册自己的格式视图；确认 kernel 没有这些实现的 import。规格见 [SERVICES-SPEC.md](SERVICES-SPEC.md) 的 `engine.render/v1`、`engine.workspace/v1` 与格式视图插件；证据为 `tests/workspace.test.ts`（含 kernel 仅允许同目录相对 import 的静态检查）与 `src/App.tsx` 采用视图解析做格式分发。注意：storage/documents/commands 仍由 `src/bridge.ts` 提供，尚未接入 UI。
-- [ ] （进行中）编辑器：`engine.editor/v1` 契约与两套提供者（默认 `@codemirror/state`、第二个 plain）已实现，草稿恢复/冲突/视口迁移与 CodeMirror 能力差异均有正向测试（`tests/editor.test.ts`、[SERVICES-SPEC.md](SERVICES-SPEC.md)）。剩余：把应用内 React CodeMirror 视图接到该 provider，使 UI 的草稿/冲突/视口走原生契约。
+- [x] 编辑器：`engine.editor/v1` 契约与两套提供者（默认 `@codemirror/state`、第二个 plain）已实现；应用以默认 CodeMirror provider 为活动笔记开 session，编辑器选区与视口（草稿迁移）经该 provider 恢复/上报。草稿恢复、冲突、视口迁移与 CodeMirror 能力差异均有正向测试（`tests/editor.test.ts`、`e2e/regressions.spec.ts`）。边界：正文草稿与写入冲突仍沿用应用既有机制（bridge 版本冲突），`engine.editor/v1` 的 text/draft/expected-base API 由契约测试覆盖。
 - [ ] 将所有核心产品功能逐一迁移为原生插件，停用/重载/服务丢失均有流程测试；不是仅将文件放进 plugins 目录。
 - [ ] Obsidian facade 只消费原生服务；它停用后默认产品仍工作；更换编辑器后明确输出专有扩展的兼容差异。
 - [ ] profile/包校验、权限和诊断验收；空插件配置下 kernel 不包含隐式产品能力。
 - [ ] 每个阶段独立 PR，经 CodeRabbit 最新提交审查、修复、复审和全套 CI 后再合并，上一阶段未合并不开始后续实施。
 
-阶段 1–3 已勾选，阶段 4 进行中（编辑器契约与两套提供者已完成，UI 接入未完成）；其余未勾选仍然是有意的：这是架构方向和迁移门槛，不是已经完成的重写。现有功能 checklist 的未完成总项仍保留，完整 1:1、移动端及社区插件全兼容目标不因架构提案而变成完成。
+阶段 1–4 已勾选；其余未勾选仍然是有意的：这是架构方向和迁移门槛，不是已经完成的重写。现有功能 checklist 的未完成总项仍保留，完整 1:1、移动端及社区插件全兼容目标不因架构提案而变成完成。
