@@ -59,6 +59,22 @@ function clamp(range: EditorSelection, length: number): EditorSelection {
   return {anchor: Math.max(0, Math.min(length, range.anchor)), head: Math.max(0, Math.min(length, range.head))};
 }
 
+/** Length of the common prefix of two strings. */
+function commonPrefix(a: string, b: string): number {
+  const limit = Math.min(a.length, b.length);
+  let index = 0;
+  while (index < limit && a[index] === b[index]) index++;
+  return index;
+}
+
+/** Length of the common suffix of two strings, not overlapping the given prefix. */
+function commonSuffix(a: string, b: string, prefix: number): number {
+  const limit = Math.min(a.length, b.length) - prefix;
+  let length = 0;
+  while (length < limit && a[a.length - 1 - length] === b[b.length - 1 - length]) length++;
+  return length;
+}
+
 /** Shift one offset across a replacement of `[from, to)` with `inserted` characters. */
 function adjustOffset(offset: number, from: number, to: number, inserted: number): number {
   if (offset >= to) return offset + inserted - (to - from);
@@ -104,7 +120,9 @@ abstract class EditorSessionBase implements EditorSession {
     if (text === current) return true;
     this.past.push({text: current, selection: this.selection()});
     this.future = [];
-    this.viewportValue = adjustViewport(this.viewportValue, 0, current.length, text.length - current.length);
+    const prefix = commonPrefix(current, text);
+    const suffix = commonSuffix(current, text, prefix);
+    this.viewportValue = adjustViewport(this.viewportValue, prefix, current.length - suffix, text.length - prefix - suffix);
     this.write(text, clamp({anchor: 0, head: 0}, text.length));
     this.dirty = true;
     return true;
@@ -159,6 +177,7 @@ abstract class EditorSessionBase implements EditorSession {
 
   /** Restore a serialized draft, replacing text, selection, viewport and dirty state. */
   restore(draft: EditorDraft): void {
+    if (draft.path !== this.path) throw new Error(`Draft path ${draft.path} does not match session path ${this.path}`);
     this.past = [];
     this.future = [];
     this.write(draft.text, clamp(draft.selection, draft.text.length));

@@ -68,6 +68,17 @@ function editorContract(label: string, create: () => EditorProvider): void {
       expect(session.text()).toBe('XYabcdef');
       expect(session.viewport()).toEqual({anchor: 6, head: 6});
     });
+    it('shifts the viewport by the changed range when text is prepended', () => {
+      const session = create().open('N.md', {text: 'abcdef', version: '1'});
+      session.setViewport({anchor: 4, head: 4});
+      session.setText('XYabcdef');
+      expect(session.viewport()).toEqual({anchor: 6, head: 6});
+    });
+    it('rejects a draft for a different path without changing the session', () => {
+      const session = create().open('N.md', {text: 'abc', version: '1'});
+      expect(() => session.restore({...session.draft(), path: 'Other.md'})).toThrow();
+      expect(session.text()).toBe('abc');
+    });
   });
 }
 

@@ -12,14 +12,15 @@ stage is not complete and the native-plugin-kernel gate stays open.
 | Check | Observed result | Scope |
 |---|---|---|
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
-| `npm run test` | 677 passed (17 files) | 660 prior plus 17 new editor cases |
+| `npm run test` | 681 passed (17 files) | 660 prior plus 21 new editor cases |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
-| `tests/editor.test.ts` | 17 passed | Shared contract on two providers, drafts, conflicts, viewport migration, capabilities |
+| `tests/editor.test.ts` | 21 passed | Shared contract on two providers, drafts, conflicts, viewport migration, capabilities |
 
 One shared `engine.editor/v1` contract suite runs against the CodeMirror `@codemirror/state`
 provider and the plain-text provider: open/edit/mark-saved and dirty tracking, insertion at
 the selection, conflict refusal on a mismatched expected base, undo/redo, draft recovery
-with selection/viewport/dirty state, and viewport shifting across an edit. Provider
+with selection/viewport/dirty state, viewport shifting across an edit and by the changed
+range when text is prepended, and rejection of a draft for a different path. Provider
 migration is checked in both directions (CodeMirror ↔ plain) preserving text, selection,
 viewport and dirtiness, and the CodeMirror capability contract is rejected with a
 missing-provider diagnostic when only the plain editor is active.
