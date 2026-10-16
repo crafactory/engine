@@ -257,8 +257,8 @@ export class Kernel {
         if (!root.wanted) continue;
         const restart = this.scopeList.filter(candidate => (candidate === root || isAncestor(root, candidate)) && scopes.has(candidate));
         await this.stopScope(root);
-        for (const candidate of restart) await this.startScope(candidate);
         restarted.push(root);
+        for (const candidate of restart) await this.startScope(candidate);
       }
     } catch (error) {
       // Leave no scope running that was restarted before the failure.

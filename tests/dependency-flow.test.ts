@@ -156,4 +156,17 @@ describe('provider disable and enable flow', () => {
     expect(a.isActive).toBe(true);
     expect(b.isActive).toBe(true);
   });
+  it('rolls back the root when a descendant fails during enable', async () => {
+    let failVault = false;
+    const kernel = new Kernel({engineVersion: '1.0.0'});
+    kernel.register({manifest: manifest('index', {provides: [{contract: 'engine.index/v1', version: '1.0.0'}]}), setup(context) { context.provide('engine.index/v1', '1.0.0', {}); }});
+    kernel.register({manifest: manifest('storage', {scopes: ['vault'], consumes: [{contract: 'engine.index/v1'}]}), setup() { if (failVault) throw new Error('boom'); }});
+    const vault = kernel.createScope('vault', 'a');
+    await kernel.start();
+    await kernel.disable('index');
+    failVault = true;
+    await expect(kernel.enable('index')).rejects.toBeInstanceOf(AssemblyError);
+    expect(kernel.runtime.isActive).toBe(false);
+    expect(vault.isActive).toBe(false);
+  });
 });
