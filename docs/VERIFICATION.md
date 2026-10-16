@@ -1,5 +1,25 @@
 # Verification results
 
+## Index consumer panels (stage 5 continuation)
+
+This section records source verification for migrating the reader panels onto
+`engine.index/v1`. The application's tags, backlinks, outgoing-links and outline panels now
+consume the index instead of recomputing metadata from note content; search, graph and
+properties are not migrated yet, so stage 5 stays unchecked.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 723 passed (21 files) | 722 prior plus the tag-path filter case |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | 45 passed / 6 failed | Unchanged baseline; the tags/outgoing/outline case passes |
+
+`App` rebuilds one `engine.index/v1` service for the current note set and derives tag
+counts (restricted to Markdown paths), incoming/backlinks, outgoing links and headings from
+it. The browser case that exercises tags, outgoing links, the outline and unlinked mentions
+passes, and the wider suite shows the same six macOS `Control+…` platform failures as the
+baseline. These are unit/composition and local checks, not packaged-binary acceptance.
+
 ## Notes index dependency (stage 5 continuation)
 
 This section records source verification for `engine.index/v1`, the derived metadata and

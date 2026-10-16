@@ -33,7 +33,7 @@ export interface IndexService {
   note(path: string): IndexedNote | undefined;
   outgoing(path: string): IndexedLink[];
   backlinks(path: string): Backlink[];
-  tags(): TagCount[];
+  tags(paths?: readonly string[]): TagCount[];
   headings(path: string): IndexedHeading[];
   properties(path: string): Record<string, unknown>;
   resolve(linktext: string, from: string): string | undefined;
@@ -119,10 +119,14 @@ export class NotesIndex implements IndexService {
     return result;
   }
 
-  /** Tag counts across the index, most frequent first. */
-  tags(): TagCount[] {
+  /** Tag counts, optionally limited to a set of paths, most frequent first. */
+  tags(paths?: readonly string[]): TagCount[] {
+    const allowed = paths ? new Set(paths) : undefined;
     const counts = new Map<string, number>();
-    for (const source of this.notes) for (const tag of tags(source.content)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    for (const source of this.notes) {
+      if (allowed && !allowed.has(source.path)) continue;
+      for (const tag of tags(source.content)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
     return [...counts].map(([tag, count]) => ({tag, count})).sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
   }
 

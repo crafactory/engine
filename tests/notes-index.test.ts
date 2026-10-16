@@ -70,6 +70,12 @@ describe('notes index', () => {
     expect(tags).toContainEqual({tag: 'project', count: 1});
     expect(tags).toContainEqual({tag: 'inline', count: 1});
   });
+  it('limits tag counts to the given paths', () => {
+    const index = new NotesIndex();
+    index.rebuild(notes);
+    expect(index.tags(['Ideas/Alpha.md'])).toEqual([{tag: 'inline', count: 1}, {tag: 'project', count: 1}]);
+    expect(index.tags(['Ideas/Beta.md'])).toEqual([]);
+  });
   it('searches with optional case sensitivity', () => {
     const index = new NotesIndex();
     index.rebuild(notes);
