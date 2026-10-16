@@ -11,9 +11,9 @@ the native-plugin-kernel gate stays open.
 | Check | Observed result | Scope |
 |---|---|---|
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
-| `npm run test` | 692 passed (18 files) | 686 prior plus 6 new bookmarks cases |
+| `npm run test` | 693 passed (18 files) | 686 prior plus 7 new bookmarks cases |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
-| `tests/bookmarks.test.ts` | 6 passed | Service behavior, subscription and kernel composition |
+| `tests/bookmarks.test.ts` | 7 passed | Service behavior, subscription and kernel composition |
 | `npm run test:e2e` (macOS) | 45 passed / 6 failed | Unchanged baseline; the 6 are the known `Control+…` platform cases |
 
 The application now consumes `engine.bookmarks/v1` for toggling/adding/removing bookmarks

@@ -50,8 +50,9 @@ export class Bookmarks implements BookmarksService {
     this.emit();
   }
 
-  /** Toggle a path and report the resulting state. */
+  /** Toggle a path and report the resulting state; an empty path is rejected. */
   toggle(path: string): boolean {
+    if (typeof path !== 'string' || !path) return false;
     if (this.has(path)) { this.remove(path); return false; }
     this.add(path);
     return true;
@@ -69,10 +70,9 @@ export class Bookmarks implements BookmarksService {
     return () => { this.listeners.delete(listener); };
   }
 
-  /** Notify every listener with an immutable snapshot. */
+  /** Notify every listener with its own immutable snapshot. */
   private emit(): void {
-    const snapshot = this.list();
-    for (const listener of [...this.listeners]) listener(snapshot);
+    for (const listener of [...this.listeners]) listener(this.list());
   }
 }
 

@@ -19,8 +19,18 @@ describe('bookmarks service', () => {
     expect(bookmarks.has('C.md')).toBe(true);
     expect(bookmarks.toggle('C.md')).toBe(false);
     expect(bookmarks.has('C.md')).toBe(false);
+    expect(bookmarks.toggle('')).toBe(false);
     bookmarks.remove('missing.md');
     expect(bookmarks.list()).toEqual([]);
+  });
+  it('gives each subscriber an independent snapshot', () => {
+    const bookmarks = new Bookmarks(['B.md', 'A.md']), seen: string[][] = [];
+    bookmarks.subscribe(paths => { paths.reverse(); seen.push(paths); });
+    bookmarks.subscribe(paths => seen.push(paths));
+    bookmarks.add('C.md');
+    expect(seen[0]).toEqual(['C.md', 'A.md', 'B.md']);
+    expect(seen[1]).toEqual(['B.md', 'A.md', 'C.md']);
+    expect(bookmarks.list()).toEqual(['B.md', 'A.md', 'C.md']);
   });
   it('replaces sanitized paths and notifies subscribers once', () => {
     const bookmarks = new Bookmarks(), listener = vi.fn();
