@@ -83,6 +83,32 @@ constructs its service from the render provider resolved at activation time, and
 rejected when render is missing. Binding to the consumed provider avoids a mismatch when
 a kernel supplies separate render and workspace instances.
 
+### `engine.editor/v1`
+
+A DOM-free document editing model over UTF-16 offsets: `text`, `version`, `isDirty`,
+`setText` (with an optional expected base that refuses on conflict), `insert`,
+`selection`, `viewport`, `undo`/`redo`, `markSaved`, `draft` and `restore`. A draft
+carries text, selection, viewport, version and dirty state, so a session can be recovered
+or moved to another provider without losing the caret, scroll anchor or unsaved state.
+The viewport shifts with edits so it keeps pointing at the same text.
+
+Two independent providers satisfy the contract:
+
+| Provider | Module | Capabilities |
+|---|---|---|
+| `CodeMirrorEditorProvider` | `src/services/editor.ts` | backed by `@codemirror/state`; advertises `engine.editor.codemirror/v1` |
+| `PlainEditorProvider` | `src/services/editor.ts` | plain text; deliberately no CodeMirror capability |
+
+### `engine.editor.codemirror/v1`
+
+An optional capability contract provided only by the CodeMirror editor. It exposes
+`{providerId, capabilities}`. A plugin or consumer that requires CodeMirror-specific
+extensions is rejected with a missing-provider diagnostic when only the plain editor is
+active, so a provider swap reports the compatibility difference instead of pretending the
+extension still applies. This is the optional editor capability described in
+[NATIVE-PLUGIN-ARCHITECTURE.md](NATIVE-PLUGIN-ARCHITECTURE.md), not a sandbox or a claim
+that third-party CodeMirror extensions remain compatible.
+
 ### Format view plugins
 
 `engine.format.markdown`, `engine.format.canvas` and `engine.format.bases` each consume
@@ -101,7 +127,8 @@ and returns the kernel, the live render service and the workspace service resolv
 the same kernel. `engine.documents` depends on `engine.storage/v1`, the workspace provider
 depends on `engine.render/v1`, and each format plugin depends on both, so the kernel
 activates them in dependency order and rejects missing providers. The local profile
-requires a vault.
+requires a vault. `createEditorRuntime(kind)` registers the CodeMirror or plain editor
+provider plugin, starts the kernel and returns the resolved editor provider.
 
 ## Bounded evidence
 
@@ -111,14 +138,20 @@ contract and provider composition (activation order, resolved contracts, missing
 error, empty diagnostics). `tests/workspace.test.ts` covers format registration/resolution,
 view slots, the render→workspace dependency, scope-stop revocation and a static check that
 every `src/kernel/` import is a sibling relative module, so the kernel cannot import a
-Markdown, Canvas or Bases implementation.
+Markdown, Canvas or Bases implementation. `tests/editor.test.ts` runs one shared editor
+contract suite against the CodeMirror and plain providers, and covers draft recovery,
+conflict refusal, viewport migration across an edit and between providers, and the
+CodeMirror capability difference.
 
 ## Not yet done
 
 - Storage, documents and commands providers are not yet consumed by the application; the
   running path still uses `src/bridge.ts` for persistence. The workspace/render services
   only drive format → view dispatch in `src/App.tsx`.
+- The editor contract has two providers and a migration path, but the application's React
+  CodeMirror view is not yet wired to `engine.editor/v1`; draft/conflict/viewport in the
+  UI still use the existing in-app logic.
 - No Electron/worker IPC adapter over these contracts is implemented.
-- `engine.index/v1` and `engine.editor/v1` remain unimplemented; the corresponding
-  migration stages stay unchecked.
+- `engine.index/v1` remains unimplemented; the corresponding migration stages stay
+  unchecked.
 - Cross-process atomicity, crash durability and a permission model remain open.
