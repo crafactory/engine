@@ -22,7 +22,7 @@ import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
-import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime} from './services';
+import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
 const Canvas=lazy(()=>import('./Canvas').then(m=>({default:m.Canvas})));
@@ -69,6 +69,7 @@ export function App(){
   const workspaceRuntime=useRef<WorkspaceRuntime|null>(null),workspaceViews=useRef<WorkspaceViewService|null>(null),unmounted=useRef(false);
   const editorRuntime=useRef<EditorRuntime|null>(null),editorSessions=useRef(new Map<string,EditorSession>());
   const bookmarksRuntime=useRef<BookmarksRuntime|null>(null),bookmarksUnsub=useRef<(()=>void)|null>(null);
+  const templatesRuntime=useRef<DailyNotesRuntime|null>(null);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   function pluginSnapshot():PluginSnapshot{
     const s=pluginState.current;
@@ -99,6 +100,7 @@ export function App(){
       }
       if(!editorRuntime.current){const runtime=await createEditorRuntime('codemirror');if(unmounted.current){void runtime.kernel.stop();return;}editorRuntime.current=runtime;}
       if(!bookmarksRuntime.current){const runtime=await createBookmarksRuntime();if(unmounted.current){void runtime.kernel.stop();return;}bookmarksRuntime.current=runtime;bookmarksUnsub.current=runtime.service.subscribe(next=>setBookmarks(next));}
+      if(!templatesRuntime.current){const runtime=await createDailyNotesRuntime();if(unmounted.current){void runtime.kernel.stop();return;}templatesRuntime.current=runtime;}
       editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));
@@ -113,7 +115,7 @@ export function App(){
       loaded.current=true;setPluginList(await bridge.plugins());
     }catch(e){report(e);}finally{setLoading(false);}
   }
-  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();};},[]);
+  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();};},[]);
   useEffect(()=>{for(const controller of pluginStops.current.values())controller.sync(pluginSnapshot());},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
@@ -258,10 +260,11 @@ export function App(){
     try{await stopPlugins();await flush();await bridge.state({settings,bookmarks,workspaces,recent});if(await bridge.choose(create))await initialize();}catch(e){report(e);}
   }
   async function dailyNote(){
-    const date=applyTemplate('{{date}}',''),path=`${settings.dailyFolder}/${date}.md`;
-    if(notes.some(n=>n.path===path)){open(path);return;}
     const template=notes.find(n=>n.path===settings.dailyTemplate)?.content||'# {{date}}\n\n';
-    await createNote(path,applyTemplate(template,date));
+    const runtime=templatesRuntime.current;
+    const note=runtime?runtime.dailyNotes.today({folder:settings.dailyFolder,templateContent:template}):{path:`${settings.dailyFolder}/${applyTemplate('{{date}}','')}.md`,content:applyTemplate(template,applyTemplate('{{date}}',''))};
+    if(notes.some(n=>n.path===note.path)){open(note.path);return;}
+    await createNote(note.path,note.content);
   }
   /** Create a Canvas while retaining the requested extension spelling. */
   async function createCanvas(){const name=await dialog.ask('New canvas','Untitled.canvas');if(name)createNote(/\.canvas$/i.test(name)?name:name+'.canvas','{"nodes":[],"edges":[]}');}
@@ -271,7 +274,8 @@ export function App(){
   async function insertTemplate(path:string){
     if(!activeNote||!isNote(active)){toast('Open a Markdown note first.');return;}
     const template=notes.find(n=>n.path===path);if(!template)return;
-    const content=applyTemplate(template.content,title(active));
+    const runtime=templatesRuntime.current;
+    const content=runtime?runtime.templates.apply(template.content,{title:title(active)}):applyTemplate(template.content,title(active));
     const templateMeta=frontmatter(content),currentMeta=frontmatter(activeNote.content);
     if(templateMeta.error||currentMeta.error){report(new Error('Fix invalid frontmatter before inserting a template.'));return;}
     if(mode==='reading'||templateMeta.raw){

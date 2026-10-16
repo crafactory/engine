@@ -135,8 +135,29 @@ reports failures, matching the recorded renderer limits.
 - **Reload:** `reload(id)` stops and restarts every active scope that owns the plugin,
   including its active descendants, re-establishing dependencies exactly. Sibling
   plugins in the same scope restart too; per-instance hot reload is a later stage.
+- **Dependency loss and rebinding:** `disable(id)` deactivates the plugin, every active
+  transitive *required* consumer of a contract it provides, and active descendant scopes
+  that may depend on it, recording a `dependency-disabled` diagnostic. Optional consumers
+  are unaffected, and a disabled plugin stays disabled across scope restarts and sibling
+  reloads until `enable`. `enable(id)` restarts only the scopes the caller still intends to
+  run, so an explicit `Kernel.stop` is not undone, and it retains disabled state if
+  reactivation fails so the caller can retry. Lifecycle operations are serialized per
+  scope, so a disposal hook runs once even when `disable` overlaps a scope stop.
 - **Diagnostics:** `kernel.diagnostics` and the `onDiagnostic` observer receive every
   diagnostic with a stable code, plugin id, contract and scope.
+
+## Confirming dependency relationships
+
+A relationship is confirmed at three levels:
+
+1. **Static:** the manifest `provides`/`consumes` graph and version ranges are checked at
+   assembly (`missing-provider`, `duplicate-provider`, `version-mismatch`,
+   `dependency-cycle`), and activation order is topological (providers first).
+2. **Runtime updates:** a service that changes state offers its own subscription
+   (for example `engine.bookmarks/v1` exposes `subscribe`), or the change is published on
+   the kernel's declared event bus with a fixed delivery strategy.
+3. **Lifecycle:** `disable`/`enable` and `reload` re-establish or invalidate relationships
+   and rebind consumers to fresh instances.
 
 ## Known stage-1 boundaries
 
@@ -144,8 +165,9 @@ reports failures, matching the recorded renderer limits.
   kernel.
 - Plugins are registered programmatically. Loading signed packages, integrity
   metadata and permission enforcement are later stages.
-- Hot per-instance reload, cross-process activation and window/leaf/document scope
-  behavior at real integration points are not implemented.
+- Per-plugin `disable`/`enable` and scope-level `reload` are supported; swapping a
+  provider without restarting its consumers, cross-process activation and real
+  window/leaf/document scope integration are not implemented.
 - There is no automatic fallback product feature; a failed assembly reports an error
   instead of pretending success.
 
@@ -160,5 +182,9 @@ version differs from the declaration; effect ordering, late registration
 and abort signals; cross-vault scope isolation and rejection of an upward dependency;
 scope reload and descendant-scope teardown; serialized restart behind an in-flight stop;
 all four event strategies; and the diagnostic observer, including containment of a
-throwing observer. This is assembly-unit evidence, not a migrated product feature or
+throwing observer. `tests/dependency-flow.test.ts` covers provider disable/enable with
+transitive required consumers, optional consumers staying active, child-scope
+stop/restart, a migrated core-feature provider as a consumer, reload rebinding,
+persisted disabled state across restarts, retry after a failed enable, explicit-stop
+intent and single disposal under a disable/stop overlap. This is assembly-unit evidence, not a migrated product feature or
 real-plugin compatibility.

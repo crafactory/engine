@@ -3,7 +3,7 @@
 export type DiagnosticCode =
   | 'invalid-manifest' | 'duplicate-plugin' | 'engine-mismatch' | 'unknown-contract'
   | 'missing-provider' | 'duplicate-provider' | 'version-mismatch' | 'dependency-cycle'
-  | 'activation-failure' | 'cleanup-failure' | 'late-registration';
+  | 'activation-failure' | 'cleanup-failure' | 'late-registration' | 'dependency-disabled';
 
 export type DiagnosticSeverity = 'error' | 'warning';
 

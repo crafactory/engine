@@ -79,10 +79,12 @@ export class Scope {
   readonly services = new ServiceRegistry();
   readonly instances = new Map<string, Instance>();
   active = false;
-  /** In-flight activation, awaited by concurrent starts and stops of the same scope. */
-  starting?: Promise<void>;
-  /** In-flight deactivation, awaited before the scope is restarted. */
-  stopping?: Promise<void>;
+  /** Whether the caller intends this scope to be running; cleared by an explicit `Kernel.stop`. */
+  wanted = false;
+  /** Tail of the per-scope lifecycle operation chain; serializes start/stop/disable/enable. */
+  transition?: Promise<void>;
+  /** Plugin ids explicitly disabled in this scope until an explicit enable. */
+  readonly disabled = new Set<string>();
 
   /**
    * @param kernel Owning kernel used to look up definitions and report diagnostics.
@@ -119,6 +121,7 @@ export class Kernel {
   private readonly scopeList: Scope[] = [];
   private readonly runtimeScope: Scope;
   private readonly diagnosticLog: Diagnostic[] = [];
+  private readonly disabledScopes = new Map<string, Set<Scope>>();
   private readonly allowedContracts?: Set<string>;
   private readonly engineVersion: string;
   private readonly observer?: (diagnostic: Diagnostic) => void;
@@ -172,35 +175,28 @@ export class Kernel {
 
   /** Deactivate every scope in reverse creation order. */
   async stop(): Promise<void> {
-    for (const scope of [...this.scopeList].reverse()) await this.stopScope(scope);
+    for (const scope of [...this.scopeList].reverse()) { scope.wanted = false; await this.stopScope(scope); }
   }
 
   /** Activate one scope in dependency order; throws with diagnostics on failure. */
   startScope(scope: Scope): Promise<void> {
     if (scope.kernel !== this) return Promise.reject(new Error('Scope does not belong to this kernel'));
-    if (scope.starting) return scope.starting;
-    const run = (async () => {
-      await scope.stopping;
+    return this.serializeScope(scope, async () => {
       if (scope.active) return;
       await this.activateScope(scope);
-    })();
-    scope.starting = run;
-    return run.finally(() => { if (scope.starting === run) scope.starting = undefined; });
+      scope.wanted = true;
+    });
   }
 
   /** Deactivate one scope and its active descendants, recording cleanup failures. */
   stopScope(scope: Scope): Promise<void> {
     if (scope.kernel !== this) return Promise.reject(new Error('Scope does not belong to this kernel'));
-    if (scope.stopping) return scope.stopping;
-    const run = (async () => {
-      await scope.starting;
+    return this.serializeScope(scope, async () => {
       if (!scope.active) return;
       for (const child of this.childScopes(scope)) await this.stopScope(child);
       scope.active = false;
       this.recordAll(await this.deactivateInstances([...scope.instances.values()]));
-    })();
-    scope.stopping = run;
-    return run.finally(() => { if (scope.stopping === run) scope.stopping = undefined; });
+    });
   }
 
   /** Reload every active scope that owns the given plugin id, restarting descendants too. */
@@ -216,6 +212,111 @@ export class Kernel {
     }
   }
 
+  /**
+   * Deactivate a plugin, every active transitive required consumer of its contracts and
+   * active descendant scopes, keeping it disabled until an explicit enable. The work is
+   * serialized per scope with start/stop so a disposal hook runs once.
+   */
+  async disable(id: string): Promise<void> {
+    const affected: Scope[] = [];
+    for (const scope of this.scopeList) {
+      if (!scope.active || !scope.instances.has(id)) continue;
+      affected.push(scope);
+      const descendants = this.scopeList.filter(candidate => candidate.active && isAncestor(scope, candidate));
+      for (const child of descendants) affected.push(child);
+      await this.serializeScope(scope, async () => {
+        if (!scope.active || !scope.instances.has(id)) return;
+        scope.disabled.add(id);
+        // Stop dependent descendant scopes before removing a provider they may resolve.
+        for (const child of descendants) await this.stopScope(child);
+        const ids = this.dependentIds(scope, id);
+        const instances = [...scope.instances.values()].filter(instance => ids.has(instance.manifest.id));
+        this.recordAll(await this.deactivateInstances(instances));
+        this.record({code: 'dependency-disabled', severity: 'warning', message: `Disabled ${id} and ${ids.size - 1} dependent plugin(s) in ${scope.label}`, plugin: id, scope: scope.label});
+      });
+    }
+    if (!affected.length) throw new Error('Plugin is not active: ' + id);
+    this.disabledScopes.set(id, new Set(affected));
+  }
+
+  /**
+   * Re-enable a previously disabled plugin. Active affected scopes are restarted with
+   * their recorded descendants so every consumer re-resolves a fresh provider; a scope
+   * the caller explicitly stopped stays stopped. Disabled state is retained if
+   * reactivation fails so the caller can retry.
+   */
+  async enable(id: string): Promise<void> {
+    const scopes = this.disabledScopes.get(id);
+    if (!scopes) throw new Error('Plugin is not disabled: ' + id);
+    for (const scope of scopes) scope.disabled.delete(id);
+    const list = [...scopes];
+    const roots = list.filter(scope => !list.some(other => other !== scope && isAncestor(other, scope)));
+    const restarted: Scope[] = [];
+    try {
+      for (const root of roots) {
+        if (!root.wanted) continue;
+        const restart = this.scopeList.filter(candidate => (candidate === root || isAncestor(root, candidate)) && scopes.has(candidate));
+        await this.stopScope(root);
+        restarted.push(root);
+        for (const candidate of restart) await this.startScope(candidate);
+      }
+    } catch (error) {
+      // Leave no scope running that was restarted before the failure.
+      for (const root of restarted) if (root.active) await this.stopScope(root);
+      for (const scope of scopes) scope.disabled.add(id);
+      throw error;
+    }
+    this.disabledScopes.delete(id);
+  }
+
+  /** Plugin ids that must be disabled with a provider: itself plus transitive required consumers. */
+  private dependentIds(scope: Scope, root: string): Set<string> {
+    const included = new Set<string>([root]);
+    const provided = new Set<string>();
+    const include = (id: string): void => {
+      included.add(id);
+      for (const provision of this.definitions.get(id)?.manifest.provides ?? []) provided.add(provision.contract);
+    };
+    include(root);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const [id, definition] of this.definitions) {
+        if (included.has(id) || !scope.instances.has(id) || !scopesFor(definition).includes(scope.kind)) continue;
+        const required = (definition.manifest.consumes ?? []).some(requirement => !requirement.optional && provided.has(requirement.contract));
+        if (required) { include(id); changed = true; }
+      }
+    }
+    return included;
+  }
+
+  /** Run a lifecycle operation per scope, chained behind any in-flight operation on it. */
+  private serializeScope<T>(scope: Scope, operation: () => Promise<T>): Promise<T> {
+    const run = (scope.transition ?? Promise.resolve()).then(operation, operation);
+    scope.transition = run.then(() => undefined, () => undefined);
+    return run;
+  }
+
+  /** Plugin ids excluded from activation: explicit disables plus their required consumers. */
+  private disabledClosure(scope: Scope): Set<string> {
+    const included = new Set(scope.disabled);
+    const provided = new Set<string>();
+    for (const id of included) for (const provision of this.definitions.get(id)?.manifest.provides ?? []) provided.add(provision.contract);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const [id, definition] of this.definitions) {
+        if (included.has(id) || !scopesFor(definition).includes(scope.kind)) continue;
+        if ((definition.manifest.consumes ?? []).some(requirement => !requirement.optional && provided.has(requirement.contract))) {
+          included.add(id);
+          for (const provision of definition.manifest.provides ?? []) provided.add(provision.contract);
+          changed = true;
+        }
+      }
+    }
+    return included;
+  }
+
   /** Active children of a scope, used to stop consumers before their provider scope. */
   private childScopes(scope: Scope): Scope[] {
     return [...this.scopeList].reverse().filter(candidate => candidate.parent === scope && candidate.active);
@@ -223,7 +324,8 @@ export class Kernel {
 
   /** Run activation for a scope that is not already starting. */
   private async activateScope(scope: Scope): Promise<void> {
-    const candidates = [...this.definitions.values()].filter(definition => scopesFor(definition).includes(scope.kind));
+    const excluded = this.disabledClosure(scope);
+    const candidates = [...this.definitions.values()].filter(definition => scopesFor(definition).includes(scope.kind) && !excluded.has(definition.manifest.id));
     const errors = this.collectAssemblyErrors(scope, candidates);
     if (errors.length) { this.recordAll(errors); throw new AssemblyError(errors); }
     const order = topological(candidates.map(definition => definition.manifest.id), this.buildEdges(candidates));
