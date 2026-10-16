@@ -96,6 +96,13 @@ describe('notes index', () => {
     expect(index.search('NEEDLE', {caseSensitive: true})).not.toContain('Search.md');
     expect(index.search('needle', {caseSensitive: true})).not.toContain('Ideas/Beta.md');
   });
+  it('passes search operators through to the note set', () => {
+    const index = new NotesIndex();
+    index.rebuild(notes);
+    expect(index.search('path:Gamma')).toEqual(['Gamma.md']);
+    expect(index.search('file:Alpha')).toContain('Ideas/Alpha.md');
+    expect(index.search('tag:project')).toContain('Ideas/Alpha.md');
+  });
   it('updates and removes notes and invalidates their derivations', () => {
     const index = new NotesIndex();
     index.rebuild(notes);

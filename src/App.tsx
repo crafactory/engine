@@ -9,7 +9,7 @@ import {
 import {parse,stringify} from 'yaml';
 import {bridge,defaults} from './bridge';
 import {renameDestination} from './file-path';
-import {title,isNote,frontmatter,setProperties,resolveLink,headings,search,applyTemplate,rewriteLinks} from './knowledge';
+import {title,isNote,frontmatter,setProperties,resolveLink,headings,applyTemplate,rewriteLinks} from './knowledge';
 import type {EditorHandle} from './Editor';
 import {Markdown,renderMarkdown} from './Markdown';
 import {Settings} from './Settings';
@@ -485,7 +485,11 @@ export function App(){
   /** Rebuild the native notes index for the current note set before deriving panels. */
   const indexed=useMemo(()=>{const service=indexRuntime.current?.index??null;if(service)service.rebuild(notes);return service;},[notes]);
   const tagCounts=useMemo(()=>(indexed?.tags(notes.filter(n=>isNote(n.path)).map(n=>n.path))??[]).map(entry=>[entry.tag,entry.count] as [string,number]),[indexed,notes]);
-  const results=useMemo(()=>search(notes.filter(n=>isNote(n.path)||/\.canvas$/i.test(n.path)),query,caseSensitive).sort((a,b)=>searchSort==='modified'?(entries.find(e=>e.path===b.path)?.mtime||0)-(entries.find(e=>e.path===a.path)?.mtime||0):a.path.localeCompare(b.path)),[notes,query,caseSensitive,searchSort,entries]);
+  const searchPaths=useMemo(()=>indexed?.search(query,{caseSensitive})??[],[indexed,query,caseSensitive]);
+  const results=useMemo(()=>{
+    const matched=new Set(searchPaths.filter(path=>isNote(path)||/\.canvas$/i.test(path)));
+    return notes.filter(n=>matched.has(n.path)).sort((a,b)=>searchSort==='modified'?(entries.find(e=>e.path===b.path)?.mtime||0)-(entries.find(e=>e.path===a.path)?.mtime||0):a.path.localeCompare(b.path));
+  },[searchPaths,notes,searchSort,entries]);
   const incoming=useMemo(()=>{const set=new Set(indexed?.backlinks(active).map(entry=>entry.path)??[]);return activeNote?notes.filter(n=>set.has(n.path)):[];},[indexed,active,activeNote,notes]);
   const outgoing=activeNote&&indexed?indexed.outgoing(active):[];
   const mentions=activeNote?notes.filter(n=>n.path!==active&&!incoming.includes(n)&&isNote(n.path)&&frontmatter(n.content).body.toLowerCase().includes(title(active).toLowerCase())):[];

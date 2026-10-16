@@ -1,5 +1,25 @@
 # Verification results
 
+## Search consumer (stage 5 continuation)
+
+This section records source verification for migrating the search panel onto
+`engine.index/v1`. `App` now derives search results from the index and maps the matching
+paths back to notes for the result list and snippet; graph and properties are not migrated
+yet, so stage 5 stays unchecked.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 726 passed (21 files) | 725 prior plus the search-operator index case |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | 45 passed / 6 failed | Unchanged baseline; the search operators case passes |
+
+`index.search` reuses the existing query engine (`path:`, `file:`, `tag:`, `content:`,
+boolean and regex operators pass through), and the application filters the returned paths
+to Markdown and Canvas notes exactly as before, then sorts by name or modification time.
+An index case covers operator pass-through, and the browser search case passes. These are
+unit/composition and local checks, not packaged-binary acceptance.
+
 ## Index consumer panels (stage 5 continuation)
 
 This section records source verification for migrating the reader panels onto

@@ -156,8 +156,8 @@ A derived metadata and search index over Markdown notes: `rebuild`/`update`/`rem
 `tags` (counts, optionally restricted to a path set), `headings`, `properties`, `resolve`
 (link → path) and `search` (case-sensitive option). It builds from caller-supplied note
 content and caches per-note derivations, so it imports no editor or UI module. The
-application's tags, backlinks, outgoing-links and outline panels consume this contract;
-search, graph and properties migrate next.
+application's tags, backlinks, outgoing-links, outline and search panels consume this
+contract; graph and properties migrate next.
 
 ## Composition
 
@@ -203,9 +203,9 @@ index dependency flow.
 - Bookmarks and templates/daily notes are consumed by the application; their persistence
   is still application-side, and the migrated core features are a subset of the 29 core
   plugins.
-- The tags, backlinks, outgoing-links and outline panels now consume `engine.index/v1`;
-  search, graph and properties have not migrated onto it yet and those stages stay
-  unchecked.
+- The tags, backlinks, outgoing-links, outline and search panels now consume
+  `engine.index/v1`; graph and properties have not migrated onto it yet and those stages
+  stay unchecked.
 - The editor has two providers and the app uses the CodeMirror provider for
   selection/viewport; body-text drafts and write conflicts still use the application's
   existing draft and bridge-conflict logic rather than the provider's text APIs.
