@@ -2,8 +2,8 @@ import {describe,it,expect} from 'vitest';
 import {AssemblyError, Kernel} from '../src/kernel';
 import {
   CodeMirrorEditorProvider, PlainEditorProvider, createPlainEditorPlugin,
-  createEditorRuntime, migrateSession, EDITOR_CONTRACT, CODEMIRROR_EDITOR_CONTRACT,
-  type EditorProvider
+  createEditorRuntime, migrateSession, toDocumentOffset, toViewOffset,
+  EDITOR_CONTRACT, CODEMIRROR_EDITOR_CONTRACT, type EditorProvider
 } from '../src/services/editor';
 
 /** Run the identical editor contract against a provider factory. */
@@ -138,5 +138,16 @@ describe('editor provider replacement', () => {
     const session = runtime.provider.open('N.md', {text: 'x', version: '1'});
     expect(runtime.provider.id).toBe('engine.editor.plain');
     expect(session.text()).toBe('x');
+  });
+});
+
+describe('offset translation across a hidden frontmatter prefix', () => {
+  it('converts view offsets to document offsets and clamps back into the view', () => {
+    expect(toDocumentOffset(0, 12)).toBe(12);
+    expect(toDocumentOffset(5, 0)).toBe(5);
+    expect(toViewOffset(12, 12, 5)).toBe(0);
+    expect(toViewOffset(14, 12, 5)).toBe(2);
+    expect(toViewOffset(2, 12, 5)).toBe(0);
+    expect(toViewOffset(999, 12, 5)).toBe(5);
   });
 });

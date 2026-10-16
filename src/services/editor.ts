@@ -60,6 +60,14 @@ function clamp(range: EditorSelection, length: number): EditorSelection {
   return {anchor: Math.max(0, Math.min(length, range.anchor)), head: Math.max(0, Math.min(length, range.head))};
 }
 
+/** Convert a view offset (excluding a hidden frontmatter prefix) to a full-document offset. */
+export function toDocumentOffset(viewOffset: number, prefixLength: number): number { return viewOffset + prefixLength; }
+
+/** Convert a full-document offset to a view offset, clamping into the visible document. */
+export function toViewOffset(documentOffset: number, prefixLength: number, viewLength: number): number {
+  return Math.max(0, Math.min(viewLength, documentOffset - prefixLength));
+}
+
 /** Length of the common prefix of two strings. */
 function commonPrefix(a: string, b: string): number {
   const limit = Math.min(a.length, b.length);

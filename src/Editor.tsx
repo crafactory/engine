@@ -12,7 +12,7 @@ import type {Note,Settings} from './types';
 import {livePreview,refreshLivePreview} from './LivePreview';
 import {inlineLinks} from './inline-links';
 import {liveRegions} from './live-model';
-import type {EditorSession} from './services/editor';
+import {toDocumentOffset,toViewOffset,type EditorSession} from './services/editor';
 export interface EditorHandle {path():string;insert(text:string):void;selection():string;replaceSelection(text:string):void;jump(offset:number):void;focus():void;find():void;snapshot():{text:string;from:number;to:number};applyPluginEdit(base:string,text:string,from:number,to:number):boolean}
 const engineHighlight=HighlightStyle.define([
   {tag:syntaxTags.heading,fontWeight:'600',color:'var(--text)'},
@@ -96,8 +96,8 @@ function Editor({note,notes,settings,pluginExtensions=[],session,onChange,onOpen
         ]),
         EditorView.contentAttributes.of({spellcheck:String(settings.spellcheck),'aria-label':'Note editor','data-testid':'note-editor'}),
         EditorView.updateListener.of(update=>{
-          if(update.docChanged){const text=update.state.doc.toString();if(!external.current)callbacks.current.onChange(prefix.current+text);sessionRef.current?.track(text);}
-          if(update.selectionSet||update.docChanged){const range=update.state.selection.main;sessionRef.current?.setSelection({anchor:range.anchor,head:range.head});}
+          if(update.docChanged){const text=update.state.doc.toString();if(!external.current)callbacks.current.onChange(prefix.current+text);sessionRef.current?.track(prefix.current+text);}
+          if(update.selectionSet||update.docChanged){const range=update.state.selection.main,prefixLength=prefix.current.length;sessionRef.current?.setSelection({anchor:toDocumentOffset(range.anchor,prefixLength),head:toDocumentOffset(range.head,prefixLength)});}
         }),
         EditorView.domEventHandlers({
           /** Follow modifier-clicked supported links without intercepting ordinary source editing. */
@@ -118,9 +118,9 @@ function Editor({note,notes,settings,pluginExtensions=[],session,onChange,onOpen
       ]})
     });view.current=editor;
     const activeSession=sessionRef.current,draft=activeSession?.draft();
-    if(draft){const max=editor.state.doc.length;editor.dispatch({selection:{anchor:Math.max(0,Math.min(max,draft.selection.anchor)),head:Math.max(0,Math.min(max,draft.selection.head))}});if(draft.viewport.anchor>0)editor.dispatch({effects:EditorView.scrollIntoView(Math.max(0,Math.min(max,draft.viewport.anchor)),{y:'start'})});}
+    if(draft){const max=editor.state.doc.length,prefixLength=prefix.current.length;editor.dispatch({selection:{anchor:toViewOffset(draft.selection.anchor,prefixLength,max),head:toViewOffset(draft.selection.head,prefixLength,max)}});const viewport=toViewOffset(draft.viewport.anchor,prefixLength,max);if(viewport>0)editor.dispatch({effects:EditorView.scrollIntoView(viewport,{y:'start'})});}
     /** Persist the scroll anchor through the editor session so it survives remounts. */
-    const trackScroll=()=>{const offset=viewportTop(editor);sessionRef.current?.setViewport({anchor:offset,head:offset});};
+    const trackScroll=()=>{const offset=toDocumentOffset(viewportTop(editor),prefix.current.length);sessionRef.current?.setViewport({anchor:offset,head:offset});};
     // Register after CodeMirror's scheduled viewport restore so that restore does not overwrite the draft.
     const scrollFrame=requestAnimationFrame(()=>editor.scrollDOM.addEventListener('scroll',trackScroll,{passive:true}));
     return()=>{cancelAnimationFrame(scrollFrame);editor.scrollDOM.removeEventListener('scroll',trackScroll);editor.destroy();};

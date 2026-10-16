@@ -103,7 +103,10 @@ Two independent providers satisfy the contract:
 
 The application opens one session per active note from the default CodeMirror provider and
 uses it to restore and report selection and viewport for the editing surface, so caret and
-scroll survive tab switches, mode changes and editor remounts. Body-text drafts and write
+scroll survive tab switches, mode changes and editor remounts. When live mode hides
+frontmatter, the view/session boundary translates selection and viewport offsets by the
+hidden prefix (`toDocumentOffset`/`toViewOffset`) and `track` receives the full note
+content, so offsets never land inside frontmatter. Body-text drafts and write
 conflicts still use the application's existing mechanism; the provider's text, draft and
 expected-base conflict APIs are covered by the contract suite.
 
