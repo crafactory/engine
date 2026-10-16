@@ -12,9 +12,9 @@ the core features are not migrated.
 | Check | Observed result | Scope |
 |---|---|---|
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
-| `npm run test` | 709 passed (20 files) | 693 prior plus 16 new dependency/template cases |
+| `npm run test` | 710 passed (20 files) | 693 prior plus 17 new dependency/template cases |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
-| `tests/dependency-flow.test.ts` | 10 passed | Provider disable/enable, transitive consumers, optional, child scope, rebinding |
+| `tests/dependency-flow.test.ts` | 11 passed | Provider disable/enable, transitive consumers, optional, child scope, rebinding |
 | `tests/templates.test.ts` | 6 passed | Template engine, daily notes, dependency edge, disable/rebind |
 | `npm run test:e2e` (macOS) | 45 passed / 6 failed | Unchanged baseline; the daily-notes/templates case passes |
 

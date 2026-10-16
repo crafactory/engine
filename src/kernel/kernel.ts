@@ -251,14 +251,18 @@ export class Kernel {
     for (const scope of scopes) scope.disabled.delete(id);
     const list = [...scopes];
     const roots = list.filter(scope => !list.some(other => other !== scope && isAncestor(other, scope)));
+    const restarted: Scope[] = [];
     try {
       for (const root of roots) {
         if (!root.wanted) continue;
         const restart = this.scopeList.filter(candidate => (candidate === root || isAncestor(root, candidate)) && scopes.has(candidate));
         await this.stopScope(root);
         for (const candidate of restart) await this.startScope(candidate);
+        restarted.push(root);
       }
     } catch (error) {
+      // Leave no scope running that was restarted before the failure.
+      for (const root of restarted) if (root.active) await this.stopScope(root);
       for (const scope of scopes) scope.disabled.add(id);
       throw error;
     }

@@ -135,4 +135,25 @@ describe('provider disable and enable flow', () => {
     expect(disposed.provider).toBe(1);
     expect(disposed.consumer).toBe(1);
   });
+  it('rolls back scopes restarted before a failed enable across sibling scopes', async () => {
+    let failB = false;
+    const kernel = new Kernel({engineVersion: '1.0.0'});
+    kernel.register({manifest: manifest('provider', {scopes: ['vault'], provides: [{contract: 'engine.a/v1', version: '1.0.0'}]}), setup(context) {
+      if (failB && context.scope.key === 'b') throw new Error('boom');
+      context.provide('engine.a/v1', '1.0.0', {});
+    }});
+    const a = kernel.createScope('vault', 'a'), b = kernel.createScope('vault', 'b');
+    await kernel.start();
+    expect(a.isActive).toBe(true);
+    expect(b.isActive).toBe(true);
+    await kernel.disable('provider');
+    failB = true;
+    await expect(kernel.enable('provider')).rejects.toBeInstanceOf(AssemblyError);
+    expect(a.isActive).toBe(false);
+    expect(b.isActive).toBe(false);
+    failB = false;
+    await kernel.enable('provider');
+    expect(a.isActive).toBe(true);
+    expect(b.isActive).toBe(true);
+  });
 });
