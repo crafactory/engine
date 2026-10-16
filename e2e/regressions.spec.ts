@@ -213,8 +213,7 @@ test('editor session restores scroll position across tab switches',async({page})
   await page.getByTestId('mode-source').click();
   const scroller=page.getByTestId('editor-surface').locator('.cm-scroller');
   await expect(scroller).toBeVisible();
-  await scroller.evaluate(element=>{element.scrollTop=700;});
-  await page.waitForTimeout(150);
+  await scroller.evaluate(element=>new Promise<void>(resolve=>{element.addEventListener('scroll',()=>resolve(),{once:true});element.scrollTop=700;}));
   await page.getByTestId('file-Other note.md').click();
   await page.getByTestId('file-Long scroll.md').click();
   await expect.poll(()=>scroller.evaluate(element=>element.scrollTop)).toBeGreaterThan(150);

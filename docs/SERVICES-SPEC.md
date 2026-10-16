@@ -86,8 +86,10 @@ a kernel supplies separate render and workspace instances.
 ### `engine.editor/v1`
 
 A DOM-free document editing model over UTF-16 offsets: `text`, `version`, `isDirty`,
-`setText` (with an optional expected base that refuses on conflict), `insert`,
-`selection`, `viewport`, `undo`/`redo`, `markSaved`, `draft` and `restore`. A draft
+`setText` (with an optional expected base that refuses on conflict), `track` (a passive
+sync for a document a view already changed, preserving selection and shifting the
+viewport without touching undo history), `insert`, `selection`, `viewport`, `undo`/`redo`,
+`markSaved`, `draft` and `restore`. A draft
 carries text, selection, viewport, version and dirty state, so a session can be recovered
 or moved to another provider without losing the caret, scroll anchor or unsaved state.
 The viewport shifts with edits so it keeps pointing at the same text.

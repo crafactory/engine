@@ -1,4 +1,4 @@
-import {forwardRef,useEffect,useImperativeHandle,useRef} from 'react';
+import {forwardRef,useEffect,useImperativeHandle,useLayoutEffect,useRef} from 'react';
 import {EditorState,Compartment,type Extension} from '@codemirror/state';
 import {EditorView,keymap,lineNumbers,highlightActiveLine,drawSelection} from '@codemirror/view';
 import {markdown,markdownKeymap} from '@codemirror/lang-markdown';
@@ -37,7 +37,9 @@ export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Set
 function Editor({note,notes,settings,pluginExtensions=[],session,onChange,onOpen,onCommand},handle) {
   const container=useRef<HTMLDivElement>(null),view=useRef<EditorView>();
   const pluginCompartment=useRef(new Compartment());
-  const sessionRef=useRef(session);sessionRef.current=session;
+  const sessionRef=useRef(session);
+  // Commit the session reference before the setup effect so handlers never use an abandoned render's session.
+  useLayoutEffect(()=>{sessionRef.current=session;},[session]);
   const meta=frontmatter(note.content),hideMeta=settings.mode==='live'&&!meta.error;
   const viewContent=hideMeta?meta.body:note.content;
   const prefix=useRef('');prefix.current=hideMeta?meta.raw:'';
@@ -119,8 +121,9 @@ function Editor({note,notes,settings,pluginExtensions=[],session,onChange,onOpen
     if(draft){const max=editor.state.doc.length;editor.dispatch({selection:{anchor:Math.max(0,Math.min(max,draft.selection.anchor)),head:Math.max(0,Math.min(max,draft.selection.head))}});if(draft.viewport.anchor>0)editor.dispatch({effects:EditorView.scrollIntoView(Math.max(0,Math.min(max,draft.viewport.anchor)),{y:'start'})});}
     /** Persist the scroll anchor through the editor session so it survives remounts. */
     const trackScroll=()=>{const offset=viewportTop(editor);sessionRef.current?.setViewport({anchor:offset,head:offset});};
-    editor.scrollDOM.addEventListener('scroll',trackScroll,{passive:true});
-    return()=>{editor.scrollDOM.removeEventListener('scroll',trackScroll);editor.destroy();};
+    // Register after CodeMirror's scheduled viewport restore so that restore does not overwrite the draft.
+    const scrollFrame=requestAnimationFrame(()=>editor.scrollDOM.addEventListener('scroll',trackScroll,{passive:true}));
+    return()=>{cancelAnimationFrame(scrollFrame);editor.scrollDOM.removeEventListener('scroll',trackScroll);editor.destroy();};
   },[note.path,settings.mode,settings.lineNumbers,settings.fontSize,settings.theme,settings.spellcheck,settings.disabledPlugins]);
   useEffect(()=>{const v=view.current;if(v&&v.state.doc.toString()!==viewContent){external.current=true;v.dispatch({changes:{from:0,to:v.state.doc.length,insert:viewContent}});external.current=false;}},[viewContent]);
   // Current-document edits already rebuild the field in their CM transaction.
