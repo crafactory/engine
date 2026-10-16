@@ -7,6 +7,7 @@ import {createDocumentsPlugin} from './documents';
 import {FormatRegistry, renderPlugin, type RenderService} from './render';
 import {WORKSPACE_CONTRACT, workspacePlugin, type WorkspaceViewService} from './workspace';
 import {createMarkdownFormatPlugin, createCanvasFormatPlugin, createBasesFormatPlugin} from './formats';
+import {ENGINE_VERSION} from './version';
 
 export * from './storage';
 export * from './commands';
@@ -14,9 +15,8 @@ export * from './documents';
 export * from './render';
 export * from './workspace';
 export * from './formats';
-
-/** Kernel version reported to manifests in this repository. */
-export const ENGINE_VERSION = '1.0.0';
+export * from './editor';
+export {ENGINE_VERSION};
 
 export interface DefaultServiceOptions {
   /** Preview uses the in-memory provider; local uses a Vault-like filesystem store. */

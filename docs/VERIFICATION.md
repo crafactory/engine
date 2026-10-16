@@ -1,5 +1,34 @@
 # Verification results
 
+## Native editor providers stage 4 (in progress, post-0.6.0 development)
+
+This section records source verification for the editor contract of the fourth migration
+stage in [NATIVE-PLUGIN-ARCHITECTURE.md](NATIVE-PLUGIN-ARCHITECTURE.md), specified in
+[SERVICES-SPEC.md](SERVICES-SPEC.md) (`engine.editor/v1` and the optional
+`engine.editor.codemirror/v1` capability). The contract and two providers are delivered;
+**the application's React CodeMirror view is not yet wired to the provider**, so this
+stage is not complete and the native-plugin-kernel gate stays open.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 681 passed (17 files) | 660 prior plus 21 new editor cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `tests/editor.test.ts` | 21 passed | Shared contract on two providers, drafts, conflicts, viewport migration, capabilities |
+
+One shared `engine.editor/v1` contract suite runs against the CodeMirror `@codemirror/state`
+provider and the plain-text provider: open/edit/mark-saved and dirty tracking, insertion at
+the selection, conflict refusal on a mismatched expected base, undo/redo, draft recovery
+with selection/viewport/dirty state, viewport shifting across an edit and by the changed
+range when text is prepended, and rejection of a draft for a different path. Provider
+migration is checked in both directions (CodeMirror ↔ plain) preserving text, selection,
+viewport and dirtiness, and the CodeMirror capability contract is rejected with a
+missing-provider diagnostic when only the plain editor is active.
+
+No application code changed in this stage, so browser and desktop behavior is unchanged
+from stage 3; the editor provider is additive. These are unit/composition results, not
+packaged-binary or UI acceptance.
+
 ## Native workspace and format views stage 3 (post-0.6.0 development)
 
 This section records source verification for the third migration stage in
