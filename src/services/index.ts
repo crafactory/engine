@@ -19,6 +19,7 @@ export * from './editor';
 export * from './bookmarks';
 export * from './templates';
 export * from './daily-notes';
+export * from './notes-index';
 export {ENGINE_VERSION};
 
 export interface DefaultServiceOptions {
