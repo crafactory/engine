@@ -17,6 +17,8 @@ export * from './workspace';
 export * from './formats';
 export * from './editor';
 export * from './bookmarks';
+export * from './templates';
+export * from './daily-notes';
 export {ENGINE_VERSION};
 
 export interface DefaultServiceOptions {

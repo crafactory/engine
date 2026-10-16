@@ -1,5 +1,30 @@
 # Verification results
 
+## Dependency lifecycle and templates/daily notes (stage 5 continuation)
+
+This section records source verification for the dependency-lifecycle work and the
+templates + daily-notes migration that follow the first core-feature plugin. The kernel now
+has per-plugin `disable`/`enable` with transitive consumer teardown and rebinding,
+`engine.templates/v1` and `engine.daily-notes/v1` are migrated together with a tested
+dependency edge, and the application consumes them. Stage 5 stays unchecked: the rest of
+the core features are not migrated.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 705 passed (20 files) | 693 prior plus 12 new dependency/template cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `tests/dependency-flow.test.ts` | 6 passed | Provider disable/enable, transitive consumers, optional, child scope, rebinding |
+| `tests/templates.test.ts` | 6 passed | Template engine, daily notes, dependency edge, disable/rebind |
+| `npm run test:e2e` (macOS) | 45 passed / 6 failed | Unchanged baseline; the daily-notes/templates case passes |
+
+Dependency relationships are confirmed at three levels: statically at assembly (versioned
+contract graph and diagnostics), at runtime (service subscriptions or declared events) and
+through lifecycle `disable`/`enable`/`reload`. The flow tests cover a provider losing a
+required consumer chain transitively, an optional consumer staying active, a child scope
+being stopped and restarted, a migrated core-feature provider, and scope reload rebinding.
+These remain unit/composition and local checks, not packaged-binary acceptance.
+
 ## First core-feature plugin: bookmarks (stage 5, in progress)
 
 This section records source verification for the first core-feature migration in

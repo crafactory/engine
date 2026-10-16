@@ -137,6 +137,18 @@ A first core-feature migration: an ordered bookmark set with `list`, `has`, `add
 service and mirrors it into its render state; persistence stays with the application
 until the storage providers are wired into the UI.
 
+### `engine.templates/v1`
+
+Token interpolation: `apply(content, {title, date?})` replaces `{{title}}`, `{{date}}`,
+`{{date:YYYY-MM-DD}}` and `{{time}}`; the clock is injectable for tests. A default provider
+exposes the contract.
+
+### `engine.daily-notes/v1`
+
+Computes today's daily note from `{folder, templateContent, date?}` and returns
+`{path, content, date}`. It consumes `engine.templates/v1`, so the two migrate together
+with a tested dependency edge; the kernel rejects daily notes when templates is missing.
+
 ## Composition
 
 `registerDefaultServices(kernel, {storage: 'memory' | 'local', vault?})` registers the
@@ -148,6 +160,11 @@ depends on `engine.render/v1`, and each format plugin depends on both, so the ke
 activates them in dependency order and rejects missing providers. The local profile
 requires a vault. `createEditorRuntime(kind)` registers the CodeMirror or plain editor
 provider plugin, starts the kernel and returns the resolved editor provider.
+`createBookmarksRuntime()` and `createDailyNotesRuntime()` build their kernels and return
+the resolved services. The kernel's `disable`/`enable` implement provider-loss rebinding:
+disabling a provider deactivates its transitive required consumers with a
+`dependency-disabled` diagnostic, and enabling restarts the affected scopes so consumers
+re-resolve fresh instances.
 
 ## Bounded evidence
 
@@ -160,13 +177,19 @@ every `src/kernel/` import is a sibling relative module, so the kernel cannot im
 Markdown, Canvas or Bases implementation. `tests/editor.test.ts` runs one shared editor
 contract suite against the CodeMirror and plain providers, and covers draft recovery,
 conflict refusal, viewport migration across an edit and between providers, and the
-CodeMirror capability difference.
+CodeMirror capability difference. `tests/bookmarks.test.ts` covers the migrated bookmarks
+service and its kernel composition; `tests/templates.test.ts` covers template
+interpolation, daily-note computation and the templates→daily-notes dependency edge;
+`tests/dependency-flow.test.ts` covers provider disable/enable/rebind flow.
 
 ## Not yet done
 
 - Storage, documents and commands providers are not yet consumed by the application; the
   running path still uses `src/bridge.ts` for persistence. The workspace/render services
   only drive format → view dispatch in `src/App.tsx`.
+- Bookmarks and templates/daily notes are consumed by the application; their persistence
+  is still application-side, and the migrated core features are a subset of the 29 core
+  plugins.
 - The editor has two providers and the app uses the CodeMirror provider for
   selection/viewport; body-text drafts and write conflicts still use the application's
   existing draft and bridge-conflict logic rather than the provider's text APIs.

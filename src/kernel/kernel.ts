@@ -119,6 +119,7 @@ export class Kernel {
   private readonly scopeList: Scope[] = [];
   private readonly runtimeScope: Scope;
   private readonly diagnosticLog: Diagnostic[] = [];
+  private readonly disabledScopes = new Map<string, Set<Scope>>();
   private readonly allowedContracts?: Set<string>;
   private readonly engineVersion: string;
   private readonly observer?: (diagnostic: Diagnostic) => void;
@@ -214,6 +215,64 @@ export class Kernel {
       await this.stopScope(scope);
       for (const candidate of restart) await this.startScope(candidate);
     }
+  }
+
+  /**
+   * Deactivate a plugin and every active consumer that requires one of its contracts,
+   * plus active descendant scopes that may depend on it. Records a `dependency-disabled`
+   * diagnostic and remembers the affected scopes for `enable`.
+   */
+  async disable(id: string): Promise<void> {
+    const affected = new Set<Scope>();
+    for (const scope of this.scopeList) {
+      if (!scope.active || !scope.instances.has(id)) continue;
+      affected.add(scope);
+      const ids = this.dependentIds(scope, id);
+      const instances = [...scope.instances.values()].filter(instance => ids.has(instance.manifest.id));
+      this.recordAll(await this.deactivateInstances(instances));
+      this.record({code: 'dependency-disabled', severity: 'warning', message: `Disabled ${id} and ${ids.size - 1} dependent plugin(s) in ${scope.label}`, plugin: id, scope: scope.label});
+    }
+    if (!affected.size) throw new Error('Plugin is not active: ' + id);
+    const descendants = this.scopeList.filter(scope => scope.active && [...affected].some(parent => isAncestor(parent, scope)));
+    for (const scope of descendants) await this.stopScope(scope);
+    this.disabledScopes.set(id, new Set([...affected, ...descendants]));
+  }
+
+  /**
+   * Reactivate a plugin previously disabled. The affected scopes are restarted so every
+   * consumer re-resolves a fresh provider instance instead of holding a stale one.
+   */
+  async enable(id: string): Promise<void> {
+    const scopes = this.disabledScopes.get(id);
+    if (!scopes) throw new Error('Plugin is not disabled: ' + id);
+    this.disabledScopes.delete(id);
+    const roots = [...scopes].filter(scope => ![...scopes].some(other => other !== scope && isAncestor(other, scope)));
+    for (const scope of roots) {
+      if (scope.active) await this.stopScope(scope);
+      const restart = this.scopeList.filter(candidate => (candidate === scope || isAncestor(scope, candidate)) && scopes.has(candidate));
+      for (const candidate of restart) await this.startScope(candidate);
+    }
+  }
+
+  /** Plugin ids that must be disabled with a provider: itself plus transitive required consumers. */
+  private dependentIds(scope: Scope, root: string): Set<string> {
+    const included = new Set<string>([root]);
+    const provided = new Set<string>();
+    const include = (id: string): void => {
+      included.add(id);
+      for (const provision of this.definitions.get(id)?.manifest.provides ?? []) provided.add(provision.contract);
+    };
+    include(root);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const [id, definition] of this.definitions) {
+        if (included.has(id) || !scope.instances.has(id) || !scopesFor(definition).includes(scope.kind)) continue;
+        const required = (definition.manifest.consumes ?? []).some(requirement => !requirement.optional && provided.has(requirement.contract));
+        if (required) { include(id); changed = true; }
+      }
+    }
+    return included;
   }
 
   /** Active children of a scope, used to stop consumers before their provider scope. */
