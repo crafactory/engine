@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {Kernel, type PluginManifest} from '../src/kernel';
+import {AssemblyError, Kernel, type PluginManifest} from '../src/kernel';
 import {Bookmarks, bookmarksPlugin, BOOKMARKS_CONTRACT} from '../src/services';
 
 const manifest = (id: string, extra: Partial<PluginManifest> = {}): PluginManifest => ({id, name: id, version: '1.0.0', ...extra});
@@ -81,5 +81,58 @@ describe('provider disable and enable flow', () => {
     await kernel.start();
     await kernel.reload('provider');
     expect(value).toEqual({n: 2});
+  });
+  it('keeps a disabled provider disabled across a scope restart and a sibling reload', async () => {
+    const kernel = new Kernel({engineVersion: '1.0.0'});
+    kernel.register({manifest: manifest('provider', {provides: [{contract: 'engine.a/v1', version: '1.0.0'}]}), setup(context) { context.provide('engine.a/v1', '1.0.0', {}); }});
+    kernel.register({manifest: manifest('consumer', {consumes: [{contract: 'engine.a/v1'}]}), setup() {}});
+    kernel.register({manifest: manifest('sibling'), setup() {}});
+    await kernel.start();
+    await kernel.disable('provider');
+    await kernel.stopScope(kernel.runtime);
+    await kernel.startScope(kernel.runtime);
+    expect(kernel.runtime.instances.has('provider')).toBe(false);
+    expect(kernel.runtime.instances.has('consumer')).toBe(false);
+    expect(kernel.runtime.instances.has('sibling')).toBe(true);
+    await kernel.reload('sibling');
+    expect(kernel.runtime.instances.has('provider')).toBe(false);
+    expect(kernel.runtime.instances.has('sibling')).toBe(true);
+  });
+  it('retains disabled state so enable can be retried after an activation failure', async () => {
+    let attempts = 0;
+    const kernel = new Kernel({engineVersion: '1.0.0'});
+    kernel.register({manifest: manifest('provider', {provides: [{contract: 'engine.a/v1', version: '1.0.0'}]}), setup(context) { attempts++; if (attempts === 2) throw new Error('boom'); context.provide('engine.a/v1', '1.0.0', {}); }});
+    await kernel.start();
+    await kernel.disable('provider');
+    await expect(kernel.enable('provider')).rejects.toBeInstanceOf(AssemblyError);
+    await kernel.enable('provider');
+    expect(kernel.runtime.instances.has('provider')).toBe(true);
+    expect(attempts).toBe(3);
+  });
+  it('does not restart a scope after an explicit kernel stop', async () => {
+    const kernel = new Kernel({engineVersion: '1.0.0'});
+    kernel.register({manifest: manifest('provider', {provides: [{contract: 'engine.a/v1', version: '1.0.0'}]}), setup(context) { context.provide('engine.a/v1', '1.0.0', {}); }});
+    await kernel.start();
+    await kernel.disable('provider');
+    await kernel.stop();
+    await kernel.enable('provider');
+    expect(kernel.runtime.isActive).toBe(false);
+    await kernel.start();
+    expect(kernel.runtime.instances.has('provider')).toBe(true);
+  });
+  it('runs each disposal hook once when disable overlaps a scope stop', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const disposed: Record<string, number> = {};
+    const kernel = new Kernel({engineVersion: '1.0.0'});
+    kernel.register({manifest: manifest('provider', {provides: [{contract: 'engine.a/v1', version: '1.0.0'}]}), setup(context) { context.provide('engine.a/v1', '1.0.0', {}); context.effect(() => { disposed.provider = (disposed.provider ?? 0) + 1; }); }, async dispose() { await gate; }});
+    kernel.register({manifest: manifest('consumer', {consumes: [{contract: 'engine.a/v1'}]}), setup(context) { context.effect(() => { disposed.consumer = (disposed.consumer ?? 0) + 1; }); }});
+    await kernel.start();
+    const disabling = kernel.disable('provider');
+    const stopping = kernel.stopScope(kernel.runtime);
+    release();
+    await Promise.allSettled([disabling, stopping]);
+    expect(disposed.provider).toBe(1);
+    expect(disposed.consumer).toBe(1);
   });
 });

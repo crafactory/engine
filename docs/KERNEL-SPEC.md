@@ -138,8 +138,11 @@ reports failures, matching the recorded renderer limits.
 - **Dependency loss and rebinding:** `disable(id)` deactivates the plugin, every active
   transitive *required* consumer of a contract it provides, and active descendant scopes
   that may depend on it, recording a `dependency-disabled` diagnostic. Optional consumers
-  are unaffected. `enable(id)` restarts the affected scopes so every consumer re-resolves
-  a fresh provider instance instead of holding a stale one.
+  are unaffected, and a disabled plugin stays disabled across scope restarts and sibling
+  reloads until `enable`. `enable(id)` restarts only the scopes the caller still intends to
+  run, so an explicit `Kernel.stop` is not undone, and it retains disabled state if
+  reactivation fails so the caller can retry. Lifecycle operations are serialized per
+  scope, so a disposal hook runs once even when `disable` overlaps a scope stop.
 - **Diagnostics:** `kernel.diagnostics` and the `onDiagnostic` observer receive every
   diagnostic with a stable code, plugin id, contract and scope.
 
@@ -181,5 +184,7 @@ scope reload and descendant-scope teardown; serialized restart behind an in-flig
 all four event strategies; and the diagnostic observer, including containment of a
 throwing observer. `tests/dependency-flow.test.ts` covers provider disable/enable with
 transitive required consumers, optional consumers staying active, child-scope
-stop/restart, a migrated core-feature provider as a consumer, and reload rebinding. This is assembly-unit evidence, not a migrated product feature or
+stop/restart, a migrated core-feature provider as a consumer, reload rebinding,
+persisted disabled state across restarts, retry after a failed enable, explicit-stop
+intent and single disposal under a disable/stop overlap. This is assembly-unit evidence, not a migrated product feature or
 real-plugin compatibility.
