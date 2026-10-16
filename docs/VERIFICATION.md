@@ -24,8 +24,8 @@ unit/composition and local checks, not packaged-binary acceptance.
 
 This section records source verification for migrating the reader panels onto
 `engine.index/v1`. The application's tags, backlinks, outgoing-links and outline panels now
-consume the index instead of recomputing metadata from note content; search, graph and
-properties are not migrated yet, so stage 5 stays unchecked.
+consume the index instead of recomputing metadata from note content; graph and properties
+are not migrated yet, so stage 5 stays unchecked.
 
 | Check | Observed result | Scope |
 |---|---|---|
@@ -45,9 +45,9 @@ baseline. These are unit/composition and local checks, not packaged-binary accep
 ## Notes index dependency (stage 5 continuation)
 
 This section records source verification for `engine.index/v1`, the derived metadata and
-search index that search, graph and properties will consume. The contract and provider are
-delivered and tested; the application does not consume the index yet, so stage 5 stays
-unchecked.
+search index consumed by the reader panels and search. The contract and provider are
+delivered and tested; graph, properties and the remaining features are not migrated yet,
+so stage 5 stays unchecked.
 
 | Check | Observed result | Scope |
 |---|---|---|
