@@ -36,6 +36,7 @@ export interface IndexService {
   tags(paths?: readonly string[]): TagCount[];
   headings(path: string): IndexedHeading[];
   properties(path: string): Record<string, unknown>;
+  propertyKeys(): string[];
   resolve(linktext: string, from: string): string | undefined;
   search(query: string, options?: {caseSensitive?: boolean}): string[];
 }
@@ -101,6 +102,13 @@ export class NotesIndex implements IndexService {
 
   /** Frontmatter properties of a note as an isolated snapshot. */
   properties(path: string): Record<string, unknown> { return structuredClone(this.derive(path)?.properties ?? {}); }
+
+  /** Unique frontmatter property keys across the index, in first-seen order. */
+  propertyKeys(): string[] {
+    const keys = new Set<string>();
+    for (const note of this.notes) for (const key of Object.keys(this.derive(note.path)!.properties)) keys.add(key);
+    return [...keys];
+  }
 
   /** Notes whose links resolve to the given path, once per source, with the link label. */
   backlinks(path: string): Backlink[] {
