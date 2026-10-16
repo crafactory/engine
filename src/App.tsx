@@ -9,7 +9,7 @@ import {
 import {parse,stringify} from 'yaml';
 import {bridge,defaults} from './bridge';
 import {renameDestination} from './file-path';
-import {title,isNote,frontmatter,setProperties,links,resolveLink,tags,headings,search,applyTemplate,rewriteLinks} from './knowledge';
+import {title,isNote,frontmatter,setProperties,resolveLink,headings,search,applyTemplate,rewriteLinks} from './knowledge';
 import type {EditorHandle} from './Editor';
 import {Markdown,renderMarkdown} from './Markdown';
 import {Settings} from './Settings';
@@ -22,7 +22,7 @@ import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
-import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime} from './services';
+import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createIndexRuntime,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type IndexRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
 const Canvas=lazy(()=>import('./Canvas').then(m=>({default:m.Canvas})));
@@ -70,6 +70,7 @@ export function App(){
   const editorRuntime=useRef<EditorRuntime|null>(null),editorSessions=useRef(new Map<string,EditorSession>());
   const bookmarksRuntime=useRef<BookmarksRuntime|null>(null),bookmarksUnsub=useRef<(()=>void)|null>(null);
   const templatesRuntime=useRef<DailyNotesRuntime|null>(null);
+  const indexRuntime=useRef<IndexRuntime|null>(null);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   function pluginSnapshot():PluginSnapshot{
     const s=pluginState.current;
@@ -101,6 +102,7 @@ export function App(){
       if(!editorRuntime.current){const runtime=await createEditorRuntime('codemirror');if(unmounted.current){void runtime.kernel.stop();return;}editorRuntime.current=runtime;}
       if(!bookmarksRuntime.current){const runtime=await createBookmarksRuntime();if(unmounted.current){void runtime.kernel.stop();return;}bookmarksRuntime.current=runtime;bookmarksUnsub.current=runtime.service.subscribe(next=>setBookmarks(next));}
       if(!templatesRuntime.current){const runtime=await createDailyNotesRuntime();if(unmounted.current){void runtime.kernel.stop();return;}templatesRuntime.current=runtime;}
+      if(!indexRuntime.current){const runtime=await createIndexRuntime();if(unmounted.current){void runtime.kernel.stop();return;}indexRuntime.current=runtime;}
       editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));
@@ -115,7 +117,7 @@ export function App(){
       loaded.current=true;setPluginList(await bridge.plugins());
     }catch(e){report(e);}finally{setLoading(false);}
   }
-  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();};},[]);
+  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();};},[]);
   useEffect(()=>{for(const controller of pluginStops.current.values())controller.sync(pluginSnapshot());},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
@@ -480,14 +482,14 @@ export function App(){
     window.addEventListener('keydown',key);window.addEventListener('engine-command',native);
     return()=>{window.removeEventListener('keydown',key);window.removeEventListener('engine-command',native);};
   },[]);
-  const tagCounts=useMemo(()=>{
-    const counts=new Map<string,number>();for(const note of notes.filter(n=>isNote(n.path)))for(const tag of tags(note.content))counts.set(tag,(counts.get(tag)||0)+1);return [...counts].sort((a,b)=>b[1]-a[1]);
-  },[notes]);
+  /** Rebuild the native notes index for the current note set before deriving panels. */
+  const indexed=useMemo(()=>{const service=indexRuntime.current?.index??null;if(service)service.rebuild(notes);return service;},[notes]);
+  const tagCounts=useMemo(()=>(indexed?.tags(notes.filter(n=>isNote(n.path)).map(n=>n.path))??[]).map(entry=>[entry.tag,entry.count] as [string,number]),[indexed,notes]);
   const results=useMemo(()=>search(notes.filter(n=>isNote(n.path)||/\.canvas$/i.test(n.path)),query,caseSensitive).sort((a,b)=>searchSort==='modified'?(entries.find(e=>e.path===b.path)?.mtime||0)-(entries.find(e=>e.path===a.path)?.mtime||0):a.path.localeCompare(b.path)),[notes,query,caseSensitive,searchSort,entries]);
-  const incoming=activeNote?notes.filter(n=>n.path!==active&&links(n.content).some(l=>resolveLink(l.target,n.path,notes)?.path===active)):[];
-  const outgoing=activeNote?links(activeNote.content):[];
+  const incoming=useMemo(()=>{const set=new Set(indexed?.backlinks(active).map(entry=>entry.path)??[]);return activeNote?notes.filter(n=>set.has(n.path)):[];},[indexed,active,activeNote,notes]);
+  const outgoing=activeNote&&indexed?indexed.outgoing(active):[];
   const mentions=activeNote?notes.filter(n=>n.path!==active&&!incoming.includes(n)&&isNote(n.path)&&frontmatter(n.content).body.toLowerCase().includes(title(active).toLowerCase())):[];
-  const hs=activeNote?headings(activeNote.content):[];
+  const hs=activeNote&&indexed?indexed.headings(active):[];
   const words=activeNote?frontmatter(activeNote.content).body.match(/[\p{L}\p{N}]+/gu)?.length||0:0;
   const tabTitle=(path:string)=>path==='@graph'?'Graph view':path.startsWith('@local:')?'Local graph':path.startsWith('web:')?new URL(path.slice(4)).hostname:title(path);
   function tree(parent=''):React.ReactNode{
