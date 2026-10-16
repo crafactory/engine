@@ -39,6 +39,18 @@ describe('notes index', () => {
     expect(index.note('Notes/Quiet.md')!.aliases).toEqual(['Whisper']);
     expect(index.resolve('Whisper', 'Gamma.md')).toBe('Notes/Quiet.md');
   });
+  it('preserves ordered title/alias resolution across notes', () => {
+    const index = new NotesIndex();
+    index.rebuild([{path: 'One.md', content: '---\naliases: Shared\n---\n# One\n'}, {path: 'Folder/Shared.md', content: '# Shared\n'}]);
+    expect(index.resolve('Shared', 'Other.md')).toBe('One.md');
+    index.remove('One.md');
+    expect(index.resolve('Shared', 'Other.md')).toBe('Folder/Shared.md');
+  });
+  it('preserves substring matching for a string alias', () => {
+    const index = new NotesIndex();
+    index.rebuild([{path: 'Proj.md', content: '---\naliases: Project Alpha\n---\n# Proj\n'}]);
+    expect(index.resolve('Alpha', 'Other.md')).toBe('Proj.md');
+  });
   it('deduplicates paths on rebuild, keeping the last entry', () => {
     const index = new NotesIndex();
     index.rebuild([{path: 'A.md', content: 'first'}, {path: 'A.md', content: 'second'}]);

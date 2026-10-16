@@ -53,8 +53,6 @@ export class NotesIndex implements IndexService {
   private notes: Note[] = [];
   private readonly cache = new Map<string, IndexedNote>();
   private readonly byPath = new Map<string, string>();
-  private readonly byTitle = new Map<string, string>();
-  private readonly byAlias = new Map<string, string>();
 
   /** Replace the whole note set (one entry per path, last wins) and rebuild lookups. */
   rebuild(notes: readonly Note[]): void {
@@ -139,7 +137,17 @@ export class NotesIndex implements IndexService {
       const hit = this.byPath.get(candidate.toLowerCase());
       if (hit) return hit;
     }
-    return this.byTitle.get(title(normalized).toLowerCase()) ?? this.byAlias.get(linktext);
+    // First note (in index order) whose title or alias matches, preserving the original
+    // resolver order; a string alias keeps its substring match.
+    const normalizedTitle = title(normalized).toLowerCase();
+    const found = this.notes.find(note => {
+      const entry = this.derive(note.path)!;
+      if (entry.title.toLowerCase() === normalizedTitle) return true;
+      const value = entry.properties.aliases ?? entry.properties.alias;
+      if (Array.isArray(value)) return value.includes(linktext);
+      return typeof value === 'string' && value.includes(linktext);
+    });
+    return found?.path;
   }
 
   /** Full-text search returning matching paths. */
@@ -162,14 +170,12 @@ export class NotesIndex implements IndexService {
     return entry;
   }
 
-  /** Rebuild the path, title and alias lookups; the first title/alias wins, matching find order. */
+  /** Rebuild the case-insensitive path lookup; the first path wins. */
   private reindexLookups(): void {
-    this.byPath.clear(); this.byTitle.clear(); this.byAlias.clear();
+    this.byPath.clear();
     for (const note of this.notes) {
-      this.byPath.set(note.path.toLowerCase(), note.path);
-      const titleKey = title(note.path).toLowerCase();
-      if (!this.byTitle.has(titleKey)) this.byTitle.set(titleKey, note.path);
-      for (const alias of aliasesOf(frontmatter(note.content).properties)) if (!this.byAlias.has(alias)) this.byAlias.set(alias, note.path);
+      const key = note.path.toLowerCase();
+      if (!this.byPath.has(key)) this.byPath.set(key, note.path);
     }
   }
 }
