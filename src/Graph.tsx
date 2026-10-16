@@ -1,19 +1,20 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import * as d3 from 'd3';
 import {Search,Focus,RotateCcw} from 'lucide-react';
-import {links,resolveLink,tags,title,isNote} from './knowledge';
+import {title,isNote} from './knowledge';
 import type {Note} from './types';
+import type {IndexService} from './services/notes-index';
 interface GNode extends d3.SimulationNodeDatum {id:string;label:string;count:number;tag:string;ghost?:boolean}
 interface GLink extends d3.SimulationLinkDatum<GNode> {source:string|GNode;target:string|GNode}
-export function Graph({notes,active,onOpen,local=false}:{notes:Note[];active:string;onOpen:(path:string)=>void;local?:boolean}) {
+export function Graph({notes,index,active,onOpen,local=false}:{notes:Note[];index:IndexService;active:string;onOpen:(path:string)=>void;local?:boolean}) {
   const svg=useRef<SVGSVGElement>(null);
   const [query,setQuery]=useState(''),[orphans,setOrphans]=useState(true),[unresolved,setUnresolved]=useState(false),[distance,setDistance]=useState(140),[depth,setDepth]=useState(1);
   const graph=useMemo(()=>{
-    let visible=notes.filter(n=>isNote(n.path)&&(!query||(`${n.path} ${tags(n.content).join(' ')}`).toLowerCase().includes(query.toLowerCase())));
+    let visible=notes.filter(n=>isNote(n.path)&&(!query||(`${n.path} ${(index.note(n.path)?.tags??[]).join(' ')}`).toLowerCase().includes(query.toLowerCase())));
     const allEdges:{source:string;target:string}[]=[];
-    for(const note of visible)for(const link of links(note.content)){
-      const target=resolveLink(link.target,note.path,notes);
-      if(target)allEdges.push({source:note.path,target:target.path});
+    for(const note of visible)for(const link of index.outgoing(note.path)){
+      const target=index.resolve(link.target,note.path);
+      if(target)allEdges.push({source:note.path,target});
       else if(unresolved)allEdges.push({source:note.path,target:link.target});
     }
     if(local){
@@ -24,10 +25,10 @@ export function Graph({notes,active,onOpen,local=false}:{notes:Note[];active:str
     const ids=new Set(visible.map(n=>n.path));
     if(unresolved)for(const edge of allEdges)if(ids.has(edge.source)&&!notes.some(n=>n.path===edge.target))ids.add(edge.target);
     const edges=allEdges.filter(e=>ids.has(e.source)&&ids.has(e.target)&&e.source!==e.target);
-    const nodes=[...ids].map(id=>({id,label:title(id),count:edges.filter(e=>e.source===id||e.target===id).length,tag:tags(notes.find(n=>n.path===id)?.content||'')[0]||'',ghost:!notes.some(n=>n.path===id)})).filter(n=>orphans||n.count>0);
+    const nodes=[...ids].map(id=>({id,label:title(id),count:edges.filter(e=>e.source===id||e.target===id).length,tag:index.note(id)?.tags[0]||'',ghost:!notes.some(n=>n.path===id)})).filter(n=>orphans||n.count>0);
     const remaining=new Set(nodes.map(n=>n.id));
     return {nodes,edges:edges.filter(e=>remaining.has(e.source)&&remaining.has(e.target))};
-  },[notes,query,orphans,unresolved,local,active,depth]);
+  },[notes,index,query,orphans,unresolved,local,active,depth]);
   useEffect(()=>{
     if(!svg.current)return;
     const element=svg.current;

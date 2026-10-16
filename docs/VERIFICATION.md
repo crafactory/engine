@@ -1,5 +1,25 @@
 # Verification results
 
+## Graph consumer (stage 5 continuation)
+
+This section records source verification for migrating the graph view onto
+`engine.index/v1`. `Graph` now derives its nodes and edges from `index.outgoing`,
+`index.resolve` and `index.note(...).tags` instead of parsing links/tags itself; the
+properties view is not migrated yet, so stage 5 stays unchecked.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 726 passed (21 files) | No new unit cases; index behavior already covered |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | 45 passed / 6 failed | Unchanged baseline; the graph relationships/filter case passes |
+
+The graph's local-depth traversal, orphan and unresolved-link options, tag-based filter and
+node/edge counts are unchanged; only the metadata source moved to the index. The browser
+case that builds real note relationships and filters still passes, and the wider suite
+shows the same six macOS `Control+…` platform failures. These are composition and local
+checks, not packaged-binary acceptance.
+
 ## Search consumer (stage 5 continuation)
 
 This section records source verification for migrating the search panel onto

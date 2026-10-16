@@ -536,7 +536,10 @@ export function App(){
   /** Select the registered format view, without converting the file's contents. */
   function showNote(path:string,secondary=false){
     const note=notes.find(n=>n.path===path);
-    if(path==='@graph'||path.startsWith('@local:'))return <Graph notes={notes} active={path.startsWith('@local:')?path.slice(7):recent.find(p=>isNote(p))||''} onOpen={open} local={path.startsWith('@local:')}/>;
+    if(path==='@graph'||path.startsWith('@local:')){
+      if(!indexed)return <div className="empty workspace-empty"><Network size={30}/><h1>Graph unavailable</h1><p>The knowledge graph needs the notes index, which failed to start. Reload to try again.</p></div>;
+      return <Graph notes={notes} index={indexed} active={path.startsWith('@local:')?path.slice(7):recent.find(p=>isNote(p))||''} onOpen={open} local={path.startsWith('@local:')}/>;
+    }
     if(path.startsWith('web:'))return <section className="web-view"><header><Globe size={16}/><span>{path.slice(4)}</span><a href={path.slice(4)} target="_blank" rel="noreferrer">Open in browser<ExternalLink size={13}/></a></header><p className="web-notice">This site may block embedding. Use “Open in browser” if the page is blank.</p><iframe title="Web viewer" src={path.slice(4)} sandbox="allow-scripts allow-forms allow-same-origin" referrerPolicy="no-referrer"/></section>;
     if(!note){
       if(path&&entries.some(e=>e.path===path&&!e.folder))return <Attachment path={path}/>;
