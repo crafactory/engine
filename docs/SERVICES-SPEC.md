@@ -129,6 +129,14 @@ stopping the scope revokes them. A format plugin never imports the corresponding
 user-interface component; the mapping from view type to component stays in the
 application shell.
 
+### `engine.bookmarks/v1`
+
+A first core-feature migration: an ordered bookmark set with `list`, `has`, `add`,
+`remove`, `toggle`, `replace` (used for loading persisted state and path remaps) and
+`subscribe`. Duplicates and empty paths are discarded. The application consumes the
+service and mirrors it into its render state; persistence stays with the application
+until the storage providers are wired into the UI.
+
 ## Composition
 
 `registerDefaultServices(kernel, {storage: 'memory' | 'local', vault?})` registers the
