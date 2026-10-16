@@ -8,7 +8,7 @@
  */
 import {Kernel, type PluginDefinition} from '../kernel';
 import type {Note} from '../types';
-import {frontmatter, headings, links, resolveLink, search, tags, title} from '../knowledge';
+import {frontmatter, headings, links, search, tags, title} from '../knowledge';
 import {ENGINE_VERSION} from './version';
 
 export const INDEX_CONTRACT = 'engine.index/v1';
@@ -40,23 +40,32 @@ export interface IndexService {
   search(query: string, options?: {caseSensitive?: boolean}): string[];
 }
 
-/** Read a frontmatter value that may be a string or an array of strings. */
+/** Read a frontmatter value that may be a string or an array of strings (singular or plural). */
 function aliasesOf(properties: Record<string, unknown>): string[] {
   const value = properties.aliases ?? properties.alias;
-  if (typeof value === 'string') return [value];
+  if (typeof value === 'string') return value ? [value] : [];
   if (Array.isArray(value)) return value.filter((entry): entry is string => typeof entry === 'string');
   return [];
 }
 
-/** Original in-memory index with per-note derived-metadata caching. */
+/** Original in-memory index with per-note derivation caching and path/title/alias lookups. */
 export class NotesIndex implements IndexService {
   private notes: Note[] = [];
   private readonly cache = new Map<string, IndexedNote>();
+  private readonly byPath = new Map<string, string>();
+  private readonly byTitle = new Map<string, string>();
+  private readonly byAlias = new Map<string, string>();
 
-  /** Replace the whole note set and clear cached derivations. */
+  /** Replace the whole note set (one entry per path, last wins) and rebuild lookups. */
   rebuild(notes: readonly Note[]): void {
-    this.notes = (Array.isArray(notes) ? notes : []).filter(note => note && typeof note.path === 'string').map(note => ({path: note.path, content: note.content ?? ''}));
+    const unique = new Map<string, Note>();
+    for (const note of Array.isArray(notes) ? notes : []) {
+      if (!note || typeof note.path !== 'string') continue;
+      unique.set(note.path, {path: note.path, content: note.content ?? ''});
+    }
+    this.notes = [...unique.values()];
     this.cache.clear();
+    this.reindexLookups();
   }
 
   /** Insert or replace one note and invalidate its cached derivation. */
@@ -64,12 +73,14 @@ export class NotesIndex implements IndexService {
     this.notes = this.notes.filter(note => note.path !== path);
     this.notes.push({path, content});
     this.cache.delete(path);
+    this.reindexLookups();
   }
 
   /** Remove a note from the index. */
   remove(path: string): void {
     this.notes = this.notes.filter(note => note.path !== path);
     this.cache.delete(path);
+    this.reindexLookups();
   }
 
   /** Number of indexed notes. */
@@ -78,37 +89,28 @@ export class NotesIndex implements IndexService {
   /** Indexed paths in insertion order. */
   paths(): string[] { return this.notes.map(note => note.path); }
 
-  /** Derived metadata for a note, computed once per content revision. */
+  /** Derived metadata for a note as an isolated snapshot. */
   note(path: string): IndexedNote | undefined {
-    const cached = this.cache.get(path);
-    if (cached) return cached;
-    const source = this.notes.find(note => note.path === path);
-    if (!source) return undefined;
-    const parsed = frontmatter(source.content);
-    const entry: IndexedNote = {
-      path, title: title(path), aliases: aliasesOf(parsed.properties), tags: tags(source.content),
-      headings: headings(source.content), links: links(source.content), properties: parsed.properties, body: parsed.body
-    };
-    this.cache.set(path, entry);
-    return entry;
+    const entry = this.derive(path);
+    return entry ? structuredClone(entry) : undefined;
   }
 
   /** Outgoing links of a note. */
-  outgoing(path: string): IndexedLink[] { return this.note(path)?.links ?? []; }
+  outgoing(path: string): IndexedLink[] { return (this.derive(path)?.links ?? []).map(link => ({...link})); }
 
   /** Headings of a note. */
-  headings(path: string): IndexedHeading[] { return this.note(path)?.headings ?? []; }
+  headings(path: string): IndexedHeading[] { return (this.derive(path)?.headings ?? []).map(heading => ({...heading})); }
 
-  /** Frontmatter properties of a note. */
-  properties(path: string): Record<string, unknown> { return this.note(path)?.properties ?? {}; }
+  /** Frontmatter properties of a note as an isolated snapshot. */
+  properties(path: string): Record<string, unknown> { return structuredClone(this.derive(path)?.properties ?? {}); }
 
   /** Notes whose links resolve to the given path, once per source, with the link label. */
   backlinks(path: string): Backlink[] {
     const result: Backlink[] = [], seen = new Set<string>();
     for (const source of this.notes) {
       if (source.path === path || seen.has(source.path)) continue;
-      for (const link of links(source.content)) {
-        if (resolveLink(link.target, source.path, this.notes)?.path !== path) continue;
+      for (const link of this.derive(source.path)!.links) {
+        if (this.resolve(link.target, source.path) !== path) continue;
         seen.add(source.path);
         result.push({path: source.path, context: link.label || link.target});
         break;
@@ -124,12 +126,47 @@ export class NotesIndex implements IndexService {
     return [...counts].map(([tag, count]) => ({tag, count})).sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
   }
 
-  /** Resolve a link target from a source path to an indexed path. */
-  resolve(linktext: string, from: string): string | undefined { return resolveLink(linktext, from, this.notes)?.path; }
+  /** Resolve a link target from a source path by path, sibling, title or alias. */
+  resolve(linktext: string, from: string): string | undefined {
+    if (!linktext) return this.notes.find(note => note.path === from)?.path;
+    const normalized = linktext.replace(/^\.\//, '');
+    const parent = from.includes('/') ? from.slice(0, from.lastIndexOf('/') + 1) : '';
+    for (const candidate of [normalized, normalized + '.md', parent + normalized, parent + normalized + '.md']) {
+      const hit = this.byPath.get(candidate.toLowerCase());
+      if (hit) return hit;
+    }
+    return this.byTitle.get(title(normalized).toLowerCase()) ?? this.byAlias.get(linktext);
+  }
 
   /** Full-text search returning matching paths. */
   search(query: string, options: {caseSensitive?: boolean} = {}): string[] {
     return search(this.notes, query, options.caseSensitive ?? false).map(note => note.path);
+  }
+
+  /** Cached derivation for a note, without cloning. */
+  private derive(path: string): IndexedNote | undefined {
+    const cached = this.cache.get(path);
+    if (cached) return cached;
+    const source = this.notes.find(note => note.path === path);
+    if (!source) return undefined;
+    const parsed = frontmatter(source.content);
+    const entry: IndexedNote = {
+      path, title: title(path), aliases: aliasesOf(parsed.properties), tags: tags(source.content),
+      headings: headings(source.content), links: links(source.content), properties: parsed.properties, body: parsed.body
+    };
+    this.cache.set(path, entry);
+    return entry;
+  }
+
+  /** Rebuild the path, title and alias lookups; the first title/alias wins, matching find order. */
+  private reindexLookups(): void {
+    this.byPath.clear(); this.byTitle.clear(); this.byAlias.clear();
+    for (const note of this.notes) {
+      this.byPath.set(note.path.toLowerCase(), note.path);
+      const titleKey = title(note.path).toLowerCase();
+      if (!this.byTitle.has(titleKey)) this.byTitle.set(titleKey, note.path);
+      for (const alias of aliasesOf(frontmatter(note.content).properties)) if (!this.byAlias.has(alias)) this.byAlias.set(alias, note.path);
+    }
   }
 }
 

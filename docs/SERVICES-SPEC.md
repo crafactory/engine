@@ -191,8 +191,9 @@ CodeMirror capability difference. `tests/bookmarks.test.ts` covers the migrated 
 service and its kernel composition; `tests/templates.test.ts` covers template
 interpolation, daily-note computation and the templates→daily-notes dependency edge;
 `tests/dependency-flow.test.ts` covers provider disable/enable/rebind flow, and
-`tests/notes-index.test.ts` covers index derivation, resolution, backlinks, tags, search,
-updates and the index dependency flow.
+`tests/notes-index.test.ts` covers index derivation, resolution (including singular
+aliases), backlinks, tags, search, updates, path deduplication, snapshot isolation and the
+index dependency flow.
 
 ## Not yet done
 
@@ -208,6 +209,6 @@ updates and the index dependency flow.
   selection/viewport; body-text drafts and write conflicts still use the application's
   existing draft and bridge-conflict logic rather than the provider's text APIs.
 - No Electron/worker IPC adapter over these contracts is implemented.
-- `engine.index/v1` remains unimplemented; the corresponding migration stages stay
-  unchecked.
+- Search, graph and properties have not yet migrated onto `engine.index/v1`; those
+  migration stages stay unchecked.
 - Cross-process atomicity, crash durability and a permission model remain open.

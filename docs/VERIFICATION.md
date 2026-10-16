@@ -10,13 +10,14 @@ unchecked.
 | Check | Observed result | Scope |
 |---|---|---|
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
-| `npm run test` | 719 passed (21 files) | 711 prior plus 8 index cases |
+| `npm run test` | 722 passed (21 files) | 711 prior plus 11 index cases |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
-| `tests/notes-index.test.ts` | 8 passed | Derivation, resolution, backlinks, tags, search, updates, dependency flow |
+| `tests/notes-index.test.ts` | 11 passed | Derivation, resolution, backlinks, tags, search, updates, dependency flow |
 
 The index derives title, aliases, tags, headings, links and properties per note and caches
 them; it computes backlinks (once per source), tag counts, link resolution by path/sibling/
-title/alias, and full-text search with an optional case-sensitive mode. A consumer plugin
+title/alias (singular or plural), path deduplication, isolated metadata snapshots, and
+full-text search with an optional case-sensitive mode. A consumer plugin
 resolves the contract, and disabling the index deactivates that consumer with a
 `dependency-disabled` diagnostic until it is re-enabled. These are unit/composition
 results, not UI or packaged-binary acceptance.

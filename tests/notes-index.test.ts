@@ -6,6 +6,7 @@ const notes = [
   {path: 'Ideas/Alpha.md', content: '---\naliases: [A1, A2]\ntags: [project]\nstatus: active\n---\n# Alpha\n\nLink to [[Ideas/Beta|Beta alias]] and #inline.\n\n## Section\n'},
   {path: 'Ideas/Beta.md', content: '# Beta\n\nBack to [[Alpha]].\n'},
   {path: 'Gamma.md', content: '# Gamma\n\nSee [[A1]] by alias.\n'},
+  {path: 'Notes/Quiet.md', content: '---\nalias: Whisper\n---\n# Quiet\n'},
   {path: 'Search.md', content: '# Search\n\nneedle here and Needle too.\n'}
 ];
 
@@ -13,7 +14,7 @@ describe('notes index', () => {
   it('derives title, aliases, tags, headings, links, properties and body', () => {
     const index = new NotesIndex();
     index.rebuild(notes);
-    expect(index.size()).toBe(4);
+    expect(index.size()).toBe(5);
     const alpha = index.note('Ideas/Alpha.md')!;
     expect(alpha.title).toBe('Alpha');
     expect(alpha.aliases).toEqual(['A1', 'A2']);
@@ -31,6 +32,27 @@ describe('notes index', () => {
     expect(index.resolve('Ideas/Beta', 'Gamma.md')).toBe('Ideas/Beta.md');
     expect(index.resolve('A1', 'Gamma.md')).toBe('Ideas/Alpha.md');
     expect(index.resolve('Missing', 'Gamma.md')).toBeUndefined();
+  });
+  it('resolves a singular alias that differs from the title', () => {
+    const index = new NotesIndex();
+    index.rebuild(notes);
+    expect(index.note('Notes/Quiet.md')!.aliases).toEqual(['Whisper']);
+    expect(index.resolve('Whisper', 'Gamma.md')).toBe('Notes/Quiet.md');
+  });
+  it('deduplicates paths on rebuild, keeping the last entry', () => {
+    const index = new NotesIndex();
+    index.rebuild([{path: 'A.md', content: 'first'}, {path: 'A.md', content: 'second'}]);
+    expect(index.size()).toBe(1);
+    expect(index.note('A.md')!.body).toContain('second');
+  });
+  it('returns isolated snapshots from note, outgoing and properties', () => {
+    const index = new NotesIndex();
+    index.rebuild(notes);
+    const snapshot = index.note('Ideas/Alpha.md')!;
+    snapshot.links.length = 0;
+    snapshot.properties.status = 'mutated';
+    expect(index.outgoing('Ideas/Alpha.md').length).toBeGreaterThan(0);
+    expect(index.properties('Ideas/Alpha.md').status).toBe('active');
   });
   it('computes backlinks once per source and outgoing links per note', () => {
     const index = new NotesIndex();
@@ -62,12 +84,12 @@ describe('notes index', () => {
     index.update('Search.md', '# Search\n\nchanged only\n');
     expect(index.note('Search.md')!.body).toContain('changed only');
     index.update('New.md', '# New\n');
-    expect(index.size()).toBe(5);
+    expect(index.size()).toBe(6);
     expect(index.note('New.md')!.title).toBe('New');
     index.remove('Search.md');
     expect(index.note('Search.md')).toBeUndefined();
     expect(index.paths()).not.toContain('Search.md');
-    expect(index.size()).toBe(4);
+    expect(index.size()).toBe(5);
   });
 });
 
