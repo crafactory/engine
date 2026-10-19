@@ -168,6 +168,16 @@ describe('commands contract', () => {
     stale();
     expect(registry.list().map(command => command.name)).toEqual(['Second']);
   });
+  it('builds a started runtime with the command service', async () => {
+    const {createCommandsRuntime} = await import('../src/services');
+    const runtime = await createCommandsRuntime();
+    expect(runtime.kernel.diagnostics).toEqual([]);
+    const dispose = runtime.service.register({id: 'probe', name: 'Probe', hotkey: 'mod+k', run: () => 7});
+    expect(runtime.service.hotkeys()).toEqual({'mod+k': 'probe'});
+    expect(await runtime.service.run('probe')).toBe(7);
+    dispose();
+    expect(runtime.service.list()).toEqual([]);
+  });
   it('is provided to the kernel as a runtime service', async () => {
     const kernel = new Kernel({engineVersion: '1.0.0'});
     kernel.register(createCommandsPlugin());

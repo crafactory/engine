@@ -7,7 +7,7 @@ import * as search from '@codemirror/search';
 import * as autocomplete from '@codemirror/autocomplete';
 import * as markdown from '@codemirror/lang-markdown';
 import * as highlight from '@lezer/highlight';
-import {createCompatibilityRuntime,CompatibilityError,type PluginSnapshot} from './compat-core';
+import {createCompatibilityRuntime,CompatibilityError,type CompatNativeServices,type PluginSnapshot} from './compat-core';
 import {createDomAdapters,type PluginTab} from './compat-dom';
 import type {PluginManifest} from './types';
 import type {PluginCommand,PluginController} from './plugins';
@@ -15,11 +15,12 @@ const modules:Record<string,unknown>={'@codemirror/state':state,'@codemirror/vie
 /** Load explicitly authorized local CommonJS source in the renderer with bounded host adapters. */
 export function startRendererPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,
   onCommands:(commands:PluginCommand[])=>void,operation:(name:string,args:unknown[])=>Promise<unknown>,
-  onNotice:(message:string)=>void,onFailure:()=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void):PluginController {
+  onNotice:(message:string)=>void,onFailure:()=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,
+  native?:CompatNativeServices):PluginController {
   let alive=true,stopping=false,stopPromise:Promise<void>|undefined,booting:Promise<void>|undefined;
   const dom=createDomAdapters(manifest.id,manifest.name,fail,onTabs,onExtensions);
   const runtime=createCompatibilityRuntime(manifest,getSnapshot(),{
-    ui:dom,notice:onNotice,
+    ui:dom,notice:onNotice,native,
     async request(name,args){const result=await operation(name,args);if(alive)runtime.sync(getSnapshot());return result;},
     commands(list){if(stopping)return;onCommands(list.map(command=>({id:`plugin:${manifest.id}:${command.id}`,label:command.name,plugin:manifest.id,
       run(){if(alive&&!stopping){try{runtime.sync(getSnapshot());void runtime.run(command.id).catch(fail);}catch(error){fail(error);}}}})));}

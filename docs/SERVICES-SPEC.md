@@ -160,6 +160,23 @@ content and caches per-note derivations, so it imports no editor or UI module. T
 application's tags, backlinks, outgoing-links, outline, search, graph and properties views
 consume this contract.
 
+### Obsidian compatibility facade
+
+`createCompatibilityRuntime` accepts an optional `native` service bundle on its host:
+
+- `resolveLink(link, from)` is used by `MetadataCache.getFirstLinkpathDest` and
+  `Workspace.openLinkText`, so link resolution runs through `engine.index/v1` when the
+  application provides it (with the snapshot resolver as fallback for standalone tests).
+- `editor.{providerId, codeMirrorExtensions}` is reported by `editorCompatibility()`. A
+  plugin that registers a CodeMirror extension is rejected with a message naming the active
+  provider when it is not the CodeMirror editor, making an editor swap's compatibility
+  difference explicit instead of silently applying the extension.
+
+The facade remains opt-in per plugin: no compatibility runtime is created at startup, so the
+default product keeps working when the facade is disabled. Storage/documents-backed
+operations (write/pluginData) still use the application host until those providers are wired
+into the UI.
+
 ## Composition
 
 `registerDefaultServices(kernel, {storage: 'memory' | 'local', vault?})` registers the

@@ -1,5 +1,27 @@
 # Verification results
 
+## Command service and native compatibility facade (stage 5/6 continuation)
+
+This section records source verification for two changes in one increment: the application
+command palette/hotkeys now consume `engine.commands/v1`, and the Obsidian compatibility
+facade can consume native services for link resolution and editor capability reporting.
+Stage 5 (remaining core features) and stage 6 (full storage/documents-backed facade) stay
+unchecked.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 733 passed (22 files) | +6 command/native-facade cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | 45 passed / 6 failed | Unchanged baseline |
+| `npm run test:desktop` (macOS) | 34 passed / 2 failed / 10 skipped | One known `Control+…` editor case and one flaky lifecycle case that passes on rerun |
+
+The command service case covers runtime composition, hotkey mapping, execution and
+disposal. The facade cases cover native link resolution in `MetadataCache` and
+`Workspace.openLinkText`, snapshot fallback, explicit rejection of CodeMirror-only
+extensions with the active provider named, and `editorCompatibility()` reporting. The facade
+is created only when a plugin is enabled, so the default product does not depend on it.
+
 ## Properties consumer (stage 5 continuation)
 
 This section records source verification for migrating the properties view onto

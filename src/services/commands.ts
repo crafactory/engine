@@ -1,6 +1,7 @@
 /* Native commands service contract (`engine.commands/v1`).
  * The UI, the Obsidian compatibility layer and headless tests share one registry. */
-import type {PluginDefinition} from '../kernel';
+import {Kernel, type PluginDefinition} from '../kernel';
+import {ENGINE_VERSION} from './version';
 
 export const COMMANDS_CONTRACT = 'engine.commands/v1';
 export const COMMANDS_VERSION = '1.0.0';
@@ -68,3 +69,15 @@ export function commandsPlugin(service: CommandsService): PluginDefinition {
 
 /** Default runtime-scoped commands provider plugin. */
 export const createCommandsPlugin = (): PluginDefinition => commandsPlugin(new CommandRegistry());
+
+export interface CommandsRuntime {kernel: Kernel; service: CommandsService}
+
+/** Build and start a kernel exposing the commands service. */
+export async function createCommandsRuntime(options: {engineVersion?: string} = {}): Promise<CommandsRuntime> {
+  const kernel = new Kernel({engineVersion: options.engineVersion ?? ENGINE_VERSION});
+  kernel.register(createCommandsPlugin());
+  await kernel.start();
+  const resolved = kernel.runtime.services.resolve(COMMANDS_CONTRACT, '^1.0.0');
+  if (!resolved.ok) throw new Error('Commands service was not provided');
+  return {kernel, service: resolved.binding.value as CommandsService};
+}

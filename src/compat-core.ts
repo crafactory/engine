@@ -8,10 +8,17 @@ export interface PluginSnapshot {
   name:string;entries:Entry[];notes:Note[];active:string;
   editor:{text:string;from:number;to:number}|null;
 }
+export interface CompatNativeServices {
+  /** Resolve a link target through the native notes index. */
+  resolveLink?(link: string, from: string): string | undefined;
+  /** Editor provider capability; extensions reject when CodeMirror is not active. */
+  editor?: {providerId: string; codeMirrorExtensions: boolean};
+}
 export interface CompatHost {
   request(operation:string,args:unknown[]):Promise<unknown>;
   commands(commands:{id:string;name:string}[]):void;
   notice(message:string):void;
+  native?:CompatNativeServices;
   ui?:{
     exports:Record<string,unknown>;workspace:Record<string,unknown>;
     statusBar():HTMLElement;settingTab(tab:any):()=>void;
@@ -236,8 +243,11 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     onLayoutReady(callback:()=>void){callback();}
     async openLinkText(linktext:string,sourcePath:string,newLeaf?:unknown,openState?:unknown){
       if(newLeaf||openState)return unsupported('Workspace.openLinkText new leaf/state');
-      const dest=resolveLink(parseLinktext(linktext).path,sourcePath,snapshot.notes);if(!dest)throw new Error('Link target not found');
-      await request('open',[dest.path]);
+      // When a native resolver is present it is authoritative; the snapshot resolver is only for runtimes without one.
+      const resolver=host.native?.resolveLink;
+      const target=resolver?resolver(parseLinktext(linktext).path,sourcePath):resolveLink(parseLinktext(linktext).path,sourcePath,snapshot.notes)?.path;
+      if(!target)throw new Error('Link target not found');
+      await request('open',[target]);
     }
   }
   const workspace=guard(new Workspace(),'Workspace'),metadataCache=guard(new Events(),'MetadataCache') as Events&Record<string,any>;
@@ -245,7 +255,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   metadataCache.on=(name:string)=>unsupported('MetadataCache event '+name);
   metadataCache.getFileCache=()=>unsupported('MetadataCache.getFileCache exact positions');
   metadataCache.getCache=()=>unsupported('MetadataCache.getCache exact positions');
-  metadataCache.getFirstLinkpathDest=(link:string,path:string)=>{const note=resolveLink(link,path,snapshot.notes);return note?vault.getFileByPath(note.path):null;};
+  metadataCache.getFirstLinkpathDest=(link:string,path:string)=>{const resolver=host.native?.resolveLink;const target=resolver?resolver(link,path):resolveLink(link,path,snapshot.notes)?.path;return target?vault.getFileByPath(target):null;};
   const app=guard({vault,workspace,metadataCache},'App');
   function refresh(next:PluginSnapshot,events=false){
     const previous=snapshot;snapshot=next;
@@ -304,7 +314,12 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     addStatusBarItem(){if(!host.ui)return unsupported('Plugin.addStatusBarItem');const element=host.ui.statusBar();this.register(()=>element.remove());return element;}
     registerView(type:string,factory:(leaf:any)=>any){if(!host.ui)return unsupported('Plugin.registerView');this.register(host.ui.registerView(type,factory));}
     registerExtensions(){return unsupported('Plugin.registerExtensions');}
-    registerEditorExtension(extension:unknown){if(!host.ui)return unsupported('Plugin.registerEditorExtension');this.register(host.ui.editorExtension(extension));}
+    registerEditorExtension(extension:unknown){
+      const editor=host.native?.editor;
+      if(editor&&!editor.codeMirrorExtensions)throw new Error(`Editor extensions require the CodeMirror editor provider; active provider is ${editor.providerId}`);
+      if(!host.ui)return unsupported('Plugin.registerEditorExtension');
+      this.register(host.ui.editorExtension(extension));
+    }
     registerEditorSuggest(){return unsupported('Plugin.registerEditorSuggest');}
     /** Register a renderer-only callback and attach its disposal to this plugin's lifecycle. */
     registerMarkdownPostProcessor(callback:any,sortOrder?:number){if(!host.ui?.postProcessor)return unsupported('Plugin.registerMarkdownPostProcessor');const registration=host.ui.postProcessor(callback,sortOrder);this.register(registration.dispose);return registration.processor;}
@@ -340,6 +355,8 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     async run(id:string){if(unloaded)throw new Error('Plugin is unloaded');initEditor();const command=commands.get(id);if(!command)throw new Error('Command not found');if(!available(command,true))throw new Error('Command unavailable');await available(command,false);await settle();},
     /** Keep the request fence open until actual hook/cleanup work and data operations settle. */
     async stop(){if(unloaded)return;try{if(plugin)await Promise.all([plugin.unload(),componentLifecycle(plugin,'shutdown')]);await settle();}finally{commands.clear();host.commands([]);unloaded=true;}},
+    /** Report the active editor provider and whether CodeMirror-only extensions apply. */
+    editorCompatibility(){return host.native?.editor??{providerId:'unknown',codeMirrorExtensions:!!host.ui};},
     getExports(){return Object.keys(exports);}
   };
 }
