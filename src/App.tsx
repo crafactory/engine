@@ -110,7 +110,7 @@ export function App(){
       if(!templatesRuntime.current){const runtime=await createDailyNotesRuntime();if(unmounted.current){void runtime.kernel.stop();return;}templatesRuntime.current=runtime;}
       if(!indexRuntime.current){const runtime=await createIndexRuntime();if(unmounted.current){void runtime.kernel.stop();return;}indexRuntime.current=runtime;}
       if(!commandsRuntime.current){const runtime=await createCommandsRuntime();if(unmounted.current){void runtime.kernel.stop();return;}commandsRuntime.current=runtime;}
-      if(!storageRuntime.current){const runtime=await createStorageRuntime({bridge});if(unmounted.current){void runtime.kernel.stop();return;}storageRuntime.current=runtime;}
+      if(!storageRuntime.current){try{const runtime=await createStorageRuntime({bridge});if(unmounted.current)void runtime.kernel.stop();else storageRuntime.current=runtime;}catch(e){report(e);}}
       editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));

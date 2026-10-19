@@ -10,13 +10,15 @@ unchecked.
 | Check | Observed result | Scope |
 |---|---|---|
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
-| `npm run test` | 737 passed (23 files) | +4 bridge-storage cases |
+| `npm run test` | 738 passed (23 files) | +5 bridge-storage cases |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
 | `npm run test:e2e` (macOS) | 45 passed / 6 failed | Unchanged baseline; the file-recovery case passes |
 
 `BridgeStorage` adapts the desktop/preview bridge to `engine.storage/v1` (normalizing the
-optional note version and delegating list/read/write/create/append/mkdir/rename/trash/
-snapshots/restore/pluginData/asset/attach/plugins/state), and `createStorageRuntime({bridge})`
+required content fingerprint (a bridge read without one is rejected) and delegating
+list/read/write/create/append/mkdir/rename/trash/snapshots/restore/pluginData/asset/attach/
+plugins/state; a storage-runtime startup failure is reported locally so vault
+initialization and the bridge fallback still work), and `createStorageRuntime({bridge})`
 exposes it with `engine.documents/v1`. The file-recovery view now reads `documents.history`
 and restores through `documents.restore` (falling back to the bridge only if the runtime is
 unavailable). These are unit/composition and local checks, not packaged-binary acceptance.

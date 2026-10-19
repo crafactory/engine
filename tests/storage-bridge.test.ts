@@ -8,7 +8,7 @@ function fakeBridge(overrides: Partial<Bridge> = {}): Bridge {
     vault: async () => ({name: 'V', root: 'r', entries: [], state: {settings: {theme: 'dark'}} as Partial<VaultState>}),
     choose: async () => true,
     list: async () => [],
-    read: async path => ({path, content: 'body'}),
+    read: async path => ({path, content: 'body', version: 'fp'}),
     write: async (path, content, version) => ({path, content, version: version ?? 'v'}),
     create: async (path, content) => ({path, content, version: 'new'}),
     append: async (path, content) => ({path, content, version: 'v2'}),
@@ -29,13 +29,17 @@ function fakeBridge(overrides: Partial<Bridge> = {}): Bridge {
 }
 
 describe('bridge-backed storage provider', () => {
-  it('normalizes notes to a required version and delegates reads/writes', async () => {
+  it('normalizes notes and delegates reads/writes', async () => {
     const write = vi.fn(async (path: string, content: string, version?: string) => ({path, content, version: version ?? 'computed'}));
     const storage = new BridgeStorage(fakeBridge({write}));
-    expect(await storage.read('One.md')).toEqual({path: 'One.md', content: 'body', version: ''});
+    expect(await storage.read('One.md')).toEqual({path: 'One.md', content: 'body', version: 'fp'});
     expect(await storage.write('One.md', 'next', 'base')).toEqual({path: 'One.md', content: 'next', version: 'base'});
     expect(write).toHaveBeenCalledWith('One.md', 'next', 'base');
     expect(await storage.create('New.md', 'x')).toEqual({path: 'New.md', content: 'x', version: 'new'});
+  });
+  it('rejects a bridge read that omits the content fingerprint', async () => {
+    const storage = new BridgeStorage(fakeBridge({read: async path => ({path, content: 'body'})}));
+    await expect(storage.read('One.md')).rejects.toThrow('no content version');
   });
   it('delegates snapshots, restore, trash, assets and plugin data', async () => {
     const pluginData = vi.fn(async () => ({saved: true}));

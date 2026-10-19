@@ -34,9 +34,10 @@ export class BridgeStorage implements StorageService {
   plugins(): Promise<StoredPlugin[]> { return this.bridge.plugins(); }
 }
 
-/** Normalize a bridge note (optional version) into a stored note (required fingerprint). */
+/** Normalize a bridge note into a stored note; a missing fingerprint is a hard error. */
 function note(value: {path: string; content: string; version?: string}): StoredNote {
-  return {path: value.path, content: value.content, version: value.version ?? ''};
+  if (value.version === undefined) throw new Error('Storage bridge returned no content version');
+  return {path: value.path, content: value.content, version: value.version};
 }
 
 export interface AppStorageRuntime {kernel: Kernel; storage: StorageService; documents: DocumentsService}
