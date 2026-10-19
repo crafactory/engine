@@ -161,6 +161,12 @@ content and caches per-note derivations, so it imports no editor or UI module. T
 application's tags, backlinks, outgoing-links, outline, search, graph and properties views
 consume this contract.
 
+### `engine.navigation/v1`
+
+Quick-switcher ordering (`quickSwitch({recent})`, recent first, stable for the rest) and
+`randomNote()` over Markdown paths. It consumes `engine.index/v1`, so it is activated after
+the index and rejected when the index is missing.
+
 ### Obsidian compatibility facade
 
 `createCompatibilityRuntime` accepts an optional `native` service bundle on its host:
@@ -174,9 +180,10 @@ consume this contract.
   difference explicit instead of silently applying the extension.
 
 The facade remains opt-in per plugin: no compatibility runtime is created at startup, so the
-default product keeps working when the facade is disabled. Storage/documents-backed
-operations (write/pluginData) still use the application host until those providers are wired
-into the UI.
+default product keeps working when the facade is disabled. The application routes the
+facade's read/create/modify/append/mkdir and plugin-data operations through
+`engine.storage/v1` (bridge-backed in the app), keeping the in-memory note reconciliation;
+the remaining Vault operations still use the application host.
 
 ## Composition
 
@@ -216,19 +223,20 @@ interpolation, daily-note computation and the templates→daily-notes dependency
 `tests/notes-index.test.ts` covers index derivation, resolution (including singular
 aliases), backlinks, tags, search, updates, path deduplication, snapshot isolation and the
 index dependency flow. `tests/storage-bridge.test.ts` covers the bridge-backed storage
-adapter and the storage/documents runtime.
+adapter and the storage/documents runtime, and `tests/navigation.test.ts` covers quick-switch
+ordering, random-note selection and the navigation dependency flow.
 
 ## Not yet done
 
-- The application now hosts a bridge-backed storage/documents runtime and the file-recovery
-  view consumes `engine.documents/v1`; note writes and the rest of persistence still use
-  `src/bridge.ts` directly. Commands, render/workspace and editor services are consumed by
-  the application; storage-backed facade operations are not yet routed through the service.
+- The application now hosts a bridge-backed storage/documents runtime; file recovery uses
+  `engine.documents/v1` and the compatibility facade routes read/write/plugin-data through
+  `engine.storage/v1`. Note writes from the application itself still use `src/bridge.ts`
+  directly, and the remaining Vault operations still use the application host.
 - Bookmarks and templates/daily notes are consumed by the application; their persistence
   is still application-side, and the migrated core features are a subset of the 29 core
   plugins.
 - The tags, backlinks, outgoing-links, outline, search, graph and properties views consume
-  `engine.index/v1`; other core features (file navigation, random note, word count, …)
+  `engine.index/v1`; other core features (file navigation, word count, …)
   remain to be migrated.
 - The editor has two providers and the app uses the CodeMirror provider for
   selection/viewport; body-text drafts and write conflicts still use the application's

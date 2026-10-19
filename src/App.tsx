@@ -22,7 +22,7 @@ import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
-import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createIndexRuntime,createCommandsRuntime,createStorageRuntime,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type IndexRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime} from './services';
+import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
 const Canvas=lazy(()=>import('./Canvas').then(m=>({default:m.Canvas})));
@@ -74,9 +74,9 @@ export function App(){
   const editorRuntime=useRef<EditorRuntime|null>(null),editorSessions=useRef(new Map<string,EditorSession>());
   const bookmarksRuntime=useRef<BookmarksRuntime|null>(null),bookmarksUnsub=useRef<(()=>void)|null>(null);
   const templatesRuntime=useRef<DailyNotesRuntime|null>(null);
-  const indexRuntime=useRef<IndexRuntime|null>(null);
+  const indexRuntime=useRef<NavigationRuntime|null>(null);
   const commandsRuntime=useRef<CommandsRuntime|null>(null),commandDisposers=useRef(new Map<string,()=>void>());
-  const storageRuntime=useRef<AppStorageRuntime|null>(null);
+  const storageRuntime=useRef<AppStorageRuntime|null>(null),bridgeStorageFallback=useRef<BridgeStorage|null>(null);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   function pluginSnapshot():PluginSnapshot{
     const s=pluginState.current;
@@ -108,7 +108,7 @@ export function App(){
       if(!editorRuntime.current){const runtime=await createEditorRuntime('codemirror');if(unmounted.current){void runtime.kernel.stop();return;}editorRuntime.current=runtime;}
       if(!bookmarksRuntime.current){const runtime=await createBookmarksRuntime();if(unmounted.current){void runtime.kernel.stop();return;}bookmarksRuntime.current=runtime;bookmarksUnsub.current=runtime.service.subscribe(next=>setBookmarks(next));}
       if(!templatesRuntime.current){const runtime=await createDailyNotesRuntime();if(unmounted.current){void runtime.kernel.stop();return;}templatesRuntime.current=runtime;}
-      if(!indexRuntime.current){const runtime=await createIndexRuntime();if(unmounted.current){void runtime.kernel.stop();return;}indexRuntime.current=runtime;}
+      if(!indexRuntime.current){const runtime=await createNavigationRuntime();if(unmounted.current){void runtime.kernel.stop();return;}indexRuntime.current=runtime;}
       if(!commandsRuntime.current){const runtime=await createCommandsRuntime();if(unmounted.current){void runtime.kernel.stop();return;}commandsRuntime.current=runtime;}
       if(!storageRuntime.current){try{const runtime=await createStorageRuntime({bridge});if(unmounted.current)void runtime.kernel.stop();else storageRuntime.current=runtime;}catch(e){report(e);}}
       editorSessions.current.clear();
@@ -381,11 +381,12 @@ export function App(){
     const generation=vaultGeneration.current;
     const operation=async(name:string,args:unknown[])=>{
       if(generation!==vaultGeneration.current)throw new Error('Plugin belongs to a closed vault');
-      if(name==='loadData')return bridge.pluginData(id);
-      if(name==='saveData')return bridge.pluginData(id,args[0],true);
+      const storage=storageRuntime.current?.storage??(bridgeStorageFallback.current??=new BridgeStorage(bridge));
+      if(name==='loadData')return storage.pluginData(id);
+      if(name==='saveData')return storage.pluginData(id,args[0],true);
       if(typeof args[0]!=='string'||!validPath(args[0]))throw new Error('Invalid plugin vault path');
       const path=args[0];
-      if(name==='read')return (await bridge.read(path)).content;
+      if(name==='read')return (await storage.read(path)).content;
       if(name==='open'){if(!notesRef.current.some(n=>n.path===path))throw new Error('File not found');open(path);pluginState.current.active=path;return;}
       if(name==='editor'){
         if(path!==pluginState.current.active||pluginState.current.mode==='reading'||editor.current?.path()!==path)throw new Error('Editor no longer active');
@@ -394,21 +395,21 @@ export function App(){
         if(!editor.current.applyPluginEdit(base,text,from as number,to as number))throw new Error('CONFLICT: Editor changed before plugin edit');
         return;
       }
-      if(name==='mkdir'){await bridge.mkdir(path);}
+      if(name==='mkdir'){await storage.mkdir(path);}
       else if(['create','modify','append','writeLegacy'].includes(name)){
         const text=args[1];if(typeof text!=='string'||(name==='writeLegacy'&&!isNote(path)))throw new Error('Invalid plugin text');
         await flush();
         const before=notesRef.current.find(n=>n.path===path)?.content;
-        let result:Note;
-        if(name==='create')result=await bridge.create(path,text);
-        else if(name==='append')result=await bridge.append(path,text);
-        else if(name==='modify'){const disk=await bridge.read(path);result=await bridge.write(path,text,disk.version);}
-        else result=await bridge.write(path,text,versions.current.get(path));
+        let result:StoredNote;
+        if(name==='create')result=await storage.create(path,text);
+        else if(name==='append')result=await storage.append(path,text);
+        else if(name==='modify'){const disk=await storage.read(path);result=await storage.write(path,text,disk.version);}
+        else result=await storage.write(path,text,versions.current.get(path));
         savedContent.current.set(path,result.content);versions.current.set(path,result.version);
         const existing=notesRef.current.find(n=>n.path===path);
         updateNotes(existing?notesRef.current.map(n=>n.path===path&&n.content===before?result:n):[...notesRef.current,result]);
       }else throw new Error('Unsupported plugin host operation: '+name);
-      const next=await bridge.list();pluginState.current.entries=next;setEntries(next);
+      const next=await storage.list();pluginState.current.entries=next;setEntries(next);
     };
     pluginStarting.current.add(id);
     try{
@@ -438,7 +439,7 @@ export function App(){
     {id:'local-graph',label:'Open local graph',run:()=>open('@local:'+active)},
     {id:'new-canvas',label:'Create new canvas',run:createCanvas},
     {id:'new-base',label:'Create new base',run:createBase},
-    {id:'random-note',label:'Open a random note',run:()=>{const n=notes.filter(n=>isNote(n.path));if(n.length)open(n[Math.floor(Math.random()*n.length)].path);}},
+    {id:'random-note',label:'Open a random note',run:()=>{const path=indexRuntime.current?.navigation.randomNote();if(path){open(path);return;}const n=notes.filter(n=>isNote(n.path));if(n.length)open(n[Math.floor(Math.random()*n.length)].path);}},
     {id:'insert-template',label:'Insert template',run:()=>setPalette('templates')},
     {id:'bookmark',label:'Toggle bookmark for current note',run:toggleBookmark},
     {id:'toggle-mode',label:'Toggle reading and editing',shortcut:'⌘ E',run:toggleMode},
@@ -581,7 +582,7 @@ export function App(){
   }
   let paletteItems:Choice[]=[];
   if(palette==='commands')paletteItems=serviceCommands.length?serviceCommands:commands;
-  if(palette==='files')paletteItems=[...notes].sort((a,b)=>{const x=recent.indexOf(a.path),y=recent.indexOf(b.path);return (x<0?999:x)-(y<0?999:y);}).map(n=>({id:n.path,label:title(n.path),description:n.path,run:()=>open(n.path)}));
+  if(palette==='files')paletteItems=(indexRuntime.current?.navigation.quickSwitch({recent})??[...notes].sort((a,b)=>{const x=recent.indexOf(a.path),y=recent.indexOf(b.path);return (x<0?999:x)-(y<0?999:y);}).map(n=>n.path)).map(path=>({id:path,label:title(path),description:path,run:()=>open(path)}));
   if(palette==='templates')paletteItems=notes.filter(n=>isNote(n.path)&&n.path.startsWith(settings.templatesFolder+'/')).map(n=>({id:n.path,label:title(n.path),description:n.path,run:()=>insertTemplate(n.path)}));
   if(palette==='workspaces')paletteItems=Object.keys(workspaces).map(name=>({id:name,label:name,run:()=>loadWorkspace(name)}));
   if(palette==='merge')paletteItems=notes.filter(n=>isNote(n.path)&&n.path!==active).map(n=>({id:n.path,label:title(n.path),description:n.path,run:()=>mergeInto(n.path)}));
