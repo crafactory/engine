@@ -24,8 +24,8 @@ failures.
 
 This section records source verification for migrating the graph view onto
 `engine.index/v1`. `Graph` now derives its nodes and edges from `index.outgoing`,
-`index.resolve` and `index.note(...).tags` instead of parsing links/tags itself; the
-properties view is not migrated yet, so stage 5 stays unchecked.
+`index.resolve` and `index.note(...).tags` instead of parsing links/tags itself. Other
+core features remain to be migrated, so stage 5 stays unchecked.
 
 | Check | Observed result | Scope |
 |---|---|---|
@@ -44,8 +44,8 @@ checks, not packaged-binary acceptance.
 
 This section records source verification for migrating the search panel onto
 `engine.index/v1`. `App` now derives search results from the index and maps the matching
-paths back to notes for the result list and snippet; graph and properties are not migrated
-yet, so stage 5 stays unchecked.
+paths back to notes for the result list and snippet. Other core features remain to be
+migrated, so stage 5 stays unchecked.
 
 | Check | Observed result | Scope |
 |---|---|---|
@@ -64,8 +64,8 @@ unit/composition and local checks, not packaged-binary acceptance.
 
 This section records source verification for migrating the reader panels onto
 `engine.index/v1`. The application's tags, backlinks, outgoing-links and outline panels now
-consume the index instead of recomputing metadata from note content; graph and properties
-are not migrated yet, so stage 5 stays unchecked.
+consume the index instead of recomputing metadata from note content. Other core features
+remain to be migrated, so stage 5 stays unchecked.
 
 | Check | Observed result | Scope |
 |---|---|---|
@@ -85,9 +85,9 @@ baseline. These are unit/composition and local checks, not packaged-binary accep
 ## Notes index dependency (stage 5 continuation)
 
 This section records source verification for `engine.index/v1`, the derived metadata and
-search index consumed by the reader panels and search. The contract and provider are
-delivered and tested; graph, properties and the remaining features are not migrated yet,
-so stage 5 stays unchecked.
+search index consumed by the reader panels, search, graph and properties. The contract and
+provider are delivered and tested; the remaining core features are not migrated yet, so
+stage 5 stays unchecked.
 
 | Check | Observed result | Scope |
 |---|---|---|
