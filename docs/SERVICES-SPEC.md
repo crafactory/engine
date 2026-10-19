@@ -40,6 +40,7 @@ Two providers satisfy the contract:
 |---|---|---|
 | `MemoryStorage` | `src/services/storage.ts` | browser preview and tests |
 | `LocalStorage` | `src/services/storage.ts` | desktop/web over a Vault-like store (`core/vault.mjs`) |
+| `BridgeStorage` | `src/services/storage-bridge.ts` | the running application, over the preload/memory bridge |
 
 `LocalStorage` delegates to a `VaultLike` object so the browser bundle never imports
 Node filesystem modules. Symlink-escape protection is a local-filesystem capability and
@@ -188,6 +189,9 @@ depends on `engine.render/v1`, and each format plugin depends on both, so the ke
 activates them in dependency order and rejects missing providers. The local profile
 requires a vault. `createEditorRuntime(kind)` registers the CodeMirror or plain editor
 provider plugin, starts the kernel and returns the resolved editor provider.
+`createStorageRuntime({bridge})` exposes the bridge-backed storage and documents providers;
+the application uses it for file-recovery history/restore while its own note writes still go
+through the bridge until the persistence path is migrated.
 `createBookmarksRuntime()` and `createDailyNotesRuntime()` build their kernels and return
 the resolved services. The kernel's `disable`/`enable` implement provider-loss rebinding:
 disabling a provider deactivates its transitive required consumers with a
@@ -211,13 +215,15 @@ interpolation, daily-note computation and the templates→daily-notes dependency
 `tests/dependency-flow.test.ts` covers provider disable/enable/rebind flow, and
 `tests/notes-index.test.ts` covers index derivation, resolution (including singular
 aliases), backlinks, tags, search, updates, path deduplication, snapshot isolation and the
-index dependency flow.
+index dependency flow. `tests/storage-bridge.test.ts` covers the bridge-backed storage
+adapter and the storage/documents runtime.
 
 ## Not yet done
 
-- Storage, documents and commands providers are not yet consumed by the application; the
-  running path still uses `src/bridge.ts` for persistence. The workspace/render services
-  only drive format → view dispatch in `src/App.tsx`.
+- The application now hosts a bridge-backed storage/documents runtime and the file-recovery
+  view consumes `engine.documents/v1`; note writes and the rest of persistence still use
+  `src/bridge.ts` directly. Commands, render/workspace and editor services are consumed by
+  the application; storage-backed facade operations are not yet routed through the service.
 - Bookmarks and templates/daily notes are consumed by the application; their persistence
   is still application-side, and the migrated core features are a subset of the 29 core
   plugins.

@@ -22,7 +22,7 @@ import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
-import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createIndexRuntime,createCommandsRuntime,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type IndexRuntime,type CommandsRuntime,type CommandsService,type NativeCommand} from './services';
+import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createIndexRuntime,createCommandsRuntime,createStorageRuntime,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type IndexRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
 const Canvas=lazy(()=>import('./Canvas').then(m=>({default:m.Canvas})));
@@ -76,6 +76,7 @@ export function App(){
   const templatesRuntime=useRef<DailyNotesRuntime|null>(null);
   const indexRuntime=useRef<IndexRuntime|null>(null);
   const commandsRuntime=useRef<CommandsRuntime|null>(null),commandDisposers=useRef(new Map<string,()=>void>());
+  const storageRuntime=useRef<AppStorageRuntime|null>(null);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   function pluginSnapshot():PluginSnapshot{
     const s=pluginState.current;
@@ -109,6 +110,7 @@ export function App(){
       if(!templatesRuntime.current){const runtime=await createDailyNotesRuntime();if(unmounted.current){void runtime.kernel.stop();return;}templatesRuntime.current=runtime;}
       if(!indexRuntime.current){const runtime=await createIndexRuntime();if(unmounted.current){void runtime.kernel.stop();return;}indexRuntime.current=runtime;}
       if(!commandsRuntime.current){const runtime=await createCommandsRuntime();if(unmounted.current){void runtime.kernel.stop();return;}commandsRuntime.current=runtime;}
+      if(!storageRuntime.current){const runtime=await createStorageRuntime({bridge});if(unmounted.current){void runtime.kernel.stop();return;}storageRuntime.current=runtime;}
       editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));
@@ -123,7 +125,7 @@ export function App(){
       loaded.current=true;setPluginList(await bridge.plugins());
     }catch(e){report(e);}finally{setLoading(false);}
   }
-  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();};},[]);
+  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();};},[]);
   useEffect(()=>{for(const controller of pluginStops.current.values())controller.sync(pluginSnapshot());},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
@@ -316,10 +318,10 @@ export function App(){
     }catch(e){report(e);}
   }
   async function showRecovery(){
-    if(!activeNote)return;try{await flush();setRecovery(await bridge.snapshots(active));}catch(e){report(e);}
+    if(!activeNote)return;try{await flush();const documents=storageRuntime.current?.documents;setRecovery(documents?await documents.history(active):await bridge.snapshots(active));}catch(e){report(e);}
   }
   async function restoreSnapshot(id:string){
-    try{const restored=await bridge.restore(id);versions.current.set(restored.path,restored.version);savedContent.current.set(restored.path,restored.content);updateNotes(notesRef.current.map(n=>n.path===restored.path?restored:n));setRecovery(null);toast('Previous version restored.');}catch(e){report(e);}
+    try{const documents=storageRuntime.current?.documents;const restored=documents?await documents.restore(id):await bridge.restore(id);versions.current.set(restored.path,restored.version);savedContent.current.set(restored.path,restored.content);updateNotes(notesRef.current.map(n=>n.path===restored.path?restored:n));setRecovery(null);toast('Previous version restored.');}catch(e){report(e);}
   }
   async function saveWorkspace(){
     const name=await dialog.ask('Save workspace','My workspace');if(name)setWorkspaces(w=>({...w,[name]:{tabs,active,split,left,right,mode}}));

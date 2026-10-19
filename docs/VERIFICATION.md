@@ -1,5 +1,26 @@
 # Verification results
 
+## Bridge storage into the app + file recovery (stage 2/5 continuation)
+
+This section records source verification for wiring the bridge-backed storage/documents
+runtime into the application and migrating file recovery onto `engine.documents/v1`. Note
+writes and the rest of persistence still go through the bridge, and stages 5/6 stay
+unchecked.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 737 passed (23 files) | +4 bridge-storage cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | 45 passed / 6 failed | Unchanged baseline; the file-recovery case passes |
+
+`BridgeStorage` adapts the desktop/preview bridge to `engine.storage/v1` (normalizing the
+optional note version and delegating list/read/write/create/append/mkdir/rename/trash/
+snapshots/restore/pluginData/asset/attach/plugins/state), and `createStorageRuntime({bridge})`
+exposes it with `engine.documents/v1`. The file-recovery view now reads `documents.history`
+and restores through `documents.restore` (falling back to the bridge only if the runtime is
+unavailable). These are unit/composition and local checks, not packaged-binary acceptance.
+
 ## Command service and native compatibility facade (stage 5/6 continuation)
 
 This section records source verification for two changes in one increment: the application
