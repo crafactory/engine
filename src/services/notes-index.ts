@@ -36,6 +36,7 @@ export interface IndexService {
   tags(paths?: readonly string[]): TagCount[];
   headings(path: string): IndexedHeading[];
   properties(path: string): Record<string, unknown>;
+  propertyKeys(): string[];
   resolve(linktext: string, from: string): string | undefined;
   search(query: string, options?: {caseSensitive?: boolean}): string[];
 }
@@ -89,25 +90,41 @@ export class NotesIndex implements IndexService {
 
   /** Derived metadata for a note as an isolated snapshot. */
   note(path: string): IndexedNote | undefined {
-    const entry = this.derive(path);
-    return entry ? structuredClone(entry) : undefined;
+    const source = this.source(path);
+    return source ? structuredClone(this.derive(source)) : undefined;
   }
 
   /** Outgoing links of a note. */
-  outgoing(path: string): IndexedLink[] { return (this.derive(path)?.links ?? []).map(link => ({...link})); }
+  outgoing(path: string): IndexedLink[] {
+    const source = this.source(path);
+    return (source ? this.derive(source).links : []).map(link => ({...link}));
+  }
 
   /** Headings of a note. */
-  headings(path: string): IndexedHeading[] { return (this.derive(path)?.headings ?? []).map(heading => ({...heading})); }
+  headings(path: string): IndexedHeading[] {
+    const source = this.source(path);
+    return (source ? this.derive(source).headings : []).map(heading => ({...heading}));
+  }
 
   /** Frontmatter properties of a note as an isolated snapshot. */
-  properties(path: string): Record<string, unknown> { return structuredClone(this.derive(path)?.properties ?? {}); }
+  properties(path: string): Record<string, unknown> {
+    const source = this.source(path);
+    return structuredClone(source ? this.derive(source).properties : {});
+  }
+
+  /** Unique frontmatter property keys across the index, in first-seen order. */
+  propertyKeys(): string[] {
+    const keys = new Set<string>();
+    for (const note of this.notes) for (const key of Object.keys(this.derive(note).properties)) keys.add(key);
+    return [...keys];
+  }
 
   /** Notes whose links resolve to the given path, once per source, with the link label. */
   backlinks(path: string): Backlink[] {
     const result: Backlink[] = [], seen = new Set<string>();
     for (const source of this.notes) {
       if (source.path === path || seen.has(source.path)) continue;
-      for (const link of this.derive(source.path)!.links) {
+      for (const link of this.derive(source).links) {
         if (this.resolve(link.target, source.path) !== path) continue;
         seen.add(source.path);
         result.push({path: source.path, context: link.label || link.target});
@@ -141,7 +158,7 @@ export class NotesIndex implements IndexService {
     // resolver order; a string alias keeps its substring match.
     const normalizedTitle = title(normalized).toLowerCase();
     const found = this.notes.find(note => {
-      const entry = this.derive(note.path)!;
+      const entry = this.derive(note);
       if (entry.title.toLowerCase() === normalizedTitle) return true;
       const value = entry.properties.aliases ?? entry.properties.alias;
       if (Array.isArray(value)) return value.includes(linktext);
@@ -155,18 +172,19 @@ export class NotesIndex implements IndexService {
     return search(this.notes, query, options.caseSensitive ?? false).map(note => note.path);
   }
 
+  /** Find an indexed note by path. */
+  private source(path: string): Note | undefined { return this.notes.find(note => note.path === path); }
+
   /** Cached derivation for a note, without cloning. */
-  private derive(path: string): IndexedNote | undefined {
-    const cached = this.cache.get(path);
+  private derive(node: Note): IndexedNote {
+    const cached = this.cache.get(node.path);
     if (cached) return cached;
-    const source = this.notes.find(note => note.path === path);
-    if (!source) return undefined;
-    const parsed = frontmatter(source.content);
+    const parsed = frontmatter(node.content);
     const entry: IndexedNote = {
-      path, title: title(path), aliases: aliasesOf(parsed.properties), tags: tags(source.content),
-      headings: headings(source.content), links: links(source.content), properties: parsed.properties, body: parsed.body
+      path: node.path, title: title(node.path), aliases: aliasesOf(parsed.properties), tags: tags(node.content),
+      headings: headings(node.content), links: links(node.content), properties: parsed.properties, body: parsed.body
     };
-    this.cache.set(path, entry);
+    this.cache.set(node.path, entry);
     return entry;
   }
 
