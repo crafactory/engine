@@ -1,5 +1,27 @@
 # Verification results
 
+## Navigation service and facade storage routing (stage 5/6 continuation)
+
+This section records source verification for two changes in one increment: a new
+`engine.navigation/v1` (quick switch + random note) consuming the notes index, and routing
+the compatibility facade's read/write/plugin-data operations through
+`engine.storage/v1`. Stages 5/6 stay unchecked.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 743 passed (24 files) | +5 navigation cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | 45 passed / 6 failed | Unchanged baseline; the quick-switcher case passes |
+
+`NotesNavigation` orders quick-switch paths recent-first (stable otherwise) and returns a
+random Markdown path with an injectable random source; the navigation plugin consumes
+`engine.index/v1` and is rejected without it. The navigation suite also covers the
+disable-with-index dependency flow. The facade's read/create/modify/append/mkdir and
+plugin-data operations now call the storage service (bridge-backed in the app) while keeping
+the in-memory note reconciliation. These are unit/composition and local checks, not
+packaged-binary acceptance.
+
 ## Bridge storage into the app + file recovery (stage 2/5 continuation)
 
 This section records source verification for wiring the bridge-backed storage/documents
