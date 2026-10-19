@@ -33,7 +33,7 @@ export class NotesNavigation implements NavigationService {
     const recent = options.recent ?? [];
     return [...this.index.paths()].sort((a, b) => {
       const left = recent.indexOf(a), right = recent.indexOf(b);
-      return (left < 0 ? 999 : left) - (right < 0 ? 999 : right);
+      return (left < 0 ? recent.length : left) - (right < 0 ? recent.length : right);
     });
   }
 

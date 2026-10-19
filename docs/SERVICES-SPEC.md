@@ -236,7 +236,7 @@ ordering, random-note selection and the navigation dependency flow.
   is still application-side, and the migrated core features are a subset of the 29 core
   plugins.
 - The tags, backlinks, outgoing-links, outline, search, graph and properties views consume
-  `engine.index/v1`; other core features (file navigation, random note, word count, …)
+  `engine.index/v1`; other core features (file navigation, word count, …)
   remain to be migrated.
 - The editor has two providers and the app uses the CodeMirror provider for
   selection/viewport; body-text drafts and write conflicts still use the application's
