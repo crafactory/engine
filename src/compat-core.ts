@@ -243,10 +243,11 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     onLayoutReady(callback:()=>void){callback();}
     async openLinkText(linktext:string,sourcePath:string,newLeaf?:unknown,openState?:unknown){
       if(newLeaf||openState)return unsupported('Workspace.openLinkText new leaf/state');
-      const native=host.native?.resolveLink?.(parseLinktext(linktext).path,sourcePath);
-      if(native){await request('open',[native]);return;}
-      const dest=resolveLink(parseLinktext(linktext).path,sourcePath,snapshot.notes);if(!dest)throw new Error('Link target not found');
-      await request('open',[dest.path]);
+      // When a native resolver is present it is authoritative; the snapshot resolver is only for runtimes without one.
+      const resolver=host.native?.resolveLink;
+      const target=resolver?resolver(parseLinktext(linktext).path,sourcePath):resolveLink(parseLinktext(linktext).path,sourcePath,snapshot.notes)?.path;
+      if(!target)throw new Error('Link target not found');
+      await request('open',[target]);
     }
   }
   const workspace=guard(new Workspace(),'Workspace'),metadataCache=guard(new Events(),'MetadataCache') as Events&Record<string,any>;
@@ -254,7 +255,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   metadataCache.on=(name:string)=>unsupported('MetadataCache event '+name);
   metadataCache.getFileCache=()=>unsupported('MetadataCache.getFileCache exact positions');
   metadataCache.getCache=()=>unsupported('MetadataCache.getCache exact positions');
-  metadataCache.getFirstLinkpathDest=(link:string,path:string)=>{const native=host.native?.resolveLink?.(link,path);if(native)return vault.getFileByPath(native)??null;const note=resolveLink(link,path,snapshot.notes);return note?vault.getFileByPath(note.path):null;};
+  metadataCache.getFirstLinkpathDest=(link:string,path:string)=>{const resolver=host.native?.resolveLink;const target=resolver?resolver(link,path):resolveLink(link,path,snapshot.notes)?.path;return target?vault.getFileByPath(target):null;};
   const app=guard({vault,workspace,metadataCache},'App');
   function refresh(next:PluginSnapshot,events=false){
     const previous=snapshot;snapshot=next;

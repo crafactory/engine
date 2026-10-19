@@ -31,6 +31,9 @@ const Bases=lazy(()=>import('./Bases').then(m=>({default:m.Bases})));
 const textFile=(path:string)=>/\.(md|markdown|canvas|base|txt|csv|json|css)$/i.test(path);
 const validPath=(path:string)=>path&&!path.startsWith('/')&&!path.includes('\\')&&!path.split('/').some(p=>!p||p.startsWith('.'))&&!path.includes('\0');
 const defaultKeys:Record<string,string>={'new-note':'mod+n','quick-switcher':'mod+o','command-palette':'mod+p','search':'mod+shift+f','toggle-mode':'mod+e','settings':'mod+,','close-tab':'mod+w','daily-note':'mod+shift+d'};
+/** Render a normalized key binding (`mod+shift+f`) as display text (`⌘ ⇧ F`). */
+const keyLabels:Record<string,string>={mod:'⌘',alt:'⌥',shift:'⇧'};
+const formatHotkey=(binding:string)=>binding.split('+').map(part=>keyLabels[part]??(part.length===1?part.toUpperCase():part)).join(' ');
 function Logo(){return <svg viewBox="0 0 32 32" fill="none" aria-label="Crafactory Engine"><path d="M23 9H12l-5 7 5 7h11M18 9l-5 7 5 7M13 16h12" stroke="currentColor" strokeWidth="2.3" strokeLinejoin="round"/></svg>;}
 function IconButton({label,children,onClick,active=false,className='',testid}:{label:string;children:React.ReactNode;onClick:()=>void;active?:boolean;className?:string;testid?:string}){
   return <button className={'icon-button '+(active?'active ':'')+className} aria-label={label} title={label} onClick={onClick} data-testid={testid||label.toLowerCase().replace(/[^a-z0-9]+/g,'-')}>{children}</button>;
@@ -59,6 +62,7 @@ export function App(){
   const [pluginModes,setPluginModes]=useState<Record<string,string>>({}),[pluginTabs,setPluginTabs]=useState<Record<string,PluginTab[]>>({}),[pluginExtensions,setPluginExtensions]=useState<Record<string,unknown[]>>({});
   const allPluginExtensions=useMemo(()=>Object.values(pluginExtensions).flat() as Extension[],[pluginExtensions]);
   const [dirtyCount,setDirtyCount]=useState(0),[recording,setRecording]=useState(false);
+  const [serviceCommands,setServiceCommands]=useState<Choice[]>([]);
   const notesRef=useRef<Note[]>([]),settingsRef=useRef(settings),editor=useRef<EditorHandle>(null);
   const timers=useRef(new Map<string,ReturnType<typeof setTimeout>>()),saves=useRef(new Map<string,Promise<void>>());
   const savedContent=useRef(new Map<string,string>()),versions=useRef(new Map<string,string|undefined>());
@@ -478,10 +482,11 @@ export function App(){
     for(const dispose of disposers.values())dispose();
     disposers.clear();
     for(const command of commandsRef.current){
-      const registered:NativeCommand={id:command.id,name:command.label,run:()=>command.run(),...(command.shortcut?{hotkey:command.shortcut}:{})};
+      const registered:NativeCommand={id:command.id,name:command.label,run:()=>command.run(),...(defaultKeys[command.id]?{hotkey:defaultKeys[command.id]}:{})};
       try{disposers.set(command.id,service.register(registered));}catch{/* already registered from a previous render */ }
     }
-    return()=>{for(const dispose of disposers.values())dispose();disposers.clear();};
+    setServiceCommands(service.list().map(command=>({id:command.id,label:command.name,shortcut:command.hotkey?formatHotkey(command.hotkey):undefined,run:()=>runCommand(command.id)})));
+    return()=>{for(const dispose of disposers.values())dispose();disposers.clear();setServiceCommands([]);};
   },[notes,active,mode,settings,pluginCommands,recording,dirtyCount]);
   function runCommand(id:string){try{commandsRef.current.find(c=>c.id===id)?.run();}catch(e){report(e);}}
   useEffect(()=>{
@@ -573,7 +578,7 @@ export function App(){
     </div>;
   }
   let paletteItems:Choice[]=[];
-  if(palette==='commands')paletteItems=commandsRuntime.current?commandsRuntime.current.service.list().map(command=>({id:command.id,label:command.name,shortcut:command.hotkey,run:()=>runCommand(command.id)})):commands;
+  if(palette==='commands')paletteItems=serviceCommands.length?serviceCommands:commands;
   if(palette==='files')paletteItems=[...notes].sort((a,b)=>{const x=recent.indexOf(a.path),y=recent.indexOf(b.path);return (x<0?999:x)-(y<0?999:y);}).map(n=>({id:n.path,label:title(n.path),description:n.path,run:()=>open(n.path)}));
   if(palette==='templates')paletteItems=notes.filter(n=>isNote(n.path)&&n.path.startsWith(settings.templatesFolder+'/')).map(n=>({id:n.path,label:title(n.path),description:n.path,run:()=>insertTemplate(n.path)}));
   if(palette==='workspaces')paletteItems=Object.keys(workspaces).map(name=>({id:name,label:name,run:()=>loadWorkspace(name)}));
