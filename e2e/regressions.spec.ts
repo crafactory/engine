@@ -10,7 +10,7 @@ test('embedded task controls cannot acquire host task source ownership',async({p
   await expect(page.getByTestId('file-Embedded task.md')).toBeVisible();
   const source='---\nstatus: pending\n---\n# Host\n\n- [ ] First\n\n![[Task board.canvas]]\n\n![[Embedded task.md]]\n\n- [ ] Second\n\n> - [ ] Quoted\n\n1. [ ] Ordered\n';
   await page.getByRole('button',{name:'New note',exact:true}).click();await page.getByTestId('dialog-input').fill('Task owner.md');await page.getByTestId('dialog-submit').click();
-  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+a');await page.keyboard.insertText(source);
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+a');await page.keyboard.insertText(source);
   await page.getByTestId('mode-reading').click();
   await expect(page.getByRole('checkbox',{name:'Canvas task',exact:true})).toBeDisabled();
   await expect(page.getByRole('checkbox',{name:'Embedded task',exact:true})).toBeDisabled();
@@ -54,7 +54,7 @@ async function host(page:Page,content:string){
   await page.getByRole('button',{name:'New note',exact:true}).click();
   await page.getByTestId('dialog-input').fill('Regression.md');await page.getByTestId('dialog-submit').click();
   await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();
-  await page.keyboard.press('Control+a');await page.keyboard.insertText(content);
+  await page.keyboard.press('ControlOrMeta+a');await page.keyboard.insertText(content);
 }
 /** Invoke a named command through the visible palette. */
 async function command(page:Page,label:string){
@@ -124,7 +124,7 @@ test('typing above a table preserves measured widget DOM and remaps edit callbac
   await page.getByTestId('mode-live').click();
   const cell=page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true});await expect(cell).toBeVisible();
   const widget=await page.locator('.live-block-table').elementHandle();
-  await page.getByTestId('note-editor').press('Control+Home');await page.keyboard.type('New ');
+  await page.getByTestId('note-editor').press('ControlOrMeta+Home');await page.keyboard.type('New ');
   expect(await widget!.evaluate(el=>el.isConnected)).toBe(true);
   await cell.click();await page.getByRole('textbox',{name:'Cell row 2 column 2',exact:true}).fill('Remapped');await page.keyboard.press('Enter');
   await expect(cell).toHaveText('Remapped');await page.getByTestId('mode-source').click();await expect(page.getByTestId('note-editor')).toContainText('| Alpha | Remapped |');
@@ -132,14 +132,14 @@ test('typing above a table preserves measured widget DOM and remaps edit callbac
 test('long document with a tall table keeps the typing caret in the editor viewport',async({page})=>{
   const table='| Name | State |\n| --- | --- |\n'+Array.from({length:100},(_,i)=>`| Row ${i} | Open |`).join('\n');
   await host(page,'# Long\n\n'+table+'\n\n'+Array.from({length:120},(_,i)=>`Paragraph ${i}, enough text to scroll.\n`).join('\n')+'\nTail');
-  await page.getByTestId('mode-live').click();await page.getByTestId('note-editor').press('Control+End');
+  await page.getByTestId('mode-live').click();await page.getByTestId('note-editor').press('ControlOrMeta+End');
   await page.keyboard.type(' typed after table');
   await expect(page.getByTestId('note-editor')).toContainText('Tail typed after table');
   await expect.poll(async()=>page.evaluate(()=>{
     const cursor=document.querySelector('.cm-cursor')?.getBoundingClientRect(),editor=document.querySelector('.cm-scroller')?.getBoundingClientRect();
     return !!cursor&&!!editor&&cursor.top>=editor.top-2&&cursor.bottom<=editor.bottom+2;
   })).toBe(true);
-  await page.keyboard.press('Control+z');await page.keyboard.press('Control+Shift+z');
+  await page.keyboard.press('ControlOrMeta+z');await page.keyboard.press('ControlOrMeta+Shift+z');
   await expect(page.getByTestId('note-editor')).toContainText('typed after table');
 });
 test('editing a cell near the bottom of a tall table keeps the focused input and committed cell visible',async({page})=>{
@@ -178,7 +178,7 @@ test('empty and malformed Canvas embeds remain bounded and never expose JSON as 
     await page.goto('/');await page.locator('input[aria-label="Import files"]').setInputFiles({name,mimeType:'application/json',buffer:Buffer.from(content)});
     await expect(page.getByTestId('file-'+name)).toBeVisible();
     await page.getByRole('button',{name:'New note',exact:true}).click();await page.getByTestId('dialog-input').fill('Host '+name+'.md');await page.getByTestId('dialog-submit').click();
-    await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+a');await page.keyboard.insertText(`# Host\n\n![[${name}]]`);
+    await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+a');await page.keyboard.insertText(`# Host\n\n![[${name}]]`);
     await page.getByTestId('mode-reading').click();
     if(name.startsWith('Empty')){const embed=page.getByRole('region',{name:'Embedded Canvas',exact:true});await expect(embed).toBeVisible();await expect(embed.locator('.react-flow__node')).toHaveCount(0);}
     else await expect(page.locator('.embedded-note')).toContainText('Invalid Canvas file');
@@ -194,11 +194,11 @@ test('active Live link source remains editable and safe external links are ancho
   expect(new URL((await page.getByRole('link',{name:'Website',exact:true}).getAttribute('href'))!).searchParams.get('q')).toBe('a&b#c/d');
   await expect(page.getByRole('link',{name:'Unsafe',exact:true})).toHaveCount(0);
   await expect(page.getByRole('link',{name:'Not a link',exact:true})).toHaveCount(0);
-  await page.getByTestId('note-editor').press('Control+Home');await page.keyboard.press('ArrowDown');await page.keyboard.press('ArrowDown');
+  await page.getByTestId('note-editor').press('ControlOrMeta+Home');await page.keyboard.press('ArrowDown');await page.keyboard.press('ArrowDown');
   await expect(page.getByTestId('note-editor')).toContainText('[[Welcome|Alias]]');
   await page.keyboard.press('Home');await page.keyboard.type('Editable ');
   await expect(page.getByTestId('note-editor')).toContainText('Editable [[Welcome|Alias]]');
-  await page.keyboard.press('Control+End');
+  await page.keyboard.press('ControlOrMeta+End');
   await expect(page.getByRole('link',{name:'Alias',exact:true})).toBeVisible();
 });
 test('editor session restores scroll position across tab switches',async({page})=>{

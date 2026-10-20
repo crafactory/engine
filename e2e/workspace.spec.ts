@@ -10,7 +10,7 @@ test('reading view renders Markdown and toggles tasks',async({page})=>{
 });
 test('new note edits, autosaves and survives switching tabs',async({page})=>{
   await newNote(page,'QA Note.md');
-  await page.getByTestId('note-editor').click();await page.keyboard.press('Control+End');await page.keyboard.type('A durable thought [[Welcome]].');
+  await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.type('A durable thought [[Welcome]].');
   await expect(page.locator('.statusbar')).toContainText('Preview vault');
   await page.getByRole('button',{name:'Reading view',exact:true}).click();
   await expect(page.locator('.markdown')).toContainText('A durable thought');
@@ -24,10 +24,10 @@ test('all editor modes work without runtime failures',async({page})=>{
 });
 test('live editing hides frontmatter without dropping it on save',async({page})=>{
   await page.getByTestId('mode-live').click();await expect(page.getByTestId('note-editor')).not.toContainText('aliases:');
-  await page.getByTestId('note-editor').click();await page.keyboard.press('Control+End');await page.keyboard.type('\nLive metadata check.');await page.getByTestId('mode-source').click();await page.keyboard.press('Control+Home');await expect(page.getByTestId('note-editor')).toContainText('aliases: [Start here]');
+  await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.type('\nLive metadata check.');await page.getByTestId('mode-source').click();await page.keyboard.press('ControlOrMeta+Home');await expect(page.getByTestId('note-editor')).toContainText('aliases: [Start here]');
 });
 test('quick switcher supports fuzzy note selection',async({page})=>{
-  await page.keyboard.press('Control+o');await page.getByTestId('palette-input').fill('Connected thinking');await page.keyboard.press('Enter');await expect(page.locator('.note-title h1')).toHaveText('Connected thinking');
+  await page.keyboard.press('ControlOrMeta+o');await page.getByTestId('palette-input').fill('Connected thinking');await page.keyboard.press('Enter');await expect(page.locator('.note-title h1')).toHaveText('Connected thinking');
   await expect(page.locator('.right-sidebar')).toContainText('Linked mentions');
 });
 test('search supports operators and no-result states',async({page})=>{
@@ -44,7 +44,7 @@ test('Canvas creates, edits and persists a card',async({page})=>{
   await page.getByTestId('canvas-add-text').click();await expect(page.locator('.react-flow__node')).toHaveCount(4);
   await page.locator('.react-flow__node').last().click();await page.locator('.canvas-edit').last().click();await page.getByTestId('canvas-card-content').fill('# QA card\n\nA connected idea.');await page.getByTestId('canvas-save-card').click();
   await expect(page.locator('.canvas-markdown').last()).toContainText('QA card');
-  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+End');await expect(page.getByTestId('note-editor')).toContainText('QA card');
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+End');await expect(page.getByTestId('note-editor')).toContainText('QA card');
 });
 test('Bases filters and edits YAML-backed properties',async({page})=>{
   await page.getByTestId('file-Projects/Library.base').click();await expect(page.getByTestId('base-table').locator('tbody tr')).toHaveCount(10);
@@ -63,7 +63,7 @@ test('rename updates links across notes',async({page})=>{
   await page.getByTestId('file-Welcome.md').click();await page.getByTestId('mode-source').click();await expect(page.getByTestId('note-editor')).toContainText('Ideas/Renamed idea|Connected thinking');
 });
 test('file recovery restores a saved version',async({page})=>{
-  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+End');await page.keyboard.type('\nRecovery marker.');await page.waitForTimeout(850);
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.type('\nRecovery marker.');await page.waitForTimeout(850);
   await command(page,'Open file recovery');await page.locator('.recovery-modal>button').first().click();await expect(page.getByTestId('note-editor')).not.toContainText('Recovery marker.');
 });
 test('daily notes and templates generate real text',async({page})=>{
@@ -92,9 +92,9 @@ test('mobile viewport keeps document and dialogs usable',async({page})=>{
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
 });
 test('undo, redo, formatting and find/replace are actual editor operations',async({page})=>{
-  await newNote(page,'Editing.md');await page.getByTestId('note-editor').click();await page.keyboard.press('Control+End');await page.keyboard.type('Findme');
-  await page.keyboard.press('Control+z');await expect(page.getByTestId('note-editor')).not.toContainText('Findme');await page.keyboard.press('Control+Shift+z');await expect(page.getByTestId('note-editor')).toContainText('Findme');
-  await page.keyboard.press('Control+Shift+ArrowLeft');await page.keyboard.press('Control+b');await page.getByTestId('mode-source').click();await expect(page.getByTestId('note-editor')).toContainText('**Findme**');
+  await newNote(page,'Editing.md');await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.type('Findme');
+  await page.keyboard.press('ControlOrMeta+z');await expect(page.getByTestId('note-editor')).not.toContainText('Findme');await page.keyboard.press('ControlOrMeta+Shift+z');await expect(page.getByTestId('note-editor')).toContainText('Findme');
+  await page.keyboard.press('ControlOrMeta+Shift+ArrowLeft');await page.keyboard.press('ControlOrMeta+b');await page.getByTestId('mode-source').click();await expect(page.getByTestId('note-editor')).toContainText('**Findme**');
   await command(page,'Find and replace in current note');await expect(page.locator('.cm-search')).toBeVisible();
 });
 test('tag, outgoing, outline, recent and unlinked context controls work',async({page})=>{
@@ -114,7 +114,7 @@ test('Markdown renders math, diagrams and source-safe fenced content',async({pag
   await page.getByTestId('file-Ideas/Connected thinking.md').click();await expect(page.locator('.katex-display')).toBeVisible();
 });
 test('unresolved link creates a note and browser vault action reports its limit',async({page})=>{
-  await newNote(page,'Linking.md');await page.getByTestId('note-editor').click();await page.keyboard.press('Control+End');await page.keyboard.type('[[New linked idea]]');await page.getByTestId('mode-reading').click();await page.locator('.markdown .internal-link').click();await expect(page.locator('.note-title h1')).toHaveText('New linked idea');
+  await newNote(page,'Linking.md');await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.type('[[New linked idea]]');await page.getByTestId('mode-reading').click();await page.locator('.markdown .internal-link').click();await expect(page.locator('.note-title h1')).toHaveText('New linked idea');
   await page.getByRole('button',{name:'Open another vault',exact:true}).click();await expect(page.getByRole('alert')).toContainText('desktop application');
 });
 test('slides and all non-destructive export commands produce actual output',async({page})=>{

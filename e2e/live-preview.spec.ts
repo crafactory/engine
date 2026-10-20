@@ -4,7 +4,7 @@ const fixture='# Live fixtures\n\nLead paragraph with $x^2$ and `code $x$`.\n\n|
 async function prepare(page:Page,content=fixture){
   await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
   await page.getByRole('button',{name:'New note',exact:true}).click();await page.getByTestId('dialog-input').fill('Live QA.md');await page.getByTestId('dialog-submit').click();
-  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+a');await page.keyboard.insertText(content);
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+a');await page.keyboard.insertText(content);
   await page.getByTestId('mode-live').click();await expect(page.locator('.live-block')).not.toHaveCount(0);
 }
 test('removed header gives the workspace full top edge and keeps vault switching',async({page})=>{
@@ -30,7 +30,7 @@ test('inactive blocks render math, code, diagrams, tables and note embeds',async
 test('edit source reveals one block and moving away restores its preview',async({page})=>{
   await prepare(page);await page.locator('.live-block-code').hover();await page.getByRole('button',{name:'Edit code source',exact:true}).click();
   await expect(page.locator('.live-block-code')).toHaveCount(0);await expect(page.getByTestId('note-editor')).toContainText('```js');
-  await page.keyboard.press('Control+Home');await expect(page.locator('.live-block-code pre')).toContainText('const answer = 42;');
+  await page.keyboard.press('ControlOrMeta+Home');await expect(page.locator('.live-block-code pre')).toContainText('const answer = 42;');
   await page.getByTestId('mode-source').click();await expect(page.getByTestId('note-editor')).toContainText('```js');
   await page.getByTestId('mode-reading').click();await expect(page.locator('.reading-surface pre').first()).toContainText('const answer = 42;');
 });
@@ -38,7 +38,7 @@ test('live table edits preserve Markdown delimiters and escaped pipes',async({pa
   await prepare(page);await page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true}).click();
   await page.getByRole('textbox',{name:'Cell row 2 column 2',exact:true}).fill('In | progress');
   await page.keyboard.press('Enter');await expect(page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true})).toContainText('In | progress');
-  await page.getByTestId('mode-source').click();await page.keyboard.press('Control+Home');
+  await page.getByTestId('mode-source').click();await page.keyboard.press('ControlOrMeta+Home');
   await expect(page.getByTestId('note-editor')).toContainText('| Alpha | In \\| progress |');
   await expect(page.getByTestId('note-editor')).toContainText('| :--- | ---: |');
 });
@@ -48,15 +48,15 @@ test('table cancel, undo and redo preserve editable preview',async({page})=>{
   await expect(page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true})).toHaveText('Open');
   await page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true}).click();
   await page.getByRole('textbox',{name:'Cell row 2 column 2',exact:true}).fill('Done');await page.keyboard.press('Enter');
-  await page.getByTestId('note-editor').press('Control+z');await expect(page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true})).toHaveText('Open');
-  await page.getByTestId('note-editor').press('Control+Shift+z');await expect(page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true})).toHaveText('Done');
+  await page.getByTestId('note-editor').press('ControlOrMeta+z');await expect(page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true})).toHaveText('Open');
+  await page.getByTestId('note-editor').press('ControlOrMeta+Shift+z');await expect(page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true})).toHaveText('Done');
 });
 test('live task checkbox edits exactly its task and retains frontmatter',async({page})=>{
   await prepare(page,'---\naliases: [Live]\n---\n'+fixture);
   await page.getByRole('checkbox',{name:'Toggle task: First task',exact:true}).check();
   await expect(page.getByRole('checkbox',{name:'Toggle task: Second task',exact:true})).toBeChecked();
   await page.getByRole('checkbox',{name:'Toggle task: First task',exact:true}).uncheck();
-  await page.getByTestId('mode-source').click();await page.keyboard.press('Control+Home');await expect(page.getByTestId('note-editor')).toContainText('aliases: [Live]');
+  await page.getByTestId('mode-source').click();await page.keyboard.press('ControlOrMeta+Home');await expect(page.getByTestId('note-editor')).toContainText('aliases: [Live]');
   await expect(page.getByTestId('note-editor')).toContainText('- [ ] First task');
 });
 test('foldable callouts honor defaults and toggle in live and reading views',async({page})=>{
@@ -68,7 +68,7 @@ test('foldable callouts honor defaults and toggle in live and reading views',asy
   await expect(reading).not.toHaveAttribute('open');await reading.locator('summary').press('Enter');await expect(reading).toHaveAttribute('open','');
 });
 test('selection crossing blocks exposes source rather than losing selected text',async({page})=>{
-  await prepare(page);await page.getByTestId('note-editor').press('Control+Home');await page.keyboard.press('Control+Shift+End');
+  await prepare(page);await page.getByTestId('note-editor').press('ControlOrMeta+Home');await page.keyboard.press('ControlOrMeta+Shift+End');
   await expect(page.locator('.live-block')).toHaveCount(0);await expect(page.getByTestId('note-editor')).toContainText('| Alpha | Open |');
   await page.keyboard.press('ArrowLeft');await expect(page.locator('.live-block-table')).toBeVisible();
 });
@@ -105,7 +105,7 @@ test('table header edits commit on blur and Tab commits a body cell',async({page
 test('live embeds refresh when the target note is edited',async({page})=>{
   await prepare(page);await page.locator('.live-block-embed .embed-title').click();
   await expect(page.locator('.note-title h1')).toHaveText('Small pieces, loosely joined');
-  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+End');await page.keyboard.insertText('\nEmbed refresh marker.');
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.insertText('\nEmbed refresh marker.');
   await page.locator('.tabs button').filter({hasText:'Live QA'}).click();await page.getByTestId('mode-live').click();
   await expect(page.locator('.live-block-embed .embedded-note')).toContainText('Embed refresh marker.');
 });
