@@ -22,7 +22,7 @@ import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
-import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime} from './services';
+import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
 const Canvas=lazy(()=>import('./Canvas').then(m=>({default:m.Canvas})));
@@ -80,6 +80,7 @@ export function App(){
   const workspacesRuntime=useRef<WorkspacesRuntime|null>(null),workspacesUnsub=useRef<(()=>void)|null>(null);
   const uniqueNoteRuntime=useRef<UniqueNoteRuntime|null>(null),wordCountRuntime=useRef<WordCountRuntime|null>(null);
   const slidesRuntime=useRef<SlidesRuntime|null>(null),converterRuntime=useRef<FormatConverterRuntime|null>(null);
+  const composerRuntime=useRef<NoteComposerRuntime|null>(null);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   function pluginSnapshot():PluginSnapshot{
     const s=pluginState.current;
@@ -119,6 +120,7 @@ export function App(){
       if(!wordCountRuntime.current){const runtime=await createWordCountRuntime();if(unmounted.current){void runtime.kernel.stop();return;}wordCountRuntime.current=runtime;}
       if(!slidesRuntime.current){const runtime=await createSlidesRuntime();if(unmounted.current){void runtime.kernel.stop();return;}slidesRuntime.current=runtime;}
       if(!converterRuntime.current){const runtime=await createFormatConverterRuntime();if(unmounted.current){void runtime.kernel.stop();return;}converterRuntime.current=runtime;}
+      if(!composerRuntime.current){const runtime=await createNoteComposerRuntime();if(unmounted.current){void runtime.kernel.stop();return;}composerRuntime.current=runtime;}
       editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));
@@ -133,7 +135,7 @@ export function App(){
       loaded.current=true;setPluginList(await bridge.plugins());
     }catch(e){report(e);}finally{setLoading(false);}
   }
-  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();void uniqueNoteRuntime.current?.kernel.stop();void wordCountRuntime.current?.kernel.stop();void slidesRuntime.current?.kernel.stop();void converterRuntime.current?.kernel.stop();};},[]);
+  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();void uniqueNoteRuntime.current?.kernel.stop();void wordCountRuntime.current?.kernel.stop();void slidesRuntime.current?.kernel.stop();void converterRuntime.current?.kernel.stop();void composerRuntime.current?.kernel.stop();};},[]);
   useEffect(()=>{for(const controller of pluginStops.current.values())controller.sync(pluginSnapshot());},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
@@ -309,7 +311,7 @@ export function App(){
     if(!name)return;
     const target=name.endsWith('.md')?name:name+'.md';
     if(notes.some(n=>n.path===target)){report(new Error('Target note already exists'));return;}
-    editor.current?.replaceSelection(`[[${target.replace(/\.md$/,'')}]]`);await createNote(target,selection);
+    editor.current?.replaceSelection(composerRuntime.current?.service.extractLink(target)??`[[${target.replace(/\.md$/,'')}]]`);await createNote(target,selection);
   }
   async function mergeInto(target:string){
     if(!activeNote||target===active)return;
@@ -317,7 +319,7 @@ export function App(){
     if(!await dialog.confirm('Merge notes?',`Append ${active} to ${target} and move the original to trash.`))return;
     try{
       await flush();
-      editNote(target,destination.content+'\n\n'+frontmatter(activeNote.content).body);
+      editNote(target,composerRuntime.current?.service.merge(destination.content,activeNote.content)??destination.content+'\n\n'+frontmatter(activeNote.content).body);
       for(const n of notesRef.current.filter(n=>n.path!==active)) {
         const updated=rewriteLinks(n.content,active,target,n.path,notesRef.current);
         if(updated!==n.content)editNote(n.path,updated);
