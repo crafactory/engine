@@ -12,6 +12,7 @@ describe('format converter service', () => {
   it('leaves external links and non-Markdown targets untouched', () => {
     const converter = new MarkdownConverter();
     expect(converter.convert('[Site](https://example.com/a.md)')).toBe('[Site](https://example.com/a.md)');
+    expect(converter.convert('[Docs](//example.org/guide.md)')).toBe('[Docs](//example.org/guide.md)');
     expect(converter.convert('[Image](image.png)')).toBe('[Image](image.png)');
     expect(converter.convert('plain text')).toBe('plain text');
   });

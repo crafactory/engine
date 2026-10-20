@@ -9,6 +9,12 @@ describe('slides service', () => {
     expect(deck.parse('# Only slide')).toEqual(['# Only slide']);
     expect(deck.parse('')).toEqual(['']);
   });
+  it('handles CRLF decks and an empty frontmatter block', () => {
+    const deck = new SlideDeck();
+    expect(deck.parse('# A\r\n\r\n---\r\n\r\n# B')).toEqual(['# A\n', '\n# B']);
+    expect(deck.parse('---\n---\n# A')).toEqual(['# A']);
+    expect(deck.parse('---\r\n---\r\n# A')).toEqual(['# A']);
+  });
   it('resolves the contract from a runtime', async () => {
     const runtime = await createSlidesRuntime();
     expect(runtime.kernel.diagnostics).toEqual([]);

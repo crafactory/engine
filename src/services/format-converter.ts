@@ -22,7 +22,7 @@ export class MarkdownConverter implements FormatConverterService {
     const value = typeof content === 'string' ? content : '';
     return value
       .replace(/<mark>([\s\S]*?)<\/mark>/g, '==$1==')
-      .replace(/\[([^\]]+)\]\(([^):]+)\.md\)/g, '[[$2|$1]]');
+      .replace(/\[([^\]]+)\]\(([^):]+)\.md\)/g, (match: string, label: string, href: string) => /^\/\//.test(href) ? match : `[[${href}|${label}]]`);
   }
 }
 

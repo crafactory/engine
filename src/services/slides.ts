@@ -18,9 +18,9 @@ export interface SlidesService {
 export class SlideDeck implements SlidesService {
   /** Remove frontmatter and split on horizontal rules; always returns at least one slide. */
   parse(content: string): string[] {
-    const body = (typeof content === 'string' ? content : '').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
-    const slides = body.split(/\n---+\n/);
-    return slides.length ? slides : [''];
+    const source = (typeof content === 'string' ? content : '').replace(/\r\n?/g, '\n');
+    const body = source.replace(/^---\n(?:[\s\S]*?\n)?---\n/, '');
+    return body.split(/\n---+\n/);
   }
 }
 
