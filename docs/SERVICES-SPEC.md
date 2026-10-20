@@ -1,13 +1,14 @@
 # Native services specification (stage 2)
 
-Status: the `engine.storage/v1`, `engine.commands/v1` and `engine.documents/v1` contracts
-are extracted, with an in-memory preview provider and a local-filesystem provider for
-storage. The running application still uses its original bridge entry; these providers
-are additive and not yet wired into the UI. Original MIT code; no reference
-implementation is copied.
+Status: storage/documents/commands plus the migrated core-feature services are extracted and
+wired into the application where noted below. **Migration scope:** these services own
+feature state, derived logic and lifecycle; the React views remain in the application shell
+and consume the services. UI pluginization (workspace view slots accepting component
+factories) is **not** implemented yet, so “migrated feature” here means its logic and
+lifecycle, not its rendering. Original MIT code; no reference implementation is copied.
 
-This is the second migration gate in [NATIVE-PLUGIN-ARCHITECTURE.md](NATIVE-PLUGIN-ARCHITECTURE.md)
-and builds on the assembly kernel in [KERNEL-SPEC.md](KERNEL-SPEC.md). Source lives in
+This builds on [NATIVE-PLUGIN-ARCHITECTURE.md](NATIVE-PLUGIN-ARCHITECTURE.md) and the
+assembly kernel in [KERNEL-SPEC.md](KERNEL-SPEC.md). Source lives in
 `src/services/` and imports no editor, workspace, Markdown, Canvas or Bases code.
 
 ## Contracts
@@ -221,6 +222,19 @@ unparsable values; the application keeps the dialog and iframe.
 (`/heading`, `/task`, `/callout`, `/table`, `/code`, `/template`). The template entry is an
 `insert-template` action; the editor owns the completion widget and the action callback.
 
+### `engine.page-preview/v1`
+
+`excerpt(content, limit?)` strips frontmatter and truncates the body; `place(anchor, viewport)`
+positions the popover below the link and clamps it inside the viewport. The application
+keeps the hover event handling and renders the popover.
+
+### `engine.audio-recorder/v1`
+
+`start()` / `stop()` / `isRecording()` wrap the MediaRecorder lifecycle: acquire a stream,
+collect chunks, stop the tracks and return `{data, mimeType, extension}` (`.ogg` or `.webm`).
+Stream and recorder factories are injectable; the application decides where to attach the
+recording.
+
 ### Obsidian compatibility facade
 
 `createCompatibilityRuntime` accepts an optional `native` service bundle on its host:
@@ -286,7 +300,9 @@ templates dependency edge and word/character counting. `tests/slides.test.ts` an
 `tests/format-converter.test.ts` cover slide splitting and the bounded conversions, and
 `tests/explorer.test.ts` covers tree ordering and the storage dependency, and
 `tests/note-composer.test.ts` covers merge/extract rules and composition. `tests/web-viewer.test.ts`
-and `tests/slash-commands.test.ts` cover HTTPS validation and the slash insertion list.
+and `tests/slash-commands.test.ts` cover HTTPS validation and the slash insertion list, and
+`tests/page-preview.test.ts` / `tests/audio-recorder.test.ts` cover excerpt/placement and the
+recorder lifecycle.
 
 ## Not yet done
 

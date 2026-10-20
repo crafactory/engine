@@ -1,5 +1,26 @@
 # Verification results
 
+## Page preview and audio recorder (stage 5 continuation)
+
+This section records source verification for migrating hover-preview rules and the audio
+recorder lifecycle onto native services. Stage 5 stays unchecked.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 791 passed (35 files) | +10 page-preview/audio cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | **51 passed / 0 failed** | Reading/hover flows unchanged |
+
+`PagePreview` strips frontmatter and truncates the excerpt and clamps the popover placement
+inside the viewport. `AudioRecorder` collects MediaRecorder chunks, stops the stream tracks
+and returns bytes with a `.webm`/`.ogg` extension; stream/recorder factories are injected in
+tests, including a recorder-construction failure that still stops the stream, a shared
+pending start during the permission prompt, disposal that releases a later-resolved stream,
+and stop-state capture when a new recording starts before the old onstop fires. These are
+unit/composition and local checks; audio hardware is not exercised, and the migration covers
+logic/lifecycle rather than the React views.
+
 ## Web viewer and slash commands (stage 5 continuation)
 
 This section records source verification for migrating web-viewer address validation and the

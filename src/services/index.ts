@@ -30,6 +30,8 @@ export * from './explorer';
 export * from './note-composer';
 export * from './web-viewer';
 export * from './slash-commands';
+export * from './page-preview';
+export * from './audio-recorder';
 export * from './storage-bridge';
 export {ENGINE_VERSION};
 
