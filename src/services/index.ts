@@ -24,6 +24,8 @@ export * from './navigation';
 export * from './workspaces';
 export * from './unique-note';
 export * from './wordcount';
+export * from './slides';
+export * from './format-converter';
 export * from './storage-bridge';
 export {ENGINE_VERSION};
 
