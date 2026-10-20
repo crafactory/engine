@@ -1,5 +1,25 @@
 # Verification results
 
+## Stage 7 package validation and permissions
+
+This section records source verification for plugin package validation, declared-permission
+enforcement and the empty-configuration check. Stage 7 is checked; the permission check is
+a host-operation gate, not a sandbox.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 800 passed (36 files) | +7 package/permission/empty-kernel cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | **51 passed / 0 failed** | Discovery/enable flows unchanged |
+
+`validatePluginPackage` rejects malformed ids, names, versions, engine ranges, entry paths,
+unknown/duplicate permissions and malformed service declarations before a package appears
+in Settings. The application host checks a declared permission set per vault/storage/editor
+operation; a manifest without `permissions` keeps legacy unrestricted access. An empty
+kernel exposes no services and emits no diagnostics. A desktop fixture that used a
+non-semver version was updated to `1.0.0`. Command/tab registration is not permission-gated.
+
 ## Stage 6 folder rename/trash and dependency loss
 
 This section records source verification for folder-subtree rename/trash in the

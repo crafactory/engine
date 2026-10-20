@@ -9,7 +9,7 @@ export interface Settings {
 }
 export interface Workspace {tabs: string[]; active: string; split: string | null; left: boolean; right: boolean; mode: Settings['mode']}
 export interface VaultState {settings: Settings; bookmarks: string[]; workspaces: Record<string,Workspace>; recent: string[]}
-export interface PluginManifest {id: string; name: string; version: string; description?: string}
+export interface PluginManifest {id: string; name: string; version: string; description?: string; engine?: string; permissions?: string[]}
 export interface Bridge {
   desktop: boolean;
   vault(): Promise<{name: string; root: string; entries: Entry[]; state: Partial<VaultState>}>;

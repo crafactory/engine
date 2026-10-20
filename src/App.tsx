@@ -22,6 +22,8 @@ import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
+import {checkPermission, validatePluginPackage} from './kernel';
+import {ENGINE_VERSION} from './services';
 import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,createWebViewerRuntime,createSlashCommandsRuntime,createPagePreviewRuntime,createAudioRecorderRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime,type WebViewerRuntime,type SlashCommandsRuntime,type PagePreviewRuntime,type AudioRecorderRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
@@ -103,6 +105,16 @@ export function App(){
   function toast(message:string){setNotice(message);}
   useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),5000);return()=>clearTimeout(timer);},[notice]);
 
+  /** Validate discovered packages before they are offered in Settings or enabled. */
+  async function loadPluginPackages(){
+    const packages=await bridge.plugins(),valid:{manifest:PluginManifest;code:string}[]=[];
+    for(const pkg of packages){
+      const validation=validatePluginPackage({manifest:pkg.manifest},ENGINE_VERSION);
+      if(validation.ok)valid.push(pkg);
+      else console.warn('Skipped invalid plugin package',pkg.manifest?.id,validation.issues);
+    }
+    setPluginList(valid);
+  }
   async function initialize(){
     setLoading(true);setError('');
     try {
@@ -138,7 +150,7 @@ export function App(){
       setBookmarksFromService(state.bookmarks||[]);setWorkspacesFromService(state.workspaces||{});setRecent(state.recent||[]);
       const path=all.find(n=>n.path==='Welcome.md')?.path||all.find(n=>isNote(n.path))?.path||all[0]?.path||'';
       setTabs(path?[path]:[]);setActive(path);setSplit(null);history.current=path?[path]:[];historyIndex.current=path?0:-1;
-      loaded.current=true;setPluginList(await bridge.plugins());
+      loaded.current=true;await loadPluginPackages();
     }catch(e){report(e);}finally{setLoading(false);}
   }
   useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);if(audioRuntime.current)void audioRuntime.current.service.dispose().catch(()=>{});for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();void uniqueNoteRuntime.current?.kernel.stop();void wordCountRuntime.current?.kernel.stop();void slidesRuntime.current?.kernel.stop();void converterRuntime.current?.kernel.stop();void composerRuntime.current?.kernel.stop();void webViewerRuntime.current?.kernel.stop();void slashRuntime.current?.kernel.stop();void pagePreviewRuntime.current?.kernel.stop();void audioRuntime.current?.kernel.stop();};},[]);
@@ -417,6 +429,7 @@ export function App(){
     const generation=vaultGeneration.current;
     const operation=async(name:string,args:unknown[])=>{
       if(generation!==vaultGeneration.current)throw new Error('Plugin belongs to a closed vault');
+      checkPermission(plugin.manifest,name);
       const storage=storageRuntime.current?.storage??(bridgeStorageFallback.current??=new BridgeStorage(bridge));
       if(name==='loadData')return storage.pluginData(id);
       if(name==='saveData')return storage.pluginData(id,args[0],true);
@@ -510,7 +523,7 @@ export function App(){
     {id:'left-sidebar',label:'Toggle left sidebar',run:()=>setLeft(l=>!l)},
     {id:'right-sidebar',label:'Toggle right sidebar',run:()=>setRight(r=>!r)},
     {id:'theme',label:'Toggle light and dark theme',run:()=>setSettings(s=>({...s,theme:s.theme==='dark'?'light':'dark'}))},
-    {id:'settings',label:'Open settings',shortcut:'⌘ ,',run:async()=>{setPluginList(await bridge.plugins());setShowSettings(true);}},
+    {id:'settings',label:'Open settings',shortcut:'⌘ ,',run:async()=>{await loadPluginPackages();setShowSettings(true);}},
     ...pluginCommands
   ].filter(c=>{
     const group:Record<string,string>={'graph':'graph','local-graph':'graph','daily-note':'daily','unique-note':'unique','new-canvas':'canvas','new-base':'bases','random-note':'random','insert-template':'templates','bookmark':'bookmarks','merge-note':'composer','extract-note':'composer','recovery':'recovery','save-workspace':'workspaces','load-workspace':'workspaces','slides':'slides','web-viewer':'web','audio':'audio','converter':'converter','search':'search','quick-switcher':'switcher','command-palette':'commands'};
