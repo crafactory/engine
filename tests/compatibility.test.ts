@@ -19,6 +19,13 @@ function harness(){
       if(operation==='loadData')return data;
       if(operation==='saveData'){data=args[0];return;}
       if(operation==='open'){snapshot={...snapshot,active:path};runtime.sync(snapshot);return;}
+      if(operation==='rename'){
+        const [from,to]=args as [string,string];
+        snapshot={...snapshot,entries:snapshot.entries.map(e=>e.path===from?{...e,path:to,name:to.split('/').pop()!}:e),notes:snapshot.notes.map(n=>n.path===from?{...n,path:to}:n)};
+        runtime.sync(snapshot);return;
+      }
+      if(operation==='trash'){snapshot={...snapshot,entries:snapshot.entries.filter(e=>e.path!==path),notes:snapshot.notes.filter(n=>n.path!==path)};runtime.sync(snapshot);return;}
+      if(operation==='asset')return 'data:text/plain;base64,'+Buffer.from(path).toString('base64');
       if(operation==='editor'){snapshot={...snapshot,editor:{text:args[2] as string,from:args[3] as number,to:args[4] as number}};runtime.sync(snapshot);return;}
       if(operation==='mkdir'){snapshot={...snapshot,entries:[...snapshot.entries,{path,name:path,folder:true,size:0,ctime:1,mtime:2}]};runtime.sync(snapshot);return;}
       if(['create','modify','append'].includes(operation)){
@@ -163,6 +170,29 @@ describe('vault, workspace and text operations',()=>{
     await expect(v.create('X.md','x',{mtime:4})).rejects.toThrow('Unsupported');
   });
 });
+describe('vault rename, trash and resource paths',()=>{
+  it('renames a file through the native host and keeps object identity',async()=>{
+    const h=harness(),v=h.runtime.app.vault,file=v.getFileByPath('Folder/One.md');
+    await v.rename(file,'Folder/Renamed.md');
+    expect(file.path).toBe('Folder/Renamed.md');expect(file.name).toBe('Renamed.md');
+    expect(v.getFileByPath('Folder/Renamed.md')).toBe(file);
+    expect(h.calls).toContainEqual({operation:'rename',args:['Folder/One.md','Folder/Renamed.md']});
+  });
+  it('trashes a file and rejects folder operations',async()=>{
+    const h=harness(),v=h.runtime.app.vault,two=v.getFileByPath('Two.md');
+    await v.trash(two);
+    expect(v.getFileByPath('Two.md')).toBeNull();
+    expect(h.calls).toContainEqual({operation:'trash',args:['Two.md']});
+    await expect(v.trash(v.getFolderByPath('Folder'))).rejects.toThrow('Unsupported');
+    await expect(v.rename(v.getFolderByPath('Folder'),'Moved')).rejects.toThrow('Unsupported');
+  });
+  it('returns the host resource URL through the storage service',async()=>{
+    const h=harness(),file=h.runtime.app.vault.getFileByPath('Folder/One.md');
+    expect(await h.runtime.app.vault.getResourcePath(file)).toMatch(/^data:text\/plain;base64,/);
+    expect(h.calls).toContainEqual({operation:'asset',args:['Folder/One.md']});
+  });
+});
+
 describe('editor snapshot contract',()=>{
   it('positions are zero-based UTF-16 offsets, reversed selections retain anchor/head',()=>{
     const sent=vi.fn(),e=new Editor({text:'😀 hi\n世界',from:5,to:2},sent);
@@ -185,7 +215,7 @@ describe('editor snapshot contract',()=>{
 describe('unsupported methods fail, not no-op',()=>{
   const pluginMethods=['addRibbonIcon','addSettingTab','addStatusBarItem','registerView','registerExtensions','registerEditorExtension','registerEditorSuggest','registerMarkdownPostProcessor','registerMarkdownCodeBlockProcessor','registerObsidianProtocolHandler','registerHoverLinkSource','registerBasesView','registerCliHandler','registerDomEvent','onExternalSettingsChange'];
   for(const method of pluginMethods)it(`Plugin.${method} is explicitly rejected`,()=>{const h=harness();expect(()=>new h.api.Plugin()[method]()).toThrow(CompatibilityError);});
-  for(const method of ['delete','process','readBinary','createBinary','modifyBinary','appendBinary','getResourcePath','rename','trash'])it(`Vault.${method} is explicitly rejected`,()=>{const h=harness();expect(()=>h.runtime.app.vault[method]()).toThrow(CompatibilityError);});
+  for(const method of ['delete','process','readBinary','createBinary','modifyBinary','appendBinary'])it(`Vault.${method} is explicitly rejected`,()=>{const h=harness();expect(()=>h.runtime.app.vault[method]()).toThrow(CompatibilityError);});
   for(const method of ['getDoc','setSelections','transaction','exec','focus','blur','hasFocus','getScrollInfo','scrollTo','scrollIntoView','undo','redo','refresh','wordAt','processLines'])it(`Editor.${method} is explicitly rejected`,()=>expect(()=>(new Editor({text:'',from:0,to:0},()=>{}) as any)[method]()).toThrow(CompatibilityError));
   for(const name of ['create','delete','rename'])it(`Vault event ${name} is explicitly rejected`,()=>expect(()=>harness().runtime.app.vault.on(name,()=>{})).toThrow(CompatibilityError));
   it('rejects undocumented app/workspace/cache access and unsupported events',()=>{

@@ -1,5 +1,27 @@
 # Verification results
 
+## Stage 6 facade storage completion
+
+This section records source verification for routing the compatibility facade's remaining
+Vault operations through native storage/documents. `Vault.rename` and `Vault.trash` now work
+for `TFile` (folder operations stay explicitly unsupported), and `getResourcePath` returns
+the storage asset data URL. Stage 6 stays unchecked (folder operations, delete/process and
+facade disable/service-loss flows remain).
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 788 passed (35 files) | Compatibility rename/trash/resource cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | **51 passed / 0 failed** | Rename/trash UI flows unchanged |
+
+The facade's rename calls the host, then keeps the `TFile` object identity at its new path;
+trash removes it from the object map. The application routes rename through
+`engine.documents/v1` and trash through `engine.storage/v1` (bridge-backed), with link
+rewriting and in-memory remapping retained. The member-contract baseline moved the three
+members from rejected to subset. These are bounded results; folder operations, hard delete,
+binary adapters and process remain unsupported.
+
 ## Page preview and audio recorder (stage 5 continuation)
 
 This section records source verification for migrating hover-preview rules and the audio

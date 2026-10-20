@@ -260,7 +260,8 @@ export function App(){
       if(to===from)return;
       if(!validPath(to))throw new Error('Invalid destination path');await flush();
       const before=[...notesRef.current];
-      await bridge.rename(from,to);
+      const documents=storageRuntime.current?.documents;
+      if(documents)await documents.rename(from,to);else await bridge.rename(from,to);
       const moved=before.filter(n=>n.path===from||n.path.startsWith(from+'/'));
       const mappings=moved.map(n=>({from:n.path,to:to+n.path.slice(from.length)}));
       for(const pair of mappings){savedContent.current.set(pair.to,savedContent.current.get(pair.from)!);versions.current.set(pair.to,versions.current.get(pair.from));savedContent.current.delete(pair.from);versions.current.delete(pair.from);editorSessions.current.delete(pair.from);}
@@ -277,10 +278,24 @@ export function App(){
       setEntries(await bridge.list());await flush();toast('Moved file and updated resolvable note links.');
     }catch(e){report(e);}
   }
+  /** Move a path to trash (or the bridge fallback) and remap in-memory workspace state. */
+  async function trashPath(path:string){
+    await flush();
+    const storage=storageRuntime.current?.storage;
+    if(storage)await storage.trash(path);else await bridge.trash(path);
+    const removed=(p:string)=>p===path||p.startsWith(path+'/');
+    updateNotes(notesRef.current.filter(n=>!removed(n.path)));
+    for(const p of [...editorSessions.current.keys()])if(removed(p))editorSessions.current.delete(p);
+    setEntries(await (storage?storage.list():bridge.list()));
+    setTabs(t=>t.filter(p=>!removed(p)));
+    if(removed(active))setActive('');
+    setBookmarksFromService(bookmarkPaths().filter(p=>!removed(p)));
+    toast('Moved to trash.');
+  }
   async function deletePath(path:string){
     setContext(null);
     if(!await dialog.confirm('Move to trash?',`${path} will be moved out of the vault. Desktop files are retained in .crafactory/trash.`,true))return;
-    try{await flush();await bridge.trash(path);const removed=(p:string)=>p===path||p.startsWith(path+'/');updateNotes(notesRef.current.filter(n=>!removed(n.path)));for(const p of [...editorSessions.current.keys()])if(removed(p))editorSessions.current.delete(p);setEntries(await bridge.list());setTabs(t=>t.filter(p=>!removed(p)));if(removed(active))setActive('');setBookmarksFromService(bookmarkPaths().filter(p=>!removed(p)));toast('Moved to trash.');}catch(e){report(e);}
+    try{await trashPath(path);}catch(e){report(e);}
   }
   async function chooseVault(create=false){
     try{await stopPlugins();await flush();await bridge.state({settings,bookmarks,workspaces,recent});if(await bridge.choose(create))await initialize();}catch(e){report(e);}
@@ -406,6 +421,9 @@ export function App(){
       if(name==='saveData')return storage.pluginData(id,args[0],true);
       if(typeof args[0]!=='string'||!validPath(args[0]))throw new Error('Invalid plugin vault path');
       const path=args[0];
+      if(name==='rename'){const to=args[1];if(typeof to!=='string'||!validPath(to))throw new Error('Invalid rename target');await renamePath(path,to);return;}
+      if(name==='trash'){await trashPath(path);return;}
+      if(name==='asset')return storage.asset(path);
       if(name==='read')return (await storage.read(path)).content;
       if(name==='open'){if(!notesRef.current.some(n=>n.path===path))throw new Error('File not found');open(path);pluginState.current.active=path;return;}
       if(name==='editor'){
