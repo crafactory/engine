@@ -1,12 +1,31 @@
 # Verification results
 
+## Stage 6 folder rename/trash and dependency loss
+
+This section records source verification for folder-subtree rename/trash in the
+compatibility facade and the facade dependency-loss flow. Stage 6 stays unchecked (hard
+delete, binary adapters, `process()` and fuller disable/reload timing remain).
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 792 passed (35 files) | Folder-subtree and facade-dependency cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | **51 passed / 0 failed** | Rename/trash UI flows unchanged |
+
+`Vault.rename` remaps the captured object subtree (folder and descendants) to the new prefix,
+retains identity, and reconciles parent children; `Vault.trash` removes the subtree. A
+facade-style consumer that requires the notes index and the CodeMirror editor capability is
+disabled when the index is disabled with a `dependency-disabled` diagnostic and rebound on
+enable. These are bounded unit/composition and local checks.
+
 ## Stage 6 facade storage completion
 
 This section records source verification for routing the compatibility facade's remaining
 Vault operations through native storage/documents. `Vault.rename` and `Vault.trash` now work
 for `TFile` (folder operations stay explicitly unsupported), and `getResourcePath` returns
-the storage asset data URL. Stage 6 stays unchecked (folder operations, delete/process and
-facade disable/service-loss flows remain).
+the storage asset data URL. Stage 6 stays unchecked (delete/process, binary adapters and
+fuller disable/reload timing remain).
 
 | Check | Observed result | Scope |
 |---|---|---|

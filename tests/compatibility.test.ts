@@ -22,10 +22,11 @@ function harness(failRename=false){
       if(operation==='rename'){
         if(failRename)throw new Error('rename failed');
         const [from,to]=args as [string,string];
-        snapshot={...snapshot,entries:snapshot.entries.map(e=>e.path===from?{...e,path:to,name:to.split('/').pop()!}:e),notes:snapshot.notes.map(n=>n.path===from?{...n,path:to}:n)};
+        const moved=(p:string)=>p===from||p.startsWith(from+'/');
+        snapshot={...snapshot,entries:snapshot.entries.map(e=>moved(e.path)?{...e,path:to+e.path.slice(from.length),name:(to+e.path.slice(from.length)).split('/').pop()!}:e),notes:snapshot.notes.map(n=>moved(n.path)?{...n,path:to+n.path.slice(from.length)}:n)};
         runtime.sync(snapshot);return;
       }
-      if(operation==='trash'){snapshot={...snapshot,entries:snapshot.entries.filter(e=>e.path!==path),notes:snapshot.notes.filter(n=>n.path!==path)};runtime.sync(snapshot);return;}
+      if(operation==='trash'){const removed=(p:string)=>p===path||p.startsWith(path+'/');snapshot={...snapshot,entries:snapshot.entries.filter(e=>!removed(e.path)),notes:snapshot.notes.filter(n=>!removed(n.path))};runtime.sync(snapshot);return;}
       if(operation==='asset')return 'data:text/plain;base64,'+Buffer.from(path).toString('base64');
       if(operation==='editor'){snapshot={...snapshot,editor:{text:args[2] as string,from:args[3] as number,to:args[4] as number}};runtime.sync(snapshot);return;}
       if(operation==='mkdir'){snapshot={...snapshot,entries:[...snapshot.entries,{path,name:path,folder:true,size:0,ctime:1,mtime:2}]};runtime.sync(snapshot);return;}
@@ -192,13 +193,21 @@ describe('vault rename, trash and resource paths',()=>{
     expect(file.path).toBe('Folder/One.md');
     expect(v.getFileByPath('Folder/One.md')).toBe(file);
   });
-  it('trashes a file and rejects folder operations',async()=>{
+  it('trashes a file',async()=>{
     const h=harness(),v=h.runtime.app.vault,two=v.getFileByPath('Two.md');
     await v.trash(two);
     expect(v.getFileByPath('Two.md')).toBeNull();
     expect(h.calls).toContainEqual({operation:'trash',args:['Two.md']});
-    await expect(v.trash(v.getFolderByPath('Folder'))).rejects.toThrow('Unsupported');
-    await expect(v.rename(v.getFolderByPath('Folder'),'Moved')).rejects.toThrow('Unsupported');
+  });
+  it('renames and trashes a folder subtree while retaining child identity',async()=>{
+    const h=harness(),v=h.runtime.app.vault,folder=v.getFolderByPath('Folder'),child=v.getFileByPath('Folder/One.md');
+    await v.rename(folder,'Moved');
+    expect(folder.path).toBe('Moved');expect(folder.name).toBe('Moved');
+    expect(child.path).toBe('Moved/One.md');
+    expect(v.getFolderByPath('Moved')).toBe(folder);expect(v.getFileByPath('Moved/One.md')).toBe(child);
+    expect(folder.children).toContain(child);
+    await v.trash(folder);
+    expect(v.getFolderByPath('Moved')).toBeNull();expect(v.getFileByPath('Moved/One.md')).toBeNull();
   });
   it('returns the host resource URL through the storage service',async()=>{
     const h=harness(),file=h.runtime.app.vault.getFileByPath('Folder/One.md');

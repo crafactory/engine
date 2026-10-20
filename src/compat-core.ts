@@ -220,32 +220,45 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     async modify(file:TFile,data:string,options?:unknown){checkFile(file);checkOptions(options,'Vault.modify options');await mutate('modify',[file.path,data]);}
     async append(file:TFile,data:string,options?:unknown){checkFile(file);checkOptions(options,'Vault.append options');await mutate('append',[file.path,data]);}
     async createFolder(path:string){await mutate('mkdir',[path]);return this.getFolderByPath(path)!;}
-    /** Rename a file through the native documents/storage host and keep its object identity. */
+    /** Rename a file or folder through the native host, retaining the object subtree. */
     async rename(file:TAbstractFile,newPath:string):Promise<void>{
-      if(!(file instanceof TFile))return unsupported('Vault.rename folder');
-      checkFile(file);
+      checkAbstract(file);
       if(typeof newPath!=='string'||!newPath.trim())return unsupported('Vault.rename target');
       const to=normalizePath(newPath);
       if(!to)return unsupported('Vault.rename target');
-      const from=file.path, oldParent=file.parent as TFolder|null;
+      const from=file.path;
+      if(from===to)return;
+      const subtree:TAbstractFile[]=[];
+      const collect=(item:TAbstractFile)=>{subtree.push(item);if(item instanceof TFolder)for(const child of item.children)collect(child);};
+      collect(file);
+      const oldParent=file.parent as TFolder|null;
       await mutate('rename',[from,to]);
-      if(oldParent)oldParent.children=oldParent.children.filter(child=>child.path!==from&&child!==file);
+      for(const item of subtree){
+        const previous=item.path, next=to+previous.slice(from.length);
+        if(objects.get(previous)===item)objects.delete(previous);
+        item.path=next;
+        item.name=next.split('/').pop()||'';
+        objects.set(next,item);
+      }
+      if(oldParent)oldParent.children=oldParent.children.filter(child=>child!==file);
       const parent=objects.get(to.split('/').slice(0,-1).join('/')) as TFolder|undefined;
-      if(parent)parent.children=parent.children.filter(child=>child.path!==to&&child!==file);
-      objects.delete(from);
-      objects.set(to,file);
-      file.path=to;
-      file.name=to.split('/').pop()||'';
+      if(parent){
+        parent.children=parent.children.filter(child=>!subtree.includes(child)&&child.path!==to);
+        parent.children.push(file);
+      }
       file.parent=parent??null;
-      if(parent)parent.children.push(file);
     }
     async copy(file:TFile,path:string){checkFile(file);return this.create(path,await this.read(file));}
-    /** Move a file to recoverable trash through the native storage host. */
+    /** Move a file or folder subtree to recoverable trash through the native storage host. */
     async trash(file:TAbstractFile):Promise<void>{
-      if(!(file instanceof TFile))return unsupported('Vault.trash folder');
-      checkFile(file);
+      checkAbstract(file);
+      const subtree:TAbstractFile[]=[];
+      const collect=(item:TAbstractFile)=>{subtree.push(item);if(item instanceof TFolder)for(const child of item.children)collect(child);};
+      collect(file);
+      const parent=file.parent as TFolder|null;
       await mutate('trash',[file.path]);
-      objects.delete(file.path);
+      if(parent)parent.children=parent.children.filter(child=>child!==file);
+      for(const item of subtree)if(objects.get(item.path)===item)objects.delete(item.path);
     }
     delete(){return unsupported('Vault.delete');}process(){return unsupported('Vault.process atomic callback');}
     readBinary(){return unsupported('Vault.readBinary');}createBinary(){return unsupported('Vault.createBinary');}

@@ -251,9 +251,9 @@ The facade remains opt-in per plugin: no compatibility runtime is created at sta
 default product keeps working when the facade is disabled. The application routes the
 facade's read/create/modify/append/mkdir, rename, trash and plugin-data operations through
 `engine.storage/v1`/`engine.documents/v1` (bridge-backed in the app), keeping the in-memory
-note reconciliation; `getResourcePath` returns the storage asset data URL. `Vault.rename` and
-`Vault.trash` support `TFile` only (folder operations are rejected); delete, process and
-binary adapters remain unsupported.
+note reconciliation; `getResourcePath` returns the storage asset data URL. `Vault.rename` and `Vault.trash`
+support `TFile` and `TFolder` subtrees (child identities are retained on rename); delete,
+process and binary adapters remain unsupported.
 
 ## Composition
 
