@@ -10,10 +10,13 @@ import type {PluginDefinition} from '../kernel';
 export const VIEWS_CONTRACT = 'engine.views/v1';
 export const VIEWS_VERSION = '1.0.0';
 
+export type ViewContributionSlot = 'main' | 'left' | 'right';
+
 export interface ViewContribution {
   viewType: string;
   load: () => Promise<unknown>;
   label?: string;
+  slot?: ViewContributionSlot;
 }
 
 /** Register view types and resolve their lazy component loaders. */
@@ -32,6 +35,7 @@ export class ViewContributions implements ViewsService {
   /** Register or replace a view type; the returned disposer restores the predecessor. */
   register(contribution: ViewContribution): () => void {
     if (!contribution || typeof contribution.viewType !== 'string' || !contribution.viewType || typeof contribution.load !== 'function') throw new Error('Invalid view contribution');
+    if (contribution.slot !== undefined && !['main', 'left', 'right'].includes(contribution.slot)) throw new Error('Invalid view slot');
     const normalized: ViewContribution = {...contribution};
     const index = this.contributions.findIndex(candidate => candidate.viewType === normalized.viewType);
     this.previous.set(normalized, index >= 0 ? this.contributions[index] : undefined);
