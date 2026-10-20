@@ -1,5 +1,5 @@
 import {describe,it,expect,vi} from 'vitest';
-import {BridgeStorage, createStorageRuntime, DOCUMENTS_CONTRACT, STORAGE_CONTRACT} from '../src/services';
+import {BridgeStorage, createStorageRuntime, DOCUMENTS_CONTRACT, EXPLORER_CONTRACT, STORAGE_CONTRACT} from '../src/services';
 import type {Bridge, VaultState} from '../src/types';
 
 function fakeBridge(overrides: Partial<Bridge> = {}): Bridge {
@@ -65,6 +65,8 @@ describe('app storage runtime composition', () => {
     expect(runtime.kernel.diagnostics).toEqual([]);
     expect(runtime.kernel.runtime.services.resolve(STORAGE_CONTRACT).ok).toBe(true);
     expect(runtime.kernel.runtime.services.resolve(DOCUMENTS_CONTRACT).ok).toBe(true);
+    expect(runtime.kernel.runtime.services.resolve(EXPLORER_CONTRACT).ok).toBe(true);
+    expect(runtime.explorer).toBeDefined();
     expect(await runtime.documents.history('One.md')).toEqual([{id: '1', path: 'One.md', time: 5}]);
     expect(await runtime.documents.restore('1')).toEqual({path: 'One.md', content: 'one', version: 'v0'});
     expect(runtime.documents.formatOf('Board.canvas')?.view).toBe('canvas');

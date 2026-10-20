@@ -1,5 +1,23 @@
 # Verification results
 
+## Explorer service (stage 5 continuation)
+
+This section records source verification for migrating file-tree ordering onto
+`engine.explorer/v1`, which consumes the storage contract. The application keeps expansion
+and interaction state; stage 5 stays unchecked.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 771 passed (30 files) | +4 explorer cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | **51 passed / 0 failed** | Explorer flows unchanged |
+
+`Explorer` lists storage entries and orders folders first, then by name or modification time;
+`children` provides direct children of a folder or the root. The suites cover ordering, the
+storage dependency and the bridge runtime exposing the explorer. These are
+unit/composition and local checks, not packaged-binary acceptance.
+
 ## Slides and format converter (stage 5 continuation)
 
 This section records source verification for migrating the slides view and the bounded

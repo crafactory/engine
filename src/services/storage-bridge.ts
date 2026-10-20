@@ -10,6 +10,7 @@ import type {Bridge, VaultState} from '../types';
 import {ENGINE_VERSION} from './version';
 import {storagePlugin, STORAGE_CONTRACT, type StorageEntry, type StorageService, type StorageSnapshot, type StoredNote, type StoredPlugin} from './storage';
 import {createDocumentsPlugin, DOCUMENTS_CONTRACT, type DocumentsService} from './documents';
+import {createExplorerPlugin, EXPLORER_CONTRACT, type ExplorerService} from './explorer';
 
 /** Adapt the application bridge to the storage contract. */
 export class BridgeStorage implements StorageService {
@@ -40,17 +41,20 @@ function note(value: {path: string; content: string; version?: string}): StoredN
   return {path: value.path, content: value.content, version: value.version};
 }
 
-export interface AppStorageRuntime {kernel: Kernel; storage: StorageService; documents: DocumentsService}
+export interface AppStorageRuntime {kernel: Kernel; storage: StorageService; documents: DocumentsService; explorer: ExplorerService}
 
-/** Build and start a kernel exposing the bridge-backed storage and documents services. */
+/** Build and start a kernel exposing the bridge-backed storage, documents and explorer. */
 export async function createStorageRuntime(options: {bridge: Bridge; engineVersion?: string}): Promise<AppStorageRuntime> {
   const kernel = new Kernel({engineVersion: options.engineVersion ?? ENGINE_VERSION});
   kernel.register(storagePlugin('engine.storage.bridge', 'Bridge storage', new BridgeStorage(options.bridge)));
   kernel.register(createDocumentsPlugin());
+  kernel.register(createExplorerPlugin());
   await kernel.start();
   const storage = kernel.runtime.services.resolve(STORAGE_CONTRACT, '^1.0.0');
   const documents = kernel.runtime.services.resolve(DOCUMENTS_CONTRACT, '^1.0.0');
+  const explorer = kernel.runtime.services.resolve(EXPLORER_CONTRACT, '^1.0.0');
   if (!storage.ok) throw new Error('Storage service was not provided');
   if (!documents.ok) throw new Error('Documents service was not provided');
-  return {kernel, storage: storage.binding.value as StorageService, documents: documents.binding.value as DocumentsService};
+  if (!explorer.ok) throw new Error('Explorer service was not provided');
+  return {kernel, storage: storage.binding.value as StorageService, documents: documents.binding.value as DocumentsService, explorer: explorer.binding.value as ExplorerService};
 }
