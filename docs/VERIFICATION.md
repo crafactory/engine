@@ -15,7 +15,9 @@ are not implemented yet.
 | `npm run test:e2e` (macOS) | **51 passed / 0 failed** | Reading, Canvas, Bases and link-creation flows |
 
 `engine.views/v1` stores opaque loaders, so the kernel and services still import no React
-or concrete view. The three built-in view plugins register in their own scopes and are
+or concrete view. The left-slot bookmarks/recent panels use the same registry; their lazy
+load needs a local Suspense boundary, which the first e2e run caught (the panel suspended
+inside a synchronous click and the boundary showed its fallback). The three built-in view plugins register in their own scopes and are
 removed when disabled; `tests/views.test.ts` verifies registration/replacement, scope
 revocation, function/default-export interpretation and the view boundary's fallback state and
 error logging.

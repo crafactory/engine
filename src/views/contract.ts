@@ -26,6 +26,18 @@ export interface ReadingViewProps {
 
 export type ViewComponent = ComponentType<ReadingViewProps>;
 
+/** Props for a sidebar/panel view contribution. */
+export interface PanelViewProps {
+  sideTab: 'bookmarks' | 'recent';
+  notes: Note[];
+  bookmarks: string[];
+  recent: string[];
+  onOpen(path: string): void;
+  onRemoveBookmark(path: string): void;
+}
+
+export type PanelComponent = ComponentType<PanelViewProps>;
+
 /** Interpret an opaque loader result as a view component. */
 export async function loadViewComponent(contribution: ViewContribution): Promise<ViewComponent> {
   const module = await contribution.load();

@@ -89,11 +89,13 @@ a kernel supplies separate render and workspace instances.
 
 ### `engine.views/v1`
 
-`register({viewType, load, label?})` stores a lazy component loader as an opaque value and
-returns a disposer; `resolve(viewType)` returns the contribution; `list()` reports them.
+`register({viewType, load, label?, slot?})` stores a lazy component loader as an opaque
+value and returns a disposer; `resolve(viewType)` returns the contribution; `list()` reports
+them. `slot` is `main` (default), `left` or `right`.
 The service and kernel never import React or a concrete view. Built-in contributions live
-in `src/views/` (`engine.view.markdown`, `engine.view.canvas`, `engine.view.bases`) and
-load the Markdown/Canvas/Bases React modules on demand. The application host interprets a
+in `src/views/` (`engine.view.markdown`, `engine.view.canvas`, `engine.view.bases` for the
+main slot; `engine.view.bookmarks`, `engine.view.recent` for the left slot) and load the
+React modules on demand. The application host interprets a
 loader as a React component and supplies a single `ReadingViewProps` shape (note, notes,
 entries, path, mode, previews, open/open-link callbacks, change callbacks and `ask`).
 External plugin-package UI loading is not wired yet.

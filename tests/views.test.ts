@@ -21,11 +21,14 @@ describe('view contributions', () => {
     const views = new ViewContributions();
     expect(() => views.register({viewType: '', load: async () => null})).toThrow('Invalid view contribution');
     expect(() => views.register({viewType: 'x', load: null as unknown as () => Promise<unknown>})).toThrow('Invalid view contribution');
+    expect(() => views.register({viewType: 'y', load: async () => null, slot: 'bottom' as never})).toThrow('Invalid view slot');
   });
   it('assembles the built-in views and disposes them with their plugin scope', async () => {
     const runtime = await createViewsRuntime();
     expect(runtime.kernel.diagnostics).toEqual([]);
-    expect(runtime.views.list().map(view => view.viewType).sort()).toEqual(['base', 'canvas', 'markdown']);
+    expect(runtime.views.list().map(view => view.viewType).sort()).toEqual(['base', 'bookmarks', 'canvas', 'markdown', 'recent']);
+    expect(runtime.views.resolve('bookmarks')?.slot).toBe('left');
+    expect(runtime.views.resolve('markdown')?.slot).toBeUndefined();
     await runtime.kernel.disable('engine.view.canvas');
     expect(runtime.views.resolve('canvas')).toBeUndefined();
     await runtime.kernel.enable('engine.view.canvas');
