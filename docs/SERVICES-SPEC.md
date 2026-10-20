@@ -97,10 +97,10 @@ in `src/views/` (`engine.view.markdown`, `engine.view.canvas`, `engine.view.base
 main slot; `engine.view.bookmarks`, `engine.view.recent`, `engine.view.tags` for the left slot and `engine.view.outline` for the right slot) and load the
 React modules on demand. The host interprets a loader as a React component and supplies
 different props by slot: main views receive `ReadingViewProps` (note, notes, entries, path,
-mode, previews, open/open-link callbacks, change callbacks and `ask`), while left panels
-receive `PanelViewProps` (sideTab, notes, bookmarks, recent, tags, headings,
-open/remove-bookmark, select-tag and jump-heading callbacks). A panel lookup also rejects a contribution that is not registered for the
-`left` slot. External plugin-package UI loading is not wired yet.
+mode, previews, open/open-link callbacks, change callbacks and `ask`), while sidebar panels
+(left and right) receive `PanelViewProps` (sideTab, notes, bookmarks, recent, tags, headings,
+open/remove-bookmark, select-tag and jump-heading callbacks). A panel lookup rejects a contribution that is not registered for the requested
+`left` or `right` slot. External plugin-package UI loading is not wired yet.
 
 ### `engine.editor/v1`
 
