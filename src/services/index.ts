@@ -28,6 +28,8 @@ export * from './slides';
 export * from './format-converter';
 export * from './explorer';
 export * from './note-composer';
+export * from './web-viewer';
+export * from './slash-commands';
 export * from './storage-bridge';
 export {ENGINE_VERSION};
 
