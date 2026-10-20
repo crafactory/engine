@@ -24,3 +24,9 @@ export const outlinePanelPlugin: PluginDefinition = {
   manifest: {id: 'engine.view.outline', name: 'Outline panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
   setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'outline', slot: 'right', label: 'Outline', load: () => import('./OutlinePanel')})); }
 };
+
+/** Linked/unlinked mentions panel contribution for the right slot. */
+export const backlinksPanelPlugin: PluginDefinition = {
+  manifest: {id: 'engine.view.backlinks', name: 'Backlinks panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
+  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'backlinks', slot: 'right', label: 'Backlinks', load: () => import('./BacklinksPanel')})); }
+};

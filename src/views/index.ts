@@ -9,7 +9,7 @@ import {VIEWS_CONTRACT, viewsPlugin, type ViewsService} from '../services/views'
 import {markdownViewPlugin} from './markdown';
 import {canvasViewPlugin} from './canvas';
 import {basesViewPlugin} from './bases';
-import {bookmarksPanelPlugin, recentPanelPlugin, tagsPanelPlugin, outlinePanelPlugin} from './panels';
+import {bookmarksPanelPlugin, recentPanelPlugin, tagsPanelPlugin, outlinePanelPlugin, backlinksPanelPlugin} from './panels';
 
 export interface ViewsRuntime {kernel: Kernel; views: ViewsService}
 
@@ -24,6 +24,7 @@ export async function createViewsRuntime(options: {engineVersion?: string} = {})
   kernel.register(recentPanelPlugin);
   kernel.register(tagsPanelPlugin);
   kernel.register(outlinePanelPlugin);
+  kernel.register(backlinksPanelPlugin);
   await kernel.start();
   const resolved = kernel.runtime.services.resolve(VIEWS_CONTRACT, '^1.0.0');
   if (!resolved.ok) throw new Error('Views service was not provided');
