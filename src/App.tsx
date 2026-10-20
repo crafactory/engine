@@ -22,7 +22,7 @@ import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
-import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,createWebViewerRuntime,createSlashCommandsRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime,type WebViewerRuntime,type SlashCommandsRuntime} from './services';
+import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,createWebViewerRuntime,createSlashCommandsRuntime,createPagePreviewRuntime,createAudioRecorderRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime,type WebViewerRuntime,type SlashCommandsRuntime,type PagePreviewRuntime,type AudioRecorderRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
 const Canvas=lazy(()=>import('./Canvas').then(m=>({default:m.Canvas})));
@@ -66,7 +66,7 @@ export function App(){
   const notesRef=useRef<Note[]>([]),settingsRef=useRef(settings),editor=useRef<EditorHandle>(null);
   const timers=useRef(new Map<string,ReturnType<typeof setTimeout>>()),saves=useRef(new Map<string,Promise<void>>());
   const savedContent=useRef(new Map<string,string>()),versions=useRef(new Map<string,string|undefined>());
-  const history=useRef<string[]>([]),historyIndex=useRef(-1),recorder=useRef<MediaRecorder|null>(null),stream=useRef<MediaStream|null>(null);
+  const history=useRef<string[]>([]),historyIndex=useRef(-1),recordingPath=useRef('');
   const importInput=useRef<HTMLInputElement>(null),attachmentInput=useRef<HTMLInputElement>(null);
   const pluginStops=useRef(new Map<string,PluginController>()),loaded=useRef(false),vaultGeneration=useRef(0);
   const pluginStarting=useRef(new Set<string>()),pluginRequests=useRef(new Set<Promise<unknown>>());
@@ -82,6 +82,7 @@ export function App(){
   const slidesRuntime=useRef<SlidesRuntime|null>(null),converterRuntime=useRef<FormatConverterRuntime|null>(null);
   const composerRuntime=useRef<NoteComposerRuntime|null>(null);
   const webViewerRuntime=useRef<WebViewerRuntime|null>(null),slashRuntime=useRef<SlashCommandsRuntime|null>(null);
+  const pagePreviewRuntime=useRef<PagePreviewRuntime|null>(null),audioRuntime=useRef<AudioRecorderRuntime|null>(null);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   function pluginSnapshot():PluginSnapshot{
     const s=pluginState.current;
@@ -124,6 +125,8 @@ export function App(){
       if(!composerRuntime.current){const runtime=await createNoteComposerRuntime();if(unmounted.current){void runtime.kernel.stop();return;}composerRuntime.current=runtime;}
       if(!webViewerRuntime.current){const runtime=await createWebViewerRuntime();if(unmounted.current){void runtime.kernel.stop();return;}webViewerRuntime.current=runtime;}
       if(!slashRuntime.current){const runtime=await createSlashCommandsRuntime();if(unmounted.current){void runtime.kernel.stop();return;}slashRuntime.current=runtime;}
+      if(!pagePreviewRuntime.current){const runtime=await createPagePreviewRuntime();if(unmounted.current){void runtime.kernel.stop();return;}pagePreviewRuntime.current=runtime;}
+      if(!audioRuntime.current){const runtime=await createAudioRecorderRuntime();if(unmounted.current){void runtime.kernel.stop();return;}audioRuntime.current=runtime;}
       editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));
@@ -138,7 +141,7 @@ export function App(){
       loaded.current=true;setPluginList(await bridge.plugins());
     }catch(e){report(e);}finally{setLoading(false);}
   }
-  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();void uniqueNoteRuntime.current?.kernel.stop();void wordCountRuntime.current?.kernel.stop();void slidesRuntime.current?.kernel.stop();void converterRuntime.current?.kernel.stop();void composerRuntime.current?.kernel.stop();void webViewerRuntime.current?.kernel.stop();void slashRuntime.current?.kernel.stop();};},[]);
+  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);if(audioRuntime.current?.service.isRecording())void audioRuntime.current.service.stop().catch(()=>{});for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();void uniqueNoteRuntime.current?.kernel.stop();void wordCountRuntime.current?.kernel.stop();void slidesRuntime.current?.kernel.stop();void converterRuntime.current?.kernel.stop();void composerRuntime.current?.kernel.stop();void webViewerRuntime.current?.kernel.stop();void slashRuntime.current?.kernel.stop();void pagePreviewRuntime.current?.kernel.stop();void audioRuntime.current?.kernel.stop();};},[]);
   useEffect(()=>{for(const controller of pluginStops.current.values())controller.sync(pluginSnapshot());},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
@@ -364,19 +367,22 @@ export function App(){
     }catch(e){report(e);}
   }
   async function audio(){
-    if(recording){recorder.current?.stop();return;}
+    const service=audioRuntime.current?.service;
+    if(recording){
+      try{
+        const result=await service!.stop();
+        const name='Recording-'+Date.now()+result.extension;
+        const attachment=await bridge.attach(name,result.data);
+        const note=notesRef.current.find(n=>n.path===recordingPath.current);
+        if(note)editNote(recordingPath.current,note.content+`\n![[${attachment}]]\n`);
+        setEntries(await bridge.list());setRecording(false);
+      }catch(e){report(e);setRecording(false);}
+      return;
+    }
     if(!activeNote||!isNote(active)){toast('Open a note before recording.');return;}
-    const path=active;
-    try{
-      stream.current=await navigator.mediaDevices.getUserMedia({audio:true});
-      const media=new MediaRecorder(stream.current);recorder.current=media;const chunks:Blob[]=[];
-      media.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
-      media.onstop=async()=>{
-        setRecording(false);stream.current?.getTracks().forEach(t=>t.stop());
-        try{const blob=new Blob(chunks,{type:media.mimeType});const name='Recording-'+Date.now()+(/ogg/.test(media.mimeType)?'.ogg':'.webm');const attachment=await bridge.attach(name,Array.from(new Uint8Array(await blob.arrayBuffer())));const note=notesRef.current.find(n=>n.path===path);if(note)editNote(path,note.content+`\n![[${attachment}]]\n`);setEntries(await bridge.list());}catch(e){report(e);}
-      };
-      media.start();setRecording(true);
-    }catch(e){report(e);}
+    if(!service){toast('Audio recording is unavailable.');return;}
+    recordingPath.current=active;
+    try{await service.start();setRecording(true);}catch(e){report(e);}
   }
   async function openWeb(){
     const url=await dialog.ask('Open web viewer','https://example.com','Only HTTPS pages are supported. Some sites block embedded viewing.');
@@ -596,7 +602,7 @@ export function App(){
         <div className="note-title"><h1>{title(note.path)}</h1><button className={bookmarks.includes(path)?'is-bookmarked':''} onClick={()=>toggleBookmarkPath(path)} aria-label="Bookmark note" title="Bookmark note"><Bookmark size={19} fill={bookmarks.includes(path)?'currentColor':'none'}/></button></div>
         {enabled('properties')&&isNote(note.path)&&propertyEditor(note)}
       </div>
-      {mode==='reading'&&isNote(note.path)?<div className={'reading-surface '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}><Markdown content={note.content} notes={notes} path={note.path} onOpen={openLink} onChange={content=>editNote(note.path,content)}/></div>:
+      {mode==='reading'&&isNote(note.path)?<div className={'reading-surface '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}><Markdown content={note.content} notes={notes} path={note.path} previews={pagePreviewRuntime.current?.service} onOpen={openLink} onChange={content=>editNote(note.path,content)}/></div>:
         <Editor ref={secondary?undefined:editor} note={note} notes={notes} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} pluginExtensions={secondary?undefined:allPluginExtensions} settings={{...settings,mode:mode==='reading'?'source':mode}} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand}/>}
     </div>;
   }
