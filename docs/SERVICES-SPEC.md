@@ -203,6 +203,13 @@ sort)` and `children(entries, parent, sort)`, all folders-first then by name or 
 time. The application keeps expansion and interaction state; the service owns the derived
 ordering. It consumes the storage contract and is rejected without it.
 
+### `engine.note-composer/v1`
+
+`merge(targetContent, sourceContent)` keeps the target and appends the source body without
+its frontmatter; `extractLink(targetPath)` builds a wikilink without the `.md` suffix. The
+application keeps dialogs, editor selection replacement, vault-wide link rewriting and the
+trash write.
+
 ### Obsidian compatibility facade
 
 `createCompatibilityRuntime` accepts an optional `native` service bundle on its host:
@@ -266,7 +273,8 @@ ordering, random-note selection and the navigation dependency flow, and
 `tests/unique-note.test.ts` / `tests/wordcount.test.ts` cover the timestamp note, the
 templates dependency edge and word/character counting. `tests/slides.test.ts` and
 `tests/format-converter.test.ts` cover slide splitting and the bounded conversions, and
-`tests/explorer.test.ts` covers tree ordering and the storage dependency.
+`tests/explorer.test.ts` covers tree ordering and the storage dependency, and
+`tests/note-composer.test.ts` covers merge/extract rules and composition.
 
 ## Not yet done
 

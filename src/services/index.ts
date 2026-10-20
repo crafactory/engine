@@ -27,6 +27,7 @@ export * from './wordcount';
 export * from './slides';
 export * from './format-converter';
 export * from './explorer';
+export * from './note-composer';
 export * from './storage-bridge';
 export {ENGINE_VERSION};
 

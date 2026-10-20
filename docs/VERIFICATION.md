@@ -1,5 +1,23 @@
 # Verification results
 
+## Note composer (stage 5 continuation)
+
+This section records source verification for migrating the merge/extract content rules onto
+`engine.note-composer/v1`. The application keeps dialogs, editor selection replacement,
+vault-wide link rewriting and the trash write. Stage 5 stays unchecked.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 775 passed (31 files) | +3 composer cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | **51 passed / 0 failed** | Composer flows unchanged |
+
+`NoteComposer.merge` keeps the target content and appends the source body without its
+frontmatter; `extractLink` builds a wikilink without the `.md` suffix. The suite also covers
+runtime composition and a consumer plugin. These are unit/composition and local checks, not
+packaged-binary acceptance.
+
 ## Explorer service (stage 5 continuation)
 
 This section records source verification for migrating file-tree ordering onto
