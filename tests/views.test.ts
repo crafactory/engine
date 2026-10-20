@@ -26,9 +26,10 @@ describe('view contributions', () => {
   it('assembles the built-in views and disposes them with their plugin scope', async () => {
     const runtime = await createViewsRuntime();
     expect(runtime.kernel.diagnostics).toEqual([]);
-    expect(runtime.views.list().map(view => view.viewType).sort()).toEqual(['base', 'bookmarks', 'canvas', 'markdown', 'recent', 'tags']);
+    expect(runtime.views.list().map(view => view.viewType).sort()).toEqual(['base', 'bookmarks', 'canvas', 'markdown', 'outline', 'recent', 'tags']);
     expect(runtime.views.resolve('bookmarks')?.slot).toBe('left');
     expect(runtime.views.resolve('tags')?.slot).toBe('left');
+    expect(runtime.views.resolve('outline')?.slot).toBe('right');
     expect(runtime.views.resolve('markdown')?.slot).toBeUndefined();
     await runtime.kernel.disable('engine.view.canvas');
     expect(runtime.views.resolve('canvas')).toBeUndefined();

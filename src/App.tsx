@@ -616,9 +616,9 @@ export function App(){
     return component;
   }
   /** Resolve a registered left-slot panel contribution. */
-  function panelComponent(type:string){
+  function panelComponent(type:string,slot:'left'|'right'){
     const contribution=viewsRuntime.current?.views.resolve(type);
-    if(!contribution||(contribution.slot??'main')!=='left')return undefined;
+    if(!contribution||(contribution.slot??'main')!==slot)return undefined;
     let component=panelComponents.current.get(contribution);
     if(!component){
       component=lazy(async()=>{
@@ -681,8 +681,10 @@ export function App(){
   if(palette==='merge')paletteItems=notes.filter(n=>isNote(n.path)&&n.path!==active).map(n=>({id:n.path,label:title(n.path),description:n.path,run:()=>mergeInto(n.path)}));
 
   const panelType:SidePanelTab|undefined=sideTab==='bookmarks'||sideTab==='recent'||sideTab==='tags'?sideTab:undefined;
-  const SidePanel=panelType?panelComponent(panelType):undefined;
-  const panelProps=panelType?{sideTab:panelType,notes,bookmarks,recent,tags:tagCounts,onOpen:open,onRemoveBookmark:removeBookmarkPath,onSelectTag:(tag:string)=>{setQuery('tag:#'+tag);setSideTab('search');}}:undefined;
+  const SidePanel=panelType?panelComponent(panelType,'left'):undefined;
+  const panelProps=panelType?{sideTab:panelType,notes,bookmarks,recent,tags:tagCounts,headings:hs,onOpen:open,onRemoveBookmark:removeBookmarkPath,onSelectTag:(tag:string)=>{setQuery('tag:#'+tag);setSideTab('search');},onJumpHeading:(heading:{level:number;text:string;offset:number})=>{if(mode!=='reading')editor.current?.jump(heading.offset);else document.getElementById('heading-'+heading.text.toLowerCase().replace(/\s+/g,'-'))?.scrollIntoView({behavior:'smooth'});}}:undefined;
+  const OutlineView=rightTab==='outline'?panelComponent('outline','right'):undefined;
+  const outlineProps=OutlineView?{sideTab:'outline' as const,notes,bookmarks,recent,tags:tagCounts,headings:hs,onOpen:open,onRemoveBookmark:removeBookmarkPath,onSelectTag:(tag:string)=>{setQuery('tag:#'+tag);setSideTab('search');},onJumpHeading:(heading:{level:number;text:string;offset:number})=>{if(mode!=='reading')editor.current?.jump(heading.offset);else document.getElementById('heading-'+heading.text.toLowerCase().replace(/\s+/g,'-'))?.scrollIntoView({behavior:'smooth'});}}:undefined;
   return <div className="app" onClick={()=>context&&setContext(null)}>
     <style>{settings.css}</style>
     <input ref={importInput} type="file" multiple accept=".md,.markdown,.txt,image/*,audio/*,video/*,.pdf,.canvas,.base" className="hidden" aria-label="Import files" onChange={e=>{importFiles(e.target.files);e.target.value='';}}/>
@@ -734,7 +736,7 @@ export function App(){
       </main>
       {right&&<aside className="right-sidebar" aria-label="Note context">
         <div className="sidebar-tabs"><IconButton label="Outline tab" onClick={()=>setRightTab('outline')} active={rightTab==='outline'}><List size={17}/></IconButton><IconButton label="Backlinks tab" onClick={()=>setRightTab('backlinks')} active={rightTab==='backlinks'}><Link2 size={17}/></IconButton><IconButton label="Properties tab" onClick={()=>setRightTab('properties')} active={rightTab==='properties'}><Layers size={16}/></IconButton><IconButton label="Outgoing links tab" onClick={()=>setRightTab('outgoing')} active={rightTab==='outgoing'}><ArrowRight size={17}/></IconButton></div>
-        {rightTab==='outline'&&enabled('outline')&&<><div className="section-heading"><span>Outline</span><List size={13}/></div><div className="outline-list">{hs.length?hs.map((heading,i)=><button key={i} style={{paddingLeft:14+(heading.level-1)*12}} onClick={()=>{if(mode!=='reading')editor.current?.jump(heading.offset);else document.getElementById('heading-'+heading.text.toLowerCase().replace(/\s+/g,'-'))?.scrollIntoView({behavior:'smooth'});}}>{heading.text}</button>):<p className="sidebar-hint">Headings in your note will appear here.</p>}</div></>}
+        {rightTab==='outline'&&enabled('outline')&&<><div className="section-heading"><span>Outline</span><List size={13}/></div>{OutlineView&&outlineProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><OutlineView {...outlineProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Outline unavailable.</p>}</>}
         {rightTab==='properties'&&enabled('properties')&&activeNote&&<><div className="section-heading">Note properties</div><div className="right-properties">{propertyEditor(activeNote)}</div><div className="section-heading">Vault properties</div><div className="tag-list">{[...new Set(indexed?.propertyKeys()??[])].map(key=><button key={key} onClick={()=>{setLeft(true);setSideTab('search');setQuery('['+key+']');}}><Hash size={13}/>{key}</button>)}</div></>}
         {(rightTab==='outline'||rightTab==='backlinks')&&enabled('backlinks')&&<div className="backlinks-section"><div className="section-heading"><span>Linked mentions</span><small>{incoming.length}</small></div><div className="mention-list">{incoming.map(n=><button key={n.path} onClick={()=>open(n.path)}><span><FileText size={13}/>{title(n.path)}</span><p>{frontmatter(n.content).body.split('\n').find(line=>line.includes('[[')&&line.toLowerCase().includes(title(active).toLowerCase()))?.replace(/[[\]#*]/g,'')||'Links to this note'}</p></button>)}{!incoming.length&&<p className="sidebar-hint">Notes that link here will appear here.</p>}</div><details className="unlinked"><summary>Unlinked mentions <span>{mentions.length}</span></summary>{mentions.map(n=><button key={n.path} onClick={()=>open(n.path)}>{title(n.path)}</button>)}</details></div>}
         {rightTab==='outgoing'&&enabled('outgoing')&&<><div className="section-heading"><span>Outgoing links</span><small>{outgoing.length}</small></div><div className="bookmark-list">{outgoing.map((link,i)=><button key={i} onClick={()=>openLink(link.target+(link.fragment?'#'+link.fragment:''))}><Link2 size={13}/>{link.label||link.target}<span className={resolveLink(link.target,active,notes)?'':'unresolved'}>{resolveLink(link.target,active,notes)?'':'New'}</span></button>)}</div></>}
