@@ -27,13 +27,17 @@ export interface ReadingViewProps {
 export type ViewComponent = ComponentType<ReadingViewProps>;
 
 /** Props for a sidebar/panel view contribution. */
+export type SidePanelTab = 'bookmarks' | 'recent' | 'tags';
+
 export interface PanelViewProps {
-  sideTab: 'bookmarks' | 'recent';
+  sideTab: SidePanelTab;
   notes: Note[];
   bookmarks: string[];
   recent: string[];
+  tags: [string, number][];
   onOpen(path: string): void;
   onRemoveBookmark(path: string): void;
+  onSelectTag(tag: string): void;
 }
 
 export type PanelComponent = ComponentType<PanelViewProps>;

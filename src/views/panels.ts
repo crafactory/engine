@@ -12,3 +12,9 @@ export const recentPanelPlugin: PluginDefinition = {
   manifest: {id: 'engine.view.recent', name: 'Recent panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
   setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'recent', slot: 'left', label: 'Recent', load: () => import('./BookmarksPanel')})); }
 };
+
+/** Tags panel contribution for the left slot. */
+export const tagsPanelPlugin: PluginDefinition = {
+  manifest: {id: 'engine.view.tags', name: 'Tags panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
+  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'tags', slot: 'left', label: 'Tags', load: () => import('./TagsPanel')})); }
+};
