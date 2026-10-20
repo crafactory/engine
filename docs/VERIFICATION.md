@@ -1,5 +1,31 @@
 # Verification results
 
+## UI view contributions
+
+This section records source verification for moving built-in view dispatch onto component
+loaders. The React views are registered as native view plugins; the application host
+resolves them lazily. External plugin-package UI loading and permission gating for views
+are not implemented yet.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 807 passed (37 files) | +6 view-loader/lifecycle/boundary cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | **51 passed / 0 failed** | Reading, Canvas, Bases and link-creation flows |
+
+`engine.views/v1` stores opaque loaders, so the kernel and services still import no React
+or concrete view. The three built-in view plugins register in their own scopes and are
+removed when disabled; `tests/views.test.ts` verifies registration/replacement, scope
+revocation, function/default-export interpretation and the view boundary's fallback state and
+error logging.
+A failed lazy load evicts its cache entry and a view-level error boundary shows a
+controlled fallback instead of replacing the whole workspace. The app now renders one generic
+`ReadingViewProps` shape instead of hard-coded canvas/base/markdown branches. During
+verification the unresolved-link e2e case caught a regression: the generic `onOpen` used
+the tab opener instead of Markdown link semantics, so the contract gained a separate
+`onOpenLink` callback; the case now passes.
+
 ## Stage 7 package validation and permissions
 
 This section records source verification for plugin package validation, declared-permission

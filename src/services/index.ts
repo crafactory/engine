@@ -15,6 +15,7 @@ export * from './commands';
 export * from './documents';
 export * from './render';
 export * from './workspace';
+export * from './views';
 export * from './formats';
 export * from './editor';
 export * from './bookmarks';
