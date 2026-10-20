@@ -223,6 +223,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     /** Rename a file or folder through the native host, retaining the object subtree. */
     async rename(file:TAbstractFile,newPath:string):Promise<void>{
       checkAbstract(file);
+      if(!file.path)return unsupported('Vault.rename root');
       if(typeof newPath!=='string'||!newPath.trim())return unsupported('Vault.rename target');
       const to=normalizePath(newPath);
       if(!to)return unsupported('Vault.rename target');
@@ -252,6 +253,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     /** Move a file or folder subtree to recoverable trash through the native storage host. */
     async trash(file:TAbstractFile):Promise<void>{
       checkAbstract(file);
+      if(!file.path)return unsupported('Vault.trash root');
       const subtree:TAbstractFile[]=[];
       const collect=(item:TAbstractFile)=>{subtree.push(item);if(item instanceof TFolder)for(const child of item.children)collect(child);};
       collect(file);

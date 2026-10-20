@@ -9,12 +9,13 @@ delete, binary adapters, `process()` and fuller disable/reload timing remain).
 | Check | Observed result | Scope |
 |---|---|---|
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
-| `npm run test` | 792 passed (35 files) | Folder-subtree and facade-dependency cases |
+| `npm run test` | 793 passed (35 files) | Folder-subtree and facade-dependency cases |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
 | `npm run test:e2e` (macOS) | **51 passed / 0 failed** | Rename/trash UI flows unchanged |
 
 `Vault.rename` remaps the captured object subtree (folder and descendants) to the new prefix,
-retains identity, and reconciles parent children; `Vault.trash` removes the subtree. A
+retains identity, and reconciles parent children; `Vault.trash` removes the subtree. Root
+rename/trash is rejected explicitly. A
 facade-style consumer that requires the notes index and the CodeMirror editor capability is
 disabled when the index is disabled with a `dependency-disabled` diagnostic and rebound on
 enable. These are bounded unit/composition and local checks.

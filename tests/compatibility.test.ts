@@ -180,6 +180,11 @@ describe('vault rename, trash and resource paths',()=>{
     expect(v.getFileByPath('Folder/Renamed.md')).toBe(file);
     expect(h.calls).toContainEqual({operation:'rename',args:['Folder/One.md','Folder/Renamed.md']});
   });
+  it('rejects root rename and trash',async()=>{
+    const h=harness(),root=h.runtime.app.vault.getRoot();
+    await expect(h.runtime.app.vault.rename(root,'Moved')).rejects.toThrow('Unsupported');
+    await expect(h.runtime.app.vault.trash(root)).rejects.toThrow('Unsupported');
+  });
   it('reconciles folder children after rename',async()=>{
     const h=harness(),v=h.runtime.app.vault,file=v.getFileByPath('Folder/One.md'),folder=v.getFolderByPath('Folder');
     await v.rename(file,'Folder/Renamed.md');
