@@ -167,6 +167,13 @@ Quick-switcher ordering (`quickSwitch({recent})`, recent first, stable for the r
 `randomNote()` over Markdown paths. It consumes `engine.index/v1`, so it is activated after
 the index and rejected when the index is missing.
 
+### `engine.workspaces/v1`
+
+Named workspace layouts: `save(name, workspace)`, `get(name)`, `list`, `remove`,
+`replace(record)` and `subscribe`. Snapshots are deep-cloned per listener so a consumer
+cannot mutate the store. The application mirrors the record into render state via
+`subscribe`; persistence stays application-side.
+
 ### Obsidian compatibility facade
 
 `createCompatibilityRuntime` accepts an optional `native` service bundle on its host:
@@ -223,8 +230,9 @@ interpolation, daily-note computation and the templates→daily-notes dependency
 `tests/notes-index.test.ts` covers index derivation, resolution (including singular
 aliases), backlinks, tags, search, updates, path deduplication, snapshot isolation and the
 index dependency flow. `tests/storage-bridge.test.ts` covers the bridge-backed storage
-adapter and the storage/documents runtime, and `tests/navigation.test.ts` covers quick-switch
-ordering, random-note selection and the navigation dependency flow.
+adapter and the storage/documents runtime, `tests/navigation.test.ts` covers quick-switch
+ordering, random-note selection and the navigation dependency flow, and
+`tests/workspaces.test.ts` covers the named workspace store and its dependency flow.
 
 ## Not yet done
 

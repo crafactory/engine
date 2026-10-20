@@ -21,6 +21,7 @@ export * from './templates';
 export * from './daily-notes';
 export * from './notes-index';
 export * from './navigation';
+export * from './workspaces';
 export * from './storage-bridge';
 export {ENGINE_VERSION};
 

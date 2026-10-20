@@ -22,7 +22,7 @@ import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
-import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote} from './services';
+import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
 const Canvas=lazy(()=>import('./Canvas').then(m=>({default:m.Canvas})));
@@ -77,6 +77,7 @@ export function App(){
   const indexRuntime=useRef<NavigationRuntime|null>(null);
   const commandsRuntime=useRef<CommandsRuntime|null>(null),commandDisposers=useRef(new Map<string,()=>void>());
   const storageRuntime=useRef<AppStorageRuntime|null>(null),bridgeStorageFallback=useRef<BridgeStorage|null>(null);
+  const workspacesRuntime=useRef<WorkspacesRuntime|null>(null),workspacesUnsub=useRef<(()=>void)|null>(null);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   function pluginSnapshot():PluginSnapshot{
     const s=pluginState.current;
@@ -111,6 +112,7 @@ export function App(){
       if(!indexRuntime.current){const runtime=await createNavigationRuntime();if(unmounted.current){void runtime.kernel.stop();return;}indexRuntime.current=runtime;}
       if(!commandsRuntime.current){const runtime=await createCommandsRuntime();if(unmounted.current){void runtime.kernel.stop();return;}commandsRuntime.current=runtime;}
       if(!storageRuntime.current){try{const runtime=await createStorageRuntime({bridge});if(unmounted.current)void runtime.kernel.stop();else storageRuntime.current=runtime;}catch(e){report(e);}}
+      if(!workspacesRuntime.current){const runtime=await createWorkspacesRuntime();if(unmounted.current){void runtime.kernel.stop();return;}workspacesRuntime.current=runtime;workspacesUnsub.current=runtime.service.subscribe(record=>setWorkspaces(record));}
       editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));
@@ -119,13 +121,13 @@ export function App(){
       updateNotes(all);setEntries(vault.entries);setVaultName(vault.name);setRoot(vault.root);
       const state=vault.state;
       const pref={...defaults,...state.settings};setSettings(pref);setMode(bridge.desktop?pref.mode:'reading');
-      setBookmarksFromService(state.bookmarks||[]);setWorkspaces(state.workspaces||{});setRecent(state.recent||[]);
+      setBookmarksFromService(state.bookmarks||[]);setWorkspacesFromService(state.workspaces||{});setRecent(state.recent||[]);
       const path=all.find(n=>n.path==='Welcome.md')?.path||all.find(n=>isNote(n.path))?.path||all[0]?.path||'';
       setTabs(path?[path]:[]);setActive(path);setSplit(null);history.current=path?[path]:[];historyIndex.current=path?0:-1;
       loaded.current=true;setPluginList(await bridge.plugins());
     }catch(e){report(e);}finally{setLoading(false);}
   }
-  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();};},[]);
+  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();};},[]);
   useEffect(()=>{for(const controller of pluginStops.current.values())controller.sync(pluginSnapshot());},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
@@ -324,9 +326,10 @@ export function App(){
     try{const documents=storageRuntime.current?.documents;const restored=documents?await documents.restore(id):await bridge.restore(id);versions.current.set(restored.path,restored.version);savedContent.current.set(restored.path,restored.content);updateNotes(notesRef.current.map(n=>n.path===restored.path?restored:n));setRecovery(null);toast('Previous version restored.');}catch(e){report(e);}
   }
   async function saveWorkspace(){
-    const name=await dialog.ask('Save workspace','My workspace');if(name)setWorkspaces(w=>({...w,[name]:{tabs,active,split,left,right,mode}}));
+    const name=await dialog.ask('Save workspace','My workspace');
+    if(name){const workspace={tabs,active,split,left,right,mode};const service=workspacesRuntime.current?.service;if(service)service.save(name,workspace);else setWorkspaces(w=>({...w,[name]:workspace}));}
   }
-  function loadWorkspace(name:string){const w=workspaces[name];if(w){setTabs(w.tabs);setActive(w.active);setSplit(w.split);setLeft(w.left);setRight(w.right);setMode(w.mode);}}
+  function loadWorkspace(name:string){const w=workspacesRuntime.current?.service.get(name)??workspaces[name];if(w){setTabs(w.tabs);setActive(w.active);setSplit(w.split);setLeft(w.left);setRight(w.right);setMode(w.mode);}}
   async function exportVault(){
     try{
       await flush();const {default:JSZip}=await import('jszip');const zip=new JSZip();
@@ -553,6 +556,8 @@ export function App(){
   function bookmarkPaths(){return bookmarksRuntime.current?.service.list()??bookmarks;}
   /** Replace bookmarks through the native plugin, falling back to local state. */
   function setBookmarksFromService(paths:string[]){const service=bookmarksRuntime.current?.service;if(service)service.replace(paths);else setBookmarks(paths);}
+  /** Replace workspaces through the native plugin, falling back to local state. */
+  function setWorkspacesFromService(record:Record<string,Workspace>){const service=workspacesRuntime.current?.service;if(service)service.replace(record);else setWorkspaces(record);}
   /** Toggle a bookmark through the native plugin, falling back to local state. */
   function toggleBookmarkPath(path:string){const service=bookmarksRuntime.current?.service;if(service)service.toggle(path);else setBookmarks(b=>b.includes(path)?b.filter(p=>p!==path):[...b,path]);}
   /** Remove a bookmark through the native plugin, falling back to local state. */
@@ -584,7 +589,7 @@ export function App(){
   if(palette==='commands')paletteItems=serviceCommands.length?serviceCommands:commands;
   if(palette==='files')paletteItems=(indexRuntime.current?.navigation.quickSwitch({recent})??[...notes].sort((a,b)=>{const x=recent.indexOf(a.path),y=recent.indexOf(b.path);return (x<0?999:x)-(y<0?999:y);}).map(n=>n.path)).map(path=>({id:path,label:title(path),description:path,run:()=>open(path)}));
   if(palette==='templates')paletteItems=notes.filter(n=>isNote(n.path)&&n.path.startsWith(settings.templatesFolder+'/')).map(n=>({id:n.path,label:title(n.path),description:n.path,run:()=>insertTemplate(n.path)}));
-  if(palette==='workspaces')paletteItems=Object.keys(workspaces).map(name=>({id:name,label:name,run:()=>loadWorkspace(name)}));
+  if(palette==='workspaces')paletteItems=(workspacesRuntime.current?.service.list()??Object.keys(workspaces)).map(name=>({id:name,label:name,run:()=>loadWorkspace(name)}));
   if(palette==='merge')paletteItems=notes.filter(n=>isNote(n.path)&&n.path!==active).map(n=>({id:n.path,label:title(n.path),description:n.path,run:()=>mergeInto(n.path)}));
 
   return <div className="app" onClick={()=>context&&setContext(null)}>

@@ -1,5 +1,24 @@
 # Verification results
 
+## Workspaces service (stage 5 continuation)
+
+This section records source verification for migrating named workspaces onto
+`engine.workspaces/v1`. The save/load-workspace commands and the workspaces palette consume
+the service; persistence stays application-side and stage 5 stays unchecked.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 750 passed (25 files) | +7 workspace cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | 45 passed / 6 failed | Unchanged baseline; the save/restore workspace case passes |
+
+`WorkspaceStore` deep-clones on write and per listener, so a consumer cannot mutate the
+stored layouts; records use a prototype-free store so inherited names like `toString` and
+`__proto__` assignments are safe. The suite also covers sanitizing the seeded record and the
+disable/enable dependency flow with a consumer plugin. These are unit/composition and local checks, not
+packaged-binary acceptance.
+
 ## Navigation service and facade storage routing (stage 5/6 continuation)
 
 This section records source verification for two changes in one increment: a new
