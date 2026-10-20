@@ -1,5 +1,25 @@
 # Verification results
 
+## Slides and format converter (stage 5 continuation)
+
+This section records source verification for migrating the slides view and the bounded
+format converter onto native services. Stage 5 stays unchecked.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 767 passed (29 files) | +7 slides/converter cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | **51 passed / 0 failed** | Platform-adaptive keys; slides case passes |
+
+`SlideDeck` strips frontmatter and splits on `---` rules; `MarkdownConverter` converts
+`<mark>` highlights and same-vault `.md` links while leaving external URLs and non-Markdown
+targets (including protocol-relative URLs) untouched. Slide parsing normalizes CRLF and
+handles an empty frontmatter block. Both suites also cover runtime composition and a
+consumer plugin. The
+browser suite is fully green on macOS now that the tests use `ControlOrMeta`. These are
+unit/composition and local checks, not packaged-binary acceptance.
+
 ## Unique note and word count (stage 5 continuation)
 
 This section records source verification for two more core-feature migrations: the unique

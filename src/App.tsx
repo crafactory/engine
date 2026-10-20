@@ -22,7 +22,7 @@ import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
-import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime} from './services';
+import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
 const Canvas=lazy(()=>import('./Canvas').then(m=>({default:m.Canvas})));
@@ -79,6 +79,7 @@ export function App(){
   const storageRuntime=useRef<AppStorageRuntime|null>(null),bridgeStorageFallback=useRef<BridgeStorage|null>(null);
   const workspacesRuntime=useRef<WorkspacesRuntime|null>(null),workspacesUnsub=useRef<(()=>void)|null>(null);
   const uniqueNoteRuntime=useRef<UniqueNoteRuntime|null>(null),wordCountRuntime=useRef<WordCountRuntime|null>(null);
+  const slidesRuntime=useRef<SlidesRuntime|null>(null),converterRuntime=useRef<FormatConverterRuntime|null>(null);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   function pluginSnapshot():PluginSnapshot{
     const s=pluginState.current;
@@ -116,6 +117,8 @@ export function App(){
       if(!workspacesRuntime.current){const runtime=await createWorkspacesRuntime();if(unmounted.current){void runtime.kernel.stop();return;}workspacesRuntime.current=runtime;workspacesUnsub.current=runtime.service.subscribe(record=>setWorkspaces(record));}
       if(!uniqueNoteRuntime.current){const runtime=await createUniqueNoteRuntime();if(unmounted.current){void runtime.kernel.stop();return;}uniqueNoteRuntime.current=runtime;}
       if(!wordCountRuntime.current){const runtime=await createWordCountRuntime();if(unmounted.current){void runtime.kernel.stop();return;}wordCountRuntime.current=runtime;}
+      if(!slidesRuntime.current){const runtime=await createSlidesRuntime();if(unmounted.current){void runtime.kernel.stop();return;}slidesRuntime.current=runtime;}
+      if(!converterRuntime.current){const runtime=await createFormatConverterRuntime();if(unmounted.current){void runtime.kernel.stop();return;}converterRuntime.current=runtime;}
       editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));
@@ -130,7 +133,7 @@ export function App(){
       loaded.current=true;setPluginList(await bridge.plugins());
     }catch(e){report(e);}finally{setLoading(false);}
   }
-  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();void uniqueNoteRuntime.current?.kernel.stop();void wordCountRuntime.current?.kernel.stop();};},[]);
+  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();void uniqueNoteRuntime.current?.kernel.stop();void wordCountRuntime.current?.kernel.stop();void slidesRuntime.current?.kernel.stop();void converterRuntime.current?.kernel.stop();};},[]);
   useEffect(()=>{for(const controller of pluginStops.current.values())controller.sync(pluginSnapshot());},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
@@ -472,7 +475,7 @@ export function App(){
     {id:'export-markdown',label:'Export current note as Markdown',run:()=>activeNote&&download(active.split('/').pop()!,activeNote.content)},
     {id:'export-html',label:'Export current note as HTML',run:()=>activeNote&&download(title(active)+'.html',`<!doctype html><meta charset="utf-8"><title>${title(active).replace(/[<>]/g,'')}</title><article>${renderMarkdown(activeNote.content)}</article>`,'text/html')},
     {id:'export-pdf',label:'Export current note to PDF',run:async()=>{if(!activeNote)return;setMode('reading');setTimeout(()=>bridge.print().catch(report),100);}},
-    {id:'converter',label:'Convert Markdown formatting',run:()=>{if(activeNote)editNote(active,activeNote.content.replace(/<mark>([\s\S]*?)<\/mark>/g,'==$1==').replace(/\[([^\]]+)\]\(([^):]+)\.md\)/g,'[[$2|$1]]'));}},
+    {id:'converter',label:'Convert Markdown formatting',run:()=>{if(activeNote){const converter=converterRuntime.current?.service;editNote(active,converter?converter.convert(activeNote.content):activeNote.content.replace(/<mark>([\s\S]*?)<\/mark>/g,'==$1==').replace(/\[([^\]]+)\]\(([^):]+)\.md\)/g,'[[$2|$1]]'));}}},
     {id:'find',label:'Find and replace in current note',run:()=>{setMode('source');setTimeout(()=>editor.current?.find(),100);}},
     {id:'left-sidebar',label:'Toggle left sidebar',run:()=>setLeft(l=>!l)},
     {id:'right-sidebar',label:'Toggle right sidebar',run:()=>setRight(r=>!r)},
@@ -665,7 +668,7 @@ export function App(){
     {palette&&<Palette key={palette} title={palette==='commands'?'Command palette':palette==='files'?'Quick switcher':palette==='templates'?'Insert template':palette==='merge'?'Merge into note':'Load workspace'} items={paletteItems} onClose={()=>setPalette(null)} onCreate={palette==='files'?name=>createNote(name):undefined}/>}
     {showSettings&&<Settings value={settings} onChange={s=>{setSettings(s);if(s.mode!==settings.mode)setMode(s.mode);}} onClose={()=>setShowSettings(false)} plugins={pluginList.map(p=>p.manifest)} enabled={enabledPlugins} onTogglePlugin={togglePlugin} pluginTabs={Object.values(pluginTabs).flat()} modes={pluginModes} onMode={(id,mode)=>{if(!enabledPlugins.includes(id)&&!pluginStarting.current.has(id))setPluginModes(m=>({...m,[id]:mode}));}}/>}
     {recovery&&<div className="modal-backdrop"><section className="modal recovery-modal" role="dialog" aria-label="File recovery"><header><h2>File recovery</h2><button onClick={()=>setRecovery(null)} aria-label="Close recovery"><X size={18}/></button></header><p>Previous saved versions of {active}. Restoring a version also snapshots the current content.</p>{recovery.length?recovery.map(s=><button key={s.id} onClick={()=>restoreSnapshot(s.id)}><Clock size={15}/>{new Date(s.time).toLocaleString()}<span>Restore</span></button>):<div className="empty"><Clock size={25}/><p>No previous versions yet. Snapshots are created when saved content changes.</p></div>}</section></div>}
-    {slides&&activeNote&&<Slides note={activeNote} notes={notes} onOpen={openLink} onClose={()=>setSlides(false)}/>}
+    {slides&&activeNote&&<Slides note={activeNote} notes={notes} service={slidesRuntime.current?.service} onOpen={openLink} onClose={()=>setSlides(false)}/>}
     {dialog.ui}
   </div>;
 }

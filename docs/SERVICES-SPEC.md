@@ -185,6 +185,17 @@ either interpolates the template through `engine.templates/v1` or returns a defa
 `count(text)` returns `{words, characters}`: runs of Unicode letters/numbers are words and
 characters are UTF-16 code units. The status bar consumes it.
 
+### `engine.slides/v1`
+
+`parse(content)` removes frontmatter and splits on `---` rules into slide Markdown bodies,
+always returning at least one slide. The presentation view consumes it.
+
+### `engine.format-converter/v1`
+
+`convert(content)` applies the bounded conversions the workspace supports: `<mark>` to
+`==highlight==` and same-vault `.md` links to wikilinks. External URLs and non-Markdown
+targets are untouched; this is not a general HTML/Markdown converter.
+
 ### Obsidian compatibility facade
 
 `createCompatibilityRuntime` accepts an optional `native` service bundle on its host:
@@ -245,7 +256,8 @@ adapter and the storage/documents runtime, `tests/navigation.test.ts` covers qui
 ordering, random-note selection and the navigation dependency flow, and
 `tests/workspaces.test.ts` covers the named workspace store and its dependency flow, and
 `tests/unique-note.test.ts` / `tests/wordcount.test.ts` cover the timestamp note, the
-templates dependency edge and word/character counting.
+templates dependency edge and word/character counting. `tests/slides.test.ts` and
+`tests/format-converter.test.ts` cover slide splitting and the bounded conversions.
 
 ## Not yet done
 
