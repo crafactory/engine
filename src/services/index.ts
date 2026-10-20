@@ -9,6 +9,7 @@ import {WORKSPACE_CONTRACT, workspacePlugin, type WorkspaceViewService} from './
 import {createMarkdownFormatPlugin, createCanvasFormatPlugin, createBasesFormatPlugin} from './formats';
 import {ENGINE_VERSION} from './version';
 
+export * from './version';
 export * from './storage';
 export * from './commands';
 export * from './documents';

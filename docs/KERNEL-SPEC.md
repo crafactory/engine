@@ -52,6 +52,16 @@ that fails validation is not registered.
 live in the actual execution boundary of each provider (Worker, IPC or trusted
 renderer), as recorded in PLUGIN-COMPATIBILITY.md.
 
+`validatePluginPackage` checks untrusted package metadata before it is offered to the
+loader: id/name/version, engine range, an optional caller-supplied relative `.js`/`.mjs`
+entry (the current discovery path reads the fixed `main.js`), known permission names, and
+`provides`/`consumes` shapes. The application host additionally enforces a declared
+permission set per operation (`vault:read`, `vault:write`, `vault:trash`, `editor:write`,
+`storage:plugin-data`); a manifest without `permissions` keeps legacy unrestricted
+access, and a declared set without `vault:read` receives startup/sync snapshots with no
+note content or editor text. This host check is not a sandbox for arbitrary code and does
+not yet gate UI capabilities such as commands or tabs.
+
 ### Bounded version ranges
 
 `satisfiesVersion` implements a documented subset: exact versions, `^`, `~`,

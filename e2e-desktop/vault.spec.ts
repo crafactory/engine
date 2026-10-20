@@ -83,7 +83,7 @@ test('Unicode filename and content round-trip through native UI and disk',async(
 });
 test('opt-in local plugin runs its independent Worker command',async()=>{
   const dir=path.join(root,'.crafactory/plugins/example');await fs.mkdir(dir,{recursive:true});
-  await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id:'example',name:'Example',version:'1'}));
+  await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id:'example',name:'Example',version:'1.0.0'}));
   await fs.writeFile(path.join(dir,'main.js'),'engine.registerCommand("make", "Example: create note", () => engine.write("Plugin.md", "# Plugin\\n\\nWritten by Worker."));');
   await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();
   await page.getByRole('switch',{name:'Enable Example',exact:true}).click();await page.getByTestId('dialog-submit').click();await expect(page.getByRole('switch',{name:'Enable Example',exact:true})).toBeChecked();await page.getByTestId('settings-close').click();

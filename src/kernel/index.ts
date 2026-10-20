@@ -11,3 +11,7 @@ export {ServiceRegistry} from './services';
 export type {ProvideOutcome, ResolveOutcome, ServiceBinding} from './services';
 export {compareVersions, parseVersion, satisfiesVersion} from './semver';
 export type {ParsedVersion} from './semver';
+export {PLUGIN_PERMISSIONS, requiredPermission, checkPermission, readableSnapshot} from './permissions';
+export type {PluginPermission} from './permissions';
+export {validatePluginPackage} from './package';
+export type {PackageIssue, PackageIssueCode, PackageValidation, PluginPackageInput} from './package';
