@@ -17,7 +17,8 @@ are not implemented yet.
 `engine.views/v1` stores opaque loaders, so the kernel and services still import no React
 or concrete view. The three built-in view plugins register in their own scopes and are
 removed when disabled; `tests/views.test.ts` verifies registration/replacement, scope
-revocation, function/default-export interpretation and the view boundary's fallback state.
+revocation, function/default-export interpretation and the view boundary's fallback state and
+error logging.
 A failed lazy load evicts its cache entry and a view-level error boundary shows a
 controlled fallback instead of replacing the whole workspace. The app now renders one generic
 `ReadingViewProps` shape instead of hard-coded canvas/base/markdown branches. During

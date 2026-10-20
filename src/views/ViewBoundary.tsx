@@ -7,6 +7,7 @@ interface State {failed: boolean}
 export class ViewBoundary extends Component<Props,State> {
   state: State = {failed: false};
   static getDerivedStateFromError(): State { return {failed: true}; }
+  componentDidCatch(error: Error) { console.error('View failed to render', error); }
   componentDidUpdate(previous: Props) {
     if (this.state.failed && previous.resetKey !== this.props.resetKey) this.setState({failed: false});
   }

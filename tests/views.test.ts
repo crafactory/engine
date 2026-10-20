@@ -1,4 +1,4 @@
-import {describe,it,expect} from 'vitest';
+import {describe,it,expect,vi} from 'vitest';
 import {Kernel} from '../src/kernel';
 import {ViewContributions, viewsPlugin, VIEWS_CONTRACT, type ViewsService} from '../src/services';
 import {createViewsRuntime, loadViewComponent, ViewBoundary} from '../src/views';
@@ -44,8 +44,12 @@ describe('view contributions', () => {
     await kernel.start();
     expect(seen).toEqual(['probe']);
   });
-  it('contains a failed view with a controlled fallback state', () => {
+  it('contains and logs a failed view with a controlled fallback state', () => {
     expect(ViewBoundary.getDerivedStateFromError()).toEqual({failed: true});
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    new ViewBoundary({resetKey: 'note', children: null}).componentDidCatch(new Error('boom'));
+    expect(spy).toHaveBeenCalledWith('View failed to render', expect.any(Error));
+    spy.mockRestore();
   });
   it('interprets loaders as function or default-export components', async () => {
     const component = () => null;
