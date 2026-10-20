@@ -30,13 +30,17 @@ export interface AudioRecorderService {
   start(): Promise<void>;
   stop(): Promise<AudioRecording>;
   isRecording(): boolean;
+  /** Cancel a pending start and release the stream/recorder; used on scope disposal. */
+  dispose(): Promise<void>;
 }
 
-/** Original MediaRecorder lifecycle. */
+/** Original MediaRecorder lifecycle with serialized starts and captured stop state. */
 export class AudioRecorder implements AudioRecorderService {
   private recorder?: RecorderLike;
   private stream?: RecorderStream;
   private chunks: Blob[] = [];
+  private starting?: Promise<void>;
+  private disposed = false;
 
   /** @param deps Optional stream/recorder factories for tests or alternate hosts. */
   constructor(private readonly deps: AudioRecorderDeps = {}) {}
@@ -44,40 +48,64 @@ export class AudioRecorder implements AudioRecorderService {
   /** Whether a recording is in progress. */
   isRecording(): boolean { return !!this.recorder; }
 
-  /** Acquire a stream and begin recording. Repeating while recording is a no-op. */
-  async start(): Promise<void> {
-    if (this.recorder) return;
-    const getStream = this.deps.getStream ?? defaultGetStream;
-    const createRecorder = this.deps.createRecorder ?? defaultCreateRecorder;
-    const stream = await getStream();
-    let recorder: RecorderLike;
-    try { recorder = createRecorder(stream); }
-    catch (error) { stream.getTracks().forEach(track => track.stop()); throw error; }
-    this.stream = stream;
-    this.recorder = recorder;
-    this.chunks = [];
-    recorder.ondataavailable = event => { if (event.data && event.data.size) this.chunks.push(event.data); };
-    try { recorder.start(); }
-    catch (error) { this.recorder = undefined; this.stream = undefined; stream.getTracks().forEach(track => track.stop()); throw error; }
+  /** Acquire a stream and begin recording; concurrent calls share one pending start. */
+  start(): Promise<void> {
+    if (this.starting) return this.starting;
+    if (this.recorder) return Promise.resolve();
+    if (this.disposed) return Promise.reject(new Error('Audio recorder is disposed'));
+    const run = (async () => {
+      const getStream = this.deps.getStream ?? defaultGetStream;
+      const stream = await getStream();
+      if (this.disposed) { stream.getTracks().forEach(track => track.stop()); throw new Error('Audio recorder is disposed'); }
+      const createRecorder = this.deps.createRecorder ?? defaultCreateRecorder;
+      let recorder: RecorderLike;
+      try { recorder = createRecorder(stream); }
+      catch (error) { stream.getTracks().forEach(track => track.stop()); throw error; }
+      if (this.disposed) { stream.getTracks().forEach(track => track.stop()); throw new Error('Audio recorder is disposed'); }
+      this.stream = stream;
+      this.recorder = recorder;
+      this.chunks = [];
+      recorder.ondataavailable = event => { if (event.data && event.data.size) this.chunks.push(event.data); };
+      try { recorder.start(); }
+      catch (error) { this.recorder = undefined; this.stream = undefined; stream.getTracks().forEach(track => track.stop()); throw error; }
+    })();
+    const promise = run.finally(() => { if (this.starting === promise) this.starting = undefined; });
+    this.starting = promise;
+    return promise;
   }
 
   /** Stop recording and return the bytes plus a filename extension. */
   stop(): Promise<AudioRecording> {
     const recorder = this.recorder;
     if (!recorder) return Promise.reject(new Error('Not recording'));
+    // Capture the recording's state so a subsequent start cannot mix streams or chunks.
+    const stream = this.stream, chunks = this.chunks;
     this.recorder = undefined;
+    this.stream = undefined;
+    this.chunks = [];
     return new Promise((resolve, reject) => {
       recorder.onstop = async () => {
-        this.stream?.getTracks().forEach(track => track.stop());
-        this.stream = undefined;
+        stream?.getTracks().forEach(track => track.stop());
         try {
           const mimeType = recorder.mimeType || 'audio/webm';
-          const blob = new Blob(this.chunks, {type: mimeType});
+          const blob = new Blob(chunks, {type: mimeType});
           resolve({data: Array.from(new Uint8Array(await blob.arrayBuffer())), mimeType, extension: /ogg/.test(mimeType) ? '.ogg' : '.webm'});
         } catch (error) { reject(error); }
       };
-      try { recorder.stop(); } catch (error) { reject(error); }
+      try { recorder.stop(); }
+      catch (error) { stream?.getTracks().forEach(track => track.stop()); reject(error); }
     });
+  }
+
+  /** Cancel a pending start and release any acquired recorder and stream. */
+  async dispose(): Promise<void> {
+    this.disposed = true;
+    const recorder = this.recorder, stream = this.stream;
+    this.recorder = undefined;
+    this.stream = undefined;
+    this.chunks = [];
+    if (recorder) { try { recorder.stop(); } catch { /* already inactive */ } }
+    stream?.getTracks().forEach(track => track.stop());
   }
 }
 
@@ -95,7 +123,10 @@ function defaultCreateRecorder(stream: RecorderStream): RecorderLike {
 export function audioRecorderPlugin(service: AudioRecorderService): PluginDefinition {
   return {
     manifest: {id: 'engine.audio-recorder', name: 'Audio recorder', version: AUDIO_RECORDER_VERSION, scopes: ['runtime'], provides: [{contract: AUDIO_RECORDER_CONTRACT, version: AUDIO_RECORDER_VERSION}]},
-    setup(context) { context.provide(AUDIO_RECORDER_CONTRACT, AUDIO_RECORDER_VERSION, service); }
+    setup(context) {
+      context.provide(AUDIO_RECORDER_CONTRACT, AUDIO_RECORDER_VERSION, service);
+      context.effect(() => service.dispose());
+    }
   };
 }
 
