@@ -220,13 +220,43 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     async modify(file:TFile,data:string,options?:unknown){checkFile(file);checkOptions(options,'Vault.modify options');await mutate('modify',[file.path,data]);}
     async append(file:TFile,data:string,options?:unknown){checkFile(file);checkOptions(options,'Vault.append options');await mutate('append',[file.path,data]);}
     async createFolder(path:string){await mutate('mkdir',[path]);return this.getFolderByPath(path)!;}
-    rename(){return unsupported('Vault.rename');}
+    /** Rename a file through the native documents/storage host and keep its object identity. */
+    async rename(file:TAbstractFile,newPath:string):Promise<void>{
+      if(!(file instanceof TFile))return unsupported('Vault.rename folder');
+      checkFile(file);
+      if(typeof newPath!=='string'||!newPath.trim())return unsupported('Vault.rename target');
+      const to=normalizePath(newPath);
+      if(!to)return unsupported('Vault.rename target');
+      const from=file.path, oldParent=file.parent as TFolder|null;
+      await mutate('rename',[from,to]);
+      if(oldParent)oldParent.children=oldParent.children.filter(child=>child.path!==from&&child!==file);
+      const parent=objects.get(to.split('/').slice(0,-1).join('/')) as TFolder|undefined;
+      if(parent)parent.children=parent.children.filter(child=>child.path!==to&&child!==file);
+      objects.delete(from);
+      objects.set(to,file);
+      file.path=to;
+      file.name=to.split('/').pop()||'';
+      file.parent=parent??null;
+      if(parent)parent.children.push(file);
+    }
     async copy(file:TFile,path:string){checkFile(file);return this.create(path,await this.read(file));}
-    trash(){return unsupported('Vault.trash');}
+    /** Move a file to recoverable trash through the native storage host. */
+    async trash(file:TAbstractFile):Promise<void>{
+      if(!(file instanceof TFile))return unsupported('Vault.trash folder');
+      checkFile(file);
+      await mutate('trash',[file.path]);
+      objects.delete(file.path);
+    }
     delete(){return unsupported('Vault.delete');}process(){return unsupported('Vault.process atomic callback');}
     readBinary(){return unsupported('Vault.readBinary');}createBinary(){return unsupported('Vault.createBinary');}
     modifyBinary(){return unsupported('Vault.modifyBinary');}appendBinary(){return unsupported('Vault.appendBinary');}
-    getResourcePath(){return unsupported('Vault.getResourcePath');}
+    /** Return the host asset URL (a data URL) through the storage service. */
+    async getResourcePath(file:TAbstractFile):Promise<string>{
+      checkAbstract(file);
+      const value=await request('asset',[file.path]);
+      if(typeof value!=='string'||!value)throw new Error('Resource path unavailable');
+      return value;
+    }
     static recurseChildren(root:TFolder,callback:(file:TAbstractFile)=>void){for(const child of root.children){callback(child);if(child instanceof TFolder)Vault.recurseChildren(child,callback);}}
   }
   function checkOptions(options:unknown,name:string){if(options!==undefined)return unsupported(name);}
