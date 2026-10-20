@@ -22,7 +22,7 @@ import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
-import {checkPermission, validatePluginPackage} from './kernel';
+import {checkPermission, validatePluginPackage, readableSnapshot} from './kernel';
 import {ENGINE_VERSION} from './services';
 import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,createWebViewerRuntime,createSlashCommandsRuntime,createPagePreviewRuntime,createAudioRecorderRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime,type WebViewerRuntime,type SlashCommandsRuntime,type PagePreviewRuntime,type AudioRecorderRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
@@ -86,15 +86,17 @@ export function App(){
   const webViewerRuntime=useRef<WebViewerRuntime|null>(null),slashRuntime=useRef<SlashCommandsRuntime|null>(null);
   const pagePreviewRuntime=useRef<PagePreviewRuntime|null>(null),audioRuntime=useRef<AudioRecorderRuntime|null>(null);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
-  function pluginSnapshot():PluginSnapshot{
+  const pluginManifests=useRef(new Map<string,PluginManifest>());
+  /** Build the snapshot for one plugin, hiding vault content without `vault:read`. */
+  function pluginSnapshot(manifest?:PluginManifest):PluginSnapshot{
     const s=pluginState.current;
-    return {name:s.vaultName,entries:s.entries,notes:notesRef.current,active:s.active,
-      editor:s.mode!=='reading'&&isNote(s.active)&&editor.current?.path()===s.active?editor.current.snapshot():null};
+    return readableSnapshot({name:s.vaultName,entries:s.entries,notes:notesRef.current,active:s.active,
+      editor:s.mode!=='reading'&&isNote(s.active)&&editor.current?.path()===s.active?editor.current.snapshot():null},manifest??{});
   }
   async function stopPlugins(){
     await Promise.all([...pluginStops.current.values()].map(controller=>controller.stop()));
     await Promise.allSettled([...pluginRequests.current]);
-    pluginStops.current.clear();setEnabledPlugins([]);setPluginCommands([]);
+    pluginStops.current.clear();pluginManifests.current.clear();setEnabledPlugins([]);setPluginCommands([]);
   }
   const dialog=useDialog();
   settingsRef.current=settings;
@@ -154,7 +156,7 @@ export function App(){
     }catch(e){report(e);}finally{setLoading(false);}
   }
   useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);if(audioRuntime.current)void audioRuntime.current.service.dispose().catch(()=>{});for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();void uniqueNoteRuntime.current?.kernel.stop();void wordCountRuntime.current?.kernel.stop();void slidesRuntime.current?.kernel.stop();void converterRuntime.current?.kernel.stop();void composerRuntime.current?.kernel.stop();void webViewerRuntime.current?.kernel.stop();void slashRuntime.current?.kernel.stop();void pagePreviewRuntime.current?.kernel.stop();void audioRuntime.current?.kernel.stop();};},[]);
-  useEffect(()=>{for(const controller of pluginStops.current.values())controller.sync(pluginSnapshot());},[notes,entries,active,mode]);
+  useEffect(()=>{for(const [id,controller] of pluginStops.current)controller.sync(pluginSnapshot(pluginManifests.current.get(id)));},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
     const timer=setTimeout(()=>{bridge.state({settings,bookmarks,workspaces,recent}).catch(report);},700);
@@ -419,7 +421,7 @@ export function App(){
   async function togglePlugin(id:string){
     if(pluginStarting.current.has(id))return;
     if(enabledPlugins.includes(id)){
-      await pluginStops.current.get(id)?.stop();pluginStops.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));setPluginCommands(c=>c.filter(p=>p.plugin!==id));return;
+      await pluginStops.current.get(id)?.stop();pluginStops.current.delete(id);pluginManifests.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));setPluginCommands(c=>c.filter(p=>p.plugin!==id));return;
     }
     const plugin=pluginList.find(p=>p.manifest.id===id);if(!plugin)return;
     const renderer=pluginModes[id]==='renderer';
@@ -468,13 +470,13 @@ export function App(){
       const start=renderer?startRendererPlugin:startPlugin;
       const native={resolveLink:(link:string,from:string)=>indexRuntime.current?.index.resolve(link,from),
         editor:{providerId:editorRuntime.current?.provider.id??'unknown',codeMirrorExtensions:editorRuntime.current?.provider.capabilities().codeMirrorExtensions??false}};
-      const controller=start(plugin.manifest,plugin.code,pluginSnapshot,commands=>setPluginCommands(c=>[...c.filter(p=>p.plugin!==id),...commands]),
+      const controller=start(plugin.manifest,plugin.code,()=>pluginSnapshot(plugin.manifest),commands=>setPluginCommands(c=>[...c.filter(p=>p.plugin!==id),...commands]),
         (name,args)=>{const request=operation(name,args);pluginRequests.current.add(request);request.then(()=>pluginRequests.current.delete(request),()=>pluginRequests.current.delete(request));return request;},
-        toast,()=>{pluginStops.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));},
+        toast,()=>{pluginStops.current.delete(id);pluginManifests.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));},
         tabs=>setPluginTabs(t=>({...t,[id]:tabs})),extensions=>setPluginExtensions(e=>({...e,[id]:extensions})),renderer?native:undefined);
-      pluginStops.current.set(id,controller);await controller.ready;
+      pluginManifests.current.set(id,plugin.manifest);pluginStops.current.set(id,controller);await controller.ready;
       if(generation!==vaultGeneration.current)await controller.stop();else setEnabledPlugins(e=>[...e.filter(p=>p!==id),id]);
-    }catch(e){pluginStops.current.delete(id);report(e);}finally{pluginStarting.current.delete(id);}
+    }catch(e){pluginStops.current.delete(id);pluginManifests.current.delete(id);report(e);}finally{pluginStarting.current.delete(id);}
   }
   function toggleMode(){setMode(m=>m==='reading'?'live':'reading');}
   const commands:Choice[]=[

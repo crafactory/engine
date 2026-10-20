@@ -1,6 +1,6 @@
 import {describe,it,expect} from 'vitest';
 import {Kernel} from '../src/kernel';
-import {validatePluginPackage, requiredPermission, checkPermission, PLUGIN_PERMISSIONS} from '../src/kernel';
+import {validatePluginPackage, requiredPermission, checkPermission, readableSnapshot, PLUGIN_PERMISSIONS} from '../src/kernel';
 
 const valid = {manifest: {id: 'sample.plugin', name: 'Sample', version: '1.2.3'}};
 
@@ -44,6 +44,12 @@ describe('plugin package validation', () => {
     expect(() => checkPermission({}, 'writeLegacy')).not.toThrow();
     expect(() => checkPermission({permissions: ['vault:read']}, 'read')).not.toThrow();
     expect(() => checkPermission({permissions: ['vault:read']}, 'create')).toThrow('vault:write');
+  });
+  it('strips note content and editor state without vault:read', () => {
+    const snapshot = {name: 'vault', entries: [{path: 'A.md'}], notes: [{path: 'A.md', content: 'secret'}], active: 'A.md', editor: {text: 'secret'}};
+    expect(readableSnapshot(snapshot, {permissions: ['vault:read']})).toBe(snapshot);
+    expect(readableSnapshot(snapshot, {})).toBe(snapshot);
+    expect(readableSnapshot(snapshot, {permissions: ['storage:plugin-data']})).toEqual({...snapshot, notes: [], editor: null});
   });
   it('starts an empty kernel without implicit services or diagnostics', async () => {
     const kernel = new Kernel({engineVersion: '1.0.0'});
