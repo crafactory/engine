@@ -33,7 +33,11 @@ export class WorkspaceStore implements WorkspacesService {
   list(): string[] { return Object.keys(this.items); }
 
   /** A workspace snapshot, or undefined when the name is unknown. */
-  get(name: string): Workspace | undefined { const value = this.items[name]; return value ? structuredClone(value) : undefined; }
+  get(name: string): Workspace | undefined {
+    if (!Object.hasOwn(this.items, name)) return undefined;
+    const value = this.items[name];
+    return value ? structuredClone(value) : undefined;
+  }
 
   /** Save or replace a named workspace. */
   save(name: string, workspace: Workspace): void {
@@ -67,9 +71,9 @@ export class WorkspaceStore implements WorkspacesService {
   }
 }
 
-/** Keep only object-valued workspace entries. */
+/** Keep only object-valued workspace entries in a prototype-free record. */
 function sanitize(record: Record<string, Workspace>): Record<string, Workspace> {
-  const result: Record<string, Workspace> = {};
+  const result = Object.create(null) as Record<string, Workspace>;
   for (const [name, workspace] of Object.entries(record ?? {})) if (name && workspace && typeof workspace === 'object') result[name] = structuredClone(workspace);
   return result;
 }

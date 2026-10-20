@@ -35,6 +35,21 @@ describe('workspaces service', () => {
     expect(store.get('One')!.active).toBe('A.md');
     expect(store.list()).toEqual(['One']);
   });
+  it('does not read inherited properties or lose a __proto__ workspace name', () => {
+    const store = new WorkspaceStore();
+    expect(store.get('toString')).toBeUndefined();
+    expect(store.get('constructor')).toBeUndefined();
+    store.save('__proto__', workspace('P.md'));
+    expect(store.list()).toContain('__proto__');
+    expect(store.get('__proto__')?.active).toBe('P.md');
+  });
+  it('sanitizes an own __proto__ key from a persisted record', () => {
+    const persisted = JSON.parse('{"__proto__":{"tabs":["P.md"],"active":"P.md","split":null,"left":true,"right":true,"mode":"live"}}');
+    const store = new WorkspaceStore();
+    store.replace(persisted);
+    expect(store.list()).toContain('__proto__');
+    expect(store.get('__proto__')?.active).toBe('P.md');
+  });
 });
 
 describe('workspaces plugin and dependency flow', () => {
