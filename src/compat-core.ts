@@ -227,15 +227,17 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
       if(typeof newPath!=='string'||!newPath.trim())return unsupported('Vault.rename target');
       const to=normalizePath(newPath);
       if(!to)return unsupported('Vault.rename target');
-      const from=file.path;
+      const from=file.path, oldParent=file.parent as TFolder|null;
       await mutate('rename',[from,to]);
+      if(oldParent)oldParent.children=oldParent.children.filter(child=>child.path!==from&&child!==file);
+      const parent=objects.get(to.split('/').slice(0,-1).join('/')) as TFolder|undefined;
+      if(parent)parent.children=parent.children.filter(child=>child.path!==to&&child!==file);
       objects.delete(from);
       objects.set(to,file);
       file.path=to;
       file.name=to.split('/').pop()||'';
-      const parent=objects.get(to.split('/').slice(0,-1).join('/')) as TFolder|undefined;
       file.parent=parent??null;
-      if(parent&&!parent.children.includes(file))parent.children.push(file);
+      if(parent)parent.children.push(file);
     }
     async copy(file:TFile,path:string){checkFile(file);return this.create(path,await this.read(file));}
     /** Move a file to recoverable trash through the native storage host. */

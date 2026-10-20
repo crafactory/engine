@@ -7,7 +7,7 @@ const manifest={id:'fixture',name:'Fixture',version:'1.0.0'};
 const initial=():PluginSnapshot=>({name:'Test vault',active:'Folder/One.md',
   entries:[{path:'Folder',name:'Folder',folder:true,size:0,ctime:1,mtime:2},{path:'Folder/One.md',name:'One.md',folder:false,size:5,ctime:1,mtime:2},{path:'Two.md',name:'Two.md',folder:false,size:3,ctime:1,mtime:2}],
   notes:[{path:'Folder/One.md',content:'hello'},{path:'Two.md',content:'two'}],editor:{text:'hello',from:1,to:3}});
-function harness(){
+function harness(failRename=false){
   let snapshot=initial();const calls:{operation:string;args:unknown[]}[]=[],notices:string[]=[];
   let commands:{id:string;name:string}[]=[],data:unknown=null;
   const runtime:any=createCompatibilityRuntime(manifest,snapshot,{
@@ -20,6 +20,7 @@ function harness(){
       if(operation==='saveData'){data=args[0];return;}
       if(operation==='open'){snapshot={...snapshot,active:path};runtime.sync(snapshot);return;}
       if(operation==='rename'){
+        if(failRename)throw new Error('rename failed');
         const [from,to]=args as [string,string];
         snapshot={...snapshot,entries:snapshot.entries.map(e=>e.path===from?{...e,path:to,name:to.split('/').pop()!}:e),notes:snapshot.notes.map(n=>n.path===from?{...n,path:to}:n)};
         runtime.sync(snapshot);return;
@@ -177,6 +178,19 @@ describe('vault rename, trash and resource paths',()=>{
     expect(file.path).toBe('Folder/Renamed.md');expect(file.name).toBe('Renamed.md');
     expect(v.getFileByPath('Folder/Renamed.md')).toBe(file);
     expect(h.calls).toContainEqual({operation:'rename',args:['Folder/One.md','Folder/Renamed.md']});
+  });
+  it('reconciles folder children after rename',async()=>{
+    const h=harness(),v=h.runtime.app.vault,file=v.getFileByPath('Folder/One.md'),folder=v.getFolderByPath('Folder');
+    await v.rename(file,'Folder/Renamed.md');
+    expect(folder.children.filter((child: any)=>child.path==='Folder/Renamed.md')).toEqual([file]);
+    expect(folder.children.some((child: any)=>child.path==='Folder/One.md')).toBe(false);
+    expect(folder.children.includes(file)).toBe(true);
+  });
+  it('propagates a host rename failure without moving the object',async()=>{
+    const h=harness(true),v=h.runtime.app.vault,file=v.getFileByPath('Folder/One.md');
+    await expect(v.rename(file,'Folder/Renamed.md')).rejects.toThrow('rename failed');
+    expect(file.path).toBe('Folder/One.md');
+    expect(v.getFileByPath('Folder/One.md')).toBe(file);
   });
   it('trashes a file and rejects folder operations',async()=>{
     const h=harness(),v=h.runtime.app.vault,two=v.getFileByPath('Two.md');

@@ -251,13 +251,14 @@ export function App(){
     const path=await dialog.ask('New folder','New folder');
     if(path)try{if(!validPath(path))throw new Error('Invalid folder path');await bridge.mkdir(path);setEntries(await bridge.list());setExpanded(e=>new Set([...e,path]));}catch(e){report(e);}
   }
-  /** Rename without changing file format, then remap workspace identities and resolved Markdown links. */
-  async function renamePath(from:string,requested?:string){
+  /** Rename without changing file format; `strict` rethrows and rejects adjusted destinations. */
+  async function renamePath(from:string,requested?:string,strict=false):Promise<string|undefined>{
     const input=requested || await dialog.ask('Rename or move',from,'The original file extension is preserved. Internal links will be updated where their targets can be resolved.');
-    if(!input)return;
+    if(!input)return undefined;
     try{
       const to=renameDestination(from,input,entries.some(e=>e.path===from&&e.folder));
-      if(to===from)return;
+      if(strict&&to!==input)throw new Error(`Rename destination would be adjusted to ${to}`);
+      if(to===from)return to;
       if(!validPath(to))throw new Error('Invalid destination path');await flush();
       const before=[...notesRef.current];
       const documents=storageRuntime.current?.documents;
@@ -275,8 +276,8 @@ export function App(){
       }
       const remap=(p:string)=>mappings.find(pair=>pair.from===p)?.to||p;
       setTabs(t=>t.map(remap));setActive(remap);setBookmarksFromService(bookmarkPaths().map(remap));setRecent(r=>r.map(remap));
-      setEntries(await bridge.list());await flush();toast('Moved file and updated resolvable note links.');
-    }catch(e){report(e);}
+      setEntries(await bridge.list());await flush();toast('Moved file and updated resolvable note links.');return to;
+    }catch(e){if(strict)throw e;report(e);return undefined;}
   }
   /** Move a path to trash (or the bridge fallback) and remap in-memory workspace state. */
   async function trashPath(path:string){
@@ -421,7 +422,7 @@ export function App(){
       if(name==='saveData')return storage.pluginData(id,args[0],true);
       if(typeof args[0]!=='string'||!validPath(args[0]))throw new Error('Invalid plugin vault path');
       const path=args[0];
-      if(name==='rename'){const to=args[1];if(typeof to!=='string'||!validPath(to))throw new Error('Invalid rename target');await renamePath(path,to);return;}
+      if(name==='rename'){const to=args[1];if(typeof to!=='string'||!validPath(to))throw new Error('Invalid rename target');const actual=await renamePath(path,to,true);return actual??to;}
       if(name==='trash'){await trashPath(path);return;}
       if(name==='asset')return storage.asset(path);
       if(name==='read')return (await storage.read(path)).content;

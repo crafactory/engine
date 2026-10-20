@@ -11,11 +11,12 @@ facade disable/service-loss flows remain).
 | Check | Observed result | Scope |
 |---|---|---|
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
-| `npm run test` | 788 passed (35 files) | Compatibility rename/trash/resource cases |
+| `npm run test` | 790 passed (35 files) | Compatibility rename/trash/resource cases |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
 | `npm run test:e2e` (macOS) | **51 passed / 0 failed** | Rename/trash UI flows unchanged |
 
-The facade's rename calls the host, then keeps the `TFile` object identity at its new path;
+The facade's rename propagates host failures and rejects a destination the host would adjust;
+it then keeps the `TFile` object identity at its new path and reconciles the parent's children;
 trash removes it from the object map. The application routes rename through
 `engine.documents/v1` and trash through `engine.storage/v1` (bridge-backed), with link
 rewriting and in-memory remapping retained. The member-contract baseline moved the three
