@@ -1,5 +1,23 @@
 # Verification results
 
+## Unique note and word count (stage 5 continuation)
+
+This section records source verification for two more core-feature migrations: the unique
+note creator (consuming templates) and word count (status bar). Stage 5 stays unchecked.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 760 passed (27 files) | +10 unique-note/word-count cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | 45 passed / 6 failed | Unchanged baseline (the known `Control+…` keybinding tests) |
+
+`UniqueNotes` uses a UTC `YYYYMMDDHHmmss` name, applies a template through
+`engine.templates/v1` or falls back to a `# <name>` heading, and is rejected/disabled with
+its template provider. `WordCounter` counts Unicode letter/number runs and UTF-16 code
+units; the status bar now reads words and characters from it. These are unit/composition and
+local checks, not packaged-binary acceptance.
+
 ## Workspaces service (stage 5 continuation)
 
 This section records source verification for migrating named workspaces onto
