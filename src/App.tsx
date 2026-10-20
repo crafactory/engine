@@ -22,7 +22,7 @@ import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
-import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime} from './services';
+import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
 const Canvas=lazy(()=>import('./Canvas').then(m=>({default:m.Canvas})));
@@ -78,6 +78,7 @@ export function App(){
   const commandsRuntime=useRef<CommandsRuntime|null>(null),commandDisposers=useRef(new Map<string,()=>void>());
   const storageRuntime=useRef<AppStorageRuntime|null>(null),bridgeStorageFallback=useRef<BridgeStorage|null>(null);
   const workspacesRuntime=useRef<WorkspacesRuntime|null>(null),workspacesUnsub=useRef<(()=>void)|null>(null);
+  const uniqueNoteRuntime=useRef<UniqueNoteRuntime|null>(null),wordCountRuntime=useRef<WordCountRuntime|null>(null);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   function pluginSnapshot():PluginSnapshot{
     const s=pluginState.current;
@@ -113,6 +114,8 @@ export function App(){
       if(!commandsRuntime.current){const runtime=await createCommandsRuntime();if(unmounted.current){void runtime.kernel.stop();return;}commandsRuntime.current=runtime;}
       if(!storageRuntime.current){try{const runtime=await createStorageRuntime({bridge});if(unmounted.current)void runtime.kernel.stop();else storageRuntime.current=runtime;}catch(e){report(e);}}
       if(!workspacesRuntime.current){const runtime=await createWorkspacesRuntime();if(unmounted.current){void runtime.kernel.stop();return;}workspacesRuntime.current=runtime;workspacesUnsub.current=runtime.service.subscribe(record=>setWorkspaces(record));}
+      if(!uniqueNoteRuntime.current){const runtime=await createUniqueNoteRuntime();if(unmounted.current){void runtime.kernel.stop();return;}uniqueNoteRuntime.current=runtime;}
+      if(!wordCountRuntime.current){const runtime=await createWordCountRuntime();if(unmounted.current){void runtime.kernel.stop();return;}wordCountRuntime.current=runtime;}
       editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));
@@ -127,7 +130,7 @@ export function App(){
       loaded.current=true;setPluginList(await bridge.plugins());
     }catch(e){report(e);}finally{setLoading(false);}
   }
-  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();};},[]);
+  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);stream.current?.getTracks().forEach(t=>t.stop());for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();void uniqueNoteRuntime.current?.kernel.stop();void wordCountRuntime.current?.kernel.stop();};},[]);
   useEffect(()=>{for(const controller of pluginStops.current.values())controller.sync(pluginSnapshot());},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
@@ -437,7 +440,7 @@ export function App(){
     {id:'command-palette',label:'Open command palette',shortcut:'⌘ P',run:()=>setPalette('commands')},
     {id:'search',label:'Search all notes',shortcut:'⌘ ⇧ F',run:()=>{setLeft(true);setSideTab('search');}},
     {id:'daily-note',label:"Open today's daily note",run:dailyNote},
-    {id:'unique-note',label:'Create unique note',run:()=>createNote(new Date().toISOString().replace(/\D/g,'').slice(0,14)+'.md')},
+    {id:'unique-note',label:'Create unique note',run:()=>{const note=uniqueNoteRuntime.current?.uniqueNote.create();if(note){createNote(note.path,note.content);return;}createNote(new Date().toISOString().replace(/\D/g,'').slice(0,14)+'.md');}},
     {id:'graph',label:'Open graph view',run:()=>open('@graph')},
     {id:'local-graph',label:'Open local graph',run:()=>open('@local:'+active)},
     {id:'new-canvas',label:'Create new canvas',run:createCanvas},
@@ -521,7 +524,9 @@ export function App(){
   const outgoing=activeNote&&indexed?indexed.outgoing(active):[];
   const mentions=activeNote?notes.filter(n=>n.path!==active&&!incoming.includes(n)&&isNote(n.path)&&frontmatter(n.content).body.toLowerCase().includes(title(active).toLowerCase())):[];
   const hs=activeNote&&indexed?indexed.headings(active):[];
-  const words=activeNote?frontmatter(activeNote.content).body.match(/[\p{L}\p{N}]+/gu)?.length||0:0;
+  const wordCount=wordCountRuntime.current?.service;
+  const words=activeNote?(wordCount?wordCount.count(frontmatter(activeNote.content).body).words:(frontmatter(activeNote.content).body.match(/[\p{L}\p{N}]+/gu)?.length||0)):0;
+  const characters=activeNote?(wordCount?wordCount.count(activeNote.content).characters:activeNote.content.length):0;
   const tabTitle=(path:string)=>path==='@graph'?'Graph view':path.startsWith('@local:')?'Local graph':path.startsWith('web:')?new URL(path.slice(4)).hostname:title(path);
   function tree(parent=''):React.ReactNode{
     return entries.filter(e=>e.path.includes('/')?e.path.slice(0,e.path.lastIndexOf('/'))===parent:!parent).sort((a,b)=>Number(b.folder)-Number(a.folder)||(fileSort==='modified'?b.mtime-a.mtime:a.name.localeCompare(b.name))).map(entry=><div key={entry.path} className="tree-item">
@@ -651,7 +656,7 @@ export function App(){
         <footer className="context-footer"><div><Network size={15}/><span>Everything connects</span></div><p>Follow a link. Find a new perspective.</p>{enabled('graph')&&activeNote&&<button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button>}</footer>
       </aside>}
     </div>
-    <footer className="statusbar"><span><span className={'status-dot '+(dirtyCount?'pending':'')}/>{dirtyCount?`${dirtyCount} unsaved`:bridge.desktop?'Saved locally':'Preview vault'}</span><span>{activeMarkdown&&enabled('words')?<>{words.toLocaleString()} words<span className="status-divider"/>{activeNote!.content.length.toLocaleString()} characters</>:activeNote?active.split('.').pop()?.toUpperCase():''}</span><span>{recording&&<button onClick={audio}><Square size={12}/>Recording · Stop</button>}{mode==='reading'?'Reading':mode==='live'?'Live editing':'Source'}<span className="status-divider"/>{bridge.desktop?'Local-first':'Changes reset on refresh'}</span></footer>
+    <footer className="statusbar"><span><span className={'status-dot '+(dirtyCount?'pending':'')}/>{dirtyCount?`${dirtyCount} unsaved`:bridge.desktop?'Saved locally':'Preview vault'}</span><span>{activeMarkdown&&enabled('words')?<>{words.toLocaleString()} words<span className="status-divider"/>{characters.toLocaleString()} characters</>:activeNote?active.split('.').pop()?.toUpperCase():''}</span><span>{recording&&<button onClick={audio}><Square size={12}/>Recording · Stop</button>}{mode==='reading'?'Reading':mode==='live'?'Live editing':'Source'}<span className="status-divider"/>{bridge.desktop?'Local-first':'Changes reset on refresh'}</span></footer>
     {enabled('graph')&&activeNote&&<nav className="compact-context" aria-label="Compact note context"><button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button></nav>}
     <div id="plugin-views" aria-label="Plugin views"/>
     <div id="plugin-status" aria-label="Plugin status"/>

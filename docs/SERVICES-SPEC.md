@@ -174,6 +174,17 @@ Named workspace layouts: `save(name, workspace)`, `get(name)`, `list`, `remove`,
 cannot mutate the store. The application mirrors the record into render state via
 `subscribe`; persistence stays application-side.
 
+### `engine.unique-note/v1`
+
+`create({templateContent?, date?})` builds a UTC timestamp name (`YYYYMMDDHHmmss`) and
+either interpolates the template through `engine.templates/v1` or returns a default
+`# <name>` heading. It consumes the templates contract and is rejected without it.
+
+### `engine.wordcount/v1`
+
+`count(text)` returns `{words, characters}`: runs of Unicode letters/numbers are words and
+characters are UTF-16 code units. The status bar consumes it.
+
 ### Obsidian compatibility facade
 
 `createCompatibilityRuntime` accepts an optional `native` service bundle on its host:
@@ -232,7 +243,9 @@ aliases), backlinks, tags, search, updates, path deduplication, snapshot isolati
 index dependency flow. `tests/storage-bridge.test.ts` covers the bridge-backed storage
 adapter and the storage/documents runtime, `tests/navigation.test.ts` covers quick-switch
 ordering, random-note selection and the navigation dependency flow, and
-`tests/workspaces.test.ts` covers the named workspace store and its dependency flow.
+`tests/workspaces.test.ts` covers the named workspace store and its dependency flow, and
+`tests/unique-note.test.ts` / `tests/wordcount.test.ts` cover the timestamp note, the
+templates dependency edge and word/character counting.
 
 ## Not yet done
 
