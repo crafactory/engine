@@ -681,7 +681,7 @@ export function App(){
   if(palette==='merge')paletteItems=notes.filter(n=>isNote(n.path)&&n.path!==active).map(n=>({id:n.path,label:title(n.path),description:n.path,run:()=>mergeInto(n.path)}));
 
   const headingJump=(heading:{level:number;text:string;offset:number})=>{if(mode!=='reading')editor.current?.jump(heading.offset);else document.getElementById('heading-'+heading.text.toLowerCase().replace(/\s+/g,'-'))?.scrollIntoView({behavior:'smooth'});};
-  const panelBase={notes,bookmarks,recent,tags:tagCounts,headings:hs,incoming,mentions,activeTitle:title(active),onOpen:open,onRemoveBookmark:removeBookmarkPath,onSelectTag:(tag:string)=>{setQuery('tag:#'+tag);setSideTab('search');},onJumpHeading:headingJump};
+  const panelBase={notes,bookmarks,recent,tags:tagCounts,headings:hs,incoming,mentions,activeTitle:title(active),active,outgoing,onOpen:open,onOpenLink:openLink,onRemoveBookmark:removeBookmarkPath,onSelectTag:(tag:string)=>{setQuery('tag:#'+tag);setSideTab('search');},onJumpHeading:headingJump};
   const panelType:SidePanelTab|undefined=sideTab==='bookmarks'||sideTab==='recent'||sideTab==='tags'?sideTab:undefined;
   const SidePanel=panelType?panelComponent(panelType,'left'):undefined;
   const panelProps=panelType?{sideTab:panelType,...panelBase}:undefined;
@@ -689,6 +689,8 @@ export function App(){
   const outlineProps=OutlineView?{sideTab:'outline' as const,...panelBase}:undefined;
   const BacklinksView=rightTab==='outline'||rightTab==='backlinks'?panelComponent('backlinks','right'):undefined;
   const backlinksProps=BacklinksView?{sideTab:'backlinks' as const,...panelBase}:undefined;
+  const OutgoingView=rightTab==='outgoing'?panelComponent('outgoing','right'):undefined;
+  const outgoingProps=OutgoingView?{sideTab:'outgoing' as const,...panelBase}:undefined;
   return <div className="app" onClick={()=>context&&setContext(null)}>
     <style>{settings.css}</style>
     <input ref={importInput} type="file" multiple accept=".md,.markdown,.txt,image/*,audio/*,video/*,.pdf,.canvas,.base" className="hidden" aria-label="Import files" onChange={e=>{importFiles(e.target.files);e.target.value='';}}/>
@@ -743,7 +745,7 @@ export function App(){
         {rightTab==='outline'&&enabled('outline')&&<><div className="section-heading"><span>Outline</span><List size={13}/></div>{OutlineView&&outlineProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><OutlineView {...outlineProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Outline unavailable.</p>}</>}
         {rightTab==='properties'&&enabled('properties')&&activeNote&&<><div className="section-heading">Note properties</div><div className="right-properties">{propertyEditor(activeNote)}</div><div className="section-heading">Vault properties</div><div className="tag-list">{[...new Set(indexed?.propertyKeys()??[])].map(key=><button key={key} onClick={()=>{setLeft(true);setSideTab('search');setQuery('['+key+']');}}><Hash size={13}/>{key}</button>)}</div></>}
         {(rightTab==='outline'||rightTab==='backlinks')&&enabled('backlinks')&&(BacklinksView&&backlinksProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><BacklinksView {...backlinksProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Backlinks unavailable.</p>)}
-        {rightTab==='outgoing'&&enabled('outgoing')&&<><div className="section-heading"><span>Outgoing links</span><small>{outgoing.length}</small></div><div className="bookmark-list">{outgoing.map((link,i)=><button key={i} onClick={()=>openLink(link.target+(link.fragment?'#'+link.fragment:''))}><Link2 size={13}/>{link.label||link.target}<span className={resolveLink(link.target,active,notes)?'':'unresolved'}>{resolveLink(link.target,active,notes)?'':'New'}</span></button>)}</div></>}
+        {rightTab==='outgoing'&&enabled('outgoing')&&(OutgoingView&&outgoingProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><OutgoingView {...outgoingProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Outgoing links unavailable.</p>)}
         <footer className="context-footer"><div><Network size={15}/><span>Everything connects</span></div><p>Follow a link. Find a new perspective.</p>{enabled('graph')&&activeNote&&<button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button>}</footer>
       </aside>}
     </div>

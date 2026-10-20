@@ -30,3 +30,9 @@ export const backlinksPanelPlugin: PluginDefinition = {
   manifest: {id: 'engine.view.backlinks', name: 'Backlinks panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
   setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'backlinks', slot: 'right', label: 'Backlinks', load: () => import('./BacklinksPanel')})); }
 };
+
+/** Outgoing-links panel contribution for the right slot. */
+export const outgoingPanelPlugin: PluginDefinition = {
+  manifest: {id: 'engine.view.outgoing', name: 'Outgoing panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
+  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'outgoing', slot: 'right', label: 'Outgoing', load: () => import('./OutgoingPanel')})); }
+};
