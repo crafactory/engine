@@ -210,6 +210,17 @@ its frontmatter; `extractLink(targetPath)` builds a wikilink without the `.md` s
 application keeps dialogs, editor selection replacement, vault-wide link rewriting and the
 trash write.
 
+### `engine.web-viewer/v1`
+
+`normalize(input)` trims and validates an HTTPS address, rejecting other protocols and
+unparsable values; the application keeps the dialog and iframe.
+
+### `engine.slash-commands/v1`
+
+`list()` returns the structural insertions offered when typing `/` in the editor
+(`/heading`, `/task`, `/callout`, `/table`, `/code`, `/template`). The template entry is an
+`insert-template` action; the editor owns the completion widget and the action callback.
+
 ### Obsidian compatibility facade
 
 `createCompatibilityRuntime` accepts an optional `native` service bundle on its host:
@@ -274,7 +285,8 @@ ordering, random-note selection and the navigation dependency flow, and
 templates dependency edge and word/character counting. `tests/slides.test.ts` and
 `tests/format-converter.test.ts` cover slide splitting and the bounded conversions, and
 `tests/explorer.test.ts` covers tree ordering and the storage dependency, and
-`tests/note-composer.test.ts` covers merge/extract rules and composition.
+`tests/note-composer.test.ts` covers merge/extract rules and composition. `tests/web-viewer.test.ts`
+and `tests/slash-commands.test.ts` cover HTTPS validation and the slash insertion list.
 
 ## Not yet done
 

@@ -1,5 +1,23 @@
 # Verification results
 
+## Web viewer and slash commands (stage 5 continuation)
+
+This section records source verification for migrating web-viewer address validation and the
+slash-command insertion list onto native services. Stage 5 stays unchecked.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 781 passed (33 files) | +6 web-viewer/slash cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` (macOS) | **51 passed / 0 failed** | Editor and viewer flows unchanged |
+
+`WebViewer` accepts only HTTPS addresses (trimming the input) and rejects other protocols or
+unparsable values. `SlashCommands` lists the six built-in insertions with the template entry
+as an action, returning copies so callers cannot mutate the list; the editor renders the
+completion options from the service. These are unit/composition and local checks, not
+packaged-binary acceptance.
+
 ## Note composer (stage 5 continuation)
 
 This section records source verification for migrating the merge/extract content rules onto

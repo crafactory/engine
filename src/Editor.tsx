@@ -13,6 +13,7 @@ import {livePreview,refreshLivePreview} from './LivePreview';
 import {inlineLinks} from './inline-links';
 import {liveRegions} from './live-model';
 import {toDocumentOffset,toViewOffset,type EditorChange,type EditorSession} from './services/editor';
+import type {SlashCommandsService} from './services/slash-commands';
 export interface EditorHandle {path():string;insert(text:string):void;selection():string;replaceSelection(text:string):void;jump(offset:number):void;focus():void;find():void;snapshot():{text:string;from:number;to:number};applyPluginEdit(base:string,text:string,from:number,to:number):boolean}
 const engineHighlight=HighlightStyle.define([
   {tag:syntaxTags.heading,fontWeight:'600',color:'var(--text)'},
@@ -32,9 +33,9 @@ function wrap(view:EditorView,marker:string) {
 }
 /** Read the document offset at the top of the editor's visible area. */
 function viewportTop(v:EditorView){const rect=v.scrollDOM.getBoundingClientRect();const pos=v.posAtCoords({x:rect.left+2,y:rect.top+2});return Math.max(0,Math.min(v.state.doc.length,pos??0));}
-export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Settings;pluginExtensions?:Extension[];session?:EditorSession;onChange:(content:string)=>void;onOpen:(target:string)=>void;onCommand:(command:string)=>void}>(
+export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Settings;pluginExtensions?:Extension[];session?:EditorSession;slashCommands?:SlashCommandsService;onChange:(content:string)=>void;onOpen:(target:string)=>void;onCommand:(command:string)=>void}>(
 /** Maintain the current CodeMirror document and independently refresh only external preview dependencies. */
-function Editor({note,notes,settings,pluginExtensions=[],session,onChange,onOpen,onCommand},handle) {
+function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,onChange,onOpen,onCommand},handle) {
   const container=useRef<HTMLDivElement>(null),view=useRef<EditorView>();
   const pluginCompartment=useRef(new Compartment());
   const sessionRef=useRef(session);
@@ -73,14 +74,9 @@ function Editor({note,notes,settings,pluginExtensions=[],session,onChange,onOpen
       const tag=context.matchBefore(/#[\w/-]*/);
       if(tag)return {from:tag.from+1,options:[...new Set(callbacks.current.notes.flatMap(n=>tags(n.content)))].map(label=>({label,type:'keyword'}))};
       const slash=context.matchBefore(/\/[\w-]*/);
-      if(!settings.disabledPlugins.includes('slash') && slash && (slash.from===0 || /\s/.test(context.state.sliceDoc(slash.from-1,slash.from))))return {from:slash.from,options:[
-        {label:'/heading',apply:'# ',detail:'Heading'},
-        {label:'/task',apply:'- [ ] ',detail:'Task'},
-        {label:'/callout',apply:'> [!note] Note\n> ',detail:'Callout'},
-        {label:'/table',apply:'| Column | Column |\n| --- | --- |\n|  |  |',detail:'Table'},
-        {label:'/code',apply:'```\n\n```',detail:'Code block'},
-        {label:'/template',apply:(v:EditorView,_c:any,from:number,to:number)=>{v.dispatch({changes:{from,to,insert:''}});callbacks.current.onCommand('insert-template');},detail:'Insert template'},
-      ]};
+      if(!settings.disabledPlugins.includes('slash') && slash && slashCommands && (slash.from===0 || /\s/.test(context.state.sliceDoc(slash.from-1,slash.from))))return {from:slash.from,options:slashCommands.list().map(command=>command.action==='insert-template'
+        ? {label:command.label,detail:command.detail,apply:(v:EditorView,_c:any,from:number,to:number)=>{v.dispatch({changes:{from,to,insert:''}});callbacks.current.onCommand('insert-template');}}
+        : {label:command.label,detail:command.detail,apply:command.insert??''})};
       return null;
     };
     const editor=new EditorView({
@@ -124,7 +120,7 @@ function Editor({note,notes,settings,pluginExtensions=[],session,onChange,onOpen
     // Register after CodeMirror's scheduled viewport restore so that restore does not overwrite the draft.
     const scrollFrame=requestAnimationFrame(()=>editor.scrollDOM.addEventListener('scroll',trackScroll,{passive:true}));
     return()=>{cancelAnimationFrame(scrollFrame);editor.scrollDOM.removeEventListener('scroll',trackScroll);editor.destroy();};
-  },[note.path,settings.mode,settings.lineNumbers,settings.fontSize,settings.theme,settings.spellcheck,settings.disabledPlugins]);
+  },[note.path,settings.mode,settings.lineNumbers,settings.fontSize,settings.theme,settings.spellcheck,settings.disabledPlugins,slashCommands]);
   useEffect(()=>{const v=view.current;if(v&&v.state.doc.toString()!==viewContent){external.current=true;v.dispatch({changes:{from:0,to:v.state.doc.length,insert:viewContent}});external.current=false;}},[viewContent]);
   // Current-document edits already rebuild the field in their CM transaction.
   const linkedRevision=notes.filter(n=>n.path!==note.path).map(n=>n.path+'\0'+n.content).join('\0');
