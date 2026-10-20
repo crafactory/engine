@@ -2,10 +2,12 @@
 
 Status: storage/documents/commands plus the migrated core-feature services are extracted and
 wired into the application where noted below. **Migration scope:** these services own
-feature state, derived logic and lifecycle; the React views remain in the application shell
-and consume the services. UI pluginization (workspace view slots accepting component
-factories) is **not** implemented yet, so “migrated feature” here means its logic and
-lifecycle, not its rendering. Original MIT code; no reference implementation is copied.
+feature state, derived logic and lifecycle; most React views still live in the application
+shell and consume the services. UI pluginization is now **partially** implemented:
+`engine.views/v1` stores opaque lazy component loaders, and the built-in Markdown, Canvas
+and Bases views register as view plugins, so the application host dispatches them
+generically instead of hard-coding render branches. Loading UI from external plugin
+packages is not wired yet. Original MIT code; no reference implementation is copied.
 
 This builds on [NATIVE-PLUGIN-ARCHITECTURE.md](NATIVE-PLUGIN-ARCHITECTURE.md) and the
 assembly kernel in [KERNEL-SPEC.md](KERNEL-SPEC.md). Source lives in
@@ -84,6 +86,17 @@ rule as formats. The workspace provider declares a dependency on the render cont
 constructs its service from the render provider resolved at activation time, and is
 rejected when render is missing. Binding to the consumed provider avoids a mismatch when
 a kernel supplies separate render and workspace instances.
+
+### `engine.views/v1`
+
+`register({viewType, load, label?})` stores a lazy component loader as an opaque value and
+returns a disposer; `resolve(viewType)` returns the contribution; `list()` reports them.
+The service and kernel never import React or a concrete view. Built-in contributions live
+in `src/views/` (`engine.view.markdown`, `engine.view.canvas`, `engine.view.bases`) and
+load the Markdown/Canvas/Bases React modules on demand. The application host interprets a
+loader as a React component and supplies a single `ReadingViewProps` shape (note, notes,
+entries, path, mode, previews, open/open-link callbacks, change callbacks and `ask`).
+External plugin-package UI loading is not wired yet.
 
 ### `engine.editor/v1`
 
@@ -304,7 +317,8 @@ templates dependency edge and word/character counting. `tests/slides.test.ts` an
 `tests/note-composer.test.ts` covers merge/extract rules and composition. `tests/web-viewer.test.ts`
 and `tests/slash-commands.test.ts` cover HTTPS validation and the slash insertion list, and
 `tests/page-preview.test.ts` / `tests/audio-recorder.test.ts` cover excerpt/placement and the
-recorder lifecycle.
+recorder lifecycle, and `tests/views.test.ts` covers view-loader registration/replacement,
+the built-in view plugins, scope-stop revocation and loader interpretation.
 
 ## Not yet done
 
