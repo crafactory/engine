@@ -18,6 +18,11 @@ describe('explorer service', () => {
     expect(explorer.children(entries, 'Folder').map(item => item.path)).toEqual(['Folder/A.md', 'Folder/B.md']);
     expect(explorer.children(entries, 'Folder', 'modified').map(item => item.path)).toEqual(['Folder/B.md', 'Folder/A.md']);
   });
+  it('breaks modified-time ties by name for a stable order', () => {
+    const explorer = new Explorer(new MemoryStorage());
+    const tied = [entry('Folder/B.md', false, 5), entry('Folder/A.md', false, 5), entry('Folder/C.md', false, 5)];
+    expect(explorer.sort(tied, 'modified').map(item => item.path)).toEqual(['Folder/A.md', 'Folder/B.md', 'Folder/C.md']);
+  });
   it('sorts the storage listing', async () => {
     const storage = new MemoryStorage();
     await storage.write('B.md', '');

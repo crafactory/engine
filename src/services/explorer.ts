@@ -31,9 +31,10 @@ export class Explorer implements ExplorerService {
   /** List vault entries in tree order. */
   async list(options: ExplorerListOptions = {}): Promise<Entry[]> { return this.sort(await this.storage.list(), options.sort); }
 
-  /** Sort entries folders-first, then by name or modification time. */
+  /** Sort entries folders-first, then by name or modification time (name breaks ties). */
   sort(entries: readonly Entry[], sort: ExplorerSort = 'name'): Entry[] {
-    return [...entries].sort((a, b) => Number(b.folder) - Number(a.folder) || (sort === 'modified' ? b.mtime - a.mtime : a.name.localeCompare(b.name)));
+    return [...entries].sort((a, b) => Number(b.folder) - Number(a.folder)
+      || (sort === 'modified' ? b.mtime - a.mtime || a.name.localeCompare(b.name) : a.name.localeCompare(b.name)));
   }
 
   /** Direct children of a folder (or the root when `parent` is empty), in tree order. */
