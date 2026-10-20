@@ -23,7 +23,7 @@ import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
 import {checkPermission, validatePluginPackage, readableSnapshot} from './kernel';
-import {createViewsRuntime, loadViewComponent, type ViewsRuntime, type ViewComponent} from './views';
+import {createViewsRuntime, loadViewComponent, ViewBoundary, type ViewsRuntime, type ViewComponent} from './views';
 import {ENGINE_VERSION} from './services';
 import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,createWebViewerRuntime,createSlashCommandsRuntime,createPagePreviewRuntime,createAudioRecorderRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime,type WebViewerRuntime,type SlashCommandsRuntime,type PagePreviewRuntime,type AudioRecorderRuntime,type ViewContribution} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
@@ -607,7 +607,10 @@ export function App(){
     if(!contribution)return undefined;
     let component=viewComponents.current.get(contribution);
     if(!component){
-      component=lazy(async()=>({default:await loadViewComponent(contribution)}));
+      component=lazy(async()=>{
+        try{return {default:await loadViewComponent(contribution)};}
+        catch(error){if(viewComponents.current.get(contribution)===component)viewComponents.current.delete(contribution);throw error;}
+      });
       viewComponents.current.set(contribution,component);
     }
     return component;
@@ -646,13 +649,13 @@ export function App(){
     const resolvedView=allowed?activeView:'markdown';
     const View=viewComponent(resolvedView);
     const viewProps={note,notes,entries,path:note.path,mode,previews:pagePreviewRuntime.current?.service,onOpen:open,onOpenLink:openLink,onChange:(content:string)=>editNote(note.path,content),onNoteChange:editNote,ask:dialog.ask};
-    if(resolvedView!=='markdown'&&mode!=='source'&&View)return <View {...viewProps}/>;
+    if(resolvedView!=='markdown'&&mode!=='source'&&View)return <ViewBoundary resetKey={note.path}><View {...viewProps}/></ViewBoundary>;
     return <div className="note-document" onDragOver={e=>e.preventDefault()} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();importFiles(e.dataTransfer.files);}}}>
       <div className={'document-inner '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>
         <div className="note-title"><h1>{title(note.path)}</h1><button className={bookmarks.includes(path)?'is-bookmarked':''} onClick={()=>toggleBookmarkPath(path)} aria-label="Bookmark note" title="Bookmark note"><Bookmark size={19} fill={bookmarks.includes(path)?'currentColor':'none'}/></button></div>
         {enabled('properties')&&isNote(note.path)&&propertyEditor(note)}
       </div>
-      {mode==='reading'&&isNote(note.path)?<div className={'reading-surface '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>{View?<View {...viewProps}/>:<Markdown content={note.content} notes={notes} path={note.path} previews={pagePreviewRuntime.current?.service} onOpen={openLink} onChange={content=>editNote(note.path,content)}/>}</div>:
+      {mode==='reading'&&isNote(note.path)?<div className={'reading-surface '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>{View?<ViewBoundary resetKey={note.path}><View {...viewProps}/></ViewBoundary>:<Markdown content={note.content} notes={notes} path={note.path} previews={pagePreviewRuntime.current?.service} onOpen={openLink} onChange={content=>editNote(note.path,content)}/>}</div>:
         <Editor ref={secondary?undefined:editor} note={note} notes={notes} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} pluginExtensions={secondary?undefined:allPluginExtensions} settings={{...settings,mode:mode==='reading'?'source':mode}} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand}/>}
     </div>;
   }

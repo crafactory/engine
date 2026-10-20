@@ -1,7 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import {Kernel} from '../src/kernel';
 import {ViewContributions, viewsPlugin, VIEWS_CONTRACT, type ViewsService} from '../src/services';
-import {createViewsRuntime, loadViewComponent} from '../src/views';
+import {createViewsRuntime, loadViewComponent, ViewBoundary} from '../src/views';
 
 describe('view contributions', () => {
   it('registers, replaces, lists and revokes loaders', () => {
@@ -43,6 +43,9 @@ describe('view contributions', () => {
     }});
     await kernel.start();
     expect(seen).toEqual(['probe']);
+  });
+  it('contains a failed view with a controlled fallback state', () => {
+    expect(ViewBoundary.getDerivedStateFromError()).toEqual({failed: true});
   });
   it('interprets loaders as function or default-export components', async () => {
     const component = () => null;
