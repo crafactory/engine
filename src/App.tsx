@@ -23,7 +23,7 @@ import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
 import {checkPermission, validatePluginPackage, readableSnapshot} from './kernel';
-import {createViewsRuntime, loadViewComponent, ViewBoundary, type ViewsRuntime, type ViewComponent, type PanelComponent} from './views';
+import {createViewsRuntime, loadViewComponent, ViewBoundary, type ViewsRuntime, type ViewComponent, type PanelComponent, type SidePanelTab} from './views';
 import {ENGINE_VERSION} from './services';
 import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,createWebViewerRuntime,createSlashCommandsRuntime,createPagePreviewRuntime,createAudioRecorderRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime,type WebViewerRuntime,type SlashCommandsRuntime,type PagePreviewRuntime,type AudioRecorderRuntime,type ViewContribution} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
@@ -680,7 +680,9 @@ export function App(){
   if(palette==='workspaces')paletteItems=(workspacesRuntime.current?.service.list()??Object.keys(workspaces)).map(name=>({id:name,label:name,run:()=>loadWorkspace(name)}));
   if(palette==='merge')paletteItems=notes.filter(n=>isNote(n.path)&&n.path!==active).map(n=>({id:n.path,label:title(n.path),description:n.path,run:()=>mergeInto(n.path)}));
 
-  const SidePanel=sideTab==='bookmarks'||sideTab==='recent'?panelComponent(sideTab):undefined;
+  const panelType:SidePanelTab|undefined=sideTab==='bookmarks'||sideTab==='recent'||sideTab==='tags'?sideTab:undefined;
+  const SidePanel=panelType?panelComponent(panelType):undefined;
+  const panelProps=panelType?{sideTab:panelType,notes,bookmarks,recent,tags:tagCounts,onOpen:open,onRemoveBookmark:removeBookmarkPath,onSelectTag:(tag:string)=>{setQuery('tag:#'+tag);setSideTab('search');}}:undefined;
   return <div className="app" onClick={()=>context&&setContext(null)}>
     <style>{settings.css}</style>
     <input ref={importInput} type="file" multiple accept=".md,.markdown,.txt,image/*,audio/*,video/*,.pdf,.canvas,.base" className="hidden" aria-label="Import files" onChange={e=>{importFiles(e.target.files);e.target.value='';}}/>
@@ -712,8 +714,7 @@ export function App(){
         {sideTab==='files'&&<><div className="file-controls"><button onClick={()=>setExpanded(new Set())} title="Collapse all folders">Collapse all</button><select aria-label="Sort files" value={fileSort} onChange={e=>setFileSort(e.target.value)}><option value="name">Name ↑</option><option value="modified">Modified ↓</option></select></div><div className="file-tree">{loading?<div className="skeleton-list"><i/><i/><i/><i/></div>:entries.length?tree():<div className="empty"><Folder size={25}/><p>Your vault is empty. Start with one note.</p><button onClick={()=>createNote()}>New note</button></div>}</div></>}
         {sideTab==='search'&&<><label className="search-input"><Search size={15}/><input autoFocus placeholder="Search notes…" value={query} onChange={e=>setQuery(e.target.value)} aria-label="Search notes" data-testid="search-input"/><button onClick={()=>setCaseSensitive(v=>!v)} className={caseSensitive?'selected':''} aria-label="Match case">Aa</button></label><div className="search-meta"><span>{results.length} results</span><select aria-label="Sort search results" value={searchSort} onChange={e=>setSearchSort(e.target.value)}><option value="name">Name ↑</option><option value="modified">Modified ↓</option></select><button aria-label="Copy search results" onClick={()=>navigator.clipboard?.writeText(results.map(n=>`[[${n.path.replace(/\.md$/,'')}]]`).join('\n')).then(()=>toast('Search results copied.')).catch(report)}><Copy size={13}/></button></div>
           <div className="search-results">{results.map(n=><button key={n.path} onClick={()=>open(n.path)} data-testid={'search-result-'+n.path}><span><FileText size={13}/>{title(n.path)}</span><small>{n.path}</small>{query&&<p>{frontmatter(n.content).body.replace(/[#*`\[\]]/g,'').slice(0,140)}</p>}</button>)}</div><p className="search-help">Try tag:#thinking, path:Ideas, task-todo: or /regex/. Operators can be grouped with parentheses and OR.</p></>}
-        {sideTab==='tags'&&<div className="tag-list">{tagCounts.map(([tag,count])=><button key={tag} onClick={()=>{setQuery('tag:#'+tag);setSideTab('search');}}><Hash size={14}/><span>{tag}</span><small>{count}</small></button>)}</div>}
-        {SidePanel&&<Suspense fallback={<div className="skeleton-list"><i/><i/><i/></div>}><ViewBoundary resetKey={sideTab}><SidePanel sideTab={sideTab==='bookmarks'?'bookmarks':'recent'} notes={notes} bookmarks={bookmarks} recent={recent} onOpen={open} onRemoveBookmark={removeBookmarkPath}/></ViewBoundary></Suspense>}
+        {SidePanel&&panelProps&&<Suspense fallback={<div className="skeleton-list"><i/><i/><i/></div>}><ViewBoundary resetKey={sideTab}><SidePanel {...panelProps}/></ViewBoundary></Suspense>}
         <footer className="sidebar-footer"><button onClick={()=>chooseVault()}><HardDrive size={14}/><span>{vaultName}</span><ChevronDown size={13}/></button><span>{entries.filter(e=>!e.folder&&isNote(e.path)).length} notes</span></footer>
       </aside>}
       <main className="main-workspace">
