@@ -532,7 +532,9 @@ export function App(){
   const characters=activeNote?(wordCount?wordCount.count(activeNote.content).characters:activeNote.content.length):0;
   const tabTitle=(path:string)=>path==='@graph'?'Graph view':path.startsWith('@local:')?'Local graph':path.startsWith('web:')?new URL(path.slice(4)).hostname:title(path);
   function tree(parent=''):React.ReactNode{
-    return entries.filter(e=>e.path.includes('/')?e.path.slice(0,e.path.lastIndexOf('/'))===parent:!parent).sort((a,b)=>Number(b.folder)-Number(a.folder)||(fileSort==='modified'?b.mtime-a.mtime:a.name.localeCompare(b.name))).map(entry=><div key={entry.path} className="tree-item">
+    const explorer=storageRuntime.current?.explorer;
+    const children=explorer?explorer.children(entries,parent,fileSort==='modified'?'modified':'name'):entries.filter(e=>e.path.includes('/')?e.path.slice(0,e.path.lastIndexOf('/'))===parent:!parent).sort((a,b)=>Number(b.folder)-Number(a.folder)||(fileSort==='modified'?b.mtime-a.mtime:a.name.localeCompare(b.name)));
+    return children.map(entry=><div key={entry.path} className="tree-item">
       <button className={'tree-row '+(entry.path===active?'selected':'')} style={{paddingLeft:12+(parent?parent.split('/').length:0)*13}} onClick={()=>entry.folder?setExpanded(s=>{const next=new Set(s);next.has(entry.path)?next.delete(entry.path):next.add(entry.path);return next;}):open(entry.path)}
         onContextMenu={e=>{e.preventDefault();setContext({path:entry.path,x:Math.min(e.clientX,window.innerWidth-225),y:Math.min(e.clientY,window.innerHeight-260)});}}
         draggable onDragStart={e=>e.dataTransfer.setData('engine/path',entry.path)} onDragOver={e=>entry.folder&&e.preventDefault()}

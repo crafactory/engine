@@ -196,6 +196,13 @@ always returning at least one slide. The presentation view consumes it.
 `==highlight==` and same-vault `.md` links to wikilinks. External URLs and non-Markdown
 targets are untouched; this is not a general HTML/Markdown converter.
 
+### `engine.explorer/v1`
+
+File-tree listing and ordering over `engine.storage/v1`: `list({sort})`, `sort(entries,
+sort)` and `children(entries, parent, sort)`, all folders-first then by name or modified
+time. The application keeps expansion and interaction state; the service owns the derived
+ordering. It consumes the storage contract and is rejected without it.
+
 ### Obsidian compatibility facade
 
 `createCompatibilityRuntime` accepts an optional `native` service bundle on its host:
@@ -225,9 +232,10 @@ depends on `engine.render/v1`, and each format plugin depends on both, so the ke
 activates them in dependency order and rejects missing providers. The local profile
 requires a vault. `createEditorRuntime(kind)` registers the CodeMirror or plain editor
 provider plugin, starts the kernel and returns the resolved editor provider.
-`createStorageRuntime({bridge})` exposes the bridge-backed storage and documents providers;
-the application uses it for file-recovery history/restore while its own note writes still go
-through the bridge until the persistence path is migrated.
+`createStorageRuntime({bridge})` exposes the bridge-backed storage, documents and explorer
+providers; the application uses it for file-recovery history/restore and the file-tree
+ordering while its own note writes still go through the bridge until the persistence path is
+migrated.
 `createBookmarksRuntime()` and `createDailyNotesRuntime()` build their kernels and return
 the resolved services. The kernel's `disable`/`enable` implement provider-loss rebinding:
 disabling a provider deactivates its transitive required consumers with a
@@ -257,7 +265,8 @@ ordering, random-note selection and the navigation dependency flow, and
 `tests/workspaces.test.ts` covers the named workspace store and its dependency flow, and
 `tests/unique-note.test.ts` / `tests/wordcount.test.ts` cover the timestamp note, the
 templates dependency edge and word/character counting. `tests/slides.test.ts` and
-`tests/format-converter.test.ts` cover slide splitting and the bounded conversions.
+`tests/format-converter.test.ts` cover slide splitting and the bounded conversions, and
+`tests/explorer.test.ts` covers tree ordering and the storage dependency.
 
 ## Not yet done
 
