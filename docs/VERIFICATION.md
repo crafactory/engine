@@ -17,7 +17,9 @@ are not implemented yet.
 `engine.views/v1` stores opaque loaders, so the kernel and services still import no React
 or concrete view. The left-slot bookmarks/recent panels use the same registry; their lazy
 load needs a local Suspense boundary, which the first e2e run caught (the panel suspended
-inside a synchronous click and the boundary showed its fallback). The three built-in view plugins register in their own scopes and are
+inside a synchronous click and the boundary showed its fallback). The host also rejects a
+panel contribution that is not registered for the `left` slot, and bookmark removal is a
+focusable sibling button rather than a nested non-keyboard control. The three built-in view plugins register in their own scopes and are
 removed when disabled; `tests/views.test.ts` verifies registration/replacement, scope
 revocation, function/default-export interpretation and the view boundary's fallback state and
 error logging.

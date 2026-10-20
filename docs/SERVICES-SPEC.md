@@ -95,10 +95,12 @@ them. `slot` is `main` (default), `left` or `right`.
 The service and kernel never import React or a concrete view. Built-in contributions live
 in `src/views/` (`engine.view.markdown`, `engine.view.canvas`, `engine.view.bases` for the
 main slot; `engine.view.bookmarks`, `engine.view.recent` for the left slot) and load the
-React modules on demand. The application host interprets a
-loader as a React component and supplies a single `ReadingViewProps` shape (note, notes,
-entries, path, mode, previews, open/open-link callbacks, change callbacks and `ask`).
-External plugin-package UI loading is not wired yet.
+React modules on demand. The host interprets a loader as a React component and supplies
+different props by slot: main views receive `ReadingViewProps` (note, notes, entries, path,
+mode, previews, open/open-link callbacks, change callbacks and `ask`), while left panels
+receive `PanelViewProps` (sideTab, notes, bookmarks, recent, open and remove-bookmark
+callbacks). A panel lookup also rejects a contribution that is not registered for the
+`left` slot. External plugin-package UI loading is not wired yet.
 
 ### `engine.editor/v1`
 

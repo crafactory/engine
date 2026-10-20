@@ -618,7 +618,7 @@ export function App(){
   /** Resolve a registered left-slot panel contribution. */
   function panelComponent(type:string){
     const contribution=viewsRuntime.current?.views.resolve(type);
-    if(!contribution)return undefined;
+    if(!contribution||(contribution.slot??'main')!=='left')return undefined;
     let component=panelComponents.current.get(contribution);
     if(!component){
       component=lazy(async()=>{
