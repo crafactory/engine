@@ -27,9 +27,11 @@ export interface ReadingViewProps {
 export type ViewComponent = ComponentType<ReadingViewProps>;
 
 /** Props for a sidebar/panel view contribution. */
-export type SidePanelTab = 'bookmarks' | 'recent' | 'tags' | 'outline' | 'backlinks';
+export type SidePanelTab = 'bookmarks' | 'recent' | 'tags' | 'outline' | 'backlinks' | 'outgoing';
 
 export interface PanelHeading {level: number; text: string; offset: number}
+
+export interface PanelLink {target: string; label: string; embed: boolean; fragment: string}
 
 export interface PanelViewProps {
   sideTab: SidePanelTab;
@@ -41,10 +43,13 @@ export interface PanelViewProps {
   incoming: Note[];
   mentions: Note[];
   activeTitle: string;
+  active: string;
+  outgoing: PanelLink[];
   onOpen(path: string): void;
   onRemoveBookmark(path: string): void;
   onSelectTag(tag: string): void;
   onJumpHeading(heading: PanelHeading): void;
+  onOpenLink(target: string): void;
 }
 
 export type PanelComponent = ComponentType<PanelViewProps>;
