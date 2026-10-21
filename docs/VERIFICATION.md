@@ -1,5 +1,28 @@
 # Verification results
 
+## Compatibility UI surface resumes
+
+This section records the compatibility re-baseline and the new ribbon hook. The renderer
+UI members that were already implemented behind the trusted host are now classified as a
+documented subset instead of rejected; Worker mode still rejects them without `host.ui`.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 796 passed (37 files) | Renderer UI baseline + ribbon case |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| targeted e2e | reading/settings smoke | Ribbon container is additive; plugin UI flows unchanged |
+
+`Plugin.addRibbonIcon` now creates a button in the `plugin-ribbon` container, returns the
+element, invokes the callback on click and removes the element through the plugin's
+lifecycle. The icon is exposed as `data-icon` with a text-glyph fallback (the reference
+lucide set is not bundled for plugin-provided names). `member-contracts.json` now lists
+`addRibbonIcon`, `addSettingTab`, `addStatusBarItem`, `registerView`,
+`registerEditorExtension`, `registerMarkdownPostProcessor` and
+`registerMarkdownCodeBlockProcessor` as renderer-only subset members, and the workspace
+leaf factories (`getLeaf`, `getRightLeaf`, `getLeavesOfType`, `detachLeavesOfType`,
+`revealLeaf`) as renderer-only subset members. Worker-mode rejections remain explicit.
+
 ## UI view contributions
 
 This section records source verification for moving built-in view dispatch onto component

@@ -706,6 +706,7 @@ export function App(){
           {enabled('commands')&&<IconButton label="Command palette" onClick={()=>setPalette('commands')}><Terminal size={20}/></IconButton>}
           {enabled('bookmarks')&&<IconButton label="Bookmarks" onClick={()=>{setLeft(true);setSideTab('bookmarks');}} active={sideTab==='bookmarks'}><Bookmark size={20}/></IconButton>}
           {enabled('tags')&&<IconButton label="Tags" onClick={()=>{setLeft(true);setSideTab('tags');}} active={sideTab==='tags'}><Hash size={20}/></IconButton>}
+          <div id="plugin-ribbon" aria-label="Plugin ribbon"/>
         </div>
         <div>{enabled('audio')&&<IconButton label={recording?'Stop recording':'Record audio'} onClick={audio} active={recording}><Mic size={19}/></IconButton>}<IconButton label="Open another vault" onClick={()=>chooseVault()}><HardDrive size={19}/></IconButton><IconButton label="Settings" onClick={()=>runCommand('settings')}><SettingsIcon size={20}/></IconButton></div>
       </nav>
