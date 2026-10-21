@@ -146,6 +146,13 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       async revealLeaf(leaf:any){if(!leaves.has(leaf))throw new Error('Foreign leaf');host('plugin-views').append(leaf.containerEl);leaf.containerEl.scrollIntoView({block:'nearest'});}
     },
     statusBar(){const el=element('span',host('plugin-status'),'plugin-status-item');el.dataset.plugin=id;resources.add(el);return el;},
+    ribbonIcon(icon:string,title:string,callback:(event:MouseEvent)=>void){
+      if(typeof icon!=='string'||!icon||typeof title!=='string'||!title||typeof callback!=='function')throw new Error('Invalid ribbon icon');
+      const el=element('button',host('plugin-ribbon'),'plugin-ribbon-item');
+      el.dataset.icon=icon;el.title=title;el.setAttribute('aria-label',title);
+      const glyph=element('span',el,'plugin-ribbon-glyph');glyph.textContent=title.trim().slice(0,1).toUpperCase()||'?';
+      el.addEventListener('click',safe(callback));resources.add(el);return el;
+    },
     settingTab(tab:any){if(!(tab instanceof SettingTab))throw new Error('Expected SettingTab');tabs.add(tab);publishTabs();return()=>{tabs.delete(tab);tab.hide();publishTabs();};},
     editorExtension(extension:unknown){extensions.push(extension);onExtensions([...extensions]);return()=>{const i=extensions.indexOf(extension);if(i>=0)extensions.splice(i,1);onExtensions([...extensions]);};},
     updateOptions(){onExtensions([...extensions]);},

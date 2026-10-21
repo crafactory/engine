@@ -23,6 +23,7 @@ export interface CompatHost {
     exports:Record<string,unknown>;workspace:Record<string,unknown>;
     statusBar():HTMLElement;settingTab(tab:any):()=>void;
     editorExtension(extension:unknown):()=>void;updateOptions():void;
+    ribbonIcon?(icon:string,title:string,callback:(event:MouseEvent)=>void):HTMLElement;
     registerView(type:string,factory:(leaf:any)=>any):()=>void;
     postProcessor?(callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
     codeProcessor?(language:string,callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
@@ -354,7 +355,12 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     loadData(){return request('loadData');}saveData(data:unknown){return mutate('saveData',[data]);}
     onExternalSettingsChange(){return unsupported('Plugin.onExternalSettingsChange');}
     onUserEnable():unknown{return undefined;}
-    addRibbonIcon(){return unsupported('Plugin.addRibbonIcon');}
+    addRibbonIcon(icon:string,title:string,callback:(event:MouseEvent)=>void){
+      if(!host.ui?.ribbonIcon)return unsupported('Plugin.addRibbonIcon');
+      const element=host.ui.ribbonIcon(icon,title,callback);
+      this.register(()=>element.remove());
+      return element;
+    }
     addSettingTab(tab:unknown){if(!host.ui)return unsupported('Plugin.addSettingTab');this.register(host.ui.settingTab(tab));}
     addStatusBarItem(){if(!host.ui)return unsupported('Plugin.addStatusBarItem');const element=host.ui.statusBar();this.register(()=>element.remove());return element;}
     registerView(type:string,factory:(leaf:any)=>any){if(!host.ui)return unsupported('Plugin.registerView');this.register(host.ui.registerView(type,factory));}
