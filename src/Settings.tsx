@@ -1,7 +1,10 @@
-import {useState,useEffect,useRef} from 'react';
+import {lazy,Suspense,useEffect,useMemo,useRef,useState} from 'react';
 import type {PluginTab} from './compat-dom';
-import {X,Sun,Moon,Shield,Keyboard,FileText,Palette,Puzzle,Info,Folder,HardDrive,Check,Download} from 'lucide-react';
+import {X,Sun,Moon,Shield,Keyboard,FileText,Palette,Puzzle,Info,Folder,HardDrive,Check,Download,Blocks} from 'lucide-react';
 import type {Settings as Preferences,PluginManifest} from './types';
+import type {SettingsContribution} from './services/ui';
+import {loadSettingsComponent} from './ui/contract';
+import {ViewBoundary} from './views';
 import {bridge} from './bridge';
 import {version} from '../package.json';
 export const corePlugins=[
@@ -34,16 +37,23 @@ export const corePlugins=[
   ['workspaces','Workspaces','Save and restore workspace layouts.']
 ];
 function PluginSettings({tab}:{tab:PluginTab}){const host=useRef<HTMLDivElement>(null);useEffect(()=>{host.current!.append(tab.containerEl);tab.display();return()=>{tab.hide();tab.containerEl.remove();};},[tab.id]);return <div ref={host}/>;}
-export function Settings({value,onChange,onClose,plugins,enabled,onTogglePlugin,pluginTabs=[],modes={},onMode=()=>{}}:{value:Preferences;onChange:(value:Preferences)=>void;onClose:()=>void;plugins:PluginManifest[];enabled:string[];onTogglePlugin:(id:string)=>void;pluginTabs?:PluginTab[];modes?:Record<string,string>;onMode?:(id:string,mode:string)=>void}) {
+/** Render one native settings contribution with a local lazy boundary. */
+function NativeSetting({contribution}:{contribution:SettingsContribution}){
+  const Component=useMemo(()=>lazy(async()=>({default:await loadSettingsComponent(contribution)})),[contribution]);
+  return <section className="native-setting"><h3>{contribution.label}</h3><Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={contribution.id}><Component/></ViewBoundary></Suspense></section>;
+}
+
+export function Settings({value,onChange,onClose,plugins,enabled,onTogglePlugin,pluginTabs=[],modes={},onMode=()=>{},nativeSettings=[]}:{value:Preferences;onChange:(value:Preferences)=>void;onClose:()=>void;plugins:PluginManifest[];enabled:string[];onTogglePlugin:(id:string)=>void;pluginTabs?:PluginTab[];modes?:Record<string,string>;onMode?:(id:string,mode:string)=>void;nativeSettings?:SettingsContribution[]}) {
   const [tab,setTab]=useState('appearance'),[pluginQuery,setPluginQuery]=useState('');
   const update=(key:keyof Preferences,v:any)=>onChange({...value,[key]:v});
   const row=(name:string,description:string,control:React.ReactNode)=><div className="setting-row"><div><strong>{name}</strong><p>{description}</p></div>{control}</div>;
   const toggle=(key:keyof Preferences)=><input aria-label={String(key)} type="checkbox" role="switch" checked={!!value[key]} onChange={e=>update(key,e.target.checked)}/>;
   return <div className="modal-backdrop" onClick={onClose}><section className="settings-modal" role="dialog" aria-modal="true" aria-label="Settings" onClick={e=>e.stopPropagation()}>
-    <nav><div className="settings-label">Settings</div>{[['appearance',Palette,'Appearance'],['editor',FileText,'Editor'],['files',Folder,'Files & links'],['hotkeys',Keyboard,'Hotkeys'],['core',Puzzle,'Core plugins'],['community',Shield,'Community plugins'],['about',Info,'About']].map(([id,Icon,label])=><button key={String(id)} onClick={()=>setTab(String(id))} className={tab===id?'selected':''}>{typeof Icon!=='string'&&<Icon size={16}/>} {String(label)}</button>)}</nav>
-    <div className="settings-content"><header><h2>{pluginTabs.find(p=>p.id===tab)?.name|| (tab==='core'?'Core plugins':tab==='community'?'Community plugins':tab==='files'?'Files & links':tab[0].toUpperCase()+tab.slice(1))}</h2><button onClick={onClose} aria-label="Close settings" data-testid="settings-close"><X size={18}/></button></header>
+    <nav><div className="settings-label">Settings</div>{[['appearance',Palette,'Appearance'],['editor',FileText,'Editor'],['files',Folder,'Files & links'],['hotkeys',Keyboard,'Hotkeys'],['core',Puzzle,'Core plugins'],['community',Shield,'Community plugins'],['extensions',Blocks,'Extensions'],['about',Info,'About']].map(([id,Icon,label])=><button key={String(id)} onClick={()=>setTab(String(id))} className={tab===id?'selected':''}>{typeof Icon!=='string'&&<Icon size={16}/>} {String(label)}</button>)}</nav>
+    <div className="settings-content"><header><h2>{pluginTabs.find(p=>p.id===tab)?.name|| (tab==='core'?'Core plugins':tab==='community'?'Community plugins':tab==='files'?'Files & links':tab==='extensions'?'Extensions':tab[0].toUpperCase()+tab.slice(1))}</h2><button onClick={onClose} aria-label="Close settings" data-testid="settings-close"><X size={18}/></button></header>
       {!!pluginTabs.length&&<div className="plugin-settings-tabs">{pluginTabs.map(p=><button key={p.id} onClick={()=>setTab(p.id)} aria-label={'Plugin settings '+p.name}>{p.name}</button>)}</div>}
       {pluginTabs.find(p=>p.id===tab)&&<PluginSettings tab={pluginTabs.find(p=>p.id===tab)!}/>}
+      {tab==='extensions'&&<div className="native-settings">{nativeSettings.length?nativeSettings.map(contribution=><NativeSetting key={contribution.id} contribution={contribution}/>):<p className="sidebar-hint">Extensions that contribute settings will appear here.</p>}</div>}
       {tab==='appearance'&&<>
         {row('Color theme','A quiet workspace in light or dark.',<div className="segmented"><button className={value.theme==='dark'?'selected':''} onClick={()=>update('theme','dark')} data-testid="theme-dark"><Moon size={14}/>Dark</button><button className={value.theme==='light'?'selected':''} onClick={()=>update('theme','light')} data-testid="theme-light"><Sun size={14}/>Light</button></div>)}
         {row('Text size','Font size for reading and editing.',<input aria-label="Text size" type="number" min="12" max="28" value={value.fontSize} onChange={e=>update('fontSize',Math.min(28,Math.max(12,Number(e.target.value))))}/>)}

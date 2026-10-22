@@ -54,10 +54,15 @@ export interface PanelViewProps {
 
 export type PanelComponent = ComponentType<PanelViewProps>;
 
+/** React component types include functions and exotic objects such as memo/forwardRef. */
+function isComponent(candidate: unknown): candidate is ViewComponent {
+  return typeof candidate === 'function' || (typeof candidate === 'object' && candidate !== null && '$$typeof' in candidate);
+}
+
 /** Interpret an opaque loader result as a view component. */
 export async function loadViewComponent(contribution: ViewContribution): Promise<ViewComponent> {
   const module = await contribution.load();
-  const candidate = typeof module === 'function' ? module : (module as {default?: unknown} | null)?.default;
-  if (typeof candidate !== 'function') throw new Error(`View ${contribution.viewType} did not provide a component`);
+  const candidate = isComponent(module) ? module : (module as {default?: unknown} | null)?.default;
+  if (!isComponent(candidate)) throw new Error(`View ${contribution.viewType} did not provide a component`);
   return candidate as ViewComponent;
 }

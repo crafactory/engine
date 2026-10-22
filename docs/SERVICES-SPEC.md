@@ -105,17 +105,19 @@ jump-heading callbacks). A panel lookup rejects a contribution that is not regis
 
 ### `engine.ui/v1`
 
-`register({kind, id, label, order?, ...})` accepts two contribution kinds:
+`register({kind, id, label, order?, ...})` accepts three contribution kinds:
 
 - `ribbon`: `run()` is invoked by the host when the ribbon button is clicked; `icon` is an
   optional name (the host currently renders a generic glyph).
 - `status`: `text` is rendered in the status bar; re-register the same `id` to update it.
+- `settings`: `load()` returns a lazy React component; the host renders it in the Settings
+  window's Extensions tab.
 
 The registry validates ids, labels and kinds, replaces by `(kind, id)` with
 nearest-active-predecessor revocation, and `subscribe(listener)` reports changes. The
-service and kernel stay UI-free. The host renders ribbon buttons and status items from the
-service, so an extension can add these surfaces without importing application React code.
-Native settings-tab contributions and external plugin-package UI loading are not wired yet.
+service and kernel stay UI-free. The host renders ribbon buttons, status items and settings
+sections from the service, so an extension can add these surfaces without importing
+application React code. External plugin-package UI loading is not wired yet.
 
 ### `engine.editor/v1`
 

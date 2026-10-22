@@ -62,6 +62,8 @@ describe('view contributions', () => {
     const component = () => null;
     expect(await loadViewComponent({viewType: 'x', load: async () => component})).toBe(component);
     expect(await loadViewComponent({viewType: 'y', load: async () => ({default: component})})).toBe(component);
+    const exotic = {$$typeof: Symbol.for('react.memo')};
+    expect(await loadViewComponent({viewType: 'm', load: async () => exotic})).toBe(exotic);
     await expect(loadViewComponent({viewType: 'z', load: async () => ({})})).rejects.toThrow('did not provide a component');
   });
 });

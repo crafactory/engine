@@ -27,25 +27,25 @@ continues to render in the floating plugin-view pane.
 
 ## Native UI contributions
 
-This section records the native ribbon/status contribution host for in-repo extensions.
-It is the first answer to “how can other extensions add UI”: `engine.views/v1` covers
-main/panel component loaders, and `engine.ui/v1` covers ribbon buttons and status-bar text.
+This section records the native ribbon/status/settings contribution host for in-repo
+extensions. It is the first answer to “how can other extensions add UI”: `engine.views/v1`
+covers main/panel component loaders, and `engine.ui/v1` covers ribbon buttons, status-bar
+text and settings sections.
 
 | Check | Observed result | Scope |
 |---|---|---|
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
-| `npm run test` | 802 passed (38 files) | +6 UI registry/consumption cases |
+| `npm run test` | 802 passed (38 files) | UI registry, settings loader and consumption cases |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
-| targeted e2e | reading/settings smoke passed | Host additions are empty by default |
+| targeted e2e | settings/Extensions tab passed | Host additions are empty by default |
 
 `UiContributions` validates ids/labels/kinds, replaces by `(kind, id)` with
 nearest-active-predecessor revocation, orders by `order`, and notifies subscribers. A
 throwing subscriber is isolated and logged, so registration still returns its disposer and
-later subscribers still run. The application subscribes and renders ribbon buttons and
-status items from the service; no built-in extension registers one yet, so the visible UI
-is unchanged. Native settings-tab
-contributions, external plugin-package UI loading and compatibility `registerExtensions`
-main-area mounting remain open.
+later subscribers still run. The application subscribes and renders ribbon buttons, status
+items and Settings → Extensions sections from the service; no built-in extension registers
+one yet, so the visible UI is unchanged. External plugin-package UI loading and
+compatibility `registerExtensions` for non-renderer hosts remain open.
 
 ## Compatibility UI surface resumes
 
