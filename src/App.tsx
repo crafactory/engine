@@ -23,7 +23,7 @@ import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
 import {checkPermission, validatePluginPackage, readableSnapshot} from './kernel';
-import {createViewsRuntime, loadViewComponent, ViewBoundary, type ViewsRuntime, type ViewComponent, type PanelComponent, type SidePanelTab} from './views';
+import {createViewsRuntime, loadViewComponent, ViewBoundary, PluginViewHost, type ViewsRuntime, type ViewComponent, type PanelComponent, type SidePanelTab} from './views';
 import {ENGINE_VERSION} from './services';
 import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,createWebViewerRuntime,createSlashCommandsRuntime,createPagePreviewRuntime,createAudioRecorderRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime,type WebViewerRuntime,type SlashCommandsRuntime,type PagePreviewRuntime,type AudioRecorderRuntime,type ViewContribution,createUiRuntime,type UiRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
@@ -51,6 +51,7 @@ export function App(){
   const [settings,setSettings]=useState<Preferences>(defaults),[mode,setMode]=useState<Preferences['mode']>('reading');
   const [tabs,setTabs]=useState<string[]>([]),[active,setActive]=useState(''),[split,setSplit]=useState<string|null>(null);
   const [uiRevision,setUiRevision]=useState(0);
+  const [pluginFormats,setPluginFormats]=useState<Record<string,{viewType:string;pluginId:string}>>({});
   const [left,setLeft]=useState(()=>window.innerWidth>650),[right,setRight]=useState(true),[sideTab,setSideTab]=useState('files'),[rightTab,setRightTab]=useState('outline');
   const [expanded,setExpanded]=useState<Set<string>>(new Set(['Guides','Ideas','Projects']));
   const [bookmarks,setBookmarks]=useState<string[]>([]),[recent,setRecent]=useState<string[]>([]);
@@ -91,15 +92,47 @@ export function App(){
   const uiStatus=useMemo(()=>uiRuntime.current?.ui.status()??[],[uiRevision]);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   const pluginManifests=useRef(new Map<string,PluginManifest>());
+  const pluginFormatOwners=useRef(new Map<string,string>());
+  const pluginFormatCleanups=useRef(new Map<string,()=>void>());
+  const pluginViewCleanups=useRef(new Map<string,()=>void>());
   /** Build the snapshot for one plugin, hiding vault content without `vault:read`. */
   function pluginSnapshot(manifest?:PluginManifest):PluginSnapshot{
     const s=pluginState.current;
     return readableSnapshot({name:s.vaultName,entries:s.entries,notes:notesRef.current,active:s.active,
       editor:s.mode!=='reading'&&isNote(s.active)&&editor.current?.path()===s.active?editor.current.snapshot():null},manifest??{});
   }
+  /** Resolve a file path to a compatibility plugin view registered for its extension. */
+  function pluginViewFor(path:string){const extension=path.split('.').pop()?.toLowerCase()??'';return pluginFormats[extension];}
+  /** Register a plugin view type and its file extensions with the native render/workspace services. */
+  function addPluginExtensions(id:string,extensions:string[],viewType:string){
+    const render=workspaceRuntime.current?.render,workspace=workspaceViews.current;
+    if(!render||!workspace)return;
+    const viewKey=id+':'+viewType;
+    if(!pluginViewCleanups.current.has(viewKey))pluginViewCleanups.current.set(viewKey,workspace.registerView({viewType,slot:'main',label:viewType}));
+    for(const extension of extensions){
+      pluginFormatCleanups.current.get(extension)?.();
+      pluginFormatCleanups.current.set(extension,render.registerFormat({extension,viewType}));
+      pluginFormatOwners.current.set(extension,id);
+      setPluginFormats(formats=>({...formats,[extension]:{viewType,pluginId:id}}));
+    }
+  }
+  /** Remove plugin extension mappings, optionally for one plugin's subset. */
+  function removePluginExtensions(id:string,extensions?:string[]){
+    const targets=extensions??[...pluginFormatOwners.current].filter(([,owner])=>owner===id).map(([extension])=>extension);
+    for(const extension of targets){pluginFormatCleanups.current.get(extension)?.();pluginFormatCleanups.current.delete(extension);pluginFormatOwners.current.delete(extension);}
+    setPluginFormats(formats=>{const next={...formats};for(const extension of targets)if(next[extension]?.pluginId===id)delete next[extension];return next;});
+  }
+  /** Remove all view/format registrations owned by a plugin. */
+  function clearPluginExtensions(id:string){
+    removePluginExtensions(id);
+    for(const [key,dispose] of [...pluginViewCleanups.current])if(key.startsWith(id+':')){dispose();pluginViewCleanups.current.delete(key);}
+  }
   async function stopPlugins(){
     await Promise.all([...pluginStops.current.values()].map(controller=>controller.stop()));
     await Promise.allSettled([...pluginRequests.current]);
+    for(const dispose of pluginFormatCleanups.current.values())dispose();
+    for(const dispose of pluginViewCleanups.current.values())dispose();
+    pluginFormatCleanups.current.clear();pluginViewCleanups.current.clear();pluginFormatOwners.current.clear();setPluginFormats({});
     pluginStops.current.clear();pluginManifests.current.clear();setEnabledPlugins([]);setPluginCommands([]);
   }
   const dialog=useDialog();
@@ -427,7 +460,7 @@ export function App(){
   async function togglePlugin(id:string){
     if(pluginStarting.current.has(id))return;
     if(enabledPlugins.includes(id)){
-      await pluginStops.current.get(id)?.stop();pluginStops.current.delete(id);pluginManifests.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));setPluginCommands(c=>c.filter(p=>p.plugin!==id));return;
+      await pluginStops.current.get(id)?.stop();clearPluginExtensions(id);pluginStops.current.delete(id);pluginManifests.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));setPluginCommands(c=>c.filter(p=>p.plugin!==id));return;
     }
     const plugin=pluginList.find(p=>p.manifest.id===id);if(!plugin)return;
     const renderer=pluginModes[id]==='renderer';
@@ -473,16 +506,20 @@ export function App(){
     };
     pluginStarting.current.add(id);
     try{
-      const start=renderer?startRendererPlugin:startPlugin;
       const native={resolveLink:(link:string,from:string)=>indexRuntime.current?.index.resolve(link,from),
         editor:{providerId:editorRuntime.current?.provider.id??'unknown',codeMirrorExtensions:editorRuntime.current?.provider.capabilities().codeMirrorExtensions??false}};
-      const controller=start(plugin.manifest,plugin.code,()=>pluginSnapshot(plugin.manifest),commands=>setPluginCommands(c=>[...c.filter(p=>p.plugin!==id),...commands]),
-        (name,args)=>{const request=operation(name,args);pluginRequests.current.add(request);request.then(()=>pluginRequests.current.delete(request),()=>pluginRequests.current.delete(request));return request;},
-        toast,()=>{pluginStops.current.delete(id);pluginManifests.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));},
-        tabs=>setPluginTabs(t=>({...t,[id]:tabs})),extensions=>setPluginExtensions(e=>({...e,[id]:extensions})),renderer?native:undefined);
+      const onCommands=(commands:PluginCommand[])=>setPluginCommands(c=>[...c.filter(p=>p.plugin!==id),...commands]);
+      const onOperation=(name:string,args:unknown[])=>{const request=operation(name,args);pluginRequests.current.add(request);request.then(()=>pluginRequests.current.delete(request),()=>pluginRequests.current.delete(request));return request;};
+      const onFailure=()=>{clearPluginExtensions(id);pluginStops.current.delete(id);pluginManifests.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));};
+      const onTabs=(tabs:PluginTab[])=>setPluginTabs(t=>({...t,[id]:tabs}));
+      const onExtensions=(extensions:unknown[])=>setPluginExtensions(e=>({...e,[id]:extensions}));
+      const onFileExtensions=(nextExtensions:string[],viewType?:string)=>{if(viewType)addPluginExtensions(id,nextExtensions,viewType);else removePluginExtensions(id,nextExtensions);};
+      const controller=renderer
+        ?startRendererPlugin(plugin.manifest,plugin.code,()=>pluginSnapshot(plugin.manifest),onCommands,onOperation,toast,onFailure,onTabs,onExtensions,native,onFileExtensions)
+        :startPlugin(plugin.manifest,plugin.code,()=>pluginSnapshot(plugin.manifest),onCommands,onOperation,toast,onFailure);
       pluginManifests.current.set(id,plugin.manifest);pluginStops.current.set(id,controller);await controller.ready;
-      if(generation!==vaultGeneration.current)await controller.stop();else setEnabledPlugins(e=>[...e.filter(p=>p!==id),id]);
-    }catch(e){pluginStops.current.delete(id);pluginManifests.current.delete(id);report(e);}finally{pluginStarting.current.delete(id);}
+      if(generation!==vaultGeneration.current){clearPluginExtensions(id);await controller.stop();}else setEnabledPlugins(e=>[...e.filter(p=>p!==id),id]);
+    }catch(e){clearPluginExtensions(id);pluginStops.current.delete(id);pluginManifests.current.delete(id);report(e);}finally{pluginStarting.current.delete(id);}
   }
   function toggleMode(){setMode(m=>m==='reading'?'live':'reading');}
   const commands:Choice[]=[
@@ -658,6 +695,8 @@ export function App(){
       if(!indexed)return <div className="empty workspace-empty"><Network size={30}/><h1>Graph unavailable</h1><p>The knowledge graph needs the notes index, which failed to start. Reload to try again.</p></div>;
       return <Graph notes={notes} index={indexed} active={path.startsWith('@local:')?path.slice(7):recent.find(p=>isNote(p))||''} onOpen={open} local={path.startsWith('@local:')}/>;
     }
+    const customView=pluginViewFor(path);
+    if(customView)return <PluginViewHost path={path} viewType={customView.viewType} controller={pluginStops.current.get(customView.pluginId)}/>;
     if(path.startsWith('web:'))return <section className="web-view"><header><Globe size={16}/><span>{path.slice(4)}</span><a href={path.slice(4)} target="_blank" rel="noreferrer">Open in browser<ExternalLink size={13}/></a></header><p className="web-notice">This site may block embedding. Use “Open in browser” if the page is blank.</p><iframe title="Web viewer" src={path.slice(4)} sandbox="allow-scripts allow-forms allow-same-origin" referrerPolicy="no-referrer"/></section>;
     if(!note){
       if(path&&entries.some(e=>e.path===path&&!e.folder))return <Attachment path={path}/>;

@@ -2,7 +2,13 @@ import workerScript from './plugin-worker.ts?worker&url';
 import type {PluginManifest} from './types';
 import type {PluginSnapshot} from './compat-core';
 export interface PluginCommand {id:string;label:string;run:()=>void;plugin:string}
-export interface PluginController {ready:Promise<void>;sync(snapshot:PluginSnapshot):void;stop():Promise<void>}
+export interface PluginController {
+  ready:Promise<void>;
+  sync(snapshot:PluginSnapshot):void;
+  stop():Promise<void>;
+  /** Renderer-only: mount a registered custom view into a host element. */
+  mountView?(viewType:string,path:string,parent:HTMLElement):Promise<{element:HTMLElement;dispose():void}>;
+}
 /** CommonJS is wrapped as original source text, not eval/Function and not a proprietary SDK. */
 export function startPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,onCommands:(commands:PluginCommand[])=>void,
   operation:(name:string,args:unknown[])=>Promise<unknown>,onNotice:(message:string)=>void,onFailure:()=>void=()=>{}):PluginController {

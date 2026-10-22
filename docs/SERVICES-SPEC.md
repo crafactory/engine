@@ -285,7 +285,11 @@ facade's read/create/modify/append/mkdir, rename, trash and plugin-data operatio
 `engine.storage/v1`/`engine.documents/v1` (bridge-backed in the app), keeping the in-memory
 note reconciliation; `getResourcePath` returns the storage asset data URL. `Vault.rename` and `Vault.trash`
 support `TFile` and `TFolder` subtrees (child identities are retained on rename); delete,
-process and binary adapters remain unsupported.
+process and binary adapters remain unsupported. Renderer plugins can also register a
+custom view and file extensions: `registerExtensions` records the mapping, the host
+registers the format/view with `engine.render/v1`/`engine.workspace/v1`, and opening a
+mapped file mounts the plugin's DOM view in the main document area through a plugin-view
+host. This host is renderer-only and requires an already-registered view type.
 
 ## Composition
 

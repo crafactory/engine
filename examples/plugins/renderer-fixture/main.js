@@ -10,6 +10,8 @@ class FixtureView extends ItemView {
   getViewType(){return 'fixture-view';}
   getDisplayText(){return 'Fixture view';}
   onOpen(){this.contentEl.setText('Independent view opened');}
+  setState(state){if(state?.file){this.file=state.file;this.contentEl.setText('Fixture file: '+this.file);}}
+  getState(){return {file:this.file};}
 }
 class FixtureSettings extends PluginSettingTab {
   display(){
@@ -31,6 +33,7 @@ module.exports=class extends Plugin {
     this.registerEditorExtension(this.extensions);
     this.addSettingTab(new FixtureSettings(this.app,this));
     this.registerView('fixture-view',leaf=>new FixtureView(leaf));
+    this.registerExtensions(['fixture'],'fixture-view');
     this.addCommand({id:'view',name:'Open view',callback:async()=>{const leaf=this.app.workspace.getRightLeaf(false);await leaf.setViewState({type:'fixture-view'});await this.app.workspace.revealLeaf(leaf);}});
     this.addCommand({id:'modal',name:'Open modal',callback:()=>new FixtureModal(this.app).open()});
     this.addCommand({id:'extensions',name:'Replace extension',callback:()=>{this.extensions.splice(0,1,EditorView.updateListener.of(update=>{if(update.docChanged)this.status.setText('CM replacement');}));this.app.workspace.updateOptions();}});

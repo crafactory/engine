@@ -1,5 +1,27 @@
 # Verification results
 
+## Compatibility view extensions
+
+This section records `registerExtensions` and the plugin-view host that mounts a
+compatibility plugin's custom view in the main document area.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
+| `npm run test` | 801 passed (38 files) | Renderer delegation/cleanup for registerExtensions |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| desktop renderer e2e | **7 passed** | Custom `.fixture` view mounts; existing renderer flows |
+
+`Plugin.registerExtensions` delegates to the trusted renderer host, which validates the
+extension list, requires an already-registered view type and notifies the application. The
+application registers the extension with `engine.render/v1` and the view with
+`engine.workspace/v1`, then renders a `PluginViewHost` when a mapped file opens; the host
+calls the controller's `mountView`, which creates a `WorkspaceLeaf`, calls
+`setViewState({type,state:{file}})`, and appends the plugin DOM view inside the document
+area. Disabling the plugin removes the format/view registrations and unmounts the host.
+The `.fixture` test also covers the existing "Open view" command path, which continues to
+render in the floating plugin-view pane.
+
 ## Native UI contributions
 
 This section records the native ribbon/status contribution host for in-repo extensions.

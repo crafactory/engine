@@ -5,7 +5,7 @@ import os from 'node:os';
 let root:string,profile:string,app:ElectronApplication,page:Page;
 test.beforeEach(async()=>{
   root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-'));profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-profile-'));
-  await fs.writeFile(path.join(root,'Test.md'),'Original text');
+  await fs.writeFile(path.join(root,'Test.md'),'Original text');await fs.writeFile(path.join(root,'Test.fixture'),'fixture body');
   const dir=path.join(root,'.crafactory/plugins/renderer-fixture');await fs.mkdir(dir,{recursive:true});
   for(const file of ['manifest.json','main.js'])await fs.copyFile('examples/plugins/renderer-fixture/'+file,path.join(dir,file));
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
@@ -47,6 +47,13 @@ test('renderer settings controls persist and modal traps focus and closes',async
   await page.keyboard.press('Tab');await expect(modal.locator(':focus')).toHaveCount(1);await page.keyboard.press('Shift+Tab');await expect(modal.locator(':focus')).toHaveCount(1);
   await page.keyboard.press('Escape');await expect(modal).toHaveCount(0);await expect(page.getByRole('button',{name:'Open fixture modal',exact:true})).toBeFocused();
   await page.getByTestId('settings-close').click();await settings();await page.getByRole('button',{name:'Plugin settings Renderer fixture',exact:true}).click();await expect(page.getByLabel('Fixture text',{exact:true})).toHaveValue('中文 setting');
+});
+test('renderer registerExtensions mounts a custom view in the main document area',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  await page.getByTestId('file-Test.fixture').click();
+  await expect(page.locator('.plugin-view-host .plugin-view-content')).toHaveText('Fixture file: Test.fixture');
+  await settings();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();await page.getByTestId('settings-close').click();
+  await expect(page.locator('.plugin-view-host')).toHaveCount(0);
 });
 test('renderer CodeMirror extensions update real editor and unload all UI',async()=>{
   await enable();await expect(page.getByLabel('Runtime for Renderer fixture',{exact:true})).toBeDisabled();await page.getByTestId('settings-close').click();

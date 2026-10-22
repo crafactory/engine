@@ -5,10 +5,10 @@ import inventory from '../docs/compatibility/obsidian-exports.json';
 const manifest={id:'renderer-test',name:'Renderer test',version:'1'};
 const initial=():PluginSnapshot=>({name:'Test',active:'One.md',entries:[{path:'One.md',name:'One.md',folder:false,size:3,ctime:0,mtime:0}],notes:[{path:'One.md',content:'one'}],editor:null});
 function harness(){
-  const settingCleanup=vi.fn(),extensionCleanup=vi.fn(),viewCleanup=vi.fn(),updateOptions=vi.fn(),ribbonCleanup=vi.fn(),ribbonElement={remove:ribbonCleanup} as unknown as HTMLElement;
-  const ui={exports:{},workspace:{getLeaf:()=>({fixture:true})},statusBar:vi.fn(),ribbonIcon:vi.fn(()=>ribbonElement),settingTab:vi.fn(()=>settingCleanup),editorExtension:vi.fn(()=>extensionCleanup),registerView:vi.fn(()=>viewCleanup),updateOptions};
+  const settingCleanup=vi.fn(),extensionCleanup=vi.fn(),viewCleanup=vi.fn(),extensionsCleanup=vi.fn(),updateOptions=vi.fn(),ribbonCleanup=vi.fn(),ribbonElement={remove:ribbonCleanup} as unknown as HTMLElement;
+  const ui={exports:{},workspace:{getLeaf:()=>({fixture:true})},statusBar:vi.fn(),ribbonIcon:vi.fn(()=>ribbonElement),settingTab:vi.fn(()=>settingCleanup),editorExtension:vi.fn(()=>extensionCleanup),registerView:vi.fn(()=>viewCleanup),registerExtensions:vi.fn(()=>extensionsCleanup),updateOptions};
   const runtime=createCompatibilityRuntime(manifest,initial(),{ui,request:async()=>null,commands:()=>{},notice:()=>{}});
-  return {runtime,api:runtime.api as any,ui,settingCleanup,extensionCleanup,viewCleanup,updateOptions,ribbonCleanup,ribbonElement};
+  return {runtime,api:runtime.api as any,ui,settingCleanup,extensionCleanup,viewCleanup,extensionsCleanup,updateOptions,ribbonCleanup,ribbonElement};
 }
 it('renderer export registry is documented, unique and disjoint from Worker exports',()=>{
   expect(rendererExports).toHaveLength(18);expect(new Set(rendererExports).size).toBe(18);
@@ -34,9 +34,9 @@ it('renderer layout-change fires on boot and reading-editor transitions only',as
 });
 it('renderer hook registrations dispose once and updateOptions reaches actual host',async()=>{
   const h=harness(),tab={},extension:unknown[]=[];
-  class Fixture extends h.api.Plugin {onload(){this.addSettingTab(tab);this.addRibbonIcon('star','Star',()=>{});this.registerEditorExtension(extension);this.registerView('test',()=>{});this.app.workspace.updateOptions();}}
-  await h.runtime.boot(Fixture);expect(h.ui.settingTab).toHaveBeenCalledWith(tab);expect(h.ui.ribbonIcon).toHaveBeenCalledWith('star','Star',expect.any(Function));expect(h.ui.editorExtension).toHaveBeenCalledWith(extension);expect(h.updateOptions).toHaveBeenCalledOnce();
-  await h.runtime.stop();await h.runtime.stop();expect(h.settingCleanup).toHaveBeenCalledOnce();expect(h.extensionCleanup).toHaveBeenCalledOnce();expect(h.viewCleanup).toHaveBeenCalledOnce();expect(h.ribbonCleanup).toHaveBeenCalledOnce();
+  class Fixture extends h.api.Plugin {onload(){this.addSettingTab(tab);this.addRibbonIcon('star','Star',()=>{});this.registerEditorExtension(extension);this.registerView('test',()=>{});this.registerExtensions(['foo'],'test');this.app.workspace.updateOptions();}}
+  await h.runtime.boot(Fixture);expect(h.ui.settingTab).toHaveBeenCalledWith(tab);expect(h.ui.ribbonIcon).toHaveBeenCalledWith('star','Star',expect.any(Function));expect(h.ui.editorExtension).toHaveBeenCalledWith(extension);expect(h.ui.registerExtensions).toHaveBeenCalledWith(['foo'],'test');expect(h.updateOptions).toHaveBeenCalledOnce();
+  await h.runtime.stop();await h.runtime.stop();expect(h.settingCleanup).toHaveBeenCalledOnce();expect(h.extensionCleanup).toHaveBeenCalledOnce();expect(h.viewCleanup).toHaveBeenCalledOnce();expect(h.ribbonCleanup).toHaveBeenCalledOnce();expect(h.extensionsCleanup).toHaveBeenCalledOnce();
 });
 it('renderer keeps unsupported events and unrelated runtime exports explicit',()=>{
   const h=harness();expect(()=>h.runtime.app.workspace.on('active-leaf-change',()=>{})).toThrow('Workspace event active-leaf-change');expect(()=>h.api.MarkdownPreviewView).toThrow('export MarkdownPreviewView');
