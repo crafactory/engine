@@ -34,3 +34,4 @@ export async function createViewsRuntime(options: {engineVersion?: string} = {})
 
 export * from './contract';
 export {ViewBoundary} from './ViewBoundary';
+export {PluginViewHost} from './PluginViewHost';

@@ -16,9 +16,9 @@ const modules:Record<string,unknown>={'@codemirror/state':state,'@codemirror/vie
 export function startRendererPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,
   onCommands:(commands:PluginCommand[])=>void,operation:(name:string,args:unknown[])=>Promise<unknown>,
   onNotice:(message:string)=>void,onFailure:()=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,
-  native?:CompatNativeServices):PluginController {
+  native?:CompatNativeServices,onFileExtensions?:(extensions:string[],viewType?:string)=>void):PluginController {
   let alive=true,stopping=false,stopPromise:Promise<void>|undefined,booting:Promise<void>|undefined;
-  const dom=createDomAdapters(manifest.id,manifest.name,fail,onTabs,onExtensions);
+  const dom=createDomAdapters(manifest.id,manifest.name,fail,onTabs,onExtensions,onFileExtensions);
   const runtime=createCompatibilityRuntime(manifest,getSnapshot(),{
     ui:dom,notice:onNotice,native,
     async request(name,args){const result=await operation(name,args);if(alive)runtime.sync(getSnapshot());return result;},
@@ -51,5 +51,5 @@ export function startRendererPlugin(manifest:PluginManifest,code:string,getSnaps
     finally{delete global[slot];URL.revokeObjectURL(url);}
   })();
   // Main-thread code cannot be forcibly interrupted. This is not a timeout sandbox.
-  return {ready,sync(snapshot){if(alive&&!stopping){try{runtime.sync(snapshot);}catch(error){fail(error);}}},stop};
+  return {ready,sync(snapshot){if(alive&&!stopping){try{runtime.sync(snapshot);}catch(error){fail(error);}}},stop,mountView:dom.mountView};
 }

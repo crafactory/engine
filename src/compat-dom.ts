@@ -28,9 +28,9 @@ export function installDomHelpers(){
   for(const [name,value]of Object.entries(methods))if(!(name in HTMLElement.prototype))Object.defineProperty(HTMLElement.prototype,name,{value,configurable:true,writable:true});
 }
 /** Create plugin-owned trusted-renderer UI hooks; this adapter is not an isolation boundary. */
-export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void){
+export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,onFileExtensions?:(extensions:string[],viewType?:string)=>void){
   installDomHelpers();
-  const resources=new Set<HTMLElement>(),modals=new Set<any>(),tabs=new Set<any>(),extensions:unknown[]=[],factories=new Map<string,(leaf:any)=>any>(),leaves=new Set<any>();
+  const resources=new Set<HTMLElement>(),modals=new Set<any>(),tabs=new Set<any>(),extensions:unknown[]=[],factories=new Map<string,(leaf:any)=>any>(),leaves=new Set<any>(),extensionViews=new Map<string,string>();
   const processors=new Set<ReturnType<typeof registerPostProcessor>>();
   let processorsStopped=false;
   /** Keep registration handles private to this plugin and remove them after disposal. */
@@ -120,10 +120,10 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   class ItemView extends View {contentEl:HTMLElement;constructor(leaf:any){super(leaf);this.contentEl=element('div',this.containerEl,'plugin-view-content');}addAction(){return unsupported('ItemView.addAction');}}
   class WorkspaceLeaf {
     containerEl=element('section',undefined,'plugin-view-pane');view:any=null;
-    async setViewState(state:any){if(!state||typeof state.type!=='string')throw new Error('Invalid view state');const factory=factories.get(state.type);if(!factory)return unsupported('View type '+state.type);
+    async setViewState(state:any,parent?:HTMLElement){if(!state||typeof state.type!=='string')throw new Error('Invalid view state');const factory=factories.get(state.type);if(!factory)return unsupported('View type '+state.type);
       await this.detachView();this.view=factory(this);if(!(this.view instanceof View)){this.view=null;throw new Error('View factory must return View');}
       try{await this.view.load();await this.view.onOpen();await this.view.setState(state.state||{},{history:false});
-        const header=element('header',undefined,'plugin-view-header');this.containerEl.prepend(header);const title=element('strong',header);title.textContent=this.view.getDisplayText();const close=element('button',header);close.textContent='×';close.setAttribute('aria-label','Close '+title.textContent);close.addEventListener('click',()=>safe(()=>this.detach())());host('plugin-views').append(this.containerEl);
+        const header=element('header',undefined,'plugin-view-header');this.containerEl.prepend(header);const title=element('strong',header);title.textContent=this.view.getDisplayText();if(!parent){const close=element('button',header);close.textContent='×';close.setAttribute('aria-label','Close '+title.textContent);close.addEventListener('click',()=>safe(()=>this.detach())());}(parent??host('plugin-views')).append(this.containerEl);
       }catch(error){await this.detach();throw error;}
     }
     getViewState(){return {type:this.view?.getViewType(),state:this.view?.getState(),active:this.containerEl.isConnected};}
@@ -157,6 +157,22 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     editorExtension(extension:unknown){extensions.push(extension);onExtensions([...extensions]);return()=>{const i=extensions.indexOf(extension);if(i>=0)extensions.splice(i,1);onExtensions([...extensions]);};},
     updateOptions(){onExtensions([...extensions]);},
     registerView(type:string,factory:(leaf:any)=>any){if(typeof type!=='string'||!type||typeof factory!=='function')throw new Error('Invalid view registration');if(factories.has(type))throw new Error('View already registered');factories.set(type,factory);return()=>{factories.delete(type);};},
+    registerExtensions(extensions:string[],viewType:string){
+      if(!Array.isArray(extensions)||!extensions.length||extensions.some(extension=>typeof extension!=='string'||!/^\.?[a-z0-9][a-z0-9_-]*$/i.test(extension)))throw new Error('Invalid extensions');
+      if(typeof viewType!=='string'||!viewType)throw new Error('Invalid view type');
+      if(!factories.has(viewType))throw new Error('View type not registered: '+viewType);
+      const normalized=extensions.map(extension=>extension.replace(/^\./,'').toLowerCase());
+      for(const extension of normalized)extensionViews.set(extension,viewType);
+      onFileExtensions?.(normalized,viewType);
+      return()=>{for(const extension of normalized)if(extensionViews.get(extension)===viewType)extensionViews.delete(extension);onFileExtensions?.(normalized);};
+    },
+    /** Mount a registered view into a host element without going through the global plugin view pane. */
+    async mountView(viewType:string,path:string,parent:HTMLElement){
+      if(!factories.has(viewType))throw new Error('View type not registered: '+viewType);
+      const leaf=new WorkspaceLeaf();leaves.add(leaf);
+      await leaf.setViewState({type:viewType,state:{file:path}},parent);
+      return {element:leaf.containerEl,dispose:()=>{void leaf.detach();}};
+    },
     /** Dispose processor children, visible UI and editor registrations after owner stop. */
     async dispose(){processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach();for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
   };

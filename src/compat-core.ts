@@ -25,6 +25,7 @@ export interface CompatHost {
     editorExtension(extension:unknown):()=>void;updateOptions():void;
     ribbonIcon?(icon:string,title:string,callback:(event:MouseEvent)=>void):HTMLElement;
     registerView(type:string,factory:(leaf:any)=>any):()=>void;
+    registerExtensions?(extensions:string[],viewType:string):()=>void;
     postProcessor?(callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
     codeProcessor?(language:string,callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
   };
@@ -364,7 +365,10 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     addSettingTab(tab:unknown){if(!host.ui)return unsupported('Plugin.addSettingTab');this.register(host.ui.settingTab(tab));}
     addStatusBarItem(){if(!host.ui)return unsupported('Plugin.addStatusBarItem');const element=host.ui.statusBar();this.register(()=>element.remove());return element;}
     registerView(type:string,factory:(leaf:any)=>any){if(!host.ui)return unsupported('Plugin.registerView');this.register(host.ui.registerView(type,factory));}
-    registerExtensions(){return unsupported('Plugin.registerExtensions');}
+    registerExtensions(extensions:string[],viewType:string){
+      if(!host.ui?.registerExtensions)return unsupported('Plugin.registerExtensions');
+      this.register(host.ui.registerExtensions(extensions,viewType));
+    }
     registerEditorExtension(extension:unknown){
       const editor=host.native?.editor;
       if(editor&&!editor.codeMirrorExtensions)throw new Error(`Editor extensions require the CodeMirror editor provider; active provider is ${editor.providerId}`);
