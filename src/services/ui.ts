@@ -27,7 +27,13 @@ export interface StatusContribution extends UiContributionBase {
   text: string;
 }
 
-export type UiContribution = RibbonContribution | StatusContribution;
+/** A settings section whose component is loaded by the host. */
+export interface SettingsContribution extends UiContributionBase {
+  kind: 'settings';
+  load: () => Promise<unknown>;
+}
+
+export type UiContribution = RibbonContribution | StatusContribution | SettingsContribution;
 
 /** Register UI contributions and subscribe to changes. */
 export interface UiService {
@@ -35,6 +41,7 @@ export interface UiService {
   list(kind?: UiContribution['kind']): UiContribution[];
   ribbon(): RibbonContribution[];
   status(): StatusContribution[];
+  settings(): SettingsContribution[];
   subscribe(listener: () => void): () => void;
 }
 
@@ -54,6 +61,8 @@ export class UiContributions implements UiService {
       if (typeof contribution.run !== 'function') throw new Error('Ribbon contribution needs a run function');
     } else if (contribution.kind === 'status') {
       if (typeof contribution.text !== 'string') throw new Error('Status contribution needs text');
+    } else if (contribution.kind === 'settings') {
+      if (typeof contribution.load !== 'function') throw new Error('Settings contribution needs a loader');
     } else throw new Error('Invalid UI contribution kind');
     const normalized = {...contribution} as UiContribution;
     const index = this.contributions.findIndex(candidate => candidate.kind === normalized.kind && candidate.id === normalized.id);
@@ -83,6 +92,9 @@ export class UiContributions implements UiService {
 
   /** Status contributions in host order. */
   status(): StatusContribution[] { return this.list('status') as StatusContribution[]; }
+
+  /** Settings contributions in host order. */
+  settings(): SettingsContribution[] { return this.list('settings') as SettingsContribution[]; }
 
   /** Observe contribution changes; returns an unsubscribe function. */
   subscribe(listener: () => void): () => void {

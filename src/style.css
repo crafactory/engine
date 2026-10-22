@@ -122,3 +122,5 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}h1,
 .plugin-view-host{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}
 .plugin-view-host>.plugin-view-pane{display:flex;flex-direction:column;flex:1;min-height:0;border:0}
 .plugin-view-host .plugin-view-content{flex:1;min-height:0;overflow:auto}
+.native-settings{display:flex;flex-direction:column;gap:18px}
+.native-setting h3{font-size:var(--text-sm);margin:0 0 8px}
