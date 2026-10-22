@@ -103,6 +103,20 @@ mentions, activeTitle, active, outgoing, open/open-link/remove-bookmark, select-
 jump-heading callbacks). A panel lookup rejects a contribution that is not registered for the requested
 `left` or `right` slot. External plugin-package UI loading is not wired yet.
 
+### `engine.ui/v1`
+
+`register({kind, id, label, order?, ...})` accepts two contribution kinds:
+
+- `ribbon`: `run()` is invoked by the host when the ribbon button is clicked; `icon` is an
+  optional name (the host currently renders a generic glyph).
+- `status`: `text` is rendered in the status bar; re-register the same `id` to update it.
+
+The registry validates ids, labels and kinds, replaces by `(kind, id)` with
+nearest-active-predecessor revocation, and `subscribe(listener)` reports changes. The
+service and kernel stay UI-free. The host renders ribbon buttons and status items from the
+service, so an extension can add these surfaces without importing application React code.
+Native settings-tab contributions and external plugin-package UI loading are not wired yet.
+
 ### `engine.editor/v1`
 
 A DOM-free document editing model over UTF-16 offsets: `text`, `version`, `isDirty`,
@@ -324,6 +338,8 @@ and `tests/slash-commands.test.ts` cover HTTPS validation and the slash insertio
 `tests/page-preview.test.ts` / `tests/audio-recorder.test.ts` cover excerpt/placement and the
 recorder lifecycle, and `tests/views.test.ts` covers view-loader registration/replacement,
 the built-in view plugins, scope-stop revocation and loader interpretation.
+`tests/ui.test.ts` covers ribbon/status registration, replacement, subscriber notification,
+validation and runtime consumption.
 
 ## Not yet done
 

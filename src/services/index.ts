@@ -8,6 +8,7 @@ import {FormatRegistry, renderPlugin, type RenderService} from './render';
 import {WORKSPACE_CONTRACT, workspacePlugin, type WorkspaceViewService} from './workspace';
 import {createMarkdownFormatPlugin, createCanvasFormatPlugin, createBasesFormatPlugin} from './formats';
 import {ENGINE_VERSION} from './version';
+import {UI_CONTRACT, uiPlugin, type UiService} from './ui';
 
 export * from './version';
 export * from './storage';
@@ -16,6 +17,7 @@ export * from './documents';
 export * from './render';
 export * from './workspace';
 export * from './views';
+export * from './ui';
 export * from './formats';
 export * from './editor';
 export * from './bookmarks';
@@ -75,4 +77,17 @@ export async function createWorkspaceRuntime(options: {engineVersion?: string} =
   const resolved = kernel.runtime.services.resolve(WORKSPACE_CONTRACT, '^1.0.0');
   if (!resolved.ok) throw new Error('Workspace service was not provided');
   return {kernel, render, workspace: resolved.binding.value as WorkspaceViewService};
+}
+
+
+export interface UiRuntime {kernel: Kernel; ui: UiService}
+
+/** Build and start a kernel exposing the UI contribution registry. */
+export async function createUiRuntime(options: {engineVersion?: string} = {}): Promise<UiRuntime> {
+  const kernel = new Kernel({engineVersion: options.engineVersion ?? ENGINE_VERSION});
+  kernel.register(uiPlugin());
+  await kernel.start();
+  const resolved = kernel.runtime.services.resolve(UI_CONTRACT, '^1.0.0');
+  if (!resolved.ok) throw new Error('UI service was not provided');
+  return {kernel, ui: resolved.binding.value as UiService};
 }

@@ -1,7 +1,7 @@
 import {lazy,Suspense,useCallback,useEffect,useMemo,useRef,useState,type LazyExoticComponent} from 'react';
 import {
   Files,Search,Network,LayoutDashboard,CalendarDays,Terminal,Settings as SettingsIcon,
-  PanelLeftClose,PanelLeftOpen,PanelRightClose,PanelRightOpen,Plus,X,ChevronRight,ChevronDown,
+  PanelLeftClose,PanelLeftOpen,PanelRightClose,PanelRightOpen,Plus,X,ChevronRight,ChevronDown,Sparkles,
   FileText,Folder,FolderPlus,FilePlus,MoreHorizontal,BookOpen,Code2,Pencil,Bookmark,Hash,
   List,ArrowLeft,ArrowRight,Link2,Check,HardDrive,Clock,Pin,Download,Trash2,
   Copy,Scissors,Mic,Square,Table2,ExternalLink,RefreshCw,Star,Globe,Presentation,Layers,Menu
@@ -25,7 +25,7 @@ import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManif
 import {checkPermission, validatePluginPackage, readableSnapshot} from './kernel';
 import {createViewsRuntime, loadViewComponent, ViewBoundary, type ViewsRuntime, type ViewComponent, type PanelComponent, type SidePanelTab} from './views';
 import {ENGINE_VERSION} from './services';
-import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,createWebViewerRuntime,createSlashCommandsRuntime,createPagePreviewRuntime,createAudioRecorderRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime,type WebViewerRuntime,type SlashCommandsRuntime,type PagePreviewRuntime,type AudioRecorderRuntime,type ViewContribution} from './services';
+import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,createWebViewerRuntime,createSlashCommandsRuntime,createPagePreviewRuntime,createAudioRecorderRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime,type WebViewerRuntime,type SlashCommandsRuntime,type PagePreviewRuntime,type AudioRecorderRuntime,type ViewContribution,createUiRuntime,type UiRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
 
@@ -50,6 +50,7 @@ export function App(){
   const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [settings,setSettings]=useState<Preferences>(defaults),[mode,setMode]=useState<Preferences['mode']>('reading');
   const [tabs,setTabs]=useState<string[]>([]),[active,setActive]=useState(''),[split,setSplit]=useState<string|null>(null);
+  const [uiRevision,setUiRevision]=useState(0);
   const [left,setLeft]=useState(()=>window.innerWidth>650),[right,setRight]=useState(true),[sideTab,setSideTab]=useState('files'),[rightTab,setRightTab]=useState('outline');
   const [expanded,setExpanded]=useState<Set<string>>(new Set(['Guides','Ideas','Projects']));
   const [bookmarks,setBookmarks]=useState<string[]>([]),[recent,setRecent]=useState<string[]>([]);
@@ -85,6 +86,9 @@ export function App(){
   const webViewerRuntime=useRef<WebViewerRuntime|null>(null),slashRuntime=useRef<SlashCommandsRuntime|null>(null);
   const pagePreviewRuntime=useRef<PagePreviewRuntime|null>(null),audioRuntime=useRef<AudioRecorderRuntime|null>(null);
   const viewsRuntime=useRef<ViewsRuntime|null>(null),viewComponents=useRef(new Map<ViewContribution,LazyExoticComponent<ViewComponent>>()),panelComponents=useRef(new Map<ViewContribution,LazyExoticComponent<PanelComponent>>());
+  const uiRuntime=useRef<UiRuntime|null>(null),uiUnsub=useRef<(()=>void)|null>(null);
+  const uiRibbon=useMemo(()=>uiRuntime.current?.ui.ribbon()??[],[uiRevision]);
+  const uiStatus=useMemo(()=>uiRuntime.current?.ui.status()??[],[uiRevision]);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   const pluginManifests=useRef(new Map<string,PluginManifest>());
   /** Build the snapshot for one plugin, hiding vault content without `vault:read`. */
@@ -142,6 +146,7 @@ export function App(){
       if(!pagePreviewRuntime.current){const runtime=await createPagePreviewRuntime();if(unmounted.current){void runtime.kernel.stop();return;}pagePreviewRuntime.current=runtime;}
       if(!audioRuntime.current){const runtime=await createAudioRecorderRuntime();if(unmounted.current){void runtime.kernel.stop();return;}audioRuntime.current=runtime;}
       if(!viewsRuntime.current){const runtime=await createViewsRuntime();if(unmounted.current){void runtime.kernel.stop();return;}viewsRuntime.current=runtime;}
+      if(!uiRuntime.current){const runtime=await createUiRuntime();if(unmounted.current){void runtime.kernel.stop();return;}uiRuntime.current=runtime;uiUnsub.current=runtime.ui.subscribe(()=>setUiRevision(v=>v+1));}
       editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));
@@ -156,7 +161,7 @@ export function App(){
       loaded.current=true;await loadPluginPackages();
     }catch(e){report(e);}finally{setLoading(false);}
   }
-  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);if(audioRuntime.current)void audioRuntime.current.service.dispose().catch(()=>{});for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();void uniqueNoteRuntime.current?.kernel.stop();void wordCountRuntime.current?.kernel.stop();void slidesRuntime.current?.kernel.stop();void converterRuntime.current?.kernel.stop();void composerRuntime.current?.kernel.stop();void webViewerRuntime.current?.kernel.stop();void slashRuntime.current?.kernel.stop();void pagePreviewRuntime.current?.kernel.stop();void audioRuntime.current?.kernel.stop();void viewsRuntime.current?.kernel.stop();};},[]);
+  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);if(audioRuntime.current)void audioRuntime.current.service.dispose().catch(()=>{});for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();void uniqueNoteRuntime.current?.kernel.stop();void wordCountRuntime.current?.kernel.stop();void slidesRuntime.current?.kernel.stop();void converterRuntime.current?.kernel.stop();void composerRuntime.current?.kernel.stop();void webViewerRuntime.current?.kernel.stop();void slashRuntime.current?.kernel.stop();void pagePreviewRuntime.current?.kernel.stop();void audioRuntime.current?.kernel.stop();void viewsRuntime.current?.kernel.stop();uiUnsub.current?.();void uiRuntime.current?.kernel.stop();};},[]);
   useEffect(()=>{for(const [id,controller] of pluginStops.current)controller.sync(pluginSnapshot(pluginManifests.current.get(id)));},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
@@ -706,6 +711,7 @@ export function App(){
           {enabled('commands')&&<IconButton label="Command palette" onClick={()=>setPalette('commands')}><Terminal size={20}/></IconButton>}
           {enabled('bookmarks')&&<IconButton label="Bookmarks" onClick={()=>{setLeft(true);setSideTab('bookmarks');}} active={sideTab==='bookmarks'}><Bookmark size={20}/></IconButton>}
           {enabled('tags')&&<IconButton label="Tags" onClick={()=>{setLeft(true);setSideTab('tags');}} active={sideTab==='tags'}><Hash size={20}/></IconButton>}
+          {uiRibbon.map(item=><IconButton key={item.id} label={item.label} onClick={item.run}><Sparkles size={20}/></IconButton>)}
           <div id="plugin-ribbon" aria-label="Plugin ribbon"/>
         </div>
         <div>{enabled('audio')&&<IconButton label={recording?'Stop recording':'Record audio'} onClick={audio} active={recording}><Mic size={19}/></IconButton>}<IconButton label="Open another vault" onClick={()=>chooseVault()}><HardDrive size={19}/></IconButton><IconButton label="Settings" onClick={()=>runCommand('settings')}><SettingsIcon size={20}/></IconButton></div>
@@ -750,7 +756,7 @@ export function App(){
         <footer className="context-footer"><div><Network size={15}/><span>Everything connects</span></div><p>Follow a link. Find a new perspective.</p>{enabled('graph')&&activeNote&&<button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button>}</footer>
       </aside>}
     </div>
-    <footer className="statusbar"><span><span className={'status-dot '+(dirtyCount?'pending':'')}/>{dirtyCount?`${dirtyCount} unsaved`:bridge.desktop?'Saved locally':'Preview vault'}</span><span>{activeMarkdown&&enabled('words')?<>{words.toLocaleString()} words<span className="status-divider"/>{characters.toLocaleString()} characters</>:activeNote?active.split('.').pop()?.toUpperCase():''}</span><span>{recording&&<button onClick={audio}><Square size={12}/>Recording · Stop</button>}{mode==='reading'?'Reading':mode==='live'?'Live editing':'Source'}<span className="status-divider"/>{bridge.desktop?'Local-first':'Changes reset on refresh'}</span></footer>
+    <footer className="statusbar"><span><span className={'status-dot '+(dirtyCount?'pending':'')}/>{dirtyCount?`${dirtyCount} unsaved`:bridge.desktop?'Saved locally':'Preview vault'}</span><span>{uiStatus.map(item=><span key={item.id} title={item.label}>{item.text}</span>)}{activeMarkdown&&enabled('words')?<>{words.toLocaleString()} words<span className="status-divider"/>{characters.toLocaleString()} characters</>:activeNote?active.split('.').pop()?.toUpperCase():''}</span><span>{recording&&<button onClick={audio}><Square size={12}/>Recording · Stop</button>}{mode==='reading'?'Reading':mode==='live'?'Live editing':'Source'}<span className="status-divider"/>{bridge.desktop?'Local-first':'Changes reset on refresh'}</span></footer>
     {enabled('graph')&&activeNote&&<nav className="compact-context" aria-label="Compact note context"><button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button></nav>}
     <div id="plugin-views" aria-label="Plugin views"/>
     <div id="plugin-status" aria-label="Plugin status"/>
