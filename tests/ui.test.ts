@@ -63,6 +63,8 @@ describe('ui contributions', () => {
     const component = () => null;
     expect(await loadSettingsComponent({kind: 'settings', id: 'a', label: 'A', load: async () => component})).toBe(component);
     expect(await loadSettingsComponent({kind: 'settings', id: 'b', label: 'B', load: async () => ({default: component})})).toBe(component);
+    const exotic = {$$typeof: Symbol.for('react.memo')};
+    expect(await loadSettingsComponent({kind: 'settings', id: 'm', label: 'M', load: async () => exotic})).toBe(exotic);
     await expect(loadSettingsComponent({kind: 'settings', id: 'c', label: 'C', load: async () => ({})})).rejects.toThrow('did not provide a component');
   });
   it('assembles a runtime and serves a consumer', async () => {
