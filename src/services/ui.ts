@@ -90,7 +90,13 @@ export class UiContributions implements UiService {
     return () => { this.listeners.delete(listener); };
   }
 
-  private publish() { for (const listener of this.listeners) listener(); }
+  /** Notify every listener; one failing subscriber must not orphan the registration. */
+  private publish() {
+    for (const listener of this.listeners) {
+      try { listener(); }
+      catch (error) { console.error('UI contribution listener failed', error); }
+    }
+  }
 }
 
 /** Wrap a UI registry as a runtime-scoped native plugin. */

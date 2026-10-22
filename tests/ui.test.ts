@@ -35,6 +35,17 @@ describe('ui contributions', () => {
     ui.register({kind: 'status', id: 't', label: 'Status', text: 'ok'});
     expect(listener).toHaveBeenCalledTimes(2);
   });
+  it('isolates a throwing subscriber so registration still returns a disposer', () => {
+    const ui = new UiContributions(), error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const seen = vi.fn();
+    ui.subscribe(() => { throw new Error('boom'); });
+    ui.subscribe(seen);
+    const dispose = ui.register({kind: 'status', id: 's', label: 'Status', text: 'ok'});
+    expect(seen).toHaveBeenCalledOnce();
+    expect(error).toHaveBeenCalledWith('UI contribution listener failed', expect.any(Error));
+    expect(() => dispose()).not.toThrow();
+    error.mockRestore();
+  });
   it('rejects malformed contributions', () => {
     const ui = new UiContributions();
     expect(() => ui.register({kind: 'ribbon', id: '', label: 'x', run: () => {}})).toThrow('id');

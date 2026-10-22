@@ -9,14 +9,16 @@ main/panel component loaders, and `engine.ui/v1` covers ribbon buttons and statu
 | Check | Observed result | Scope |
 |---|---|---|
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Unchanged inventory; no drift |
-| `npm run test` | 801 passed (38 files) | +5 UI registry/consumption cases |
+| `npm run test` | 802 passed (38 files) | +6 UI registry/consumption cases |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
 | targeted e2e | reading/settings smoke passed | Host additions are empty by default |
 
 `UiContributions` validates ids/labels/kinds, replaces by `(kind, id)` with
-nearest-active-predecessor revocation, orders by `order`, and notifies subscribers. The
-application subscribes and renders ribbon buttons and status items from the service; no
-built-in extension registers one yet, so the visible UI is unchanged. Native settings-tab
+nearest-active-predecessor revocation, orders by `order`, and notifies subscribers. A
+throwing subscriber is isolated and logged, so registration still returns its disposer and
+later subscribers still run. The application subscribes and renders ribbon buttons and
+status items from the service; no built-in extension registers one yet, so the visible UI
+is unchanged. Native settings-tab
 contributions, external plugin-package UI loading and compatibility `registerExtensions`
 main-area mounting remain open.
 
