@@ -13,14 +13,17 @@ compatibility plugin's custom view in the main document area.
 | desktop renderer e2e | **7 passed** | Custom `.fixture` view mounts; existing renderer flows |
 
 `Plugin.registerExtensions` delegates to the trusted renderer host, which validates the
-extension list, requires an already-registered view type and notifies the application. The
-application registers the extension with `engine.render/v1` and the view with
-`engine.workspace/v1`, then renders a `PluginViewHost` when a mapped file opens; the host
-calls the controller's `mountView`, which creates a `WorkspaceLeaf`, calls
+single-segment extension list, requires an already-registered view type and notifies the
+application. The application registers the extension with `engine.render/v1` and the view
+with `engine.workspace/v1`, then renders a `PluginViewHost` when a mapped file opens; the
+host calls the controller's `mountView`, which creates a `WorkspaceLeaf`, calls
 `setViewState({type,state:{file}})`, and appends the plugin DOM view inside the document
-area. Disabling the plugin removes the format/view registrations and unmounts the host.
-The `.fixture` test also covers the existing "Open view" command path, which continues to
-render in the floating plugin-view pane.
+area. Registrations are kept in an ownership stack per extension, so disabling one plugin
+restores the latest remaining view rather than deleting another plugin's mapping. `web:`
+routes are resolved before extension routing, and embedded views omit the floating-pane
+close button. Disabling the plugin removes the format/view registrations and unmounts the
+host. The `.fixture` test also covers the existing "Open view" command path, which
+continues to render in the floating plugin-view pane.
 
 ## Native UI contributions
 

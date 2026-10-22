@@ -92,8 +92,7 @@ export function App(){
   const uiStatus=useMemo(()=>uiRuntime.current?.ui.status()??[],[uiRevision]);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   const pluginManifests=useRef(new Map<string,PluginManifest>());
-  const pluginFormatOwners=useRef(new Map<string,string>());
-  const pluginFormatCleanups=useRef(new Map<string,()=>void>());
+  const pluginFormatStacks=useRef(new Map<string,{pluginId:string;viewType:string;dispose:()=>void}[]>());
   const pluginViewCleanups=useRef(new Map<string,()=>void>());
   /** Build the snapshot for one plugin, hiding vault content without `vault:read`. */
   function pluginSnapshot(manifest?:PluginManifest):PluginSnapshot{
@@ -102,7 +101,10 @@ export function App(){
       editor:s.mode!=='reading'&&isNote(s.active)&&editor.current?.path()===s.active?editor.current.snapshot():null},manifest??{});
   }
   /** Resolve a file path to a compatibility plugin view registered for its extension. */
-  function pluginViewFor(path:string){const extension=path.split('.').pop()?.toLowerCase()??'';return pluginFormats[extension];}
+  function pluginViewFor(path:string){
+    const extension=path.split('.').pop()?.toLowerCase()??'';
+    return Object.prototype.hasOwnProperty.call(pluginFormats,extension)?pluginFormats[extension]:undefined;
+  }
   /** Register a plugin view type and its file extensions with the native render/workspace services. */
   function addPluginExtensions(id:string,extensions:string[],viewType:string){
     const render=workspaceRuntime.current?.render,workspace=workspaceViews.current;
@@ -110,17 +112,25 @@ export function App(){
     const viewKey=id+':'+viewType;
     if(!pluginViewCleanups.current.has(viewKey))pluginViewCleanups.current.set(viewKey,workspace.registerView({viewType,slot:'main',label:viewType}));
     for(const extension of extensions){
-      pluginFormatCleanups.current.get(extension)?.();
-      pluginFormatCleanups.current.set(extension,render.registerFormat({extension,viewType}));
-      pluginFormatOwners.current.set(extension,id);
-      setPluginFormats(formats=>({...formats,[extension]:{viewType,pluginId:id}}));
+      const stack=pluginFormatStacks.current.get(extension)??[];
+      stack.push({pluginId:id,viewType,dispose:render.registerFormat({extension,viewType})});
+      pluginFormatStacks.current.set(extension,stack);
     }
+    setPluginFormats(formats=>{const next={...formats};for(const extension of extensions)next[extension]={viewType,pluginId:id};return next;});
   }
-  /** Remove plugin extension mappings, optionally for one plugin's subset. */
+  /** Remove plugin extension mappings, optionally for one plugin's subset, restoring the top remaining registration. */
   function removePluginExtensions(id:string,extensions?:string[]){
-    const targets=extensions??[...pluginFormatOwners.current].filter(([,owner])=>owner===id).map(([extension])=>extension);
-    for(const extension of targets){pluginFormatCleanups.current.get(extension)?.();pluginFormatCleanups.current.delete(extension);pluginFormatOwners.current.delete(extension);}
-    setPluginFormats(formats=>{const next={...formats};for(const extension of targets)if(next[extension]?.pluginId===id)delete next[extension];return next;});
+    const targets=extensions??[...pluginFormatStacks.current].filter(([,stack])=>stack.some(entry=>entry.pluginId===id)).map(([extension])=>extension);
+    const updates:Record<string,{viewType:string;pluginId:string}|null>={};
+    for(const extension of targets){
+      const stack=pluginFormatStacks.current.get(extension);
+      if(!stack)continue;
+      const index=stack.map(entry=>entry.pluginId).lastIndexOf(id);
+      if(index>=0)stack.splice(index,1)[0].dispose();
+      if(stack.length){const top=stack[stack.length-1];updates[extension]={viewType:top.viewType,pluginId:top.pluginId};}
+      else{pluginFormatStacks.current.delete(extension);updates[extension]=null;}
+    }
+    setPluginFormats(formats=>{const next={...formats};for(const [extension,value]of Object.entries(updates)){if(value)next[extension]=value;else delete next[extension];}return next;});
   }
   /** Remove all view/format registrations owned by a plugin. */
   function clearPluginExtensions(id:string){
@@ -128,12 +138,13 @@ export function App(){
     for(const [key,dispose] of [...pluginViewCleanups.current])if(key.startsWith(id+':')){dispose();pluginViewCleanups.current.delete(key);}
   }
   async function stopPlugins(){
-    await Promise.all([...pluginStops.current.values()].map(controller=>controller.stop()));
-    await Promise.allSettled([...pluginRequests.current]);
-    for(const dispose of pluginFormatCleanups.current.values())dispose();
-    for(const dispose of pluginViewCleanups.current.values())dispose();
-    pluginFormatCleanups.current.clear();pluginViewCleanups.current.clear();pluginFormatOwners.current.clear();setPluginFormats({});
-    pluginStops.current.clear();pluginManifests.current.clear();setEnabledPlugins([]);setPluginCommands([]);
+    try{await Promise.allSettled([...pluginStops.current.values()].map(controller=>controller.stop()));await Promise.allSettled([...pluginRequests.current]);}
+    finally{
+      for(const stack of pluginFormatStacks.current.values())for(const entry of stack)entry.dispose();
+      for(const dispose of pluginViewCleanups.current.values())dispose();
+      pluginFormatStacks.current.clear();pluginViewCleanups.current.clear();setPluginFormats({});
+      pluginStops.current.clear();pluginManifests.current.clear();setEnabledPlugins([]);setPluginCommands([]);
+    }
   }
   const dialog=useDialog();
   settingsRef.current=settings;
@@ -460,7 +471,9 @@ export function App(){
   async function togglePlugin(id:string){
     if(pluginStarting.current.has(id))return;
     if(enabledPlugins.includes(id)){
-      await pluginStops.current.get(id)?.stop();clearPluginExtensions(id);pluginStops.current.delete(id);pluginManifests.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));setPluginCommands(c=>c.filter(p=>p.plugin!==id));return;
+      try{await pluginStops.current.get(id)?.stop();}
+      finally{clearPluginExtensions(id);pluginStops.current.delete(id);pluginManifests.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));setPluginCommands(c=>c.filter(p=>p.plugin!==id));}
+      return;
     }
     const plugin=pluginList.find(p=>p.manifest.id===id);if(!plugin)return;
     const renderer=pluginModes[id]==='renderer';
@@ -695,9 +708,9 @@ export function App(){
       if(!indexed)return <div className="empty workspace-empty"><Network size={30}/><h1>Graph unavailable</h1><p>The knowledge graph needs the notes index, which failed to start. Reload to try again.</p></div>;
       return <Graph notes={notes} index={indexed} active={path.startsWith('@local:')?path.slice(7):recent.find(p=>isNote(p))||''} onOpen={open} local={path.startsWith('@local:')}/>;
     }
+    if(path.startsWith('web:'))return <section className="web-view"><header><Globe size={16}/><span>{path.slice(4)}</span><a href={path.slice(4)} target="_blank" rel="noreferrer">Open in browser<ExternalLink size={13}/></a></header><p className="web-notice">This site may block embedding. Use “Open in browser” if the page is blank.</p><iframe title="Web viewer" src={path.slice(4)} sandbox="allow-scripts allow-forms allow-same-origin" referrerPolicy="no-referrer"/></section>;
     const customView=pluginViewFor(path);
     if(customView)return <PluginViewHost path={path} viewType={customView.viewType} controller={pluginStops.current.get(customView.pluginId)}/>;
-    if(path.startsWith('web:'))return <section className="web-view"><header><Globe size={16}/><span>{path.slice(4)}</span><a href={path.slice(4)} target="_blank" rel="noreferrer">Open in browser<ExternalLink size={13}/></a></header><p className="web-notice">This site may block embedding. Use “Open in browser” if the page is blank.</p><iframe title="Web viewer" src={path.slice(4)} sandbox="allow-scripts allow-forms allow-same-origin" referrerPolicy="no-referrer"/></section>;
     if(!note){
       if(path&&entries.some(e=>e.path===path&&!e.folder))return <Attachment path={path}/>;
       return <div className="empty workspace-empty"><Logo/><h1>A place to think</h1><p>Create a note, open a vault, or follow an idea.<br/>Your files stay yours.</p><button className="primary" onClick={()=>createNote()}><Plus size={15}/>Create a note</button><button onClick={()=>chooseVault()}><Folder size={15}/>Open local vault</button><small>{bridge.desktop?'Local-first · Markdown · MIT':'Temporary preview · Install desktop for local files'}</small></div>;

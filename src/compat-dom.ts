@@ -123,7 +123,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     async setViewState(state:any,parent?:HTMLElement){if(!state||typeof state.type!=='string')throw new Error('Invalid view state');const factory=factories.get(state.type);if(!factory)return unsupported('View type '+state.type);
       await this.detachView();this.view=factory(this);if(!(this.view instanceof View)){this.view=null;throw new Error('View factory must return View');}
       try{await this.view.load();await this.view.onOpen();await this.view.setState(state.state||{},{history:false});
-        const header=element('header',undefined,'plugin-view-header');this.containerEl.prepend(header);const title=element('strong',header);title.textContent=this.view.getDisplayText();const close=element('button',header);close.textContent='×';close.setAttribute('aria-label','Close '+title.textContent);close.addEventListener('click',()=>safe(()=>this.detach())());(parent??host('plugin-views')).append(this.containerEl);
+        const header=element('header',undefined,'plugin-view-header');this.containerEl.prepend(header);const title=element('strong',header);title.textContent=this.view.getDisplayText();if(!parent){const close=element('button',header);close.textContent='×';close.setAttribute('aria-label','Close '+title.textContent);close.addEventListener('click',()=>safe(()=>this.detach())());}(parent??host('plugin-views')).append(this.containerEl);
       }catch(error){await this.detach();throw error;}
     }
     getViewState(){return {type:this.view?.getViewType(),state:this.view?.getState(),active:this.containerEl.isConnected};}
@@ -158,7 +158,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     updateOptions(){onExtensions([...extensions]);},
     registerView(type:string,factory:(leaf:any)=>any){if(typeof type!=='string'||!type||typeof factory!=='function')throw new Error('Invalid view registration');if(factories.has(type))throw new Error('View already registered');factories.set(type,factory);return()=>{factories.delete(type);};},
     registerExtensions(extensions:string[],viewType:string){
-      if(!Array.isArray(extensions)||!extensions.length||extensions.some(extension=>typeof extension!=='string'||!/^\.?[a-z0-9][a-z0-9._-]*$/i.test(extension)))throw new Error('Invalid extensions');
+      if(!Array.isArray(extensions)||!extensions.length||extensions.some(extension=>typeof extension!=='string'||!/^\.?[a-z0-9][a-z0-9_-]*$/i.test(extension)))throw new Error('Invalid extensions');
       if(typeof viewType!=='string'||!viewType)throw new Error('Invalid view type');
       if(!factories.has(viewType))throw new Error('View type not registered: '+viewType);
       const normalized=extensions.map(extension=>extension.replace(/^\./,'').toLowerCase());
