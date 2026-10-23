@@ -1,5 +1,24 @@
 # Verification results
 
+## Metadata cache events
+
+This section records MetadataCache event delivery.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 800 passed (38 files) | changed/deleted/resolved + rejection cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| targeted e2e | no app regression | Event path is inert without listeners |
+
+`app.metadataCache.on` accepts `changed`, `deleted` and `resolved`; other event names reject.
+`resolved` fires once after plugin startup. `sync` emits `changed(file, content, null)` for
+new or modified notes and `deleted(file, null)` for notes removed from the snapshot; the
+cache argument is null because exact cache positions/shapes remain unsupported.
+`getFileCache`, `getCache`, `fileToLinktext`, `resolvedLinks` and `unresolvedLinks` still
+reject explicitly. `on` is added to the MetadataCache subset baseline. `tests/compatibility.test.ts`
+covers the three events and the rejection boundary.
+
 ## Compatibility Bases views
 
 This section records custom `.base` view registration and mounting.

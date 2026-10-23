@@ -74,6 +74,31 @@ describe('public export inventory and explicit boundaries',()=>{
     expect(()=>{const value=object[member];if(typeof value==='function')value.call(object);}).toThrow(CompatibilityError);
   });
 });
+describe('metadata cache events',()=>{
+  it('emits changed, deleted and resolved with a null cache',async()=>{
+    const h=harness(),events:string[]=[];
+    class Fixture extends h.api.Plugin {
+      onload(){
+        this.registerEvent(this.app.metadataCache.on('resolved',()=>events.push('resolved')));
+        this.registerEvent(this.app.metadataCache.on('changed',(file:any,data:string)=>events.push('changed:'+file.path+':'+data)));
+        this.registerEvent(this.app.metadataCache.on('deleted',(file:any)=>events.push('deleted:'+file.path)));
+      }
+    }
+    await h.runtime.boot(Fixture);
+    expect(events).toContain('resolved');
+    h.runtime.sync({...initial(),notes:[{path:'Folder/One.md',content:'changed'},{path:'Two.md',content:'two'}]});
+    expect(events).toContain('changed:Folder/One.md:changed');
+    expect(events).not.toContain('changed:Two.md:two');
+    h.runtime.sync({...initial(),notes:[{path:'Folder/One.md',content:'changed'}]});
+    expect(events).toContain('deleted:Two.md');
+  });
+  it('rejects other metadata cache events and exact cache readers',()=>{
+    const h=harness();
+    expect(()=>h.runtime.app.metadataCache.on('file-open',()=>{})).toThrow('MetadataCache event file-open');
+    expect(()=>h.runtime.app.metadataCache.getFileCache()).toThrow(CompatibilityError);
+  });
+});
+
 describe('documented command callback rules',()=>{
   it('prefixes commands and prioritizes editorCheckCallback',async()=>{
     const h=harness(),seen:string[]=[];
@@ -251,7 +276,7 @@ describe('unsupported methods fail, not no-op',()=>{
   it('renderer-only workspace leaf methods require host.ui',()=>{const h=harness();for(const method of ['getLeaf','getRightLeaf','getLeavesOfType','revealLeaf'])expect(()=>{const value=(h.runtime.app.workspace as any)[method];if(typeof value==='function')value.call(h.runtime.app.workspace);}).toThrow(CompatibilityError);});
   it('rejects undocumented app/workspace/cache access and unsupported events',()=>{
     const h=harness();
-    for(const op of [()=>h.runtime.app.fileManager,()=>h.runtime.app.vault.adapter,()=>h.runtime.app.metadataCache.getCache('Two.md'),()=>h.runtime.app.workspace.on('layout-change',()=>{}),()=>h.runtime.app.metadataCache.on('changed',()=>{})])expect(op).toThrow(CompatibilityError);
+    for(const op of [()=>h.runtime.app.fileManager,()=>h.runtime.app.vault.adapter,()=>h.runtime.app.metadataCache.getCache('Two.md'),()=>h.runtime.app.workspace.on('layout-change',()=>{})])expect(op).toThrow(CompatibilityError);
   });
 });
 describe('documented utility subsets',()=>{
