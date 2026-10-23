@@ -26,6 +26,7 @@ export interface CompatHost {
     ribbonIcon?(icon:string,title:string,callback:(event:MouseEvent)=>void):HTMLElement;
     registerView(type:string,factory:(leaf:any)=>any):()=>void;
     registerExtensions?(extensions:string[],viewType:string):()=>void;
+    editorSuggest?(suggest:unknown):()=>void;
     postProcessor?(callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
     codeProcessor?(language:string,callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
   };
@@ -191,6 +192,21 @@ export interface CompatCommand {
   hotkeys?:unknown;icon?:unknown;repeatable?:boolean;mobileOnly?:boolean;
 }
 /** Construct an original snapshot-based plugin runtime with explicit host operations and optional trusted UI. */
+export interface EditorPosition {line:number;ch:number}
+export interface EditorSuggestTriggerInfo {start:EditorPosition;end:EditorPosition;query?:string}
+export interface EditorSuggestContext {editor:Editor;file:TFile|null;query:string;start:EditorPosition;end:EditorPosition}
+/** Bounded EditorSuggest base: trigger, suggestions and selection are bridged by the renderer host. */
+export class EditorSuggest<T=unknown> {
+  context:EditorSuggestContext|null=null;
+  limit=50;
+  onTrigger(_editor:Editor,_cm:Editor,_file:TFile|null):EditorSuggestTriggerInfo|null{return null;}
+  getSuggestions(_context:EditorSuggestContext):T[]|Promise<T[]>{return [];}
+  getSuggestionDisplayText(value:T):string{const label=(value as {label?:unknown})?.label;return typeof value==='string'?value:typeof label==='string'?label:String(value);}
+  renderSuggestion(_value:T,_el:HTMLElement):void{}
+  selectSuggestion(_value:T,_evt:MouseEvent|KeyboardEvent):void{}
+  close():void{}
+  setInstructions(_instructions:unknown[]):void{}
+}
 export function createCompatibilityRuntime(manifest:PluginManifest,initial:PluginSnapshot,host:CompatHost){
   let snapshot=initial,plugin:InstanceType<typeof Plugin>|undefined,unloaded=false,editor:Editor|null=null;
   const pending=new Set<Promise<unknown>>(),commands=new Map<string,CompatCommand>(),objects=new Map<string,TAbstractFile>();
@@ -375,7 +391,10 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
       if(!host.ui)return unsupported('Plugin.registerEditorExtension');
       this.register(host.ui.editorExtension(extension));
     }
-    registerEditorSuggest(){return unsupported('Plugin.registerEditorSuggest');}
+    registerEditorSuggest(suggest:unknown){
+      if(!host.ui?.editorSuggest)return unsupported('Plugin.registerEditorSuggest');
+      this.register(host.ui.editorSuggest(suggest));
+    }
     /** Register a renderer-only callback and attach its disposal to this plugin's lifecycle. */
     registerMarkdownPostProcessor(callback:any,sortOrder?:number){if(!host.ui?.postProcessor)return unsupported('Plugin.registerMarkdownPostProcessor');const registration=host.ui.postProcessor(callback,sortOrder);this.register(registration.dispose);return registration.processor;}
     /** Register a renderer-only fenced-code handler with the same lifecycle ownership. */

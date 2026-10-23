@@ -4,7 +4,7 @@ import {EditorView,keymap,lineNumbers,highlightActiveLine,drawSelection} from '@
 import {markdown,markdownKeymap} from '@codemirror/lang-markdown';
 import {defaultKeymap,history,historyKeymap,indentWithTab} from '@codemirror/commands';
 import {searchKeymap,highlightSelectionMatches} from '@codemirror/search';
-import {autocompletion,CompletionContext} from '@codemirror/autocomplete';
+import {autocompletion,CompletionContext,type CompletionResult} from '@codemirror/autocomplete';
 import {syntaxHighlighting,HighlightStyle} from '@codemirror/language';
 import {tags as syntaxTags} from '@lezer/highlight';
 import {isNote,tags,title,frontmatter} from './knowledge';
@@ -33,9 +33,9 @@ function wrap(view:EditorView,marker:string) {
 }
 /** Read the document offset at the top of the editor's visible area. */
 function viewportTop(v:EditorView){const rect=v.scrollDOM.getBoundingClientRect();const pos=v.posAtCoords({x:rect.left+2,y:rect.top+2});return Math.max(0,Math.min(v.state.doc.length,pos??0));}
-export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Settings;pluginExtensions?:Extension[];session?:EditorSession;slashCommands?:SlashCommandsService;onChange:(content:string)=>void;onOpen:(target:string)=>void;onCommand:(command:string)=>void}>(
+export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Settings;pluginExtensions?:Extension[];session?:EditorSession;slashCommands?:SlashCommandsService;onChange:(content:string)=>void;onOpen:(target:string)=>void;onCommand:(command:string)=>void;suggest?:(context:CompletionContext)=>CompletionResult|null|Promise<CompletionResult|null>}>(
 /** Maintain the current CodeMirror document and independently refresh only external preview dependencies. */
-function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,onChange,onOpen,onCommand},handle) {
+function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,onChange,onOpen,onCommand,suggest},handle) {
   const container=useRef<HTMLDivElement>(null),view=useRef<EditorView>();
   const pluginCompartment=useRef(new Compartment());
   const sessionRef=useRef(session);
@@ -44,7 +44,7 @@ function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,o
   const meta=frontmatter(note.content),hideMeta=settings.mode==='live'&&!meta.error;
   const viewContent=hideMeta?meta.body:note.content;
   const prefix=useRef('');prefix.current=hideMeta?meta.raw:'';
-  const callbacks=useRef({onChange,onOpen,onCommand,notes});callbacks.current={onChange,onOpen,onCommand,notes};
+  const callbacks=useRef({onChange,onOpen,onCommand,notes,suggest});callbacks.current={onChange,onOpen,onCommand,notes,suggest};
   const external=useRef(false);
   const notePath=useRef(note.path);notePath.current=note.path;
   const hideMetaRef=useRef(hideMeta);hideMetaRef.current=hideMeta;
@@ -77,7 +77,7 @@ function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,o
       if(!settings.disabledPlugins.includes('slash') && slash && slashCommands && (slash.from===0 || /\s/.test(context.state.sliceDoc(slash.from-1,slash.from))))return {from:slash.from,options:slashCommands.list().map(command=>command.action==='insert-template'
         ? {label:command.label,detail:command.detail,apply:(v:EditorView,_c:any,from:number,to:number)=>{v.dispatch({changes:{from,to,insert:''}});callbacks.current.onCommand('insert-template');}}
         : {label:command.label,detail:command.detail,apply:command.insert??''})};
-      return null;
+      return callbacks.current.suggest?.(context)??null;
     };
     const editor=new EditorView({
       parent:container.current!,state:EditorState.create({doc:viewContent,extensions:[

@@ -1,7 +1,7 @@
 /* Original public-contract adapters. No proprietary SDK or plugin implementation. */
-import {Component,unsupported} from './compat-core';
+import {Component,Editor,EditorSuggest,unsupported} from './compat-core';
 import {MarkdownRenderChild,createMarkdownRenderer,registerPostProcessor,registerCodeProcessor,stopProcessors} from './markdown-plugins';
-export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','WorkspaceLeaf','MarkdownRenderChild','MarkdownRenderer'] as const;
+export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','WorkspaceLeaf','EditorSuggest','MarkdownRenderChild','MarkdownRenderer'] as const;
 export interface PluginTab {id:string;name:string;containerEl:HTMLElement;display():void;hide():void}
 const element=(tag:string,parent?:HTMLElement,cls='')=>{const el=document.createElement(tag);el.className=cls;parent?.append(el);return el;};
 export function installDomHelpers(){
@@ -28,9 +28,9 @@ export function installDomHelpers(){
   for(const [name,value]of Object.entries(methods))if(!(name in HTMLElement.prototype))Object.defineProperty(HTMLElement.prototype,name,{value,configurable:true,writable:true});
 }
 /** Create plugin-owned trusted-renderer UI hooks; this adapter is not an isolation boundary. */
-export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,onFileExtensions?:(extensions:string[],viewType?:string)=>void){
+export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,onFileExtensions?:(extensions:string[],viewType?:string)=>void,applyEditorEdit?:(base:string,text:string,from:number,to:number)=>Promise<unknown>){
   installDomHelpers();
-  const resources=new Set<HTMLElement>(),modals=new Set<any>(),tabs=new Set<any>(),extensions:unknown[]=[],factories=new Map<string,(leaf:any)=>any>(),leaves=new Set<any>(),extensionViews=new Map<string,string>();
+  const resources=new Set<HTMLElement>(),modals=new Set<any>(),tabs=new Set<any>(),extensions:unknown[]=[],factories=new Map<string,(leaf:any)=>any>(),leaves=new Set<any>(),extensionViews=new Map<string,string>(),suggests=new Set<EditorSuggest<any>>();
   const processors=new Set<ReturnType<typeof registerPostProcessor>>();
   let processorsStopped=false;
   /** Keep registration handles private to this plugin and remove them after disposal. */
@@ -132,7 +132,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   return {
     setApp(value:any){app=value;},
-    exports:{Modal,SettingTab,PluginSettingTab,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app)},
+    exports:{Modal,SettingTab,PluginSettingTab,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf,EditorSuggest,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app)},
     /** Bind reading post-processors to this plugin's error and lifecycle ownership. */
     postProcessor(callback:any,sortOrder?:number){if(processorsStopped)throw new Error('Plugin Markdown processors are stopped');return ownProcessor(registerPostProcessor(callback,sortOrder,onError));},
     /** Bind named code-block handlers to the same reading registry. */
@@ -157,6 +157,25 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     editorExtension(extension:unknown){extensions.push(extension);onExtensions([...extensions]);return()=>{const i=extensions.indexOf(extension);if(i>=0)extensions.splice(i,1);onExtensions([...extensions]);};},
     updateOptions(){onExtensions([...extensions]);},
     registerView(type:string,factory:(leaf:any)=>any){if(typeof type!=='string'||!type||typeof factory!=='function')throw new Error('Invalid view registration');if(factories.has(type))throw new Error('View already registered');factories.set(type,factory);return()=>{factories.delete(type);};},
+    editorSuggest(suggest:EditorSuggest<any>){
+      if(!(suggest instanceof EditorSuggest))throw new Error('Expected EditorSuggest');
+      suggests.add(suggest);
+      return()=>{suggests.delete(suggest);suggest.close();};
+    },
+    /** Query registered editor suggests against the current document text and position. */
+    async queryEditorSuggest(text:string,pos:number){
+      const file=app?.workspace?.getActiveFile?.()??null;
+      for(const suggest of suggests){
+        const editor=new Editor({text,from:pos,to:pos},(base,next,from,to)=>applyEditorEdit?applyEditorEdit(base,next,from,to):Promise.reject(new Error('Editor edits unavailable')));
+        const trigger=suggest.onTrigger(editor,editor,file);
+        if(!trigger)continue;
+        const start=editor.posToOffset(trigger.start),end=editor.posToOffset(trigger.end);
+        suggest.context={editor,file,query:editor.getValue().slice(start,end),start:trigger.start,end:trigger.end};
+        const items=await suggest.getSuggestions(suggest.context);
+        return {from:start,options:(items??[]).slice(0,suggest.limit||50).map((item:any)=>({label:suggest.getSuggestionDisplayText(item),detail:'',apply:()=>{suggest.selectSuggestion(item,new MouseEvent('click'));}}))};
+      }
+      return null;
+    },
     registerExtensions(extensions:string[],viewType:string){
       if(!Array.isArray(extensions)||!extensions.length||extensions.some(extension=>typeof extension!=='string'||!/^\.?[a-z0-9][a-z0-9_-]*$/i.test(extension)))throw new Error('Invalid extensions');
       if(typeof viewType!=='string'||!viewType)throw new Error('Invalid view type');
@@ -174,6 +193,6 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       return {element:leaf.containerEl,dispose:()=>{void leaf.detach();}};
     },
     /** Dispose processor children, visible UI and editor registrations after owner stop. */
-    async dispose(){processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach();for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
+    async dispose(){processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach();for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();for(const suggest of suggests)suggest.close();suggests.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
   };
 }

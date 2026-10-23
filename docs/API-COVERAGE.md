@@ -1,6 +1,6 @@
 # Public API export coverage
 
-Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 27 bounded runtime symbols. Explicit opt-in trusted renderer: 45 bounded runtime symbols (18 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
+Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 27 bounded runtime symbols. Explicit opt-in trusted renderer: 46 bounded runtime symbols (19 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
 
 | Symbol | Kind | Default Worker | Trusted renderer | Public documentation |
 |---|---|---|---|---|
@@ -82,7 +82,7 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | BasesView | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [BasesView](https://docs.obsidian.md/Reference/TypeScript+API/BasesView) |
 | EditableFileView | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [EditableFileView](https://docs.obsidian.md/Reference/TypeScript+API/EditableFileView) |
 | Editor | Abstract Classes | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [Editor](https://docs.obsidian.md/Reference/TypeScript+API/Editor) |
-| EditorSuggest | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [EditorSuggest](https://docs.obsidian.md/Reference/TypeScript+API/EditorSuggest) |
+| EditorSuggest | Abstract Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [EditorSuggest](https://docs.obsidian.md/Reference/TypeScript+API/EditorSuggest) |
 | FileView | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [FileView](https://docs.obsidian.md/Reference/TypeScript+API/FileView) |
 | FuzzySuggestModal | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [FuzzySuggestModal](https://docs.obsidian.md/Reference/TypeScript+API/FuzzySuggestModal) |
 | ItemView | Abstract Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [ItemView](https://docs.obsidian.md/Reference/TypeScript+API/ItemView) |

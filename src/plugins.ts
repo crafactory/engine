@@ -2,12 +2,17 @@ import workerScript from './plugin-worker.ts?worker&url';
 import type {PluginManifest} from './types';
 import type {PluginSnapshot} from './compat-core';
 export interface PluginCommand {id:string;label:string;run:()=>void;plugin:string}
+export interface EditorSuggestOption {label:string;detail?:string;apply:()=>void|Promise<void>}
+export interface EditorSuggestResult {from:number;options:EditorSuggestOption[]}
+
 export interface PluginController {
   ready:Promise<void>;
   sync(snapshot:PluginSnapshot):void;
   stop():Promise<void>;
   /** Renderer-only: mount a registered custom view into a host element. */
   mountView?(viewType:string,path:string,parent:HTMLElement):Promise<{element:HTMLElement;dispose():void}>;
+  /** Renderer-only: query registered editor suggests at a document position. */
+  editorSuggest?(text:string,pos:number):EditorSuggestResult|null|Promise<EditorSuggestResult|null>;
 }
 /** CommonJS is wrapped as original source text, not eval/Function and not a proprietary SDK. */
 export function startPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,onCommands:(commands:PluginCommand[])=>void,
