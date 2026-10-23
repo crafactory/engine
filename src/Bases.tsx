@@ -9,9 +9,10 @@ export function Bases({note,notes,entries,onOpen,onChange,onNoteChange,ask,plugi
   const [viewIndex,setViewIndex]=useState(0),[query,setQuery]=useState(''),[sort,setSort]=useState('file.name'),[desc,setDesc]=useState(false);
   const data=useMemo(()=>{try{return {base:parse(note.content)||{},error:''};}catch(e){return {base:{},error:String(e)};}},[note.content]);
   const view=data.base.views?.[viewIndex]||{type:'table',name:'All notes'};
+  const pluginBase=pluginBases&&Object.prototype.hasOwnProperty.call(pluginBases,view.type)?pluginBases[view.type]:undefined;
   const columns:string[]=view.order||['file.name','note.status','note.tags','file.folder'];
   const result=useMemo(()=>{
-    if(pluginBases?.[view.type])return {rows:[] as Note[],cells:{} as Record<string,Record<string,any>>,error:''};
+    if(pluginBase)return {rows:[] as Note[],cells:{} as Record<string,Record<string,any>>,error:''};
     let error=data.error;
     const cells:Record<string,Record<string,any>>={};
     let rows:Note[]=[];
@@ -27,7 +28,7 @@ export function Bases({note,notes,entries,onOpen,onChange,onNoteChange,ask,plugi
       if(view.limit)rows=rows.slice(0,Number(view.limit));
     }catch(e){error=String(e);rows=[];}
     return {rows,cells,error};
-  },[note.content,notes,entries,query,viewIndex,sort,desc,pluginBases,view]);
+  },[note.content,notes,entries,query,viewIndex,sort,desc,pluginBase,view]);
   function display(value:any){return Array.isArray(value)?value.join(', '):value===null||value===undefined?'':String(value);}
   async function edit(n:Note,column:string) {
     if(column.startsWith('file.')||column.startsWith('formula.'))return;
@@ -42,13 +43,13 @@ export function Bases({note,notes,entries,onOpen,onChange,onNoteChange,ask,plugi
   }
   return <section className="bases-view"><header className="bases-toolbar"><div className="base-views">{(data.base.views||[{name:'All notes',type:'table'}]).map((v:any,index:number)=><button key={index} className={index===viewIndex?'selected':''} onClick={()=>setViewIndex(index)}>{v.type==='cards'?<LayoutGrid size={14}/>:v.type==='list'?<List size={14}/>:<Table2 size={14}/>} {v.name}</button>)}
       <button aria-label="Add view" onClick={async()=>{const name=await ask('View name','New view');if(name){const type=await ask('View type: table, cards, list','table');if(type&&['table','cards','list'].includes(type))onChange(stringify({...data.base,views:[...(data.base.views||[]),{type,name,order:columns}]}));}}}><Plus size={15}/></button></div>
-      <label className="input-icon"><Filter size={14}/><input aria-label="Filter base" value={query} placeholder="Filter rows…" onChange={e=>setQuery(e.target.value)} data-testid="base-filter"/></label><button onClick={exportCsv}><Download size={14}/>CSV</button></header>
+      <label className="input-icon"><Filter size={14}/><input aria-label="Filter base" value={query} placeholder="Filter rows…" onChange={e=>setQuery(e.target.value)} data-testid="base-filter"/></label>{!pluginBase&&<button onClick={exportCsv}><Download size={14}/>CSV</button>}</header>
     {result.error?<div className="empty"><h2>Cannot evaluate this base</h2><p>{result.error}</p><p>Switch to source mode to inspect the definition. Unsupported expressions are not silently ignored.</p></div>:
-      pluginBases?.[view.type]?<PluginBasesHost controller={pluginBases[view.type].controller} id={pluginBases[view.type].id} config={view}/>:
+      pluginBase?<PluginBasesHost controller={pluginBase.controller} id={pluginBase.id} config={view}/>:
       view.type==='cards'?<div className="base-cards">{result.rows.map(n=><article key={n.path}><button onClick={()=>onOpen(n.path)}>{title(n.path)}</button>{columns.filter(c=>c!=='file.name').map(c=><p key={c}><span>{c.replace(/^note\./,'')}</span>{display(result.cells[n.path][c])}</p>)}</article>)}</div>:
       view.type==='list'?<div className="base-list">{result.rows.map(n=><button key={n.path} onClick={()=>onOpen(n.path)}>{title(n.path)}<span>{n.path}</span></button>)}</div>:
       <div className="table-scroll"><table className="base-table" data-testid="base-table"><thead><tr>{columns.map(c=><th key={c}><button onClick={()=>{setSort(c);setDesc(sort===c?!desc:false);}}>{data.base.properties?.[c]?.displayName||c.replace(/^(note|file)\./,'')}{sort===c?(desc?' ↓':' ↑'):''}</button></th>)}</tr></thead><tbody>{result.rows.map(n=><tr key={n.path}>{columns.map(c=><td key={c}>{c==='file.name'?<button className="table-note" onClick={()=>onOpen(n.path)}>{title(n.path)}</button>:<button onClick={()=>edit(n,c)} disabled={c.startsWith('file.')||c.startsWith('formula.')}>{display(result.cells[n.path][c])||'—'}</button>}</td>)}</tr>)}</tbody></table></div>}
-    <footer className="view-footer">{result.rows.length} notes · Properties are stored in YAML frontmatter</footer>
+    {!pluginBase&&<footer className="view-footer">{result.rows.length} notes · Properties are stored in YAML frontmatter</footer>}
   </section>;
 }
 

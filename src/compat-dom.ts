@@ -212,6 +212,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     },
     basesView(id:string,factory:(controller:QueryController)=>unknown){
       if(typeof id!=='string'||!id||typeof factory!=='function')throw new Error('Invalid Bases view');
+      if(['table','cards','list'].includes(id))throw new Error('Reserved Bases view id: '+id);
       basesFactories.set(id,factory);
       return()=>{if(basesFactories.get(id)===factory)basesFactories.delete(id);};
     },
@@ -220,11 +221,11 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     mountBasesView(id:string,container:HTMLElement,config:unknown){
       const factory=basesFactories.get(id);if(!factory)throw new Error('Bases view not registered: '+id);
       const controller=new QueryController(app,id,config);
-      const view=factory(controller) as BasesView;
+      const view=factory(controller) as {render(container:HTMLElement):void;onload?():void;onunload?():void};
       if(!view||typeof view.render!=='function')throw new Error('Bases factory must return a view with render');
-      view.onload();
-      view.render(container);
-      return {dispose:()=>{try{view.onunload();}finally{container.replaceChildren();}}};
+      try{view.onload?.();view.render(container);}
+      catch(error){try{view.onunload?.();}finally{container.replaceChildren();}throw error;}
+      return {dispose:()=>{try{view.onunload?.();}finally{container.replaceChildren();}}};
     },
     registerExtensions(extensions:string[],viewType:string){
       if(!Array.isArray(extensions)||!extensions.length||extensions.some(extension=>typeof extension!=='string'||!/^\.?[a-z0-9][a-z0-9_-]*$/i.test(extension)))throw new Error('Invalid extensions');

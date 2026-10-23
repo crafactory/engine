@@ -12,13 +12,15 @@ This section records custom `.base` view registration and mounting.
 | desktop renderer e2e | **10 passed** | Fixture Bases view mounts and unmounts |
 
 `Plugin.registerBasesView(id, factory)` validates and registers cleanup in the renderer
-host. The Bases surface resolves `views[].type` against registered ids and mounts the
-factory with a minimal `QueryController` (`type`, `config`, `app`), then calls
-`view.onload()` / `view.render(container)`; disabling the plugin disposes the view and
-removes its registration. The fixture's `Test.base` renders "Fixture bases view" and
-unmounts on disable. Full query data, grouping, sorting and `BasesConfig` semantics are not
-implemented; a `.base` view type without a native or plugin implementation still shows the
-explicit unsupported-type error.
+host; `table`, `cards` and `list` are reserved ids. The Bases surface resolves
+`views[].type` against registered ids (own-property lookup), mounts the factory with a
+minimal `QueryController` (`type`, `config`, `app`), then calls optional `onload()` and
+required `render(container)`; startup failures call the optional `onunload()` and clear the
+container before rethrowing. Disabling the plugin disposes the view and removes its
+registration. Built-in CSV export and the row-count footer are hidden for plugin views.
+The fixture's `Test.base` renders "Fixture bases view" and unmounts on disable. Full query
+data, grouping, sorting and `BasesConfig` semantics are not implemented; a `.base` view type
+without a native or plugin implementation still shows the explicit unsupported-type error.
 
 ## Compatibility protocol and hover registration
 
