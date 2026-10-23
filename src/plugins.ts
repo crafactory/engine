@@ -15,6 +15,10 @@ export interface PluginController {
   editorSuggest?(text:string,pos:number):EditorSuggestResult|null|Promise<EditorSuggestResult|null>;
   /** Renderer-only: dispatch an obsidian:// protocol URL to this plugin's handlers. */
   dispatchProtocol?(url:string):Promise<boolean|void>;
+  /** Renderer-only: registered Bases view ids. */
+  basesViews?(): string[];
+  /** Renderer-only: mount a registered Bases view into a container. */
+  mountBasesView?(id:string,container:HTMLElement,config:unknown):{dispose():void};
 }
 /** CommonJS is wrapped as original source text, not eval/Function and not a proprietary SDK. */
 export function startPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,onCommands:(commands:PluginCommand[])=>void,

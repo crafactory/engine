@@ -1,5 +1,5 @@
 // Original MIT test fixture, not copied from a community plugin or SDK.
-const {Plugin,PluginSettingTab,Setting,Modal,ItemView,EditorSuggest}=require('obsidian');
+const {Plugin,PluginSettingTab,Setting,Modal,ItemView,EditorSuggest,BasesView}=require('obsidian');
 const {EditorView}=require('@codemirror/view');
 const {StateField}=require('@codemirror/state');
 class FixtureModal extends Modal {
@@ -12,6 +12,9 @@ class FixtureView extends ItemView {
   onOpen(){this.contentEl.setText('Independent view opened');}
   setState(state){if(state?.file){this.file=state.file;this.contentEl.setText('Fixture file: '+this.file);}}
   getState(){return {file:this.file};}
+}
+class FixtureBasesView extends BasesView {
+  render(container){container.createDiv({text:'Fixture bases view'});}
 }
 class FixtureSuggest extends EditorSuggest {
   constructor(app){super(app);this.limit=5;}
@@ -50,6 +53,7 @@ module.exports=class extends Plugin {
     this.registerEditorSuggest(new FixtureSuggest(this.app));
     this.registerObsidianProtocolHandler('fixture-protocol',params=>this.status.setText('Protocol '+(params.value||'')));
     this.registerHoverLinkSource('fixture-hover',{display:'Fixture hover',defaultMod:true});
+    this.registerBasesView('fixture-bases',controller=>new FixtureBasesView(controller));
     this.addCommand({id:'protocol',name:'Dispatch protocol',callback:()=>window.dispatchEvent(new CustomEvent('engine:protocol',{detail:'obsidian://fixture-protocol?value=ok'}))});
     this.addCommand({id:'view',name:'Open view',callback:async()=>{const leaf=this.app.workspace.getRightLeaf(false);await leaf.setViewState({type:'fixture-view'});await this.app.workspace.revealLeaf(leaf);}});
     this.addCommand({id:'modal',name:'Open modal',callback:()=>new FixtureModal(this.app).open()});

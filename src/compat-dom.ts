@@ -1,8 +1,22 @@
 /* Original public-contract adapters. No proprietary SDK or plugin implementation. */
 import {Component,Editor,EditorSuggest,unsupported} from './compat-core';
 import {MarkdownRenderChild,createMarkdownRenderer,registerPostProcessor,registerCodeProcessor,stopProcessors} from './markdown-plugins';
-export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','WorkspaceLeaf','EditorSuggest','MarkdownRenderChild','MarkdownRenderer'] as const;
+export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','WorkspaceLeaf','EditorSuggest','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer'] as const;
 export interface PluginTab {id:string;name:string;containerEl:HTMLElement;display():void;hide():void}
+/** Minimal QueryController: config and type only; query data is not implemented. */
+export class QueryController {
+  constructor(public app:unknown,public type:string,public config:unknown){}
+}
+/** Minimal BasesView base; plugins implement render(container). */
+export class BasesView {
+  constructor(public controller:QueryController){}
+  get type(){return this.controller?.type??'';}
+  get name(){return '';}
+  get icon(){return '';}
+  render(_container:HTMLElement):void{}
+  onload():void{}
+  onunload():void{}
+}
 const element=(tag:string,parent?:HTMLElement,cls='')=>{const el=document.createElement(tag);el.className=cls;parent?.append(el);return el;};
 export function installDomHelpers(){
   const methods:Record<string,Function>={
@@ -30,7 +44,7 @@ export function installDomHelpers(){
 /** Create plugin-owned trusted-renderer UI hooks; this adapter is not an isolation boundary. */
 export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,onFileExtensions?:(extensions:string[],viewType?:string)=>void,applyEditorEdit?:(base:string,text:string,from:number,to:number)=>Promise<unknown>){
   installDomHelpers();
-  const resources=new Set<HTMLElement>(),modals=new Set<any>(),tabs=new Set<any>(),extensions:unknown[]=[],factories=new Map<string,(leaf:any)=>any>(),leaves=new Set<any>(),extensionViews=new Map<string,string>(),suggests=new Set<EditorSuggest<any>>(),protocolHandlers=new Map<string,(params:Record<string,string>)=>unknown>(),hoverSources=new Map<string,{display:string;defaultMod:boolean}>();
+  const resources=new Set<HTMLElement>(),modals=new Set<any>(),tabs=new Set<any>(),extensions:unknown[]=[],factories=new Map<string,(leaf:any)=>any>(),leaves=new Set<any>(),extensionViews=new Map<string,string>(),suggests=new Set<EditorSuggest<any>>(),protocolHandlers=new Map<string,(params:Record<string,string>)=>unknown>(),hoverSources=new Map<string,{display:string;defaultMod:boolean}>(),basesFactories=new Map<string,(controller:QueryController)=>unknown>();
   const processors=new Set<ReturnType<typeof registerPostProcessor>>();
   let processorsStopped=false;
   /** Keep registration handles private to this plugin and remove them after disposal. */
@@ -132,7 +146,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   return {
     setApp(value:any){app=value;},
-    exports:{Modal,SettingTab,PluginSettingTab,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf,EditorSuggest,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app)},
+    exports:{Modal,SettingTab,PluginSettingTab,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf,EditorSuggest,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app)},
     /** Bind reading post-processors to this plugin's error and lifecycle ownership. */
     postProcessor(callback:any,sortOrder?:number){if(processorsStopped)throw new Error('Plugin Markdown processors are stopped');return ownProcessor(registerPostProcessor(callback,sortOrder,onError));},
     /** Bind named code-block handlers to the same reading registry. */
@@ -196,6 +210,22 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       hoverSources.set(id,{...source});
       return()=>{hoverSources.delete(id);};
     },
+    basesView(id:string,factory:(controller:QueryController)=>unknown){
+      if(typeof id!=='string'||!id||typeof factory!=='function')throw new Error('Invalid Bases view');
+      basesFactories.set(id,factory);
+      return()=>{if(basesFactories.get(id)===factory)basesFactories.delete(id);};
+    },
+    basesViews(){return [...basesFactories.keys()];},
+    /** Mount a plugin Bases view into the provided container. */
+    mountBasesView(id:string,container:HTMLElement,config:unknown){
+      const factory=basesFactories.get(id);if(!factory)throw new Error('Bases view not registered: '+id);
+      const controller=new QueryController(app,id,config);
+      const view=factory(controller) as BasesView;
+      if(!view||typeof view.render!=='function')throw new Error('Bases factory must return a view with render');
+      view.onload();
+      view.render(container);
+      return {dispose:()=>{try{view.onunload();}finally{container.replaceChildren();}}};
+    },
     registerExtensions(extensions:string[],viewType:string){
       if(!Array.isArray(extensions)||!extensions.length||extensions.some(extension=>typeof extension!=='string'||!/^\.?[a-z0-9][a-z0-9_-]*$/i.test(extension)))throw new Error('Invalid extensions');
       if(typeof viewType!=='string'||!viewType)throw new Error('Invalid view type');
@@ -213,6 +243,6 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       return {element:leaf.containerEl,dispose:()=>{void leaf.detach();}};
     },
     /** Dispose processor children, visible UI and editor registrations after owner stop. */
-    async dispose(){processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach();for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();for(const suggest of suggests)suggest.close();suggests.clear();protocolHandlers.clear();hoverSources.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
+    async dispose(){processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach();for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();for(const suggest of suggests)suggest.close();suggests.clear();protocolHandlers.clear();hoverSources.clear();basesFactories.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
   };
 }
