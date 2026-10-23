@@ -207,6 +207,10 @@ export function App(){
     }catch(e){report(e);}finally{setLoading(false);}
   }
   useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);if(audioRuntime.current)void audioRuntime.current.service.dispose().catch(()=>{});for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();void uniqueNoteRuntime.current?.kernel.stop();void wordCountRuntime.current?.kernel.stop();void slidesRuntime.current?.kernel.stop();void converterRuntime.current?.kernel.stop();void composerRuntime.current?.kernel.stop();void webViewerRuntime.current?.kernel.stop();void slashRuntime.current?.kernel.stop();void pagePreviewRuntime.current?.kernel.stop();void audioRuntime.current?.kernel.stop();void viewsRuntime.current?.kernel.stop();uiUnsub.current?.();void uiRuntime.current?.kernel.stop();};},[]);
+  useEffect(()=>{
+    const handler=(event:Event)=>{const url=(event as CustomEvent<unknown>).detail;if(typeof url!=='string')return;for(const controller of pluginStops.current.values())void controller.dispatchProtocol?.(url);};
+    window.addEventListener('engine:protocol',handler);return()=>window.removeEventListener('engine:protocol',handler);
+  },[]);
   useEffect(()=>{for(const [id,controller] of pluginStops.current)controller.sync(pluginSnapshot(pluginManifests.current.get(id)));},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;

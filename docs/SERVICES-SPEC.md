@@ -296,7 +296,10 @@ plugins can also register an `EditorSuggest`: `onTrigger` and `getSuggestions` a
 from the editor's autocomplete source, `selectSuggestion` runs through the editor mutation
 host, and the host maps options to CodeMirror completions with filtering delegated to the
 plugin. Custom `renderSuggestion` UI is not reproduced; the display-text hook is used for
-the label.
+the label. `registerObsidianProtocolHandler` stores action handlers and dispatches
+`obsidian://action?...` URLs from the in-app `engine:protocol` window event; OS-level
+`obsidian://` registration is not wired. `registerHoverLinkSource` records and cleans up a
+source descriptor, but hover-link event transport is not wired yet.
 
 ## Composition
 

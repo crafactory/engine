@@ -64,6 +64,11 @@ test('renderer editor suggests bridge to CodeMirror autocomplete',async()=>{
   await popup.locator('li').filter({hasText:'Alpha'}).first().click();
   await expect(page.locator('.cm-content')).toContainText('@Alpha');
 });
+test('renderer protocol handlers dispatch through the app event',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  await command('Dispatch protocol');
+  await expect(page.locator('.plugin-status-item')).toHaveText('Protocol ok');
+});
 test('renderer CodeMirror extensions update real editor and unload all UI',async()=>{
   await enable();await expect(page.getByLabel('Runtime for Renderer fixture',{exact:true})).toBeDisabled();await page.getByTestId('settings-close').click();
   await command('DOM event');await expect(page.locator('.plugin-status-item')).toHaveText('DOM event');

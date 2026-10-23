@@ -13,6 +13,8 @@ export interface PluginController {
   mountView?(viewType:string,path:string,parent:HTMLElement):Promise<{element:HTMLElement;dispose():void}>;
   /** Renderer-only: query registered editor suggests at a document position. */
   editorSuggest?(text:string,pos:number):EditorSuggestResult|null|Promise<EditorSuggestResult|null>;
+  /** Renderer-only: dispatch an obsidian:// protocol URL to this plugin's handlers. */
+  dispatchProtocol?(url:string):Promise<boolean|void>;
 }
 /** CommonJS is wrapped as original source text, not eval/Function and not a proprietary SDK. */
 export function startPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,onCommands:(commands:PluginCommand[])=>void,
