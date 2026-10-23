@@ -14,7 +14,7 @@ export interface PluginController {
   /** Renderer-only: query registered editor suggests at a document position. */
   editorSuggest?(text:string,pos:number):EditorSuggestResult|null|Promise<EditorSuggestResult|null>;
   /** Renderer-only: dispatch an obsidian:// protocol URL to this plugin's handlers. */
-  dispatchProtocol?(url:string):Promise<boolean>;
+  dispatchProtocol?(url:string):Promise<boolean|void>;
 }
 /** CommonJS is wrapped as original source text, not eval/Function and not a proprietary SDK. */
 export function startPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,onCommands:(commands:PluginCommand[])=>void,
