@@ -1,5 +1,5 @@
 // Original MIT test fixture, not copied from a community plugin or SDK.
-const {Plugin,PluginSettingTab,Setting,Modal,ItemView}=require('obsidian');
+const {Plugin,PluginSettingTab,Setting,Modal,ItemView,EditorSuggest}=require('obsidian');
 const {EditorView}=require('@codemirror/view');
 const {StateField}=require('@codemirror/state');
 class FixtureModal extends Modal {
@@ -12,6 +12,19 @@ class FixtureView extends ItemView {
   onOpen(){this.contentEl.setText('Independent view opened');}
   setState(state){if(state?.file){this.file=state.file;this.contentEl.setText('Fixture file: '+this.file);}}
   getState(){return {file:this.file};}
+}
+class FixtureSuggest extends EditorSuggest {
+  constructor(app){super(app);this.limit=5;}
+  onTrigger(editor){
+    const cursor=editor.getCursor(),line=editor.getLine(cursor.line),match=line.slice(0,cursor.ch).match(/@(\w*)$/);
+    if(!match)return null;
+    return {start:{line:cursor.line,ch:cursor.ch-match[0].length},end:cursor};
+  }
+  getSuggestions(context){const query=context.query.replace(/^@/,'');return ['Alpha','Beta'].filter(value=>value.toLowerCase().startsWith(query.toLowerCase()));}
+  selectSuggestion(value){
+    const context=this.context;if(!context)return;
+    context.editor.replaceRange('@'+value,context.start,context.end);
+  }
 }
 class FixtureSettings extends PluginSettingTab {
   display(){
@@ -34,6 +47,7 @@ module.exports=class extends Plugin {
     this.addSettingTab(new FixtureSettings(this.app,this));
     this.registerView('fixture-view',leaf=>new FixtureView(leaf));
     this.registerExtensions(['fixture'],'fixture-view');
+    this.registerEditorSuggest(new FixtureSuggest(this.app));
     this.addCommand({id:'view',name:'Open view',callback:async()=>{const leaf=this.app.workspace.getRightLeaf(false);await leaf.setViewState({type:'fixture-view'});await this.app.workspace.revealLeaf(leaf);}});
     this.addCommand({id:'modal',name:'Open modal',callback:()=>new FixtureModal(this.app).open()});
     this.addCommand({id:'extensions',name:'Replace extension',callback:()=>{this.extensions.splice(0,1,EditorView.updateListener.of(update=>{if(update.docChanged)this.status.setText('CM replacement');}));this.app.workspace.updateOptions();}});

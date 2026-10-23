@@ -291,7 +291,12 @@ process and binary adapters remain unsupported. Renderer plugins can also regist
 custom view and file extensions: `registerExtensions` records the mapping, the host
 registers the format/view with `engine.render/v1`/`engine.workspace/v1`, and opening a
 mapped file mounts the plugin's DOM view in the main document area through a plugin-view
-host. This host is renderer-only and requires an already-registered view type.
+host. This host is renderer-only and requires an already-registered view type. Renderer
+plugins can also register an `EditorSuggest`: `onTrigger` and `getSuggestions` are queried
+from the editor's autocomplete source, `selectSuggestion` runs through the editor mutation
+host, and the host maps options to CodeMirror completions with filtering delegated to the
+plugin. Custom `renderSuggestion` UI is not reproduced; the display-text hook is used for
+the label.
 
 ## Composition
 

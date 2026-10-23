@@ -241,9 +241,9 @@ describe('editor snapshot contract',()=>{
   });
 });
 describe('unsupported methods fail, not no-op',()=>{
-  const pluginMethods=['registerEditorSuggest','registerObsidianProtocolHandler','registerHoverLinkSource','registerBasesView','registerCliHandler','registerDomEvent','onExternalSettingsChange'];
+  const pluginMethods=['registerObsidianProtocolHandler','registerHoverLinkSource','registerBasesView','registerCliHandler','registerDomEvent','onExternalSettingsChange'];
   for(const method of pluginMethods)it(`Plugin.${method} is explicitly rejected`,()=>{const h=harness();expect(()=>new h.api.Plugin()[method]()).toThrow(CompatibilityError);});
-  const rendererOnly=['addRibbonIcon','addSettingTab','addStatusBarItem','registerView','registerExtensions','registerEditorExtension','registerMarkdownPostProcessor','registerMarkdownCodeBlockProcessor'];
+  const rendererOnly=['addRibbonIcon','addSettingTab','addStatusBarItem','registerView','registerExtensions','registerEditorExtension','registerEditorSuggest','registerMarkdownPostProcessor','registerMarkdownCodeBlockProcessor'];
   for(const method of rendererOnly)it(`Plugin.${method} requires a renderer UI host`,()=>{const h=harness();expect(()=>new h.api.Plugin()[method]()).toThrow(CompatibilityError);});
   for(const method of ['delete','process','readBinary','createBinary','modifyBinary','appendBinary'])it(`Vault.${method} is explicitly rejected`,()=>{const h=harness();expect(()=>h.runtime.app.vault[method]()).toThrow(CompatibilityError);});
   for(const method of ['getDoc','setSelections','transaction','exec','focus','blur','hasFocus','getScrollInfo','scrollTo','scrollIntoView','undo','redo','refresh','wordAt','processLines'])it(`Editor.${method} is explicitly rejected`,()=>expect(()=>(new Editor({text:'',from:0,to:0},()=>{}) as any)[method]()).toThrow(CompatibilityError));

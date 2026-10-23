@@ -1,5 +1,28 @@
 # Verification results
 
+## Compatibility editor suggestions
+
+This section records the `EditorSuggest` bridge from renderer plugins to CodeMirror
+autocomplete.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | Inventory regenerated for EditorSuggest |
+| `npm run test` | 801 passed (38 files) | Export baseline, delegation and cleanup |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| desktop renderer e2e | **8 passed** | Popup trigger, Alpha selection, existing renderer flows |
+| targeted browser e2e | 2 passed | Reading/editor smoke |
+
+`Plugin.registerEditorSuggest` delegates to the trusted renderer host, which validates the
+instance and registers cleanup. The editor's autocomplete source calls each registered
+suggest's `onTrigger` with a snapshot editor at the current position, then
+`getSuggestions` with an `EditorSuggestContext`; the result is mapped to CodeMirror
+completions with `filter: false` so the plugin owns query filtering. Selecting an option
+calls `selectSuggestion`, whose `context.editor.replaceRange` runs through the existing
+editor mutation host. The fixture types `@Al`, selects `Alpha`, and verifies `@Alpha` in
+the document. Custom `renderSuggestion` DOM is not reproduced; labels use
+`getSuggestionDisplayText`.
+
 ## Compatibility view extensions
 
 This section records `registerExtensions` and the plugin-view host that mounts a

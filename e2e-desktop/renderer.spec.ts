@@ -55,6 +55,15 @@ test('renderer registerExtensions mounts a custom view in the main document area
   await settings();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();await page.getByTestId('settings-close').click();
   await expect(page.locator('.plugin-view-host')).toHaveCount(0);
 });
+test('renderer editor suggests bridge to CodeMirror autocomplete',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();
+  await page.keyboard.press('ControlOrMeta+End');await page.keyboard.type(' @Al');
+  const popup=page.locator('.cm-tooltip-autocomplete');
+  await expect(popup).toBeVisible();await expect(popup).toContainText('Alpha');
+  await popup.locator('li').filter({hasText:'Alpha'}).first().click();
+  await expect(page.locator('.cm-content')).toContainText('@Alpha');
+});
 test('renderer CodeMirror extensions update real editor and unload all UI',async()=>{
   await enable();await expect(page.getByLabel('Runtime for Renderer fixture',{exact:true})).toBeDisabled();await page.getByTestId('settings-close').click();
   await command('DOM event');await expect(page.locator('.plugin-status-item')).toHaveText('DOM event');
