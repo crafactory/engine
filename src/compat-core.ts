@@ -318,13 +318,19 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   }
   const workspace=guard(new Workspace(),'Workspace'),metadataCache=guard(new Events(),'MetadataCache') as Events&Record<string,any>;
   if(host.ui)Object.assign(workspace,host.ui.workspace,{updateOptions:()=>host.ui!.updateOptions()});
-  metadataCache.on=(name:string)=>unsupported('MetadataCache event '+name);
+  const metadataOn=Events.prototype.on.bind(metadataCache);
+  metadataCache.on=(name:string,callback:(...args:any[])=>void,ctx?:unknown)=>{
+    if(!['changed','deleted','resolved'].includes(name))return unsupported('MetadataCache event '+name);
+    return metadataOn(name,callback,ctx);
+  };
   metadataCache.getFileCache=()=>unsupported('MetadataCache.getFileCache exact positions');
   metadataCache.getCache=()=>unsupported('MetadataCache.getCache exact positions');
   metadataCache.getFirstLinkpathDest=(link:string,path:string)=>{const resolver=host.native?.resolveLink;const target=resolver?resolver(link,path):resolveLink(link,path,snapshot.notes)?.path;return target?vault.getFileByPath(target):null;};
   const app=guard({vault,workspace,metadataCache},'App');
   function refresh(next:PluginSnapshot,events=false){
     const previous=snapshot;snapshot=next;
+    const nextNotePaths=new Set(snapshot.notes.map(note=>note.path));
+    const removedNotes=events?previous.notes.filter(note=>!nextNotePaths.has(note.path)).map(note=>({note,file:objects.get(note.path)})):[];
     const paths=new Set(['',...snapshot.entries.map(e=>e.path)]);
     for(const path of [...objects.keys()])if(!paths.has(path))objects.delete(path);
     if(!objects.has(''))objects.set('',new TFolder('',vault));
@@ -340,10 +346,15 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
       initEditor();
       if(previous.active!==snapshot.active)workspace.trigger('file-open',workspace.getActiveFile());
       if(host.ui&&(previous.active!==snapshot.active||!!previous.editor!==!!snapshot.editor))workspace.trigger('layout-change');
-      for(const note of snapshot.notes){const before=previous.notes.find(n=>n.path===note.path);if(before&&before.content!==note.content){
-        vault.trigger('modify',vault.getFileByPath(note.path));
-        if(host.ui&&note.path===snapshot.active)workspace.trigger('editor-change',editor,new MarkdownView());
-      }}
+      for(const note of snapshot.notes){
+        const before=previous.notes.find(n=>n.path===note.path);
+        if(!before||before.content!==note.content){
+          vault.trigger('modify',vault.getFileByPath(note.path));
+          metadataCache.trigger('changed',vault.getFileByPath(note.path),note.content,null);
+          if(host.ui&&note.path===snapshot.active)workspace.trigger('editor-change',editor,new MarkdownView());
+        }
+      }
+      for(const {note,file} of removedNotes)metadataCache.trigger('deleted',file??new TFile(note.path,vault),null);
     }
   }
   refresh(initial);
@@ -438,7 +449,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     app,api,settle,
     sync(next:PluginSnapshot){refresh(next,true);publish();},
     /** Await actual initialization even when public repeated load calls return immediately. */
-    async boot(constructor:any){if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');plugin=new constructor(app,manifest);await Promise.all([plugin!.load(),componentLifecycle(plugin!,'startup')]);await plugin!.onUserEnable();await settle();publish();if(host.ui)workspace.trigger('layout-change');},
+    async boot(constructor:any){if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');plugin=new constructor(app,manifest);await Promise.all([plugin!.load(),componentLifecycle(plugin!,'startup')]);await plugin!.onUserEnable();await settle();publish();metadataCache.trigger('resolved');if(host.ui)workspace.trigger('layout-change');},
     async run(id:string){if(unloaded)throw new Error('Plugin is unloaded');initEditor();const command=commands.get(id);if(!command)throw new Error('Command not found');if(!available(command,true))throw new Error('Command unavailable');await available(command,false);await settle();},
     /** Keep the request fence open until actual hook/cleanup work and data operations settle. */
     async stop(){if(unloaded)return;try{if(plugin)await Promise.all([plugin.unload(),componentLifecycle(plugin,'shutdown')]);await settle();}finally{commands.clear();host.commands([]);unloaded=true;}},
