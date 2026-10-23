@@ -27,6 +27,8 @@ export interface CompatHost {
     registerView(type:string,factory:(leaf:any)=>any):()=>void;
     registerExtensions?(extensions:string[],viewType:string):()=>void;
     editorSuggest?(suggest:unknown):()=>void;
+    protocolHandler?(action:string,handler:(params:Record<string,string>)=>unknown):()=>void;
+    hoverLinkSource?(id:string,source:{display:string;defaultMod:boolean}):()=>void;
     postProcessor?(callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
     codeProcessor?(language:string,callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
   };
@@ -399,8 +401,15 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     registerMarkdownPostProcessor(callback:any,sortOrder?:number){if(!host.ui?.postProcessor)return unsupported('Plugin.registerMarkdownPostProcessor');const registration=host.ui.postProcessor(callback,sortOrder);this.register(registration.dispose);return registration.processor;}
     /** Register a renderer-only fenced-code handler with the same lifecycle ownership. */
     registerMarkdownCodeBlockProcessor(language:string,callback:any,sortOrder?:number){if(!host.ui?.codeProcessor)return unsupported('Plugin.registerMarkdownCodeBlockProcessor');const registration=host.ui.codeProcessor(language,callback,sortOrder);this.register(registration.dispose);return registration.processor;}
-    registerObsidianProtocolHandler(){return unsupported('Plugin.registerObsidianProtocolHandler');}
-    registerHoverLinkSource(){return unsupported('Plugin.registerHoverLinkSource');}registerBasesView(){return unsupported('Plugin.registerBasesView');}
+    registerObsidianProtocolHandler(action:string,handler:(params:Record<string,string>)=>unknown){
+      if(!host.ui?.protocolHandler)return unsupported('Plugin.registerObsidianProtocolHandler');
+      this.register(host.ui.protocolHandler(action,handler));
+    }
+    registerHoverLinkSource(id:string,source:{display:string;defaultMod:boolean}){
+      if(!host.ui?.hoverLinkSource)return unsupported('Plugin.registerHoverLinkSource');
+      this.register(host.ui.hoverLinkSource(id,source));
+    }
+    registerBasesView(){return unsupported('Plugin.registerBasesView');}
     registerCliHandler(){return unsupported('Plugin.registerCliHandler');}
   }
   const exports:Record<string,unknown>={Plugin,Component,Events,Notice,TAbstractFile,TFile,TFolder,Vault,Workspace,Editor,MarkdownView,

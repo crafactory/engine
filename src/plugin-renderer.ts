@@ -52,5 +52,5 @@ export function startRendererPlugin(manifest:PluginManifest,code:string,getSnaps
     finally{delete global[slot];URL.revokeObjectURL(url);}
   })();
   // Main-thread code cannot be forcibly interrupted. This is not a timeout sandbox.
-  return {ready,sync(snapshot){if(alive&&!stopping){try{runtime.sync(snapshot);}catch(error){fail(error);}}},stop,mountView:dom.mountView,editorSuggest:(text,pos)=>dom.queryEditorSuggest(text,pos)};
+  return {ready,sync(snapshot){if(alive&&!stopping){try{runtime.sync(snapshot);}catch(error){fail(error);}}},stop,mountView:dom.mountView,editorSuggest:(text,pos)=>dom.queryEditorSuggest(text,pos),dispatchProtocol:url=>dom.dispatchProtocol(url)};
 }

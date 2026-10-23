@@ -1,5 +1,24 @@
 # Verification results
 
+## Compatibility protocol and hover registration
+
+This section records protocol-handler dispatch and hover-source registration.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 799 passed (38 files) | Delegation and cleanup baselines |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| desktop renderer e2e | **9 passed** | Protocol dispatch and existing renderer flows |
+
+`Plugin.registerObsidianProtocolHandler` validates the action/handler pair and registers
+cleanup. The application listens for an in-app `engine:protocol` window event with an
+`obsidian://action?...` URL and dispatches it to every renderer controller; handlers receive
+`{action, ...searchParams}`. The fixture's "Dispatch protocol" command sets the status text
+to "Protocol ok". OS-level `obsidian://` registration is not wired.
+`Plugin.registerHoverLinkSource` validates `{display, defaultMod}`, records the descriptor
+and removes it on unload; hover-link event transport is not wired yet.
+
 ## Compatibility editor suggestions
 
 This section records the `EditorSuggest` bridge from renderer plugins to CodeMirror

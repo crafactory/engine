@@ -30,7 +30,7 @@ export function installDomHelpers(){
 /** Create plugin-owned trusted-renderer UI hooks; this adapter is not an isolation boundary. */
 export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,onFileExtensions?:(extensions:string[],viewType?:string)=>void,applyEditorEdit?:(base:string,text:string,from:number,to:number)=>Promise<unknown>){
   installDomHelpers();
-  const resources=new Set<HTMLElement>(),modals=new Set<any>(),tabs=new Set<any>(),extensions:unknown[]=[],factories=new Map<string,(leaf:any)=>any>(),leaves=new Set<any>(),extensionViews=new Map<string,string>(),suggests=new Set<EditorSuggest<any>>();
+  const resources=new Set<HTMLElement>(),modals=new Set<any>(),tabs=new Set<any>(),extensions:unknown[]=[],factories=new Map<string,(leaf:any)=>any>(),leaves=new Set<any>(),extensionViews=new Map<string,string>(),suggests=new Set<EditorSuggest<any>>(),protocolHandlers=new Map<string,(params:Record<string,string>)=>unknown>(),hoverSources=new Map<string,{display:string;defaultMod:boolean}>();
   const processors=new Set<ReturnType<typeof registerPostProcessor>>();
   let processorsStopped=false;
   /** Keep registration handles private to this plugin and remove them after disposal. */
@@ -176,6 +176,26 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       }
       return null;
     },
+    protocolHandler(action:string,handler:(params:Record<string,string>)=>unknown){
+      if(typeof action!=='string'||!action||typeof handler!=='function')throw new Error('Invalid protocol handler');
+      protocolHandlers.set(action,handler);
+      return()=>{if(protocolHandlers.get(action)===handler)protocolHandlers.delete(action);};
+    },
+    /** Dispatch an obsidian://action?... URL to the registered handler. */
+    async dispatchProtocol(url:string){
+      let parsed:URL;try{parsed=new URL(url);}catch{return false;}
+      if(parsed.protocol!=='obsidian:')return false;
+      const action=parsed.hostname||parsed.pathname.replace(/^\//,'');
+      const handler=protocolHandlers.get(action);if(!handler)return false;
+      const params:Record<string,string>={action};
+      for(const [key,value]of parsed.searchParams)params[key]=value;
+      await handler(params);return true;
+    },
+    hoverLinkSource(id:string,source:{display:string;defaultMod:boolean}){
+      if(typeof id!=='string'||!id||!source||typeof source.display!=='string'||typeof source.defaultMod!=='boolean')throw new Error('Invalid hover link source');
+      hoverSources.set(id,{...source});
+      return()=>{hoverSources.delete(id);};
+    },
     registerExtensions(extensions:string[],viewType:string){
       if(!Array.isArray(extensions)||!extensions.length||extensions.some(extension=>typeof extension!=='string'||!/^\.?[a-z0-9][a-z0-9_-]*$/i.test(extension)))throw new Error('Invalid extensions');
       if(typeof viewType!=='string'||!viewType)throw new Error('Invalid view type');
@@ -193,6 +213,6 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       return {element:leaf.containerEl,dispose:()=>{void leaf.detach();}};
     },
     /** Dispose processor children, visible UI and editor registrations after owner stop. */
-    async dispose(){processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach();for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();for(const suggest of suggests)suggest.close();suggests.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
+    async dispose(){processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach();for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();for(const suggest of suggests)suggest.close();suggests.clear();protocolHandlers.clear();hoverSources.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
   };
 }

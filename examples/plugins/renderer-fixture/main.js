@@ -48,6 +48,9 @@ module.exports=class extends Plugin {
     this.registerView('fixture-view',leaf=>new FixtureView(leaf));
     this.registerExtensions(['fixture'],'fixture-view');
     this.registerEditorSuggest(new FixtureSuggest(this.app));
+    this.registerObsidianProtocolHandler('fixture-protocol',params=>this.status.setText('Protocol '+(params.value||'')));
+    this.registerHoverLinkSource('fixture-hover',{display:'Fixture hover',defaultMod:true});
+    this.addCommand({id:'protocol',name:'Dispatch protocol',callback:()=>window.dispatchEvent(new CustomEvent('engine:protocol',{detail:'obsidian://fixture-protocol?value=ok'}))});
     this.addCommand({id:'view',name:'Open view',callback:async()=>{const leaf=this.app.workspace.getRightLeaf(false);await leaf.setViewState({type:'fixture-view'});await this.app.workspace.revealLeaf(leaf);}});
     this.addCommand({id:'modal',name:'Open modal',callback:()=>new FixtureModal(this.app).open()});
     this.addCommand({id:'extensions',name:'Replace extension',callback:()=>{this.extensions.splice(0,1,EditorView.updateListener.of(update=>{if(update.docChanged)this.status.setText('CM replacement');}));this.app.workspace.updateOptions();}});
