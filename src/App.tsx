@@ -724,7 +724,8 @@ export function App(){
     const allowed=activeView==='markdown'||(activeView==='canvas'&&enabled('canvas'))||(activeView==='base'&&enabled('bases'));
     const resolvedView=allowed?activeView:'markdown';
     const View=viewComponent(resolvedView);
-    const viewProps={note,notes,entries,path:note.path,mode,previews:pagePreviewRuntime.current?.service,onOpen:open,onOpenLink:openLink,onChange:(content:string)=>editNote(note.path,content),onNoteChange:editNote,ask:dialog.ask};
+    const pluginBases:Record<string,{controller:PluginController;id:string}>={};for(const [pluginId,controller] of pluginStops.current)for(const viewId of controller.basesViews?.()??[])pluginBases[viewId]={controller,id:viewId};
+    const viewProps={note,notes,entries,path:note.path,mode,previews:pagePreviewRuntime.current?.service,pluginBases,onOpen:open,onOpenLink:openLink,onChange:(content:string)=>editNote(note.path,content),onNoteChange:editNote,ask:dialog.ask};
     if(resolvedView!=='markdown'&&mode!=='source'&&View)return <ViewBoundary resetKey={note.path}><View {...viewProps}/></ViewBoundary>;
     return <div className="note-document" onDragOver={e=>e.preventDefault()} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();importFiles(e.dataTransfer.files);}}}>
       <div className={'document-inner '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>

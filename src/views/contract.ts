@@ -7,6 +7,7 @@ import type {ComponentType} from 'react';
 import type {Entry, Note, Settings} from '../types';
 import type {PagePreviewService} from '../services/page-preview';
 import type {ViewContribution} from '../services/views';
+import type {PluginController} from '../plugins';
 
 /** Props every reading-surface view receives from the application host. */
 export interface ReadingViewProps {
@@ -16,6 +17,7 @@ export interface ReadingViewProps {
   path: string;
   mode: Settings['mode'];
   previews?: PagePreviewService;
+  pluginBases?: Record<string,{controller:PluginController;id:string}>;
   onOpen(target: string): void;
   /** Markdown-link semantics: may resolve or create a note. */
   onOpenLink(target: string): void;

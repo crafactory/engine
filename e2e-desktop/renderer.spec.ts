@@ -5,7 +5,7 @@ import os from 'node:os';
 let root:string,profile:string,app:ElectronApplication,page:Page;
 test.beforeEach(async()=>{
   root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-'));profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-profile-'));
-  await fs.writeFile(path.join(root,'Test.md'),'Original text');await fs.writeFile(path.join(root,'Test.fixture'),'fixture body');
+  await fs.writeFile(path.join(root,'Test.md'),'Original text');await fs.writeFile(path.join(root,'Test.fixture'),'fixture body');await fs.writeFile(path.join(root,'Test.base'),'views:\n  - type: fixture-bases\n    name: Fixture\n');
   const dir=path.join(root,'.crafactory/plugins/renderer-fixture');await fs.mkdir(dir,{recursive:true});
   for(const file of ['manifest.json','main.js'])await fs.copyFile('examples/plugins/renderer-fixture/'+file,path.join(dir,file));
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
@@ -68,6 +68,13 @@ test('renderer protocol handlers dispatch through the app event',async()=>{
   await enable();await page.getByTestId('settings-close').click();
   await command('Dispatch protocol');
   await expect(page.locator('.plugin-status-item')).toHaveText('Protocol ok');
+});
+test('renderer Bases views mount in the Bases surface',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  await page.getByTestId('file-Test.base').click();
+  await expect(page.locator('.plugin-bases-host')).toContainText('Fixture bases view');
+  await settings();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();await page.getByTestId('settings-close').click();
+  await expect(page.locator('.plugin-bases-host')).toHaveCount(0);
 });
 test('renderer CodeMirror extensions update real editor and unload all UI',async()=>{
   await enable();await expect(page.getByLabel('Runtime for Renderer fixture',{exact:true})).toBeDisabled();await page.getByTestId('settings-close').click();

@@ -1,6 +1,6 @@
 # Public API export coverage
 
-Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 27 bounded runtime symbols. Explicit opt-in trusted renderer: 46 bounded runtime symbols (19 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
+Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 27 bounded runtime symbols. Explicit opt-in trusted renderer: 48 bounded runtime symbols (21 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
 
 | Symbol | Kind | Default Worker | Trusted renderer | Public documentation |
 |---|---|---|---|---|
@@ -46,7 +46,7 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | NumberValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [NumberValue](https://docs.obsidian.md/Reference/TypeScript+API/NumberValue) |
 | ObjectValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [ObjectValue](https://docs.obsidian.md/Reference/TypeScript+API/ObjectValue) |
 | ProgressBarComponent | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [ProgressBarComponent](https://docs.obsidian.md/Reference/TypeScript+API/ProgressBarComponent) |
-| QueryController | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [QueryController](https://docs.obsidian.md/Reference/TypeScript+API/QueryController) |
+| QueryController | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [QueryController](https://docs.obsidian.md/Reference/TypeScript+API/QueryController) |
 | RegExpValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [RegExpValue](https://docs.obsidian.md/Reference/TypeScript+API/RegExpValue) |
 | RelativeDateValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [RelativeDateValue](https://docs.obsidian.md/Reference/TypeScript+API/RelativeDateValue) |
 | RenderContext | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [RenderContext](https://docs.obsidian.md/Reference/TypeScript+API/RenderContext) |
@@ -79,7 +79,7 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | WorkspaceWindow | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [WorkspaceWindow](https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceWindow) |
 | AbstractInputSuggest | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [AbstractInputSuggest](https://docs.obsidian.md/Reference/TypeScript+API/AbstractInputSuggest) |
 | BaseComponent | Abstract Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [BaseComponent](https://docs.obsidian.md/Reference/TypeScript+API/BaseComponent) |
-| BasesView | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [BasesView](https://docs.obsidian.md/Reference/TypeScript+API/BasesView) |
+| BasesView | Abstract Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [BasesView](https://docs.obsidian.md/Reference/TypeScript+API/BasesView) |
 | EditableFileView | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [EditableFileView](https://docs.obsidian.md/Reference/TypeScript+API/EditableFileView) |
 | Editor | Abstract Classes | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [Editor](https://docs.obsidian.md/Reference/TypeScript+API/Editor) |
 | EditorSuggest | Abstract Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [EditorSuggest](https://docs.obsidian.md/Reference/TypeScript+API/EditorSuggest) |

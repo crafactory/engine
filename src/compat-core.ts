@@ -29,6 +29,7 @@ export interface CompatHost {
     editorSuggest?(suggest:unknown):()=>void;
     protocolHandler?(action:string,handler:(params:Record<string,string>)=>unknown):()=>void;
     hoverLinkSource?(id:string,source:{display:string;defaultMod:boolean}):()=>void;
+    basesView?(id:string,factory:(controller:unknown)=>unknown):()=>void;
     postProcessor?(callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
     codeProcessor?(language:string,callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
   };
@@ -409,7 +410,10 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
       if(!host.ui?.hoverLinkSource)return unsupported('Plugin.registerHoverLinkSource');
       this.register(host.ui.hoverLinkSource(id,source));
     }
-    registerBasesView(){return unsupported('Plugin.registerBasesView');}
+    registerBasesView(id:string,factory:(controller:unknown)=>unknown){
+      if(!host.ui?.basesView)return unsupported('Plugin.registerBasesView');
+      this.register(host.ui.basesView(id,factory));
+    }
     registerCliHandler(){return unsupported('Plugin.registerCliHandler');}
   }
   const exports:Record<string,unknown>={Plugin,Component,Events,Notice,TAbstractFile,TFile,TFolder,Vault,Workspace,Editor,MarkdownView,
