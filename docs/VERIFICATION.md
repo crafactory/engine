@@ -187,7 +187,7 @@ are not implemented yet.
 | `npm run test:e2e` (macOS) | **51 passed / 0 failed** | Reading, Canvas, Bases and link-creation flows |
 
 `engine.views/v1` stores opaque loaders, so the kernel and services still import no React
-or concrete view. The left-slot bookmarks/recent/tags panels and right-slot outline/backlinks/outgoing panels use the same registry; their lazy
+or concrete view. The left-slot bookmarks/recent/tags panels and right-slot outline/backlinks/outgoing/properties panels use the same registry; their lazy
 load needs a local Suspense boundary, which the first e2e run caught (the panel suspended
 inside a synchronous click and the boundary showed its fallback). The host also rejects a
 panel contribution that is not registered for the `left` slot, and bookmark removal is a
