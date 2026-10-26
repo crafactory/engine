@@ -17,6 +17,10 @@ describe('built-in Bases views', () => {
     dispose();
     expect(registry.resolve('custom')).toBeUndefined();
     expect(() => registry.register('', View)).toThrow('Invalid Bases view');
+    registry.register('once', View);
+    expect(() => registry.register('once', View)).toThrow('already registered');
+    expect(() => builtinBasesViews.register('table', View)).toThrow('already registered');
+    expect(typeof builtinBasesViews.resolve('table')).toBe('function');
   });
   it('renders cell values consistently', () => {
     expect(displayValue(['a', 'b'])).toBe('a, b');

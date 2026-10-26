@@ -12,6 +12,7 @@ export class BasesViewRegistry {
 
   register(id: string, component: BasesViewComponent): () => void {
     if (typeof id !== 'string' || !id || typeof component !== 'function') throw new Error('Invalid Bases view');
+    if (this.views.has(id)) throw new Error('Bases view already registered: '+id);
     this.views.set(id, component);
     return () => { if (this.views.get(id) === component) this.views.delete(id); };
   }
