@@ -101,6 +101,7 @@ test('tag, outgoing, outline, recent and unlinked context controls work',async({
   await page.getByRole('button',{name:'Tags',exact:true}).click();await page.locator('.tag-list>button').filter({hasText:'thinking'}).click();await expect(page.getByTestId('search-input')).toHaveValue('tag:#thinking');
   await page.getByTestId('search-result-Ideas/Connected thinking.md').click();await page.getByRole('button',{name:'Outgoing links tab',exact:true}).click();await expect(page.locator('.right-sidebar .bookmark-list')).toContainText('Small pieces');
   await page.getByRole('button',{name:'Outline tab',exact:true}).click();await page.locator('.outline-list button').filter({hasText:'A simple model'}).click();await expect(page.locator('.katex-display')).toBeVisible();
+  await page.getByRole('button',{name:'Properties tab',exact:true}).click();await page.locator('.right-sidebar .right-properties .properties>summary').click();await expect(page.locator('.right-sidebar .right-properties .add-property')).toBeVisible();
   await page.getByRole('button',{name:'Recent notes',exact:true}).click();await expect(page.locator('.left-sidebar .bookmark-list')).toContainText('Connected thinking');
 });
 test('new folder, import, attachment embed and ZIP export preserve files',async({page})=>{

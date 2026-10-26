@@ -1,4 +1,4 @@
-import {lazy,Suspense,useCallback,useEffect,useMemo,useRef,useState,type LazyExoticComponent} from 'react';
+import {lazy,Suspense,useCallback,useEffect,useMemo,useRef,useState,type ComponentType,type LazyExoticComponent} from 'react';
 import {
   Files,Search,Network,LayoutDashboard,CalendarDays,Terminal,Settings as SettingsIcon,
   PanelLeftClose,PanelLeftOpen,PanelRightClose,PanelRightOpen,Plus,X,ChevronRight,ChevronDown,Sparkles,
@@ -23,7 +23,7 @@ import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
 import {checkPermission, validatePluginPackage, readableSnapshot} from './kernel';
-import {createViewsRuntime, loadViewComponent, ViewBoundary, PluginViewHost, type ViewsRuntime, type ViewComponent, type PanelComponent, type SidePanelTab} from './views';
+import {createViewsRuntime, loadViewComponent, ViewBoundary, PluginViewHost, type ViewsRuntime, type ViewComponent, type PanelComponent, type SidePanelTab, type GraphViewProps} from './views';
 import {ENGINE_VERSION} from './services';
 import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,createWebViewerRuntime,createSlashCommandsRuntime,createPagePreviewRuntime,createAudioRecorderRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime,type WebViewerRuntime,type SlashCommandsRuntime,type PagePreviewRuntime,type AudioRecorderRuntime,type ViewContribution,createUiRuntime,type UiRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
@@ -641,20 +641,9 @@ export function App(){
   const words=activeNote?(wordCount?wordCount.count(frontmatter(activeNote.content).body).words:(frontmatter(activeNote.content).body.match(/[\p{L}\p{N}]+/gu)?.length||0)):0;
   const characters=activeNote?(wordCount?wordCount.count(activeNote.content).characters:activeNote.content.length):0;
   const tabTitle=(path:string)=>path==='@graph'?'Graph view':path.startsWith('@local:')?'Local graph':path.startsWith('web:')?new URL(path.slice(4)).hostname:title(path);
-  function tree(parent=''):React.ReactNode{
+  function treeChildren(parent=''):Entry[]{
     const explorer=storageRuntime.current?.explorer;
-    const children=explorer?explorer.children(entries,parent,fileSort==='modified'?'modified':'name'):entries.filter(e=>e.path.includes('/')?e.path.slice(0,e.path.lastIndexOf('/'))===parent:!parent).sort((a,b)=>Number(b.folder)-Number(a.folder)||(fileSort==='modified'?b.mtime-a.mtime:a.name.localeCompare(b.name)));
-    return children.map(entry=><div key={entry.path} className="tree-item">
-      <button className={'tree-row '+(entry.path===active?'selected':'')} style={{paddingLeft:12+(parent?parent.split('/').length:0)*13}} onClick={()=>entry.folder?setExpanded(s=>{const next=new Set(s);next.has(entry.path)?next.delete(entry.path):next.add(entry.path);return next;}):open(entry.path)}
-        onContextMenu={e=>{e.preventDefault();setContext({path:entry.path,x:Math.min(e.clientX,window.innerWidth-225),y:Math.min(e.clientY,window.innerHeight-260)});}}
-        draggable onDragStart={e=>e.dataTransfer.setData('engine/path',entry.path)} onDragOver={e=>entry.folder&&e.preventDefault()}
-        onDrop={e=>{if(entry.folder){e.preventDefault();const path=e.dataTransfer.getData('engine/path');if(path&&path!==entry.path&&!entry.path.startsWith(path+'/'))renamePath(path,entry.path+'/'+path.split('/').pop());}}}
-        data-testid={'file-'+entry.path}>
-        {entry.folder?(expanded.has(entry.path)?<ChevronDown size={13}/>:<ChevronRight size={13}/>):<span className="tree-indent"/>}
-        {entry.folder?<Folder size={14}/>:/\.canvas$/i.test(entry.path)?<LayoutDashboard size={14}/>:/\.base$/i.test(entry.path)?<Table2 size={14}/>:<FileText size={14}/>}
-        <span>{entry.folder?entry.name:title(entry.path)}</span>
-      </button>{entry.folder&&expanded.has(entry.path)&&tree(entry.path)}
-    </div>);
+    return explorer?explorer.children(entries,parent,fileSort==='modified'?'modified':'name'):entries.filter(e=>e.path.includes('/')?e.path.slice(0,e.path.lastIndexOf('/'))===parent:!parent).sort((a,b)=>Number(b.folder)-Number(a.folder)||(fileSort==='modified'?b.mtime-a.mtime:a.name.localeCompare(b.name)));
   }
   function propertyEditor(note:Note){
     const fm=frontmatter(note.content),props=indexed?indexed.properties(note.path):fm.properties;
@@ -715,7 +704,9 @@ export function App(){
     const note=notes.find(n=>n.path===path);
     if(path==='@graph'||path.startsWith('@local:')){
       if(!indexed)return <div className="empty workspace-empty"><Network size={30}/><h1>Graph unavailable</h1><p>The knowledge graph needs the notes index, which failed to start. Reload to try again.</p></div>;
-      return <Graph notes={notes} index={indexed} active={path.startsWith('@local:')?path.slice(7):recent.find(p=>isNote(p))||''} onOpen={open} local={path.startsWith('@local:')}/>;
+      const activePath=path.startsWith('@local:')?path.slice(7):recent.find(p=>isNote(p))||'',local=path.startsWith('@local:');
+      const GraphView=viewComponent('graph') as LazyExoticComponent<ComponentType<GraphViewProps>>|undefined;
+      return GraphView?<GraphView notes={notes} index={indexed} active={activePath} local={local} onOpen={open}/>:<Graph notes={notes} index={indexed} active={activePath} onOpen={open} local={local}/>;
     }
     if(path.startsWith('web:'))return <section className="web-view"><header><Globe size={16}/><span>{path.slice(4)}</span><a href={path.slice(4)} target="_blank" rel="noreferrer">Open in browser<ExternalLink size={13}/></a></header><p className="web-notice">This site may block embedding. Use “Open in browser” if the page is blank.</p><iframe title="Web viewer" src={path.slice(4)} sandbox="allow-scripts allow-forms allow-same-origin" referrerPolicy="no-referrer"/></section>;
     const customView=pluginViewFor(path);
@@ -756,6 +747,12 @@ export function App(){
   const outlineProps=OutlineView?{sideTab:'outline' as const,...panelBase}:undefined;
   const BacklinksView=rightTab==='outline'||rightTab==='backlinks'?panelComponent('backlinks','right'):undefined;
   const backlinksProps=BacklinksView?{sideTab:'backlinks' as const,...panelBase}:undefined;
+  const SearchView=sideTab==='search'?panelComponent('search','left'):undefined;
+  const searchProps=SearchView?{...panelBase,sideTab:'search' as const,query,caseSensitive,searchSort,results,onQuery:setQuery,onToggleCase:()=>setCaseSensitive(value=>!value),onSearchSort:setSearchSort,onCopy:()=>{void navigator.clipboard?.writeText(results.map(note=>`[[${note.path.replace(/\.md$/,'')}]]`).join('\n')).then(()=>toast('Search results copied.')).catch(report);},onOpenFile:open}:undefined;
+  const FilesView=sideTab==='files'?panelComponent('files','left'):undefined;
+  const filesProps=FilesView?{...panelBase,sideTab:'files' as const,entries,activePath:active,fileSort,expanded,loading,childrenFor:treeChildren,onToggleFolder:(path:string)=>setExpanded(current=>{const next=new Set(current);next.has(path)?next.delete(path):next.add(path);return next;}),onOpenFile:open,onFileContextMenu:(path:string,x:number,y:number)=>setContext({path,x:Math.min(x,window.innerWidth-225),y:Math.min(y,window.innerHeight-260)}),onDropFile:(from:string,folder:string)=>renamePath(from,folder+'/'+from.split('/').pop()),onCollapseAll:()=>setExpanded(new Set()),onFileSortChange:setFileSort,onCreateNote:()=>createNote()}:undefined;
+  const PropertiesView=rightTab==='properties'?panelComponent('properties','right'):undefined;
+  const propertiesProps=PropertiesView?{...panelBase,sideTab:'properties' as const,note:activeNote,propertyKeys:[...new Set(indexed?.propertyKeys()??[])],onSearchProperty:(key:string)=>{setLeft(true);setSideTab('search');setQuery('['+key+']');},onNoteChange:editNote,ask:dialog.ask,onError:report}:undefined;
   const OutgoingView=rightTab==='outgoing'?panelComponent('outgoing','right'):undefined;
   const outgoingProps=OutgoingView?{sideTab:'outgoing' as const,...panelBase}:undefined;
   return <div className="app" onClick={()=>context&&setContext(null)}>
@@ -788,9 +785,8 @@ export function App(){
         <div className="vault-heading"><span>{sideTab==='files'?vaultName:sideTab==='search'?'Search':sideTab==='tags'?'Tags':sideTab==='bookmarks'?'Bookmarks':'Recent notes'}</span>
           {sideTab==='files'&&<div><IconButton label="New note" onClick={()=>createNote()}><FilePlus size={15}/></IconButton><IconButton label="New folder" onClick={newFolder}><FolderPlus size={15}/></IconButton></div>}
         </div>
-        {sideTab==='files'&&<><div className="file-controls"><button onClick={()=>setExpanded(new Set())} title="Collapse all folders">Collapse all</button><select aria-label="Sort files" value={fileSort} onChange={e=>setFileSort(e.target.value)}><option value="name">Name ↑</option><option value="modified">Modified ↓</option></select></div><div className="file-tree">{loading?<div className="skeleton-list"><i/><i/><i/><i/></div>:entries.length?tree():<div className="empty"><Folder size={25}/><p>Your vault is empty. Start with one note.</p><button onClick={()=>createNote()}>New note</button></div>}</div></>}
-        {sideTab==='search'&&<><label className="search-input"><Search size={15}/><input autoFocus placeholder="Search notes…" value={query} onChange={e=>setQuery(e.target.value)} aria-label="Search notes" data-testid="search-input"/><button onClick={()=>setCaseSensitive(v=>!v)} className={caseSensitive?'selected':''} aria-label="Match case">Aa</button></label><div className="search-meta"><span>{results.length} results</span><select aria-label="Sort search results" value={searchSort} onChange={e=>setSearchSort(e.target.value)}><option value="name">Name ↑</option><option value="modified">Modified ↓</option></select><button aria-label="Copy search results" onClick={()=>navigator.clipboard?.writeText(results.map(n=>`[[${n.path.replace(/\.md$/,'')}]]`).join('\n')).then(()=>toast('Search results copied.')).catch(report)}><Copy size={13}/></button></div>
-          <div className="search-results">{results.map(n=><button key={n.path} onClick={()=>open(n.path)} data-testid={'search-result-'+n.path}><span><FileText size={13}/>{title(n.path)}</span><small>{n.path}</small>{query&&<p>{frontmatter(n.content).body.replace(/[#*`\[\]]/g,'').slice(0,140)}</p>}</button>)}</div><p className="search-help">Try tag:#thinking, path:Ideas, task-todo: or /regex/. Operators can be grouped with parentheses and OR.</p></>}
+        {sideTab==='files'&&(FilesView&&filesProps?<Suspense fallback={<div className="skeleton-list"><i/><i/><i/><i/></div>}><ViewBoundary resetKey={sideTab}><FilesView {...filesProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">File explorer unavailable.</p>)}
+        {sideTab==='search'&&(SearchView&&searchProps?<Suspense fallback={<div className="skeleton-list"><i/><i/><i/></div>}><ViewBoundary resetKey={sideTab}><SearchView {...searchProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Search unavailable.</p>)}
         {SidePanel&&panelProps&&<Suspense fallback={<div className="skeleton-list"><i/><i/><i/></div>}><ViewBoundary resetKey={sideTab}><SidePanel {...panelProps}/></ViewBoundary></Suspense>}
         <footer className="sidebar-footer"><button onClick={()=>chooseVault()}><HardDrive size={14}/><span>{vaultName}</span><ChevronDown size={13}/></button><span>{entries.filter(e=>!e.folder&&isNote(e.path)).length} notes</span></footer>
       </aside>}
@@ -812,7 +808,7 @@ export function App(){
       {right&&<aside className="right-sidebar" aria-label="Note context">
         <div className="sidebar-tabs"><IconButton label="Outline tab" onClick={()=>setRightTab('outline')} active={rightTab==='outline'}><List size={17}/></IconButton><IconButton label="Backlinks tab" onClick={()=>setRightTab('backlinks')} active={rightTab==='backlinks'}><Link2 size={17}/></IconButton><IconButton label="Properties tab" onClick={()=>setRightTab('properties')} active={rightTab==='properties'}><Layers size={16}/></IconButton><IconButton label="Outgoing links tab" onClick={()=>setRightTab('outgoing')} active={rightTab==='outgoing'}><ArrowRight size={17}/></IconButton></div>
         {rightTab==='outline'&&enabled('outline')&&<><div className="section-heading"><span>Outline</span><List size={13}/></div>{OutlineView&&outlineProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><OutlineView {...outlineProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Outline unavailable.</p>}</>}
-        {rightTab==='properties'&&enabled('properties')&&activeNote&&<><div className="section-heading">Note properties</div><div className="right-properties">{propertyEditor(activeNote)}</div><div className="section-heading">Vault properties</div><div className="tag-list">{[...new Set(indexed?.propertyKeys()??[])].map(key=><button key={key} onClick={()=>{setLeft(true);setSideTab('search');setQuery('['+key+']');}}><Hash size={13}/>{key}</button>)}</div></>}
+        {rightTab==='properties'&&enabled('properties')&&activeNote&&(PropertiesView&&propertiesProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><PropertiesView {...propertiesProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Properties unavailable.</p>)}
         {(rightTab==='outline'||rightTab==='backlinks')&&enabled('backlinks')&&(BacklinksView&&backlinksProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><BacklinksView {...backlinksProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Backlinks unavailable.</p>)}
         {rightTab==='outgoing'&&enabled('outgoing')&&(OutgoingView&&outgoingProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><OutgoingView {...outgoingProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Outgoing links unavailable.</p>)}
         <footer className="context-footer"><div><Network size={15}/><span>Everything connects</span></div><p>Follow a link. Find a new perspective.</p>{enabled('graph')&&activeNote&&<button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button>}</footer>

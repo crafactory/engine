@@ -8,6 +8,7 @@ import type {Entry, Note, Settings} from '../types';
 import type {PagePreviewService} from '../services/page-preview';
 import type {ViewContribution} from '../services/views';
 import type {HoverLinkPayload,PluginController} from '../plugins';
+import type {IndexService} from '../services/notes-index';
 
 /** Props every reading-surface view receives from the application host. */
 export interface ReadingViewProps {
@@ -29,8 +30,11 @@ export interface ReadingViewProps {
 
 export type ViewComponent = ComponentType<ReadingViewProps>;
 
+/** Props for the synthetic graph view. */
+export interface GraphViewProps {notes:Note[];index:IndexService;active:string;local:boolean;onOpen:(path:string)=>void}
+
 /** Props for a sidebar/panel view contribution. */
-export type SidePanelTab = 'bookmarks' | 'recent' | 'tags' | 'outline' | 'backlinks' | 'outgoing';
+export type SidePanelTab = 'files' | 'search' | 'bookmarks' | 'recent' | 'tags' | 'outline' | 'backlinks' | 'outgoing' | 'properties';
 
 export interface PanelHeading {level: number; text: string; offset: number}
 
@@ -47,6 +51,33 @@ export interface PanelViewProps {
   mentions: Note[];
   activeTitle: string;
   active: string;
+  note?: Note;
+  propertyKeys?: string[];
+  entries?: Entry[];
+  activePath?: string;
+  fileSort?: string;
+  expanded?: Set<string>;
+  loading?: boolean;
+  childrenFor?: (parent:string)=>Entry[];
+  onToggleFolder?: (path:string)=>void;
+  onOpenFile?: (path:string)=>void;
+  onFileContextMenu?: (path:string,x:number,y:number)=>void;
+  onDropFile?: (from:string,folder:string)=>void;
+  onCollapseAll?: ()=>void;
+  onFileSortChange?: (sort:string)=>void;
+  onCreateNote?: ()=>void;
+  query?: string;
+  caseSensitive?: boolean;
+  searchSort?: string;
+  results?: Note[];
+  onQuery?: (query:string)=>void;
+  onToggleCase?: ()=>void;
+  onSearchSort?: (sort:string)=>void;
+  onCopy?: ()=>void;
+  onSearchProperty?: (key:string)=>void;
+  onNoteChange?: (path:string,content:string)=>void;
+  ask?: (title:string,value?:string,description?:string)=>Promise<string|null>;
+  onError?: (error:unknown)=>void;
   outgoing: PanelLink[];
   onOpen(path: string): void;
   onRemoveBookmark(path: string): void;
