@@ -57,3 +57,10 @@ export const searchPanelPlugin: PluginDefinition = {
   manifest: {id: 'engine.view.search', name: 'Search panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
   setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'search', slot: 'left', label: 'Search', load: () => import('./SearchPanel')})); }
 };
+
+
+/** Graph contribution for the main slot. */
+export const graphViewPlugin: PluginDefinition = {
+  manifest: {id: 'engine.view.graph', name: 'Graph view', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
+  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'graph', slot: 'main', label: 'Graph', load: () => import('./GraphView')})); }
+};

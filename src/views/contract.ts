@@ -8,6 +8,7 @@ import type {Entry, Note, Settings} from '../types';
 import type {PagePreviewService} from '../services/page-preview';
 import type {ViewContribution} from '../services/views';
 import type {HoverLinkPayload,PluginController} from '../plugins';
+import type {IndexService} from '../services/notes-index';
 
 /** Props every reading-surface view receives from the application host. */
 export interface ReadingViewProps {
@@ -28,6 +29,9 @@ export interface ReadingViewProps {
 }
 
 export type ViewComponent = ComponentType<ReadingViewProps>;
+
+/** Props for the synthetic graph view. */
+export interface GraphViewProps {notes:Note[];index:IndexService;active:string;local:boolean;onOpen:(path:string)=>void}
 
 /** Props for a sidebar/panel view contribution. */
 export type SidePanelTab = 'files' | 'search' | 'bookmarks' | 'recent' | 'tags' | 'outline' | 'backlinks' | 'outgoing' | 'properties';

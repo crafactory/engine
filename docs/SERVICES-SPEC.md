@@ -93,11 +93,11 @@ a kernel supplies separate render and workspace instances.
 value and returns a disposer; `resolve(viewType)` returns the contribution; `list()` reports
 them. `slot` is `main` (default), `left` or `right`.
 The service and kernel never import React or a concrete view. Built-in contributions live
-in `src/views/` (`engine.view.markdown`, `engine.view.canvas`, `engine.view.bases` for the
-main slot; `engine.view.files`, `engine.view.search`, `engine.view.bookmarks`, `engine.view.recent`, `engine.view.tags` for the left slot and `engine.view.outline`, `engine.view.backlinks`, `engine.view.outgoing`, `engine.view.properties` for the right slot) and load the
+in `src/views/` (`engine.view.markdown`, `engine.view.canvas`, `engine.view.bases`, `engine.view.graph`
+for the main slot; `engine.view.files`, `engine.view.search`, `engine.view.bookmarks`, `engine.view.recent`, `engine.view.tags` for the left slot and `engine.view.outline`, `engine.view.backlinks`, `engine.view.outgoing`, `engine.view.properties` for the right slot) and load the
 React modules on demand. The host interprets a loader as a React component and supplies
 different props by slot: main views receive `ReadingViewProps` (note, notes, entries, path,
-mode, previews, open/open-link callbacks, change callbacks and `ask`), while sidebar panels
+mode, previews, open/open-link callbacks, change callbacks and `ask`; the graph view receives its own `GraphViewProps`), while sidebar panels
 (left and right) receive `PanelViewProps` (sideTab, notes, bookmarks, recent, tags, headings, incoming,
 mentions, activeTitle, active, outgoing, note/propertyKeys, entries/activePath/fileSort/expanded/loading/childrenFor, query/caseSensitive/searchSort/results, note-change/ask/error callbacks, file/search callbacks,
 open/open-link/remove-bookmark, select-tag and jump-heading callbacks). A panel lookup rejects a contribution that is not registered for the requested
