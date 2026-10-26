@@ -50,3 +50,10 @@ export const filesPanelPlugin: PluginDefinition = {
   manifest: {id: 'engine.view.files', name: 'Files panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
   setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'files', slot: 'left', label: 'Files', load: () => import('./FilesPanel')})); }
 };
+
+
+/** Full-text search contribution for the left slot. */
+export const searchPanelPlugin: PluginDefinition = {
+  manifest: {id: 'engine.view.search', name: 'Search panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
+  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'search', slot: 'left', label: 'Search', load: () => import('./SearchPanel')})); }
+};
