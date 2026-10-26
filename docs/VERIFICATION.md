@@ -1,5 +1,23 @@
 # Verification results
 
+## Bases built-in view extraction
+
+This section records moving the built-in Bases renderers behind a UI registry.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 803 passed (39 files) | +3 Bases registry cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| targeted e2e | Bases filter/edit and renderer custom-view cases passed | Behavior preserved |
+
+`TableBasesView`, `CardsBasesView` and `ListBasesView` now live under `src/views/bases/`
+and register in `builtinBasesViews`; `Bases.tsx` resolves the `.base` view type and only
+keeps parsing/filtering/CSV/toolbar/footer. The existing table/cards/list markup and
+`data-testid="base-table"` are preserved, and plugin Bases views still mount through
+`PluginBasesHost`. The registry has register/resolve/revoke tests. Canvas internals remain
+a single component; this increment covers Bases only.
+
 ## Hover-link transport
 
 This section records hover-source event delivery.
