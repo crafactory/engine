@@ -641,20 +641,9 @@ export function App(){
   const words=activeNote?(wordCount?wordCount.count(frontmatter(activeNote.content).body).words:(frontmatter(activeNote.content).body.match(/[\p{L}\p{N}]+/gu)?.length||0)):0;
   const characters=activeNote?(wordCount?wordCount.count(activeNote.content).characters:activeNote.content.length):0;
   const tabTitle=(path:string)=>path==='@graph'?'Graph view':path.startsWith('@local:')?'Local graph':path.startsWith('web:')?new URL(path.slice(4)).hostname:title(path);
-  function tree(parent=''):React.ReactNode{
+  function treeChildren(parent=''):Entry[]{
     const explorer=storageRuntime.current?.explorer;
-    const children=explorer?explorer.children(entries,parent,fileSort==='modified'?'modified':'name'):entries.filter(e=>e.path.includes('/')?e.path.slice(0,e.path.lastIndexOf('/'))===parent:!parent).sort((a,b)=>Number(b.folder)-Number(a.folder)||(fileSort==='modified'?b.mtime-a.mtime:a.name.localeCompare(b.name)));
-    return children.map(entry=><div key={entry.path} className="tree-item">
-      <button className={'tree-row '+(entry.path===active?'selected':'')} style={{paddingLeft:12+(parent?parent.split('/').length:0)*13}} onClick={()=>entry.folder?setExpanded(s=>{const next=new Set(s);next.has(entry.path)?next.delete(entry.path):next.add(entry.path);return next;}):open(entry.path)}
-        onContextMenu={e=>{e.preventDefault();setContext({path:entry.path,x:Math.min(e.clientX,window.innerWidth-225),y:Math.min(e.clientY,window.innerHeight-260)});}}
-        draggable onDragStart={e=>e.dataTransfer.setData('engine/path',entry.path)} onDragOver={e=>entry.folder&&e.preventDefault()}
-        onDrop={e=>{if(entry.folder){e.preventDefault();const path=e.dataTransfer.getData('engine/path');if(path&&path!==entry.path&&!entry.path.startsWith(path+'/'))renamePath(path,entry.path+'/'+path.split('/').pop());}}}
-        data-testid={'file-'+entry.path}>
-        {entry.folder?(expanded.has(entry.path)?<ChevronDown size={13}/>:<ChevronRight size={13}/>):<span className="tree-indent"/>}
-        {entry.folder?<Folder size={14}/>:/\.canvas$/i.test(entry.path)?<LayoutDashboard size={14}/>:/\.base$/i.test(entry.path)?<Table2 size={14}/>:<FileText size={14}/>}
-        <span>{entry.folder?entry.name:title(entry.path)}</span>
-      </button>{entry.folder&&expanded.has(entry.path)&&tree(entry.path)}
-    </div>);
+    return explorer?explorer.children(entries,parent,fileSort==='modified'?'modified':'name'):entries.filter(e=>e.path.includes('/')?e.path.slice(0,e.path.lastIndexOf('/'))===parent:!parent).sort((a,b)=>Number(b.folder)-Number(a.folder)||(fileSort==='modified'?b.mtime-a.mtime:a.name.localeCompare(b.name)));
   }
   function propertyEditor(note:Note){
     const fm=frontmatter(note.content),props=indexed?indexed.properties(note.path):fm.properties;
@@ -756,6 +745,8 @@ export function App(){
   const outlineProps=OutlineView?{sideTab:'outline' as const,...panelBase}:undefined;
   const BacklinksView=rightTab==='outline'||rightTab==='backlinks'?panelComponent('backlinks','right'):undefined;
   const backlinksProps=BacklinksView?{sideTab:'backlinks' as const,...panelBase}:undefined;
+  const FilesView=sideTab==='files'?panelComponent('files','left'):undefined;
+  const filesProps=FilesView?{...panelBase,sideTab:'files' as const,entries,activePath:active,fileSort,expanded,loading,childrenFor:treeChildren,onToggleFolder:(path:string)=>setExpanded(current=>{const next=new Set(current);next.has(path)?next.delete(path):next.add(path);return next;}),onOpenFile:open,onFileContextMenu:(path:string,x:number,y:number)=>setContext({path,x:Math.min(x,window.innerWidth-225),y:Math.min(y,window.innerHeight-260)}),onDropFile:(from:string,folder:string)=>renamePath(from,folder+'/'+from.split('/').pop()),onCollapseAll:()=>setExpanded(new Set()),onFileSortChange:setFileSort,onCreateNote:()=>createNote()}:undefined;
   const PropertiesView=rightTab==='properties'?panelComponent('properties','right'):undefined;
   const propertiesProps=PropertiesView?{...panelBase,sideTab:'properties' as const,note:activeNote,propertyKeys:[...new Set(indexed?.propertyKeys()??[])],onSearchProperty:(key:string)=>{setLeft(true);setSideTab('search');setQuery('['+key+']');},onNoteChange:editNote,ask:dialog.ask,onError:report}:undefined;
   const OutgoingView=rightTab==='outgoing'?panelComponent('outgoing','right'):undefined;
@@ -790,7 +781,7 @@ export function App(){
         <div className="vault-heading"><span>{sideTab==='files'?vaultName:sideTab==='search'?'Search':sideTab==='tags'?'Tags':sideTab==='bookmarks'?'Bookmarks':'Recent notes'}</span>
           {sideTab==='files'&&<div><IconButton label="New note" onClick={()=>createNote()}><FilePlus size={15}/></IconButton><IconButton label="New folder" onClick={newFolder}><FolderPlus size={15}/></IconButton></div>}
         </div>
-        {sideTab==='files'&&<><div className="file-controls"><button onClick={()=>setExpanded(new Set())} title="Collapse all folders">Collapse all</button><select aria-label="Sort files" value={fileSort} onChange={e=>setFileSort(e.target.value)}><option value="name">Name ↑</option><option value="modified">Modified ↓</option></select></div><div className="file-tree">{loading?<div className="skeleton-list"><i/><i/><i/><i/></div>:entries.length?tree():<div className="empty"><Folder size={25}/><p>Your vault is empty. Start with one note.</p><button onClick={()=>createNote()}>New note</button></div>}</div></>}
+        {sideTab==='files'&&(FilesView&&filesProps?<Suspense fallback={<div className="skeleton-list"><i/><i/><i/><i/></div>}><ViewBoundary resetKey={sideTab}><FilesView {...filesProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">File explorer unavailable.</p>)}
         {sideTab==='search'&&<><label className="search-input"><Search size={15}/><input autoFocus placeholder="Search notes…" value={query} onChange={e=>setQuery(e.target.value)} aria-label="Search notes" data-testid="search-input"/><button onClick={()=>setCaseSensitive(v=>!v)} className={caseSensitive?'selected':''} aria-label="Match case">Aa</button></label><div className="search-meta"><span>{results.length} results</span><select aria-label="Sort search results" value={searchSort} onChange={e=>setSearchSort(e.target.value)}><option value="name">Name ↑</option><option value="modified">Modified ↓</option></select><button aria-label="Copy search results" onClick={()=>navigator.clipboard?.writeText(results.map(n=>`[[${n.path.replace(/\.md$/,'')}]]`).join('\n')).then(()=>toast('Search results copied.')).catch(report)}><Copy size={13}/></button></div>
           <div className="search-results">{results.map(n=><button key={n.path} onClick={()=>open(n.path)} data-testid={'search-result-'+n.path}><span><FileText size={13}/>{title(n.path)}</span><small>{n.path}</small>{query&&<p>{frontmatter(n.content).body.replace(/[#*`\[\]]/g,'').slice(0,140)}</p>}</button>)}</div><p className="search-help">Try tag:#thinking, path:Ideas, task-todo: or /regex/. Operators can be grouped with parentheses and OR.</p></>}
         {SidePanel&&panelProps&&<Suspense fallback={<div className="skeleton-list"><i/><i/><i/></div>}><ViewBoundary resetKey={sideTab}><SidePanel {...panelProps}/></ViewBoundary></Suspense>}

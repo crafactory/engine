@@ -30,7 +30,7 @@ export interface ReadingViewProps {
 export type ViewComponent = ComponentType<ReadingViewProps>;
 
 /** Props for a sidebar/panel view contribution. */
-export type SidePanelTab = 'bookmarks' | 'recent' | 'tags' | 'outline' | 'backlinks' | 'outgoing' | 'properties';
+export type SidePanelTab = 'files' | 'bookmarks' | 'recent' | 'tags' | 'outline' | 'backlinks' | 'outgoing' | 'properties';
 
 export interface PanelHeading {level: number; text: string; offset: number}
 
@@ -49,6 +49,19 @@ export interface PanelViewProps {
   active: string;
   note?: Note;
   propertyKeys?: string[];
+  entries?: Entry[];
+  activePath?: string;
+  fileSort?: string;
+  expanded?: Set<string>;
+  loading?: boolean;
+  childrenFor?: (parent:string)=>Entry[];
+  onToggleFolder?: (path:string)=>void;
+  onOpenFile?: (path:string)=>void;
+  onFileContextMenu?: (path:string,x:number,y:number)=>void;
+  onDropFile?: (from:string,folder:string)=>void;
+  onCollapseAll?: ()=>void;
+  onFileSortChange?: (sort:string)=>void;
+  onCreateNote?: ()=>void;
   onSearchProperty?: (key:string)=>void;
   onNoteChange?: (path:string,content:string)=>void;
   ask?: (title:string,value?:string,description?:string)=>Promise<string|null>;
