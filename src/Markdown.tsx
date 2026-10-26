@@ -10,6 +10,7 @@ import katex from 'katex';
 import {bridge} from './bridge';
 import {frontmatter,resolveLink,section,title,search} from './knowledge';
 import type {PagePreviewService} from './services/page-preview';
+import type {HoverLinkPayload} from './plugins';
 import type {Note} from './types';
 import {taskMarker,setTaskChecked} from './task-source';
 
@@ -131,8 +132,8 @@ export function renderMarkdown(content:string,editableTasks=false) {
   return DOMPurify.sanitize(html,{ADD_ATTR:['target','data-note','data-embed','data-asset','data-engine-task-offset'],FORBID_TAGS:['style','iframe','object','embed']});
 }
 /** Render an immutable reading host; dispose owned processing when content or registry changes. */
-export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProcessing=true,previews}:{
-  content:string;notes:Note[];path:string;onOpen:(target:string)=>void;onChange?:(content:string)=>void;depth?:number;pluginProcessing?:boolean;previews?:PagePreviewService;
+export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProcessing=true,previews,onHoverLink}:{
+  content:string;notes:Note[];path:string;onOpen:(target:string)=>void;onChange?:(content:string)=>void;depth?:number;pluginProcessing?:boolean;previews?:PagePreviewService;onHoverLink?:(payload:Omit<HoverLinkPayload,'source'>)=>void;
 }) {
   const ref=useRef<HTMLDivElement>(null);
   const taskOwners=useRef(new WeakMap<HTMLInputElement,number>());
@@ -219,7 +220,7 @@ export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProce
   }
   return <div className="markdown-container">
     <div className="markdown" key={renderKey} ref={ref} onClick={click}
-      onMouseOver={e=>{const link=(e.target as HTMLElement).closest<HTMLElement>('[data-note]');if(link){const note=resolveLink(link.dataset.note!.split('#')[0],path,notes);if(note){const bounds=link.getBoundingClientRect();const placement=previews?previews.place(bounds,{width:window.innerWidth,height:window.innerHeight}):{x:Math.min(bounds.left,window.innerWidth-350),y:Math.min(bounds.bottom+8,window.innerHeight-240)};setHover({note,...placement});}}}}
+      onMouseOver={e=>{const link=(e.target as HTMLElement).closest<HTMLElement>('[data-note]');if(link){onHoverLink?.({event:e.nativeEvent,targetEl:link,linktext:link.dataset.note!,sourcePath:path});const note=resolveLink(link.dataset.note!.split('#')[0],path,notes);if(note){const bounds=link.getBoundingClientRect();const placement=previews?previews.place(bounds,{width:window.innerWidth,height:window.innerHeight}):{x:Math.min(bounds.left,window.innerWidth-350),y:Math.min(bounds.bottom+8,window.innerHeight-240)};setHover({note,...placement});}}}}
       onMouseOut={()=>setHover(null)} dangerouslySetInnerHTML={{__html:renderMarkdown(content,!!onChange)}} />
     {hover&&<aside className="hover-preview" style={{left:hover.x,top:hover.y}}><strong>{title(hover.note.path)}</strong><div dangerouslySetInnerHTML={{__html:renderMarkdown(previews?previews.excerpt(hover.note.content):frontmatter(hover.note.content).body.slice(0,650))}}/></aside>}
   </div>;

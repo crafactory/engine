@@ -2,6 +2,8 @@ import workerScript from './plugin-worker.ts?worker&url';
 import type {PluginManifest} from './types';
 import type {PluginSnapshot} from './compat-core';
 export interface PluginCommand {id:string;label:string;run:()=>void;plugin:string}
+export interface HoverLinkPayload {event:MouseEvent;source:string;targetEl:HTMLElement;linktext:string;sourcePath:string}
+
 export interface EditorSuggestOption {label:string;detail?:string;apply:()=>void|Promise<void>}
 export interface EditorSuggestResult {from:number;options:EditorSuggestOption[]}
 
@@ -19,6 +21,10 @@ export interface PluginController {
   basesViews?(): string[];
   /** Renderer-only: mount a registered Bases view into a container. */
   mountBasesView?(id:string,container:HTMLElement,config:unknown):{dispose():void};
+  /** Renderer-only: hover-link source ids registered by this plugin. */
+  hoverSources?(): string[];
+  /** Renderer-only: deliver a hover-link event for one source. */
+  hoverLink?(payload:HoverLinkPayload):void;
 }
 /** CommonJS is wrapped as original source text, not eval/Function and not a proprietary SDK. */
 export function startPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,onCommands:(commands:PluginCommand[])=>void,

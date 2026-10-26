@@ -53,6 +53,7 @@ module.exports=class extends Plugin {
     this.registerEditorSuggest(new FixtureSuggest(this.app));
     this.registerObsidianProtocolHandler('fixture-protocol',params=>this.status.setText('Protocol '+(params.value||'')));
     this.registerHoverLinkSource('fixture-hover',{display:'Fixture hover',defaultMod:true});
+    this.registerEvent(this.app.workspace.on('hover-link',event=>{if(event.source==='fixture-hover')this.status.setText('Hover '+event.linktext);}));
     this.registerBasesView('fixture-bases',controller=>new FixtureBasesView(controller));
     this.addCommand({id:'protocol',name:'Dispatch protocol',callback:()=>window.dispatchEvent(new CustomEvent('engine:protocol',{detail:'obsidian://fixture-protocol?value=ok'}))});
     this.addCommand({id:'view',name:'Open view',callback:async()=>{const leaf=this.app.workspace.getRightLeaf(false);await leaf.setViewState({type:'fixture-view'});await this.app.workspace.revealLeaf(leaf);}});

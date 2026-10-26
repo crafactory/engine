@@ -276,7 +276,7 @@ describe('unsupported methods fail, not no-op',()=>{
   it('renderer-only workspace leaf methods require host.ui',()=>{const h=harness();for(const method of ['getLeaf','getRightLeaf','getLeavesOfType','revealLeaf'])expect(()=>{const value=(h.runtime.app.workspace as any)[method];if(typeof value==='function')value.call(h.runtime.app.workspace);}).toThrow(CompatibilityError);});
   it('rejects undocumented app/workspace/cache access and unsupported events',()=>{
     const h=harness();
-    for(const op of [()=>h.runtime.app.fileManager,()=>h.runtime.app.vault.adapter,()=>h.runtime.app.metadataCache.getCache('Two.md'),()=>h.runtime.app.workspace.on('layout-change',()=>{})])expect(op).toThrow(CompatibilityError);
+    for(const op of [()=>h.runtime.app.fileManager,()=>h.runtime.app.vault.adapter,()=>h.runtime.app.metadataCache.getCache('Two.md'),()=>h.runtime.app.workspace.on('layout-change',()=>{}),()=>h.runtime.app.workspace.on('hover-link',()=>{})])expect(op).toThrow(CompatibilityError);
   });
 });
 describe('documented utility subsets',()=>{

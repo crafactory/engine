@@ -299,7 +299,8 @@ plugin. Custom `renderSuggestion` UI is not reproduced; the display-text hook is
 the label. `registerObsidianProtocolHandler` stores action handlers and dispatches
 `obsidian://action?...` URLs from the in-app `engine:protocol` window event; OS-level
 `obsidian://` registration is not wired. `registerHoverLinkSource` records and cleans up a
-source descriptor, but hover-link event transport is not wired yet. `registerBasesView`
+source descriptor; hovering a Markdown link emits `hover-link` for each registered source
+with a minimal `hoverParent` (no hover popover rendering). `registerBasesView`
 registers a custom `.base` view id; the Bases surface mounts it with a minimal
 `QueryController` (`type`, `config`, `app`) and calls `render(container)`. Query data,
 grouping, sorting and full `BasesConfig` semantics are not implemented.

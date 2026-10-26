@@ -1,5 +1,24 @@
 # Verification results
 
+## Hover-link transport
+
+This section records hover-source event delivery.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 800 passed (38 files) | Event gating and existing compatibility cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| desktop renderer e2e | **11 passed** | Hover status + existing renderer flows |
+
+Hovering an internal Markdown link calls the App dispatcher with the native event, target
+element, link text and source path. For every registered `hoverSource`, the renderer
+controller emits `workspace.on('hover-link')` with that source id and a minimal
+`hoverParent` (`hoverPopover: null`); the fixture's handler sets the status text to
+`Hover ZTarget`. Worker mode still rejects `hover-link` without a UI host. Custom hover
+popover rendering is not implemented; plugins can use the target element/event to draw
+their own UI.
+
 ## Metadata cache events
 
 This section records MetadataCache event delivery.
