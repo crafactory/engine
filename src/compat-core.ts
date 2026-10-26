@@ -302,7 +302,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   class MarkdownView {file:TFile|null;editor:Editor|null;constructor(){this.file=vault.getFileByPath(snapshot.active);this.editor=editor;return guard(this,'MarkdownView');}getViewType(){return 'markdown';}getViewData(){return snapshot.notes.find(n=>n.path===snapshot.active)?.content||'';}}
   class Workspace extends Events {
     layoutReady=true;
-    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){if(name!=='file-open'&&(!host.ui||!['layout-change','editor-change'].includes(name)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
+    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){if(name!=='file-open'&&(!host.ui||!['layout-change','editor-change','hover-link'].includes(name)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
     getActiveFile(){return vault.getFileByPath(snapshot.active);}
     getActiveViewOfType(type:unknown){return type===MarkdownView&&(editor||host.ui&&snapshot.active.endsWith('.md'))?new MarkdownView():null;}
     get activeEditor(){return editor?{file:this.getActiveFile(),editor}:null;}
@@ -453,6 +453,10 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     async run(id:string){if(unloaded)throw new Error('Plugin is unloaded');initEditor();const command=commands.get(id);if(!command)throw new Error('Command not found');if(!available(command,true))throw new Error('Command unavailable');await available(command,false);await settle();},
     /** Keep the request fence open until actual hook/cleanup work and data operations settle. */
     async stop(){if(unloaded)return;try{if(plugin)await Promise.all([plugin.unload(),componentLifecycle(plugin,'shutdown')]);await settle();}finally{commands.clear();host.commands([]);unloaded=true;}},
+    /** Deliver a hover-link event to renderer plugins with a minimal hover parent. */
+    hoverLink(payload:{event:MouseEvent;source:string;targetEl:HTMLElement;linktext:string;sourcePath:string}){
+      workspace.trigger('hover-link',{...payload,hoverParent:{hoverPopover:null}});
+    },
     /** Report the active editor provider and whether CodeMirror-only extensions apply. */
     editorCompatibility(){return host.native?.editor??{providerId:'unknown',codeMirrorExtensions:!!host.ui};},
     getExports(){return Object.keys(exports);}

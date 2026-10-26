@@ -16,7 +16,7 @@ import {Settings} from './Settings';
 import {Palette,type Choice} from './Palette';
 import {Slides} from './Slides';
 import {useDialog} from './Dialog';
-import {startPlugin,type PluginCommand,type PluginController} from './plugins';
+import {startPlugin,type HoverLinkPayload,type PluginCommand,type PluginController} from './plugins';
 import {startRendererPlugin} from './plugin-renderer';
 import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
@@ -100,6 +100,10 @@ export function App(){
     const s=pluginState.current;
     return readableSnapshot({name:s.vaultName,entries:s.entries,notes:notesRef.current,active:s.active,
       editor:s.mode!=='reading'&&isNote(s.active)&&editor.current?.path()===s.active?editor.current.snapshot():null},manifest??{});
+  }
+  /** Deliver a hover-link event to every registered renderer hover source. */
+  function dispatchHoverLink(payload:Omit<HoverLinkPayload,'source'>){
+    for(const controller of pluginStops.current.values())for(const source of controller.hoverSources?.()??[])controller.hoverLink?.({...payload,source});
   }
   /** Resolve a file path to a compatibility plugin view registered for its extension. */
   function pluginViewFor(path:string){
@@ -725,7 +729,7 @@ export function App(){
     const resolvedView=allowed?activeView:'markdown';
     const View=viewComponent(resolvedView);
     const pluginBases:Record<string,{controller:PluginController;id:string}>={};for(const [pluginId,controller] of pluginStops.current)for(const viewId of controller.basesViews?.()??[])pluginBases[viewId]={controller,id:viewId};
-    const viewProps={note,notes,entries,path:note.path,mode,previews:pagePreviewRuntime.current?.service,pluginBases,onOpen:open,onOpenLink:openLink,onChange:(content:string)=>editNote(note.path,content),onNoteChange:editNote,ask:dialog.ask};
+    const viewProps={note,notes,entries,path:note.path,mode,previews:pagePreviewRuntime.current?.service,pluginBases,onOpen:open,onOpenLink:openLink,onHoverLink:dispatchHoverLink,onChange:(content:string)=>editNote(note.path,content),onNoteChange:editNote,ask:dialog.ask};
     if(resolvedView!=='markdown'&&mode!=='source'&&View)return <ViewBoundary resetKey={note.path}><View {...viewProps}/></ViewBoundary>;
     return <div className="note-document" onDragOver={e=>e.preventDefault()} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();importFiles(e.dataTransfer.files);}}}>
       <div className={'document-inner '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>

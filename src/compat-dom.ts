@@ -205,6 +205,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       for(const [key,value]of parsed.searchParams)params[key]=value;
       await handler(params);return true;
     },
+    hoverSources(){return [...hoverSources.keys()];},
     hoverLinkSource(id:string,source:{display:string;defaultMod:boolean}){
       if(typeof id!=='string'||!id||!source||typeof source.display!=='string'||typeof source.defaultMod!=='boolean')throw new Error('Invalid hover link source');
       hoverSources.set(id,{...source});
