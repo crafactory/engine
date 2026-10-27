@@ -1,43 +1,14 @@
-import {useCallback,useEffect,useMemo,useRef,useState,type RefObject} from 'react';
-import {ReactFlow,Background,Controls,MiniMap,Handle,Position,NodeResizer,MarkerType,applyNodeChanges,applyEdgeChanges,addEdge,useReactFlow,useNodesInitialized,type Node,type Edge,type NodeChange,type EdgeChange,type Connection} from '@xyflow/react';
-import {Plus,FileText,Link,Group,ArrowRight,X} from 'lucide-react';
-import {renderMarkdown} from './Markdown';
-import {title} from './knowledge';
-import type {Note} from './types';
-import {canvasForeground,canvasBackground,canvasColors as colors} from './canvas-color';
+import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
+import {ReactFlow,Background,Controls,MiniMap,MarkerType,applyNodeChanges,applyEdgeChanges,addEdge,type Node,type Edge,type NodeChange,type EdgeChange,type Connection} from '@xyflow/react';
 import {parseCanvas} from './canvas-model';
-interface CanvasData extends Record<string,unknown> {
-  text?:string;file?:string;url?:string;label?:string;color?:string;
-  kind:string;onEdit:(id:string)=>void;onOpen:(path:string)=>void;notes:Note[];readOnly?:boolean;
-}
-/** Display a Canvas node; read-only nodes suppress editing and connection affordances. */
-function Card({id,data,selected}:{id:string;data:CanvasData;selected:boolean}) {
-  const file=data.notes.find(n=>n.path===data.file);
-  const background=canvasBackground(data.color);
-  return <div className={'canvas-card '+(background?'canvas-colored ':'')+(data.kind==='group'?'canvas-group':'')} style={{background,color:background?canvasForeground(background):undefined}}>
-    <NodeResizer color="#93c5af" isVisible={selected&&!data.readOnly} minWidth={160} minHeight={100}/>
-    {[['left',Position.Left],['right',Position.Right],['top',Position.Top],['bottom',Position.Bottom]].map(([side,pos])=><Handle key={String(side)} id={String(side)} type="source" position={pos as Position} isConnectable={!data.readOnly}/> )}
-    {[['left',Position.Left],['right',Position.Right],['top',Position.Top],['bottom',Position.Bottom]].map(([side,pos])=><Handle key={'t-'+side} id={'t-'+side} type="target" position={pos as Position} isConnectable={!data.readOnly}/>)}
-    {data.kind==='file'?<><button className="canvas-file-label nodrag" onClick={()=>data.onOpen(data.file!)}><FileText size={14}/>{title(data.file!)}<ArrowRight size={13}/></button><div className="canvas-markdown" dangerouslySetInnerHTML={{__html:renderMarkdown(file?.content||'File not found')}}/></>:
-      data.kind==='link'?<a className="nodrag canvas-url" href={/^https?:\/\//.test(data.url||'')?data.url:'#'} target="_blank" rel="noreferrer">{data.url}</a>:
-      <div className="canvas-markdown" onDoubleClick={()=>data.onEdit(id)} dangerouslySetInnerHTML={{__html:renderMarkdown(data.kind==='group'?data.label||'Group':data.text||'Double-click to edit')}}/>}
-    {!data.readOnly&&<button aria-label="Edit card" className="canvas-edit nodrag" onClick={()=>data.onEdit(id)}>Edit</button>}
-  </div>;
-}
-const nodeTypes={card:Card};
-/** Refit read-only geometry when its embedding container changes size or source content. */
-function FitEmbed({host,revision}:{host:RefObject<HTMLElement>;revision:string}){
-  const {fitView}=useReactFlow(),ready=useNodesInitialized();
-  useEffect(()=>{
-    const element=host.current;if(!element||!ready)return;
-    let frame=0,disposed=false;
-    /** Coalesce resize notifications after ReactFlow has measured the new container. */
-    const fit=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(!disposed&&element.isConnected)void fitView({padding:0.15,minZoom:0.1,maxZoom:1});});};
-    const observer=new ResizeObserver(fit);observer.observe(element);fit();
-    return()=>{disposed=true;observer.disconnect();cancelAnimationFrame(frame);};
-  },[host,revision,ready,fitView]);
-  return null;
-}
+import {canvasBackground} from './canvas-color';
+import type {Note} from './types';
+import type {CanvasData} from './views/canvas/types';
+import {canvasNodeTypes} from './views/canvas/Card';
+import {FitEmbed} from './views/canvas/FitEmbed';
+import {CanvasToolbar} from './views/canvas/CanvasToolbar';
+import {CardEditor} from './views/canvas/CardEditor';
+
 /** Render Canvas geometry with an optional read-only embed boundary that never persists changes. */
 export function Canvas({note,notes,onChange,onOpen,readOnly=false}:{note:Note;notes:Note[];onChange:(value:string)=>void;onOpen:(path:string)=>void;readOnly?:boolean}) {
   const host=useRef<HTMLElement>(null);
@@ -82,12 +53,8 @@ export function Canvas({note,notes,onChange,onOpen,readOnly=false}:{note:Note;no
     const next=[...nodes,node];setNodes(next);save(next,edges);
   }
   if(parsed.error)return <div className="empty"><h2>Invalid Canvas file</h2><p>{parsed.error}</p><p>Switch to source mode to repair the JSON.</p></div>;
-  return <section ref={host} className={'canvas-view'+(readOnly?' canvas-embedded':'')} aria-label={readOnly?'Embedded Canvas':'Canvas editor'}>{!readOnly&&<div className="canvas-toolbar"><button onClick={()=>add('text')} data-testid="canvas-add-text"><Plus size={15}/>Text card</button><button onClick={()=>add('file')}><FileText size={15}/>Note</button><button onClick={()=>add('link')}><Link size={15}/>Link</button><button onClick={()=>add('group')}><Group size={15}/>Group</button><span>{nodes.length} cards · {edges.length} connections</span></div>}
-    <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={nodeChanges} onEdgesChange={edgeChanges} onConnect={readOnly?undefined:connect} nodesDraggable={!readOnly} nodesConnectable={!readOnly} elementsSelectable={!readOnly} minZoom={readOnly?0.1:0.5} fitView fitViewOptions={readOnly?{minZoom:0.1,maxZoom:1,padding:0.15}:undefined} colorMode={document.documentElement.dataset.theme==='light'?'light':'dark'} deleteKeyCode={readOnly?null:['Backspace','Delete']}><Background gap={22} size={1}/><Controls showInteractive={!readOnly}/>{readOnly?<FitEmbed host={host} revision={note.content}/>:<MiniMap pannable zoomable/>}</ReactFlow>
-    {editing&&<div className="modal-backdrop"><section className="modal card-modal" role="dialog" aria-label="Edit canvas card"><header><h2>Edit card</h2><button onClick={()=>setEditing(null)} aria-label="Close"><X size={16}/></button></header>
-      <textarea aria-label="Card content" autoFocus value={value} onChange={e=>setValue(e.target.value)} data-testid="canvas-card-content"/>
-      <label>Color<select value={color} onChange={e=>setColor(e.target.value)}><option value="">Default</option>{Object.keys(colors).map(c=><option key={c} value={c}>{['Red','Orange','Yellow','Green','Blue','Purple'][Number(c)-1]}</option>)}</select></label>
-      <footer><button onClick={()=>setEditing(null)}>Cancel</button><button className="primary" data-testid="canvas-save-card" onClick={()=>{const next=nodes.map(n=>n.id===editing?{...n,data:{...n.data,color,[n.data.kind==='file'?'file':n.data.kind==='link'?'url':n.data.kind==='group'?'label':'text']:value}}:n);save(next,edges);setEditing(null);}}>Save card</button></footer>
-    </section></div>}
+  return <section ref={host} className={'canvas-view'+(readOnly?' canvas-embedded':'')} aria-label={readOnly?'Embedded Canvas':'Canvas editor'}>{!readOnly&&<CanvasToolbar onAdd={add} nodeCount={nodes.length} edgeCount={edges.length}/>}
+    <ReactFlow nodes={nodes} edges={edges} nodeTypes={canvasNodeTypes} onNodesChange={nodeChanges} onEdgesChange={edgeChanges} onConnect={readOnly?undefined:connect} nodesDraggable={!readOnly} nodesConnectable={!readOnly} elementsSelectable={!readOnly} minZoom={readOnly?0.1:0.5} fitView fitViewOptions={readOnly?{minZoom:0.1,maxZoom:1,padding:0.15}:undefined} colorMode={document.documentElement.dataset.theme==='light'?'light':'dark'} deleteKeyCode={readOnly?null:['Backspace','Delete']}><Background gap={22} size={1}/><Controls showInteractive={!readOnly}/>{readOnly?<FitEmbed host={host} revision={note.content}/>:<MiniMap pannable zoomable/>}</ReactFlow>
+    {editing&&<CardEditor value={value} color={color} onValue={setValue} onColor={setColor} onCancel={()=>setEditing(null)} onSave={()=>{const next=nodes.map(n=>n.id===editing?{...n,data:{...n.data,color,[n.data.kind==='file'?'file':n.data.kind==='link'?'url':n.data.kind==='group'?'label':'text']:value}}:n);save(next,edges);setEditing(null);}}/>}
   </section>;
 }
