@@ -2,7 +2,7 @@ import {forwardRef,useEffect,useImperativeHandle,useLayoutEffect,useRef} from 'r
 import {EditorState,Compartment,type Extension} from '@codemirror/state';
 import {EditorView,keymap,lineNumbers,highlightActiveLine,drawSelection} from '@codemirror/view';
 import {markdown,markdownKeymap} from '@codemirror/lang-markdown';
-import {defaultKeymap,history,historyKeymap,indentWithTab} from '@codemirror/commands';
+import {defaultKeymap,history,historyKeymap,indentWithTab,redo} from '@codemirror/commands';
 import {searchKeymap,highlightSelectionMatches} from '@codemirror/search';
 import {autocompletion,CompletionContext,type CompletionResult} from '@codemirror/autocomplete';
 import {syntaxHighlighting,HighlightStyle} from '@codemirror/language';
@@ -82,6 +82,7 @@ function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,o
         modeCompartment.current.of(settings.mode==='live'?livePreviewExtension():[highlightActiveLine()]),
         autocompletion({override:[complete]}),
         keymap.of([
+          {key:'Mod-Shift-z',run:redo},{key:'Mod-y',run:redo},
           {key:'Mod-b',run:v=>wrap(v,'**')},{key:'Mod-i',run:v=>wrap(v,'*')},
           {key:'Mod-Shift-h',run:v=>wrap(v,'==')},
           ...markdownKeymap,...defaultKeymap,...historyKeymap,...searchKeymap,indentWithTab
