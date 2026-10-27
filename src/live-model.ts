@@ -105,3 +105,62 @@ export function appendTableColumn(content:string):string {
     return trimmed+'|'+extra+'|';
   }).join('\n');
 }
+
+/** Column alignments parsed from the separator row. */
+export function tableAlignments(content:string):('left'|'right'|'center'|null)[] {
+  const cells=tableCells(content.split('\n')[1]||'');
+  return cells.map(cell=>{
+    const value=cell.value.trim();
+    if(value.startsWith(':')&&value.endsWith(':'))return 'center';
+    if(value.endsWith(':'))return 'right';
+    if(value.startsWith(':'))return 'left';
+    return null;
+  });
+}
+
+/** Rebuild one table line from kept raw cell slices. */
+function rebuildRow(line:string,cells:TableCell[]):string {
+  const leading=line.trimStart().startsWith('|'),trailing=line.trimEnd().endsWith('|');
+  return (leading?'|':'')+cells.map(cell=>line.slice(cell.from,cell.to)).join('|')+(trailing?'|':'');
+}
+
+/** Delete a body row (display row >= 1); header/separator rows are kept. */
+export function deleteTableRow(content:string,row:number):string {
+  if(row<1)return content;
+  const lines=content.split('\n'),index=row+1;
+  if(index>=lines.length)return content;
+  return lines.filter((_line,position)=>position!==index).join('\n');
+}
+
+/** Move a body row up or down by one display row. */
+export function moveTableRow(content:string,row:number,direction:1|-1):string {
+  if(row<1)return content;
+  const lines=content.split('\n'),index=row+1,target=index+direction;
+  if(target<=1||target>=lines.length)return content;
+  [lines[index],lines[target]]=[lines[target],lines[index]];
+  return lines.join('\n');
+}
+
+/** Delete one column from every table row. */
+export function deleteTableColumn(content:string,column:number):string {
+  return content.split('\n').map(line=>{
+    if(!line.trim())return line;
+    const cells=tableCells(line);
+    if(column<0||column>=cells.length||cells.length<=1)return line;
+    cells.splice(column,1);
+    return rebuildRow(line,cells);
+  }).join('\n');
+}
+
+/** Move one column left or right across every table row. */
+export function moveTableColumn(content:string,column:number,direction:1|-1):string {
+  return content.split('\n').map(line=>{
+    if(!line.trim())return line;
+    const cells=tableCells(line),target=column+direction;
+    if(column<0||column>=cells.length||target<0||target>=cells.length)return line;
+    const raw=cells.map(cell=>line.slice(cell.from,cell.to));
+    [raw[column],raw[target]]=[raw[target],raw[column]];
+    const leading=line.trimStart().startsWith('|'),trailing=line.trimEnd().endsWith('|');
+    return (leading?'|':'')+raw.join('|')+(trailing?'|':'');
+  }).join('\n');
+}

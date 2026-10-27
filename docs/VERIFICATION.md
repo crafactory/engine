@@ -10,13 +10,14 @@ scrolling and editor-history fixes.
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
 | `npm run test` | 803 passed (39 files) | Existing suites |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
-| `npm run test:e2e` | **56 passed / 0 failed** | +5 Live Preview/editor cases |
+| `npm run test:e2e` | **57 passed / 0 failed** | +6 Live Preview/editor cases |
 
 - Rendered blocks have no "Edit source" button; clicking a block reveals source at the
   clicked line (code/diagram line mapping), with Enter/Space on the focused block as the
   keyboard path.
 - Table Tab/Shift+Tab move cells; Tab on the last cell appends a row and focuses its first
-  cell; hover affordances add a row/column.
+  cell; hover affordances add a row/column, selected cells expose move/delete controls,
+  and separator alignment is applied.
 - Long code and table content scroll inside `.live-block`; the editor content is clamped to
   the viewport width (`cm-content`), so the page no longer scrolls horizontally.
 - Theme/font-size/line-number/spellcheck changes reconfigure compartments instead of

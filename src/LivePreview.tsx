@@ -5,7 +5,8 @@ import {EditorView,Decoration,WidgetType,type DecorationSet} from '@codemirror/v
 import DOMPurify from 'dompurify';
 import katex from 'katex';
 import {Markdown,renderMarkdown} from './Markdown';
-import {liveRegions,touchesRange,tableRows,replaceTableCell,appendTableRow,appendTableColumn,minimalBlockChange,type LiveBlock,type TableCell} from './live-model';
+import {liveRegions,touchesRange,tableRows,replaceTableCell,appendTableRow,appendTableColumn,tableAlignments,deleteTableRow,moveTableRow,deleteTableColumn,moveTableColumn,minimalBlockChange,type LiveBlock,type TableCell} from './live-model';
+import {ArrowDown,ArrowLeft,ArrowRight,ArrowUp,Trash2} from 'lucide-react';
 import type {Note} from './types';
 import {inlineLinks,type InlineLink} from './inline-links';
 
@@ -17,6 +18,7 @@ const blockOwners=new WeakMap<HTMLElement,BlockWidget>();
 /** Edit bounded Markdown cells while retaining source delimiter and literal-pipe semantics. */
 function LiveTable({content,onChange,onMeasure}:{content:string;onChange:(value:string)=>void;onMeasure:()=>void}){
   const [edit,setEdit]=useState<{cell:TableCell;row:number;col:number;value:string;base:string}|null>(null);
+  const [selected,setSelected]=useState<{row:number;col:number}|null>(null);
   const host=useRef<HTMLDivElement>(null),pendingFocus=useRef<string|null>(null);
   // Measure after reconciliation; a cell is valid only for the source version that opened it.
   useLayoutEffect(()=>{
@@ -27,13 +29,14 @@ function LiveTable({content,onChange,onMeasure}:{content:string;onChange:(value:
     }
     onMeasure();
   },[content,onMeasure,!!edit]);
-  const rows=tableRows(content);
+  const rows=tableRows(content),alignments=tableAlignments(content);
   const columns=rows[0]?.cells.length??1,lastRow=rows.length-1;
   /** Commit the active cell and optionally move focus to another cell. */
   function commit(target?:string){
     if(!edit)return;
     if(edit.base===content){const next=replaceTableCell(content,edit.cell,edit.value);if(next!==content)onChange(next);}
     pendingFocus.current=target??null;
+    if(target){const [row,col]=target.split(':').map(Number);setSelected({row,col});}
     setEdit(null);
   }
   /** Move one cell; Tab on the last cell appends a row and focuses its first cell. */
@@ -42,7 +45,7 @@ function LiveTable({content,onChange,onMeasure}:{content:string;onChange:(value:
     if(direction===1&&edit.row===lastRow&&edit.col===columns-1){
       const base=edit.base===content?replaceTableCell(content,edit.cell,edit.value):content;
       onChange(appendTableRow(base,columns));
-      pendingFocus.current=lastRow+1+':0';setEdit(null);return;
+      pendingFocus.current=lastRow+1+':0';setSelected({row:lastRow+1,col:0});setEdit(null);return;
     }
     if(direction===-1&&edit.row===0&&edit.col===0)return;
     let row=edit.row,col=edit.col+direction;
@@ -51,17 +54,25 @@ function LiveTable({content,onChange,onMeasure}:{content:string;onChange:(value:
     commit(row+':'+col);
   }
   return <div ref={host} className="live-table-shell">
-    <div className="live-table-scroll"><table className="live-table"><thead>{rows.filter(r=>r.header).map((row,r)=><tr key={r}>{row.cells.map((cell,c)=><th key={c}>{cellUI(cell,0,c)}</th>)}</tr>)}</thead>
-      <tbody>{rows.filter(r=>!r.header).map((row,r)=><tr key={r}>{row.cells.map((cell,c)=><td key={c}>{cellUI(cell,r+1,c)}</td>)}</tr>)}</tbody></table></div>
+    <div className="live-table-scroll"><table className="live-table"><thead>{rows.filter(r=>r.header).map((row,r)=><tr key={r}>{row.cells.map((cell,c)=><th key={c} style={{textAlign:alignments[c]??undefined}}>{cellUI(cell,0,c)}</th>)}</tr>)}</thead>
+      <tbody>{rows.filter(r=>!r.header).map((row,r)=><tr key={r}>{row.cells.map((cell,c)=><td key={c} style={{textAlign:alignments[c]??undefined}}>{cellUI(cell,r+1,c)}</td>)}</tr>)}</tbody></table></div>
     <button type="button" className="live-table-add live-table-add-row" aria-label="Add row below" title="Add row below" onClick={()=>onChange(appendTableRow(content,columns))}>+</button>
     <button type="button" className="live-table-add live-table-add-column" aria-label="Add column right" title="Add column right" onClick={()=>onChange(appendTableColumn(content))}>+</button>
+    {selected&&<div className="live-table-tools">
+      <button type="button" aria-label="Move row up" title="Move row up" disabled={selected.row<=1} onClick={()=>{onChange(moveTableRow(content,selected.row,-1));setSelected(null);}}><ArrowUp size={12}/></button>
+      <button type="button" aria-label="Move row down" title="Move row down" disabled={selected.row>=lastRow} onClick={()=>{onChange(moveTableRow(content,selected.row,1));setSelected(null);}}><ArrowDown size={12}/></button>
+      <button type="button" aria-label="Delete row" title="Delete row" disabled={selected.row<1} onClick={()=>{onChange(deleteTableRow(content,selected.row));setSelected(null);}}><Trash2 size={12}/></button>
+      <button type="button" aria-label="Move column left" title="Move column left" disabled={selected.col===0} onClick={()=>{onChange(moveTableColumn(content,selected.col,-1));setSelected(null);}}><ArrowLeft size={12}/></button>
+      <button type="button" aria-label="Move column right" title="Move column right" disabled={selected.col>=columns-1} onClick={()=>{onChange(moveTableColumn(content,selected.col,1));setSelected(null);}}><ArrowRight size={12}/></button>
+      <button type="button" aria-label="Delete column" title="Delete column" disabled={columns<=1} onClick={()=>{onChange(deleteTableColumn(content,selected.col));setSelected(null);}}><Trash2 size={12}/></button>
+    </div>}
   </div>;
   /** Expose either a focusable cell button or its temporary text input. */
   function cellUI(cell:TableCell,row:number,col:number){
     if(edit?.base===content&&edit.row===row&&edit.col===col)return <input autoFocus aria-label={`Cell row ${row+1} column ${col+1}`} value={edit.value}
       onChange={e=>setEdit({...edit,value:e.target.value})} onBlur={()=>commit()}
       onKeyDown={e=>{if(e.key==='Tab'){e.preventDefault();move(e.shiftKey?-1:1);}else if(e.key==='Enter'){e.preventDefault();commit(row+':'+col);}else if(e.key==='Escape'){e.preventDefault();pendingFocus.current=row+':'+col;setEdit(null);}}}/>;
-    return <button data-live-cell={row+':'+col} aria-label={`Edit cell row ${row+1} column ${col+1}`} onClick={()=>setEdit({cell,row,col,value:cell.value,base:content})}
+    return <button data-live-cell={row+':'+col} aria-label={`Edit cell row ${row+1} column ${col+1}`} onMouseEnter={()=>setSelected({row,col})} onFocus={()=>setSelected({row,col})} onClick={()=>{setSelected({row,col});setEdit({cell,row,col,value:cell.value,base:content});}}
       dangerouslySetInnerHTML={{__html:renderMarkdown(cell.value)||'<span class="live-empty-cell">Empty</span>'}}/>;
   }
 }

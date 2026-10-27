@@ -132,6 +132,21 @@ test('table edge affordances add a row and a column',async({page})=>{
   await page.getByTestId('mode-source').click();
   await expect(page.getByTestId('note-editor')).toContainText('| :--- | ---: | --- |');
 });
+test('table alignment and row/column controls',async({page})=>{
+  await prepare(page,'# Aligned\n\n| Name | State |\n| :--- | ---: |\n| Alpha | Open |\n| Beta | Closed |\n');
+  await expect(page.locator('.live-table th').nth(0)).toHaveCSS('text-align','left');
+  await expect(page.locator('.live-table th').nth(1)).toHaveCSS('text-align','right');
+  await page.getByRole('button',{name:'Edit cell row 2 column 1',exact:true}).hover();
+  await page.getByRole('button',{name:'Delete row',exact:true}).click();
+  await page.getByTestId('mode-source').click();
+  await expect(page.getByTestId('note-editor')).not.toContainText('Alpha');
+  await expect(page.getByTestId('note-editor')).toContainText('Beta');
+  await page.getByTestId('mode-live').click();
+  await page.getByRole('button',{name:'Edit cell row 1 column 1',exact:true}).hover();
+  await page.getByRole('button',{name:'Move column right',exact:true}).click();
+  await page.getByTestId('mode-source').click();
+  await expect(page.getByTestId('note-editor')).toContainText('| State | Name |');
+});
 test('long code and table content scroll inside their blocks',async({page})=>{
   const long='x'.repeat(1200);
   await prepare(page,`# Wide\n\n\`\`\`js\nconst long = "${long}";\n\`\`\`\n\n| A | B |\n| --- | --- |\n| ${long} | z |\n`);
