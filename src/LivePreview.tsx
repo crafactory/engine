@@ -9,6 +9,8 @@ import {liveRegions,touchesRange,tableRows,replaceTableCell,appendTableRow,appen
 import {ArrowDown,ArrowLeft,ArrowRight,ArrowUp,Trash2} from 'lucide-react';
 import type {Note} from './types';
 import {inlineLinks,type InlineLink} from './inline-links';
+import {inlineImages,type InlineImage} from './inline-images';
+import {bridge} from './bridge';
 
 export const refreshLivePreview=StateEffect.define<null>();
 interface Context {path:string;notes:Note[];onOpen:(target:string)=>void}
@@ -171,6 +173,42 @@ class LinkWidget extends WidgetType {
   /** Let anchors handle pointer and keyboard activation rather than editing hidden syntax. */
   ignoreEvent(){return true;}
 }
+class TagWidget extends WidgetType {
+  /** Bind a tag token to its source offset. */
+  constructor(readonly tag:string,readonly from:number){super();}
+  /** Reuse a tag pill while its text is unchanged. */
+  eq(other:TagWidget){return this.tag===other.tag&&this.from===other.from;}
+  /** Render a clickable pill that reveals its source. */
+  toDOM(view:EditorView){
+    const pill=document.createElement('span');pill.className='live-tag';pill.textContent=this.tag;
+    pill.onclick=event=>{event.preventDefault();event.stopPropagation();view.dispatch({selection:{anchor:this.from},scrollIntoView:true});view.focus();};
+    return pill;
+  }
+  /** Let the pill handle clicks rather than the editor. */
+  ignoreEvent(){return true;}
+}
+class InlineImageWidget extends WidgetType {
+  /** Bind an immutable safe image token to the current editor context. */
+  constructor(readonly image:InlineImage,readonly from:number,readonly context:()=>Context){super();}
+  /** Reuse an image node while its source and alt text are unchanged. */
+  eq(other:InlineImageWidget){return this.image.src===other.image.src&&this.image.alt===other.image.alt&&this.context===other.context;}
+  /** Render a local asset through the bridge or a safe external URL. */
+  toDOM(view:EditorView){
+    const wrap=document.createElement('span');wrap.className='live-inline-image-wrap';
+    const img=document.createElement('img');img.className='live-inline-image';img.alt=this.image.alt;img.title=this.image.alt;img.loading='lazy';
+    const show=()=>{img.onload=()=>view.requestMeasure();};
+    if(this.image.external){img.src=this.image.src;show();}
+    else {
+      const path=this.context().path,dir=path.split('/').slice(0,-1).join('/');
+      const target=this.image.src.startsWith('/')?this.image.src.slice(1):this.image.src.startsWith('./')?`${dir}/${this.image.src.slice(2)}`:this.image.src.includes('/')?this.image.src:`${dir}/${this.image.src}`;
+      bridge.asset(target).then(url=>{if(url){img.src=url;show();}else img.alt='Missing image: '+this.image.alt;}).catch(()=>{img.alt='Missing image: '+this.image.alt;});
+    }
+    img.onclick=event=>{event.preventDefault();event.stopPropagation();view.dispatch({selection:{anchor:this.from},scrollIntoView:true});view.focus();};
+    wrap.append(img);return wrap;
+  }
+  /** Let the image own clicks rather than translating them into source selection. */
+  ignoreEvent(){return true;}
+}
 class InlineMathWidget extends WidgetType {
   /** Capture the expression rendered by this immutable inline widget. */
   constructor(readonly expression:string){super();}
@@ -260,6 +298,23 @@ function build(state:EditorState,context:()=>Context):DecorationSet {
       const cls=marker==='**'?'live-bold':marker==='=='?'live-mark':marker==='~~'?'live-strike':marker==='*'||marker==='_'?'live-italic':'live-code';
       ranges.push({from,to,dec:Decoration.mark({class:cls})});
       if(!active)ranges.push({from,to:from+marker.length,dec:Decoration.replace({})},{from:to-marker.length,to,dec:Decoration.replace({})});
+    }
+    for(const image of inlineImages(line.text)){
+      const from=line.from+image.from,to=line.from+image.to;
+      if(occupied.some(range=>from<range.to&&to>range.from))continue;
+      if(links.some(link=>from<line.from+link.to&&to>line.from+link.from))continue;
+      if(touchesRange(from,to,selected))continue;
+      occupied.push({from,to});
+      ranges.push({from,to,dec:Decoration.replace({widget:new InlineImageWidget(image,from,()=>context())})});
+    }
+    for(const match of line.text.matchAll(/(^|[\s([{])#([A-Za-z0-9_/-]+)/g)){
+      const index=match.index!+match[1].length,from=line.from+index,to=from+match[0].length-match[1].length;
+      if(escapedAt(line.text,index))continue;
+      if(occupied.some(range=>from<range.to&&to>range.from))continue;
+      if(links.some(link=>from<line.from+link.to&&to>line.from+link.from))continue;
+      if(touchesRange(from,to,selected))continue;
+      occupied.push({from,to});
+      ranges.push({from,to,dec:Decoration.replace({widget:new TagWidget('#'+match[2],from)})});
     }
     for(const match of line.text.matchAll(/(?<!\\)\$(?!\$)([^\s$](?:[^$\n]*?[^\s$])?)\$(?!\$)/g)){
       const index=match.index!,from=line.from+index,to=from+match[0].length;

@@ -45,6 +45,20 @@ test('inline formatting respects escapes, italic and span-level reveal',async({p
   await expect(page.getByTestId('note-editor')).toContainText('**bold**');
   await expect(page.locator('.cm-line').filter({hasText:'italic'}).first()).not.toContainText('*italic*');
 });
+test('inline images render and reveal source on click',async({page})=>{
+  const image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2n0kAAAAASUVORK5CYII=';
+  await prepare(page,`# Image\n\nBefore ![pixel](${image}) after.\n\n\`\`\`js\nconst x = 1;\n\`\`\`\n`);
+  await expect(page.locator('.live-inline-image')).toHaveCount(1);
+  await expect(page.locator('.live-inline-image')).toHaveAttribute('src',image);
+  await page.locator('.live-inline-image').click();
+  await expect(page.getByTestId('note-editor')).toContainText('![pixel]');
+});
+test('inline tags render as pills and reveal source',async({page})=>{
+  await prepare(page,'# Tags\n\nA #topic tag.\n\n```js\n#notatag\n```\n');
+  await expect(page.locator('.live-tag')).toHaveCount(1);await expect(page.locator('.live-tag')).toHaveText('#topic');
+  await page.locator('.live-tag').click();
+  await expect(page.getByTestId('note-editor')).toContainText('#topic');
+});
 test('live table edits preserve Markdown delimiters and escaped pipes',async({page})=>{
   await prepare(page);await page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true}).click();
   await page.getByRole('textbox',{name:'Cell row 2 column 2',exact:true}).fill('In | progress');
