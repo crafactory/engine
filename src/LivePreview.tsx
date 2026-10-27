@@ -5,6 +5,7 @@ import {EditorView,Decoration,WidgetType,type DecorationSet} from '@codemirror/v
 import DOMPurify from 'dompurify';
 import katex from 'katex';
 import {Markdown,renderMarkdown} from './Markdown';
+import {frontmatter} from './knowledge';
 import {liveRegions,touchesRange,tableRows,replaceTableCell,appendTableRow,appendTableColumn,tableAlignments,deleteTableRow,moveTableRow,deleteTableColumn,moveTableColumn,minimalBlockChange,type LiveBlock,type TableCell} from './live-model';
 import {ArrowDown,ArrowLeft,ArrowRight,ArrowUp,Trash2} from 'lucide-react';
 import type {Note} from './types';
@@ -248,8 +249,14 @@ export function livePreview(context:()=>Context){
 function build(state:EditorState,context:()=>Context):DecorationSet {
   const ranges:{from:number;to:number;dec:Decoration}[]=[];
   const selected=state.selection.ranges;
-  const {blocks,literal}=liveRegions(state.doc.toString());
+  const source=state.doc.toString(),meta=frontmatter(source),frontmatterEnd=meta.error?0:meta.raw.length;
+  const {blocks,literal}=liveRegions(source);
+  if(frontmatterEnd){
+    const first=state.doc.lineAt(0).number,last=state.doc.lineAt(Math.max(0,frontmatterEnd-1)).number;
+    for(let n=first;n<=last;n++)ranges.push({from:state.doc.line(n).from,to:state.doc.line(n).from,dec:Decoration.line({class:'frontmatter-hidden'})});
+  }
   for(const block of blocks){
+    if(block.from<frontmatterEnd)continue;
     if(!touchesRange(block.from,block.to,selected)){ranges.push({from:block.from,to:block.to,dec:Decoration.replace({block:true,widget:new BlockWidget(block,context)})});continue;}
     if(block.kind==='code'||block.kind==='diagram'){
       const first=state.doc.lineAt(block.from).number,last=state.doc.lineAt(block.to).number;
@@ -266,6 +273,7 @@ function build(state:EditorState,context:()=>Context):DecorationSet {
   }
   for(let n=1;n<=state.doc.lines;n++){
     const line=state.doc.line(n);
+    if(line.from<frontmatterEnd)continue;
     if([...blocks,...literal].some(b=>line.from>=b.from&&line.from<b.to))continue;
     const links=inlineLinks(line.text);
     for(const link of links){

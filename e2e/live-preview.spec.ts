@@ -1,4 +1,5 @@
 import {test,expect,type Page} from '@playwright/test';
+const redoShortcut=process.platform==='darwin'?'Meta+Shift+z':'Control+y';
 const fixture='# Live fixtures\n\nLead paragraph with $x^2$ and `code $x$`.\n\n| Name | State |\n| :--- | ---: |\n| Alpha | Open |\n| Beta | Closed |\n\n- [ ] First task\n- [x] Second task\n\n> [!note]- Folded title\n> Hidden callout content.\n\n$$\nx^2 + y^2\n$$\n\n```js\nconst answer = 42;\n```\n\n```mermaid\nflowchart LR\nA-->B\n```\n\n![[Ideas/Small pieces, loosely joined]]\n\nLast paragraph.\n';
 /** Populate a note through the source editor before exercising live-preview controls. */
 async function prepare(page:Page,content=fixture){
@@ -73,8 +74,10 @@ test('table cancel, undo and redo preserve editable preview',async({page})=>{
   await expect(page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true})).toHaveText('Open');
   await page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true}).click();
   await page.getByRole('textbox',{name:'Cell row 2 column 2',exact:true}).fill('Done');await page.keyboard.press('Enter');
-  await page.getByTestId('note-editor').press('ControlOrMeta+z');await expect(page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true})).toHaveText('Open');
-  await page.getByTestId('note-editor').press('ControlOrMeta+Shift+z');await expect(page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true})).toHaveText('Done');
+  await page.getByTestId('note-editor').focus();await page.keyboard.press('ControlOrMeta+z');
+  await page.getByTestId('mode-source').click();await expect(page.getByTestId('note-editor')).toContainText('| Alpha | Open |');
+  await page.getByTestId('mode-live').click();await page.getByTestId('note-editor').focus();await page.keyboard.press(redoShortcut);
+  await page.getByTestId('mode-source').click();await expect(page.getByTestId('note-editor')).toContainText('| Alpha | Done |');
 });
 test('live task checkbox edits exactly its task and retains frontmatter',async({page})=>{
   await prepare(page,'---\naliases: [Live]\n---\n'+fixture);

@@ -1,5 +1,23 @@
 # Verification results
 
+## Frontmatter decoration and mode-switch undo
+
+This section records keeping the full document in live mode.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 803 passed (39 files) | Existing suites |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` | **60 passed / 0 failed** | +1 mode-switch undo case |
+
+Live mode hides frontmatter with line decorations instead of removing it from the
+CodeMirror document; source/live switching now reconfigures a compartment and preserves the
+undo stack. The cursor is clamped below hidden frontmatter so it cannot be edited
+invisibly. Plugin code-block processor output is not enabled in live widgets yet: doing so duplicates
+processor lifecycles between live and reading surfaces. The frontmatter properties UI
+remains the side panel rather than an inline Obsidian-style properties widget.
+
 ## Live Preview editing and inline fixes
 
 This section records the click-to-edit block UX, table editing affordances, internal
