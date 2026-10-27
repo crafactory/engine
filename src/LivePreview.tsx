@@ -200,7 +200,13 @@ function build(state:EditorState,context:()=>Context):DecorationSet {
   const ranges:{from:number;to:number;dec:Decoration}[]=[];
   const selected=state.selection.ranges;
   const {blocks,literal}=liveRegions(state.doc.toString());
-  for(const block of blocks)if(!touchesRange(block.from,block.to,selected))ranges.push({from:block.from,to:block.to,dec:Decoration.replace({block:true,widget:new BlockWidget(block,context)})});
+  for(const block of blocks){
+    if(!touchesRange(block.from,block.to,selected)){ranges.push({from:block.from,to:block.to,dec:Decoration.replace({block:true,widget:new BlockWidget(block,context)})});continue;}
+    if(block.kind==='code'||block.kind==='diagram'){
+      const first=state.doc.lineAt(block.from).number,last=state.doc.lineAt(block.to).number;
+      for(let n=first;n<=last;n++)ranges.push({from:state.doc.line(n).from,to:state.doc.line(n).from,dec:Decoration.line({class:'live-code-source'})});
+    }
+  }
   const escapedAt=(text:string,index:number)=>{let count=0;for(let i=index-1;i>=0&&text[i]==='\\';i--)count++;return count%2===1;};
   const setext=new Map<number,number>();
   for(let n=2;n<=state.doc.lines;n++){
