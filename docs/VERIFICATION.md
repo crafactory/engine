@@ -10,7 +10,7 @@ scrolling and editor-history fixes.
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
 | `npm run test` | 803 passed (39 files) | Existing suites |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
-| `npm run test:e2e` | **57 passed / 0 failed** | +6 Live Preview/editor cases |
+| `npm run test:e2e` | **59 passed / 0 failed** | +8 Live Preview/editor cases |
 
 - Rendered blocks have no "Edit source" button; clicking a block reveals source at the
   clicked line (code/diagram line mapping), with Enter/Space on the focused block as the
@@ -23,7 +23,8 @@ scrolling and editor-history fixes.
 - Theme/font-size/line-number/spellcheck changes reconfigure compartments instead of
   recreating the editor; an e2e case verifies undo survives a theme change.
 - Inline bold/italic/highlight/strike/code hide markers per touched span, escaped markers
-  stay literal, and setext headings render. Remaining differences are listed in
+  stay literal, setext headings render, and inline images/tag pills render (revealing
+  source on click). Remaining differences are listed in
   `QA-LIVE-PREVIEW.md`.
 
 ## Editor surface view
