@@ -73,8 +73,8 @@ test('table cancel, undo and redo preserve editable preview',async({page})=>{
   await expect(page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true})).toHaveText('Open');
   await page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true}).click();
   await page.getByRole('textbox',{name:'Cell row 2 column 2',exact:true}).fill('Done');await page.keyboard.press('Enter');
-  await page.getByTestId('note-editor').press('ControlOrMeta+z');await expect(page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true})).toHaveText('Open');
-  await page.getByTestId('note-editor').press('ControlOrMeta+Shift+z');await expect(page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true})).toHaveText('Done');
+  await page.getByTestId('note-editor').focus();await page.keyboard.press('ControlOrMeta+z');await page.getByTestId('note-editor').focus();await page.keyboard.press('ControlOrMeta+End');await expect(page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true})).toHaveText('Open');
+  await page.getByTestId('note-editor').focus();await page.keyboard.press('ControlOrMeta+Shift+z');await page.getByTestId('note-editor').focus();await page.keyboard.press('ControlOrMeta+End');await expect(page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true})).toHaveText('Done');
 });
 test('live task checkbox edits exactly its task and retains frontmatter',async({page})=>{
   await prepare(page,'---\naliases: [Live]\n---\n'+fixture);

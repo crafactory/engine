@@ -139,7 +139,7 @@ test('long document with a tall table keeps the typing caret in the editor viewp
     const cursor=document.querySelector('.cm-cursor')?.getBoundingClientRect(),editor=document.querySelector('.cm-scroller')?.getBoundingClientRect();
     return !!cursor&&!!editor&&cursor.top>=editor.top-2&&cursor.bottom<=editor.bottom+2;
   })).toBe(true);
-  await page.keyboard.press('ControlOrMeta+z');await page.keyboard.press('ControlOrMeta+Shift+z');
+  await page.getByTestId('note-editor').focus();await page.keyboard.press('ControlOrMeta+z');await page.getByTestId('note-editor').focus();await page.keyboard.press('ControlOrMeta+Shift+z');await page.getByTestId('note-editor').focus();await page.keyboard.press('ControlOrMeta+End');
   await expect(page.getByTestId('note-editor')).toContainText('typed after table');
 });
 test('editing a cell near the bottom of a tall table keeps the focused input and committed cell visible',async({page})=>{
