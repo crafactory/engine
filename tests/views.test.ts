@@ -26,12 +26,13 @@ describe('view contributions', () => {
   it('assembles the built-in views and disposes them with their plugin scope', async () => {
     const runtime = await createViewsRuntime();
     expect(runtime.kernel.diagnostics).toEqual([]);
-    expect(runtime.views.list().map(view => view.viewType).sort()).toEqual(['backlinks', 'base', 'bookmarks', 'canvas', 'files', 'graph', 'markdown', 'outgoing', 'outline', 'properties', 'recent', 'search', 'tags']);
+    expect(runtime.views.list().map(view => view.viewType).sort()).toEqual(['backlinks', 'base', 'bookmarks', 'canvas', 'editor', 'files', 'graph', 'markdown', 'outgoing', 'outline', 'properties', 'recent', 'search', 'tags']);
     expect(runtime.views.resolve('bookmarks')?.slot).toBe('left');
     expect(runtime.views.resolve('tags')?.slot).toBe('left');
     expect(runtime.views.resolve('files')?.slot).toBe('left');
     expect(runtime.views.resolve('search')?.slot).toBe('left');
     expect(runtime.views.resolve('graph')?.slot).toBe('main');
+    expect(runtime.views.resolve('editor')?.slot).toBe('main');
     expect(runtime.views.resolve('outline')?.slot).toBe('right');
     expect(runtime.views.resolve('backlinks')?.slot).toBe('right');
     expect(runtime.views.resolve('outgoing')?.slot).toBe('right');

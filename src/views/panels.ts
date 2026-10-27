@@ -64,3 +64,10 @@ export const graphViewPlugin: PluginDefinition = {
   manifest: {id: 'engine.view.graph', name: 'Graph view', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
   setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'graph', slot: 'main', label: 'Graph', load: () => import('./GraphView')})); }
 };
+
+
+/** Editor surface contribution for the main slot. */
+export const editorViewPlugin: PluginDefinition = {
+  manifest: {id: 'engine.view.editor', name: 'Editor view', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
+  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'editor', slot: 'main', label: 'Editor', load: () => import('./EditorView')})); }
+};
