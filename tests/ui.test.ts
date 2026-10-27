@@ -57,6 +57,7 @@ describe('ui contributions', () => {
     expect(() => ui.register({kind: 'ribbon', id: 'x', label: 'x', run: null as unknown as () => void})).toThrow('run');
     expect(() => ui.register({kind: 'status', id: 'x', label: 'x', text: null as unknown as string})).toThrow('text');
     expect(() => ui.register({kind: 'settings', id: 'x', label: 'x', load: null as unknown as () => Promise<unknown>})).toThrow('loader');
+    expect(() => ui.register({kind: 'settings', id: 'x', label: 'x', load: async () => ({}), tab: ' '})).toThrow('tab');
     expect(() => ui.register({kind: 'other', id: 'x', label: 'x'} as never)).toThrow('kind');
   });
   it('interprets settings loaders as function or default-export components', async () => {

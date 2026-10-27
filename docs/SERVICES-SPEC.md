@@ -113,8 +113,9 @@ renderer host. Canvas internals are split into `Card`, `FitEmbed`, `CanvasToolba
 - `ribbon`: `run()` is invoked by the host when the ribbon button is clicked; `icon` is an
   optional name (the host currently renders a generic glyph).
 - `status`: `text` is rendered in the status bar; re-register the same `id` to update it.
-- `settings`: `load()` returns a lazy React component; the host renders it in the Settings
-  window's Extensions tab.
+- `settings`: `load()` returns a lazy React component; `tab` selects a Settings tab
+  (default `extensions`). Components receive `{value, onChange}` for the current settings
+  object. The built-in Editor section is registered this way (`engine.settings.editor`).
 
 The registry validates ids, labels and kinds, replaces by `(kind, id)` with
 nearest-active-predecessor revocation, and `subscribe(listener)` reports changes. The
