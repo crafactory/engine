@@ -103,7 +103,8 @@ mentions, activeTitle, active, outgoing, note/propertyKeys, entries/activePath/f
 open/open-link/remove-bookmark, select-tag and jump-heading callbacks). A panel lookup rejects a contribution that is not registered for the requested
 `left` or `right` slot. Bases built-in `table`/`cards`/`list` renderers are registered in the UI-layer
 `builtinBasesViews` registry; `Bases.tsx` is the host and plugin Bases views use the
-renderer host. External plugin-package UI loading is not wired yet.
+renderer host. Canvas internals are split into `Card`, `FitEmbed`, `CanvasToolbar` and
+`CardEditor` under `src/views/canvas/`. External plugin-package UI loading is not wired yet.
 
 ### `engine.ui/v1`
 

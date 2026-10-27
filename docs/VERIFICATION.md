@@ -1,5 +1,22 @@
 # Verification results
 
+## Canvas component split
+
+This section records extracting Canvas internals while keeping the view behavior.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 803 passed (39 files) | Existing suites |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| targeted e2e | **6 Canvas cases passed** | Create/edit/persist, embeds, renames |
+
+`Canvas.tsx` now composes `src/views/canvas/Card.tsx` (node renderer + `canvasNodeTypes`),
+`FitEmbed.tsx`, `CanvasToolbar.tsx` and `CardEditor.tsx`; parsing, node/edge changes and
+persistence stay in the host. Read-only embeds, edge creation, resizing, editing and
+malformed-file handling are unchanged. No node-type registry is exposed yet; this is an
+internal component split, not a new extension point.
+
 ## Bases built-in view extraction
 
 This section records moving the built-in Bases renderers behind a UI registry.
