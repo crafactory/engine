@@ -5,7 +5,7 @@ import os from 'node:os';
 let root:string,profile:string,app:ElectronApplication,page:Page;
 test.beforeEach(async()=>{
   root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-'));profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-profile-'));
-  await fs.writeFile(path.join(root,'Test.md'),'Original text');await fs.writeFile(path.join(root,'ZTarget.md'),'Target');await fs.writeFile(path.join(root,'Zeta.md'),'[[ZTarget]]');await fs.writeFile(path.join(root,'Test.fixture'),'fixture body');await fs.writeFile(path.join(root,'ZPluginBlock.md'),'```fixture\nhello\n```\n');await fs.writeFile(path.join(root,'Test.base'),'views:\n  - type: fixture-bases\n    name: Fixture\n');
+  await fs.writeFile(path.join(root,'Test.md'),'Original text');await fs.writeFile(path.join(root,'ZTarget.md'),'Target');await fs.writeFile(path.join(root,'Zeta.md'),'[[ZTarget]]');await fs.writeFile(path.join(root,'Test.fixture'),'fixture body');await fs.writeFile(path.join(root,'Test.base'),'views:\n  - type: fixture-bases\n    name: Fixture\n');
   const dir=path.join(root,'.crafactory/plugins/renderer-fixture');await fs.mkdir(dir,{recursive:true});
   for(const file of ['manifest.json','main.js'])await fs.copyFile('examples/plugins/renderer-fixture/'+file,path.join(dir,file));
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
@@ -81,15 +81,6 @@ test('renderer hover sources receive hover-link events',async()=>{
   await page.getByTestId('file-Zeta.md').click();await page.getByTestId('mode-reading').click();
   await page.locator('.markdown .internal-link').hover();
   await expect(page.locator('.plugin-status-item')).toHaveText('Hover ZTarget');
-});
-test('renderer code-block processors render in live preview and reveal source',async()=>{
-  await enable();await page.getByTestId('settings-close').click();
-  await page.getByTestId('file-ZPluginBlock.md').click();await page.getByTestId('mode-live').click();await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+End');
-  await expect(page.locator('.live-block-code .fixture-code')).toHaveText('Rendered hello');
-  await page.locator('.live-block-code .live-block-body').click();
-  await expect(page.getByTestId('note-editor')).toContainText('```fixture');
-  await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+End');
-  await expect(page.locator('.live-block-code .fixture-code')).toHaveText('Rendered hello');
 });
 test('renderer CodeMirror extensions update real editor and unload all UI',async()=>{
   await enable();await expect(page.getByLabel('Runtime for Renderer fixture',{exact:true})).toBeDisabled();await page.getByTestId('settings-close').click();

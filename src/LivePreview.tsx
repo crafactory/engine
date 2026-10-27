@@ -114,7 +114,7 @@ class BlockWidget extends WidgetType {
     };
     const ctx=this.context();
     root.render(this.block.kind==='table'?<LiveTable content={base} onChange={onChange} onMeasure={()=>{if(blockOwners.has(host))view.requestMeasure();}}/>:
-      <Markdown content={base} notes={ctx.notes} path={ctx.path} onOpen={ctx.onOpen} onChange={onChange} pluginProcessing={this.block.kind==='code'||this.block.kind==='diagram'}/>);
+      <Markdown content={base} notes={ctx.notes} path={ctx.path} onOpen={ctx.onOpen} onChange={onChange} pluginProcessing={false}/>);
   }
   /** Mount a bounded live widget without admitting reading-only plugin processors. */
   toDOM(view:EditorView){

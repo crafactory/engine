@@ -1,9 +1,8 @@
 # Verification results
 
-## Frontmatter decoration and plugin block preview
+## Frontmatter decoration and mode-switch undo
 
-This section records keeping the full document in live mode and rendering plugin code
-blocks.
+This section records keeping the full document in live mode.
 
 | Check | Observed result | Scope |
 |---|---|---|
@@ -11,15 +10,13 @@ blocks.
 | `npm run test` | 803 passed (39 files) | Existing suites |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
 | `npm run test:e2e` | **60 passed / 0 failed** | +1 mode-switch undo case |
-| desktop renderer e2e | **12 passed** | Plugin code-block preview/edit |
 
 Live mode hides frontmatter with line decorations instead of removing it from the
 CodeMirror document; source/live switching now reconfigures a compartment and preserves the
 undo stack. The cursor is clamped below hidden frontmatter so it cannot be edited
-invisibly. Plugin `registerMarkdownCodeBlockProcessor` output renders inside live code
-diagram blocks; clicking the block reveals the fenced source and switching back renders the
-plugin output again. The frontmatter properties UI remains the side panel rather than an
-inline Obsidian-style properties widget.
+invisibly. Plugin code-block processor output is not enabled in live widgets yet: doing so duplicates
+processor lifecycles between live and reading surfaces. The frontmatter properties UI
+remains the side panel rather than an inline Obsidian-style properties widget.
 
 ## Live Preview editing and inline fixes
 

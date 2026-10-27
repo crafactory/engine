@@ -51,7 +51,6 @@ module.exports=class extends Plugin {
     this.registerView('fixture-view',leaf=>new FixtureView(leaf));
     this.registerExtensions(['fixture'],'fixture-view');
     this.registerEditorSuggest(new FixtureSuggest(this.app));
-    this.registerMarkdownCodeBlockProcessor('fixture',(source,el)=>{el.createDiv({cls:'fixture-code',text:'Rendered '+source.trim()});});
     this.registerObsidianProtocolHandler('fixture-protocol',params=>this.status.setText('Protocol '+(params.value||'')));
     this.registerHoverLinkSource('fixture-hover',{display:'Fixture hover',defaultMod:true});
     this.registerEvent(this.app.workspace.on('hover-link',event=>{if(event.source==='fixture-hover')this.status.setText('Hover '+event.linktext);}));
