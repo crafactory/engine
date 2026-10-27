@@ -5,7 +5,7 @@ import {EditorView,Decoration,WidgetType,type DecorationSet} from '@codemirror/v
 import DOMPurify from 'dompurify';
 import katex from 'katex';
 import {Markdown,renderMarkdown} from './Markdown';
-import {liveRegions,touchesRange,tableRows,replaceTableCell,minimalBlockChange,type LiveBlock,type TableCell} from './live-model';
+import {liveRegions,touchesRange,tableRows,replaceTableCell,appendTableRow,appendTableColumn,minimalBlockChange,type LiveBlock,type TableCell} from './live-model';
 import type {Note} from './types';
 import {inlineLinks,type InlineLink} from './inline-links';
 
@@ -28,15 +28,39 @@ function LiveTable({content,onChange,onMeasure}:{content:string;onChange:(value:
     onMeasure();
   },[content,onMeasure,!!edit]);
   const rows=tableRows(content);
-  /** Commit the active cell through the owning block's current source coordinates. */
-  function commit(focus=false){if(edit){if(focus)pendingFocus.current=edit.row+':'+edit.col;if(edit.base===content)onChange(replaceTableCell(content,edit.cell,edit.value));setEdit(null);}}
-  return <div ref={host} className="live-table-scroll"><table className="live-table"><thead>{rows.filter(r=>r.header).map((row,r)=><tr key={r}>{row.cells.map((cell,c)=><th key={c}>{cellUI(cell,0,c)}</th>)}</tr>)}</thead>
-    <tbody>{rows.filter(r=>!r.header).map((row,r)=><tr key={r}>{row.cells.map((cell,c)=><td key={c}>{cellUI(cell,r+1,c)}</td>)}</tr>)}</tbody></table></div>;
+  const columns=rows[0]?.cells.length??1,lastRow=rows.length-1;
+  /** Commit the active cell and optionally move focus to another cell. */
+  function commit(target?:string){
+    if(!edit)return;
+    if(edit.base===content){const next=replaceTableCell(content,edit.cell,edit.value);if(next!==content)onChange(next);}
+    pendingFocus.current=target??null;
+    setEdit(null);
+  }
+  /** Move one cell; Tab on the last cell appends a row and focuses its first cell. */
+  function move(direction:1|-1){
+    if(!edit)return;
+    if(direction===1&&edit.row===lastRow&&edit.col===columns-1){
+      const base=edit.base===content?replaceTableCell(content,edit.cell,edit.value):content;
+      onChange(appendTableRow(base,columns));
+      pendingFocus.current=lastRow+1+':0';setEdit(null);return;
+    }
+    if(direction===-1&&edit.row===0&&edit.col===0)return;
+    let row=edit.row,col=edit.col+direction;
+    if(col>=columns){row=Math.min(lastRow,row+1);col=0;}
+    if(col<0){row=Math.max(0,row-1);col=columns-1;}
+    commit(row+':'+col);
+  }
+  return <div ref={host} className="live-table-shell">
+    <div className="live-table-scroll"><table className="live-table"><thead>{rows.filter(r=>r.header).map((row,r)=><tr key={r}>{row.cells.map((cell,c)=><th key={c}>{cellUI(cell,0,c)}</th>)}</tr>)}</thead>
+      <tbody>{rows.filter(r=>!r.header).map((row,r)=><tr key={r}>{row.cells.map((cell,c)=><td key={c}>{cellUI(cell,r+1,c)}</td>)}</tr>)}</tbody></table></div>
+    <button type="button" className="live-table-add live-table-add-row" aria-label="Add row below" title="Add row below" onClick={()=>onChange(appendTableRow(content,columns))}>+</button>
+    <button type="button" className="live-table-add live-table-add-column" aria-label="Add column right" title="Add column right" onClick={()=>onChange(appendTableColumn(content))}>+</button>
+  </div>;
   /** Expose either a focusable cell button or its temporary text input. */
   function cellUI(cell:TableCell,row:number,col:number){
     if(edit?.base===content&&edit.row===row&&edit.col===col)return <input autoFocus aria-label={`Cell row ${row+1} column ${col+1}`} value={edit.value}
       onChange={e=>setEdit({...edit,value:e.target.value})} onBlur={()=>commit()}
-      onKeyDown={e=>{if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();commit(true);}else if(e.key==='Escape'){e.preventDefault();pendingFocus.current=row+':'+col;setEdit(null);}}}/>;
+      onKeyDown={e=>{if(e.key==='Tab'){e.preventDefault();move(e.shiftKey?-1:1);}else if(e.key==='Enter'){e.preventDefault();commit(row+':'+col);}else if(e.key==='Escape'){e.preventDefault();pendingFocus.current=row+':'+col;setEdit(null);}}}/>;
     return <button data-live-cell={row+':'+col} aria-label={`Edit cell row ${row+1} column ${col+1}`} onClick={()=>setEdit({cell,row,col,value:cell.value,base:content})}
       dangerouslySetInnerHTML={{__html:renderMarkdown(cell.value)||'<span class="live-empty-cell">Empty</span>'}}/>;
   }
@@ -82,14 +106,33 @@ class BlockWidget extends WidgetType {
   toDOM(view:EditorView){
     const host=document.createElement('div');host.className='live-block live-block-'+this.block.kind;
     blockOwners.set(host,this);
-    host.dataset.liveBlock=this.block.kind;host.contentEditable='false';
-    const edit=document.createElement('button');edit.className='live-edit-source';edit.textContent='Edit source';
-    edit.setAttribute('aria-label','Edit '+this.block.kind+' source');
-    /** Reveal the current source range rather than coordinates captured by an older widget. */
-    const reveal=()=>{const owner=blockOwners.get(host);if(owner?.current(view)){view.dispatch({selection:{anchor:owner.block.from},scrollIntoView:true});view.focus();}};
-    edit.onclick=reveal;host.append(edit);
+    host.dataset.liveBlock=this.block.kind;host.contentEditable='false';host.tabIndex=0;
+    host.setAttribute('role','group');host.setAttribute('aria-label','Edit '+this.block.kind+' block');
+    /** Reveal current source; code/diagram clicks map the rendered line to its source offset. */
+    const reveal=(event?:MouseEvent)=>{
+      const owner=blockOwners.get(host);if(!owner?.current(view))return;
+      let anchor=owner.block.from;
+      if(event&&(owner.block.kind==='code'||owner.block.kind==='diagram')){
+        const pre=host.querySelector('.live-block-body pre');
+        if(pre){
+          const rect=pre.getBoundingClientRect(),style=getComputedStyle(pre);
+          const lineHeight=parseFloat(style.lineHeight)||parseFloat(style.fontSize)*1.5||20;
+          const line=Math.max(0,Math.floor((event.clientY-rect.top+pre.scrollTop)/lineHeight));
+          const lines=owner.block.content.split('\n'),fence=/^```/.test(lines[0]||'');
+          const target=Math.min(lines.length-1,line+(fence?1:0));
+          anchor=owner.block.from+lines.slice(0,target).reduce((total,text)=>total+text.length+1,0);
+        }
+      }
+      view.dispatch({selection:{anchor},scrollIntoView:true});view.focus();
+    };
+    host.onclick=event=>{
+      const target=event.target as HTMLElement;
+      if(target.closest('button,input,a,summary,audio,video,textarea,select'))return;
+      if(window.getSelection()?.toString())return;
+      reveal(event);
+    };
+    host.onkeydown=event=>{if((event.key==='Enter'||event.key===' ')&&event.target===host){event.preventDefault();reveal();}};
     const body=document.createElement('div');body.className='live-block-body';host.append(body);
-    body.ondblclick=e=>{if(!(e.target as HTMLElement).closest('button,input,a,summary,audio,video'))reveal();};
     const root=createRoot(body);roots.set(host,root);
     this.renderBody(host,view);
     requestAnimationFrame(()=>{if(host.isConnected)view.requestMeasure();});
@@ -157,29 +200,62 @@ function build(state:EditorState,context:()=>Context):DecorationSet {
   const ranges:{from:number;to:number;dec:Decoration}[]=[];
   const selected=state.selection.ranges;
   const {blocks,literal}=liveRegions(state.doc.toString());
-  for(const block of blocks)if(!touchesRange(block.from,block.to,selected))ranges.push({from:block.from,to:block.to,dec:Decoration.replace({block:true,widget:new BlockWidget(block,context)})});
+  for(const block of blocks){
+    if(!touchesRange(block.from,block.to,selected)){ranges.push({from:block.from,to:block.to,dec:Decoration.replace({block:true,widget:new BlockWidget(block,context)})});continue;}
+    if(block.kind==='code'||block.kind==='diagram'){
+      const first=state.doc.lineAt(block.from).number,last=state.doc.lineAt(block.to).number;
+      for(let n=first;n<=last;n++)ranges.push({from:state.doc.line(n).from,to:state.doc.line(n).from,dec:Decoration.line({class:'live-code-source'})});
+    }
+  }
+  const escapedAt=(text:string,index:number)=>{let count=0;for(let i=index-1;i>=0&&text[i]==='\\';i--)count++;return count%2===1;};
+  const setext=new Map<number,number>();
+  for(let n=2;n<=state.doc.lines;n++){
+    const underline=state.doc.line(n).text,previous=state.doc.line(n-1).text;
+    if(!previous.trim())continue;
+    if(/^ {0,3}=+\s*$/.test(underline))setext.set(n-1,1);
+    else if(/^ {0,3}-+\s*$/.test(underline))setext.set(n-1,2);
+  }
   for(let n=1;n<=state.doc.lines;n++){
     const line=state.doc.line(n);
     if([...blocks,...literal].some(b=>line.from>=b.from&&line.from<b.to))continue;
-    const active=touchesRange(line.from,line.to+1,selected);
     const links=inlineLinks(line.text);
-    for(const link of links)ranges.push({from:line.from+link.from,to:line.from+link.to,dec:active?Decoration.mark({class:'live-link',attributes:{'data-live-target':link.target}}):Decoration.replace({widget:new LinkWidget(link,context)})});
-    if(active)continue;
+    for(const link of links){
+      const from=line.from+link.from,to=line.from+link.to;
+      ranges.push({from,to,dec:touchesRange(from,to,selected)?Decoration.mark({class:'live-link',attributes:{'data-live-target':link.target}}):Decoration.replace({widget:new LinkWidget(link,context)})});
+    }
     const heading=line.text.match(/^(#{1,6}) /);
-    if(heading){ranges.push({from:line.from,to:line.from,dec:Decoration.line({class:'live-heading live-h'+heading[1].length})});ranges.push({from:line.from,to:line.from+heading[0].length,dec:Decoration.replace({})});}
+    if(heading){
+      ranges.push({from:line.from,to:line.from,dec:Decoration.line({class:'live-heading live-h'+heading[1].length})});
+      if(!touchesRange(line.from,line.from+heading[0].length,selected))ranges.push({from:line.from,to:line.from+heading[0].length,dec:Decoration.replace({})});
+    }
+    const level=setext.get(n);
+    if(level){
+      ranges.push({from:line.from,to:line.from,dec:Decoration.line({class:'live-heading live-h'+level})});
+      if(n<state.doc.lines){const underline=state.doc.line(n+1);if(!touchesRange(underline.from,underline.to+1,selected))ranges.push({from:underline.from,to:underline.to,dec:Decoration.replace({})});}
+    }
     const task=line.text.match(/^(\s*[-*+] +)\[([ xX])\] (.*)$/);
-    if(task)ranges.push({from:line.from,to:line.from+task[1].length+3,dec:Decoration.replace({widget:new TaskWidget(line.from,task[1],task[2].toLowerCase()==='x',task[3])})});
+    if(task){
+      const from=line.from,to=line.from+task[1].length+3;
+      if(!touchesRange(from,to,selected))ranges.push({from,to,dec:Decoration.replace({widget:new TaskWidget(line.from,task[1],task[2].toLowerCase()==='x',task[3])})});
+    }
     const occupied:{from:number;to:number}[]=[];
-    for(const match of line.text.matchAll(/(\*\*|==|~~|`)(.+?)\1/g)){
-      const from=line.from+match.index!,to=from+match[0].length;occupied.push({from,to});
+    for(const match of line.text.matchAll(/(\*\*|==|~~|`|\*|_)(.+?)\1/g)){
+      const index=match.index!,from=line.from+index,to=from+match[0].length,marker=match[1];
+      if(escapedAt(line.text,index))continue;
+      if(marker==='_'&&(/\w/.test(line.text[index-1]||'')||/\w/.test(line.text[index+match[0].length]||'')))continue;
+      occupied.push({from,to});
       if(links.some(link=>from<line.from+link.to&&to>line.from+link.from))continue;
-      const marker=match[1],length=marker.length;
-      ranges.push({from,to,dec:Decoration.mark({class:marker==='**'?'live-bold':marker==='=='?'live-mark':marker==='~~'?'live-strike':'live-code'})},
-        {from,to:from+length,dec:Decoration.replace({})},{from:to-length,to,dec:Decoration.replace({})});
+      const active=touchesRange(from,to,selected);
+      const cls=marker==='**'?'live-bold':marker==='=='?'live-mark':marker==='~~'?'live-strike':marker==='*'||marker==='_'?'live-italic':'live-code';
+      ranges.push({from,to,dec:Decoration.mark({class:cls})});
+      if(!active)ranges.push({from,to:from+marker.length,dec:Decoration.replace({})},{from:to-marker.length,to,dec:Decoration.replace({})});
     }
     for(const match of line.text.matchAll(/(?<!\\)\$(?!\$)([^\s$](?:[^$\n]*?[^\s$])?)\$(?!\$)/g)){
-      const from=line.from+match.index!,to=from+match[0].length;
-      if(!occupied.some(r=>from<r.to&&to>r.from))ranges.push({from,to,dec:Decoration.replace({widget:new InlineMathWidget(match[1])})});
+      const index=match.index!,from=line.from+index,to=from+match[0].length;
+      if(escapedAt(line.text,index))continue;
+      if(occupied.some(r=>from<r.to&&to>r.from))continue;
+      if(links.some(link=>from<line.from+link.to&&to>line.from+link.from))continue;
+      if(!touchesRange(from,to,selected))ranges.push({from,to,dec:Decoration.replace({widget:new InlineMathWidget(match[1])})});
     }
   }
   ranges.sort((a,b)=>a.from-b.from||a.dec.startSide-b.dec.startSide||a.to-b.to);

@@ -28,11 +28,22 @@ test('inactive blocks render math, code, diagrams, tables and note embeds',async
   expect(errors).toEqual([]);
 });
 test('edit source reveals one block and moving away restores its preview',async({page})=>{
-  await prepare(page);await page.locator('.live-block-code').hover();await page.getByRole('button',{name:'Edit code source',exact:true}).click();
+  await prepare(page);await page.locator('.live-block-code .live-block-body').click();
   await expect(page.locator('.live-block-code')).toHaveCount(0);await expect(page.getByTestId('note-editor')).toContainText('```js');
   await page.keyboard.press('ControlOrMeta+Home');await expect(page.locator('.live-block-code pre')).toContainText('const answer = 42;');
   await page.getByTestId('mode-source').click();await expect(page.getByTestId('note-editor')).toContainText('```js');
   await page.getByTestId('mode-reading').click();await expect(page.locator('.reading-surface pre').first()).toContainText('const answer = 42;');
+});
+test('inline formatting respects escapes, italic and span-level reveal',async({page})=>{
+  await prepare(page,'# Inline\n\n*italic* and **bold** and \\*literal\\* and `code`.\n\nSetext\n======\n\n```js\nconst x = 1;\n```\n\nEnd.');
+  await expect(page.locator('.live-italic')).toHaveCount(1);await expect(page.locator('.live-italic')).toHaveText('italic');
+  await expect(page.locator('.live-bold')).toHaveText('bold');
+  await expect(page.locator('.live-h1')).toHaveCount(2);
+  await expect(page.getByTestId('note-editor')).not.toContainText('======');
+  await expect(page.getByTestId('note-editor')).toContainText('\\*literal\\*');
+  await page.locator('.live-bold').click();
+  await expect(page.getByTestId('note-editor')).toContainText('**bold**');
+  await expect(page.locator('.cm-line').filter({hasText:'italic'}).first()).not.toContainText('*italic*');
 });
 test('live table edits preserve Markdown delimiters and escaped pipes',async({page})=>{
   await prepare(page);await page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true}).click();
@@ -76,14 +87,14 @@ test('invalid diagrams and missing embeds keep editable source without page erro
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await prepare(page,'# Errors\n\n```mermaid\nnot valid diagram\n```\n\n![[Missing note]]\n\n$$\\badcommand$$\n\nEnd.');
   await expect(page.locator('.live-block-embed')).toContainText('Unresolved embed: Missing note');
-  await page.locator('.live-block-diagram').hover();await page.getByRole('button',{name:'Edit diagram source',exact:true}).click();
+  await page.locator('.live-block-diagram .live-block-body').click();
   await expect(page.getByTestId('note-editor')).toContainText('not valid diagram');expect(errors).toEqual([]);
 });
 test('live tables fit a narrow editor and their source remains accessible',async({page})=>{
   await prepare(page);await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
   await expect(page.locator('.live-block-table')).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
-  await page.locator('.live-block-table').getByRole('button',{name:'Edit table source',exact:true}).click();
+  await page.locator('.live-block-table').click({position:{x:4,y:2}});
   await expect(page.getByTestId('note-editor')).toContainText('| Alpha | Open |');
 });
 test('expanded and nested callouts preserve independent folding defaults',async({page})=>{
@@ -101,6 +112,34 @@ test('table header edits commit on blur and Tab commits a body cell',async({page
   await expect(page.getByRole('textbox',{name:'Cell row 2 column 1',exact:true})).toBeVisible();
   await page.getByRole('textbox',{name:'Cell row 2 column 1',exact:true}).fill('Renamed');await page.keyboard.press('Tab');
   await expect(page.getByRole('button',{name:'Edit cell row 2 column 1',exact:true})).toHaveText('Renamed');
+});
+test('Tab on the last table cell appends a row and focuses its first cell',async({page})=>{
+  await prepare(page);
+  await page.getByRole('button',{name:'Edit cell row 3 column 2',exact:true}).click();
+  await page.getByRole('textbox',{name:'Cell row 3 column 2',exact:true}).fill('Last');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button',{name:'Edit cell row 4 column 1',exact:true})).toBeFocused();
+  await page.getByTestId('mode-source').click();
+  await expect(page.getByTestId('note-editor')).toContainText('| Beta | Last |');
+});
+test('table edge affordances add a row and a column',async({page})=>{
+  await prepare(page);
+  const table=page.locator('.live-table-shell');await table.hover();
+  await page.getByRole('button',{name:'Add row below',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Edit cell row 4 column 1',exact:true})).toBeVisible();
+  await table.hover();await page.getByRole('button',{name:'Add column right',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Edit cell row 1 column 3',exact:true})).toBeVisible();
+  await page.getByTestId('mode-source').click();
+  await expect(page.getByTestId('note-editor')).toContainText('| :--- | ---: | --- |');
+});
+test('long code and table content scroll inside their blocks',async({page})=>{
+  const long='x'.repeat(1200);
+  await prepare(page,`# Wide\n\n\`\`\`js\nconst long = "${long}";\n\`\`\`\n\n| A | B |\n| --- | --- |\n| ${long} | z |\n`);
+  const code=await page.locator('.live-block-code pre').evaluate(el=>({scrollWidth:el.scrollWidth,clientWidth:el.clientWidth}));
+  expect(code.scrollWidth).toBeGreaterThan(code.clientWidth);
+  const table=await page.locator('.live-table-scroll').evaluate(el=>({scrollWidth:el.scrollWidth,clientWidth:el.clientWidth}));
+  expect(table.scrollWidth).toBeGreaterThan(table.clientWidth);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
 });
 test('live embeds refresh when the target note is edited',async({page})=>{
   await prepare(page);await page.locator('.live-block-embed .embed-title').click();

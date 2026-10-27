@@ -33,18 +33,21 @@ function wrap(view:EditorView,marker:string) {
 }
 /** Read the document offset at the top of the editor's visible area. */
 function viewportTop(v:EditorView){const rect=v.scrollDOM.getBoundingClientRect();const pos=v.posAtCoords({x:rect.left+2,y:rect.top+2});return Math.max(0,Math.min(v.state.doc.length,pos??0));}
+const contentAttributes=(spellcheck:boolean)=>EditorView.contentAttributes.of({spellcheck:String(spellcheck),'aria-label':'Note editor','data-testid':'note-editor'});
+const editorTheme=(settings:Settings)=>EditorView.theme({'&':{height:'100%',fontSize:settings.fontSize+'px'},'.cm-scroller':{overflow:'auto',fontFamily:'inherit'},'.cm-content':{padding:'24px 0 100px'},'.cm-line':{padding:'0 4px'},'.cm-gutters':{background:'transparent',border:'none',color:'var(--muted)'},'.cm-activeLine':{background:'var(--hover)'},'.cm-cursor':{borderLeftColor:'var(--accent)'},'.cm-selectionBackground':{background:'var(--selection) !important'},'.cm-tooltip':{background:'var(--panel)',color:'var(--text)',border:'1px solid var(--border)'},'.cm-panels':{background:'var(--panel)',color:'var(--text)'}},{dark:settings.theme==='dark'});
+
 export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Settings;pluginExtensions?:Extension[];session?:EditorSession;slashCommands?:SlashCommandsService;onChange:(content:string)=>void;onOpen:(target:string)=>void;onCommand:(command:string)=>void;suggest?:(context:CompletionContext)=>CompletionResult|null|Promise<CompletionResult|null>}>(
 /** Maintain the current CodeMirror document and independently refresh only external preview dependencies. */
 function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,onChange,onOpen,onCommand,suggest},handle) {
   const container=useRef<HTMLDivElement>(null),view=useRef<EditorView>();
-  const pluginCompartment=useRef(new Compartment());
+  const pluginCompartment=useRef(new Compartment()),lineNumbersCompartment=useRef(new Compartment()),themeCompartment=useRef(new Compartment()),spellcheckCompartment=useRef(new Compartment());
   const sessionRef=useRef(session);
   // Commit the session reference before the setup effect so handlers never use an abandoned render's session.
   useLayoutEffect(()=>{sessionRef.current=session;},[session]);
   const meta=frontmatter(note.content),hideMeta=settings.mode==='live'&&!meta.error;
   const viewContent=hideMeta?meta.body:note.content;
   const prefix=useRef('');prefix.current=hideMeta?meta.raw:'';
-  const callbacks=useRef({onChange,onOpen,onCommand,notes,suggest});callbacks.current={onChange,onOpen,onCommand,notes,suggest};
+  const callbacks=useRef({onChange,onOpen,onCommand,notes,suggest,slashEnabled:!settings.disabledPlugins.includes('slash')});callbacks.current={onChange,onOpen,onCommand,notes,suggest,slashEnabled:!settings.disabledPlugins.includes('slash')};
   const external=useRef(false);
   const notePath=useRef(note.path);notePath.current=note.path;
   const hideMetaRef=useRef(hideMeta);hideMetaRef.current=hideMeta;
@@ -74,7 +77,7 @@ function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,o
       const tag=context.matchBefore(/#[\w/-]*/);
       if(tag)return {from:tag.from+1,options:[...new Set(callbacks.current.notes.flatMap(n=>tags(n.content)))].map(label=>({label,type:'keyword'}))};
       const slash=context.matchBefore(/\/[\w-]*/);
-      if(!settings.disabledPlugins.includes('slash') && slash && slashCommands && (slash.from===0 || /\s/.test(context.state.sliceDoc(slash.from-1,slash.from))))return {from:slash.from,options:slashCommands.list().map(command=>command.action==='insert-template'
+      if(callbacks.current.slashEnabled && slash && slashCommands && (slash.from===0 || /\s/.test(context.state.sliceDoc(slash.from-1,slash.from))))return {from:slash.from,options:slashCommands.list().map(command=>command.action==='insert-template'
         ? {label:command.label,detail:command.detail,apply:(v:EditorView,_c:any,from:number,to:number)=>{v.dispatch({changes:{from,to,insert:''}});callbacks.current.onCommand('insert-template');}}
         : {label:command.label,detail:command.detail,apply:command.insert??''})};
       return callbacks.current.suggest?.(context)??null;
@@ -82,7 +85,7 @@ function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,o
     const editor=new EditorView({
       parent:container.current!,state:EditorState.create({doc:viewContent,extensions:[
         markdown(),history(),drawSelection(),syntaxHighlighting(engineHighlight),highlightSelectionMatches(),EditorView.lineWrapping,pluginCompartment.current.of(pluginExtensions),
-        ...(settings.lineNumbers?[lineNumbers()]:[]),
+        lineNumbersCompartment.current.of(settings.lineNumbers?[lineNumbers()]:[]),
         ...(settings.mode==='live'?livePreview(()=>({path:note.path,notes:callbacks.current.notes,onOpen:target=>callbacks.current.onOpen(target)})):[highlightActiveLine()]),
         autocompletion({override:[complete]}),
         keymap.of([
@@ -90,7 +93,7 @@ function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,o
           {key:'Mod-Shift-h',run:v=>wrap(v,'==')},
           ...markdownKeymap,...defaultKeymap,...historyKeymap,...searchKeymap,indentWithTab
         ]),
-        EditorView.contentAttributes.of({spellcheck:String(settings.spellcheck),'aria-label':'Note editor','data-testid':'note-editor'}),
+        spellcheckCompartment.current.of(contentAttributes(settings.spellcheck)),
         EditorView.updateListener.of(update=>{
           if(update.docChanged){const text=update.state.doc.toString(),prefixLength=prefix.current.length;if(!external.current){callbacks.current.onChange(prefix.current+text);const changes:EditorChange[]=[];update.changes.iterChanges((fromA,toA,_fromB,_toB,inserted)=>changes.push({from:fromA+prefixLength,to:toA+prefixLength,inserted:inserted.length}));sessionRef.current?.track(prefix.current+text,changes);}else sessionRef.current?.track(prefix.current+text);}
           if(update.selectionSet||update.docChanged){const range=update.state.selection.main,prefixLength=prefix.current.length;sessionRef.current?.setSelection({anchor:toDocumentOffset(range.anchor,prefixLength),head:toDocumentOffset(range.head,prefixLength)});}
@@ -110,7 +113,7 @@ function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,o
             return false;
           }
         }),
-        EditorView.theme({'&':{height:'100%',fontSize:settings.fontSize+'px'},'.cm-scroller':{overflow:'auto',fontFamily:'inherit'},'.cm-content':{padding:'24px 0 100px'},'.cm-line':{padding:'0 4px'},'.cm-gutters':{background:'transparent',border:'none',color:'var(--muted)'},'.cm-activeLine':{background:'var(--hover)'},'.cm-cursor':{borderLeftColor:'var(--accent)'},'.cm-selectionBackground':{background:'var(--selection) !important'},'.cm-tooltip':{background:'var(--panel)',color:'var(--text)',border:'1px solid var(--border)'},'.cm-panels':{background:'var(--panel)',color:'var(--text)'}},{dark:settings.theme==='dark'})
+        themeCompartment.current.of(editorTheme(settings))
       ]})
     });view.current=editor;
     const activeSession=sessionRef.current,draft=activeSession?.draft();
@@ -120,7 +123,10 @@ function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,o
     // Register after CodeMirror's scheduled viewport restore so that restore does not overwrite the draft.
     const scrollFrame=requestAnimationFrame(()=>editor.scrollDOM.addEventListener('scroll',trackScroll,{passive:true}));
     return()=>{cancelAnimationFrame(scrollFrame);editor.scrollDOM.removeEventListener('scroll',trackScroll);editor.destroy();};
-  },[note.path,settings.mode,settings.lineNumbers,settings.fontSize,settings.theme,settings.spellcheck,settings.disabledPlugins,slashCommands]);
+  },[note.path,settings.mode,slashCommands]);
+  useEffect(()=>{view.current?.dispatch({effects:lineNumbersCompartment.current.reconfigure(settings.lineNumbers?[lineNumbers()]:[])});},[settings.lineNumbers]);
+  useEffect(()=>{view.current?.dispatch({effects:themeCompartment.current.reconfigure(editorTheme(settings))});},[settings.fontSize,settings.theme]);
+  useEffect(()=>{view.current?.dispatch({effects:spellcheckCompartment.current.reconfigure(contentAttributes(settings.spellcheck))});},[settings.spellcheck]);
   useEffect(()=>{const v=view.current;if(v&&v.state.doc.toString()!==viewContent){external.current=true;v.dispatch({changes:{from:0,to:v.state.doc.length,insert:viewContent}});external.current=false;}},[viewContent]);
   // Current-document edits already rebuild the field in their CM transaction.
   const linkedRevision=notes.filter(n=>n.path!==note.path).map(n=>n.path+'\0'+n.content).join('\0');
