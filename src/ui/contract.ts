@@ -1,8 +1,14 @@
 /* UI-side loader for native settings contributions. */
 import type {ComponentType} from 'react';
+import type {Settings as Preferences} from '../types';
 import type {SettingsContribution} from '../services/ui';
 
-export type SettingsComponent = ComponentType;
+export interface SettingsComponentProps {
+  value: Preferences;
+  onChange: (value: Preferences) => void;
+}
+
+export type SettingsComponent = ComponentType<SettingsComponentProps>;
 
 /** React component types include functions and exotic objects such as memo/forwardRef. */
 function isComponent(candidate: unknown): candidate is SettingsComponent {

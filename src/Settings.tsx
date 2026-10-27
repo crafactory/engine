@@ -38,9 +38,9 @@ export const corePlugins=[
 ];
 function PluginSettings({tab}:{tab:PluginTab}){const host=useRef<HTMLDivElement>(null);useEffect(()=>{host.current!.append(tab.containerEl);tab.display();return()=>{tab.hide();tab.containerEl.remove();};},[tab.id]);return <div ref={host}/>;}
 /** Render one native settings contribution with a local lazy boundary. */
-function NativeSetting({contribution}:{contribution:SettingsContribution}){
+function NativeSetting({contribution,value,onChange}:{contribution:SettingsContribution;value:Preferences;onChange:(value:Preferences)=>void}){
   const Component=useMemo(()=>lazy(async()=>({default:await loadSettingsComponent(contribution)})),[contribution]);
-  return <section className="native-setting"><h3>{contribution.label}</h3><Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={contribution.id}><Component/></ViewBoundary></Suspense></section>;
+  return <section className="native-setting"><h3>{contribution.label}</h3><Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={contribution.id}><Component value={value} onChange={onChange}/></ViewBoundary></Suspense></section>;
 }
 
 export function Settings({value,onChange,onClose,plugins,enabled,onTogglePlugin,pluginTabs=[],modes={},onMode=()=>{},nativeSettings=[]}:{value:Preferences;onChange:(value:Preferences)=>void;onClose:()=>void;plugins:PluginManifest[];enabled:string[];onTogglePlugin:(id:string)=>void;pluginTabs?:PluginTab[];modes?:Record<string,string>;onMode?:(id:string,mode:string)=>void;nativeSettings?:SettingsContribution[]}) {
@@ -48,23 +48,18 @@ export function Settings({value,onChange,onClose,plugins,enabled,onTogglePlugin,
   const update=(key:keyof Preferences,v:any)=>onChange({...value,[key]:v});
   const row=(name:string,description:string,control:React.ReactNode)=><div className="setting-row"><div><strong>{name}</strong><p>{description}</p></div>{control}</div>;
   const toggle=(key:keyof Preferences)=><input aria-label={String(key)} type="checkbox" role="switch" checked={!!value[key]} onChange={e=>update(key,e.target.checked)}/>;
+  const contributed=nativeSettings.filter(contribution=>(contribution.tab??'extensions')===tab);
   return <div className="modal-backdrop" onClick={onClose}><section className="settings-modal" role="dialog" aria-modal="true" aria-label="Settings" onClick={e=>e.stopPropagation()}>
     <nav><div className="settings-label">Settings</div>{[['appearance',Palette,'Appearance'],['editor',FileText,'Editor'],['files',Folder,'Files & links'],['hotkeys',Keyboard,'Hotkeys'],['core',Puzzle,'Core plugins'],['community',Shield,'Community plugins'],['extensions',Blocks,'Extensions'],['about',Info,'About']].map(([id,Icon,label])=><button key={String(id)} onClick={()=>setTab(String(id))} className={tab===id?'selected':''}>{typeof Icon!=='string'&&<Icon size={16}/>} {String(label)}</button>)}</nav>
     <div className="settings-content"><header><h2>{pluginTabs.find(p=>p.id===tab)?.name|| (tab==='core'?'Core plugins':tab==='community'?'Community plugins':tab==='files'?'Files & links':tab==='extensions'?'Extensions':tab[0].toUpperCase()+tab.slice(1))}</h2><button onClick={onClose} aria-label="Close settings" data-testid="settings-close"><X size={18}/></button></header>
       {!!pluginTabs.length&&<div className="plugin-settings-tabs">{pluginTabs.map(p=><button key={p.id} onClick={()=>setTab(p.id)} aria-label={'Plugin settings '+p.name}>{p.name}</button>)}</div>}
       {pluginTabs.find(p=>p.id===tab)&&<PluginSettings tab={pluginTabs.find(p=>p.id===tab)!}/>}
-      {tab==='extensions'&&<div className="native-settings">{nativeSettings.length?nativeSettings.map(contribution=><NativeSetting key={contribution.id} contribution={contribution}/>):<p className="sidebar-hint">Extensions that contribute settings will appear here.</p>}</div>}
+      {contributed.length?<div className="native-settings">{contributed.map(contribution=><NativeSetting key={contribution.id} contribution={contribution} value={value} onChange={onChange}/>)}</div>:tab==='extensions'?<p className="sidebar-hint">Extensions that contribute settings will appear here.</p>:null}
       {tab==='appearance'&&<>
         {row('Color theme','A quiet workspace in light or dark.',<div className="segmented"><button className={value.theme==='dark'?'selected':''} onClick={()=>update('theme','dark')} data-testid="theme-dark"><Moon size={14}/>Dark</button><button className={value.theme==='light'?'selected':''} onClick={()=>update('theme','light')} data-testid="theme-light"><Sun size={14}/>Light</button></div>)}
         {row('Text size','Font size for reading and editing.',<input aria-label="Text size" type="number" min="12" max="28" value={value.fontSize} onChange={e=>update('fontSize',Math.min(28,Math.max(12,Number(e.target.value))))}/>)}
         {row('Readable line length','Keep the writing column comfortably narrow.',toggle('readableWidth'))}
         <label className="setting-block"><strong>CSS snippet</strong><p>Local styling applied to this workspace. Paste CSS, not JavaScript.</p><textarea aria-label="CSS snippet" placeholder=".markdown { line-height: 1.8; }" value={value.css} onChange={e=>update('css',e.target.value)}/></label>
-      </>}
-      {tab==='editor'&&<>
-        {row('Default editing mode','Source shows syntax. Live mode hides some inline syntax away from the cursor.',<select aria-label="Default editing mode" value={value.mode} onChange={e=>update('mode',e.target.value)}><option value="live">Live editing</option><option value="source">Source</option><option value="reading">Reading</option></select>)}
-        {row('Line numbers','Show line numbers in the editor.',toggle('lineNumbers'))}
-        {row('Spellcheck','Use the operating system spellchecker.',toggle('spellcheck'))}
-        <p className="settings-note">Live editing is currently an inline-formatting subset, not full rendered-block parity. Vim bindings are not yet implemented.</p>
       </>}
       {tab==='files'&&<>
         {(['dailyFolder','dailyTemplate','templatesFolder','attachmentFolder']as const).map(key=>row(({dailyFolder:'Daily note folder',dailyTemplate:'Daily note template',templatesFolder:'Templates folder',attachmentFolder:'Attachment folder'})[key],'Path relative to the current vault.',<input key={key} aria-label={key} value={value[key]} onChange={e=>update(key,e.target.value)}/>))}

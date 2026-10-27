@@ -24,6 +24,7 @@ import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
 import {checkPermission, validatePluginPackage, readableSnapshot} from './kernel';
 import {createViewsRuntime, loadViewComponent, ViewBoundary, PluginViewHost, type ViewsRuntime, type ViewComponent, type PanelComponent, type SidePanelTab, type GraphViewProps} from './views';
+import {editorSettingsPlugin} from './ui/settings/plugin';
 import {ENGINE_VERSION} from './services';
 import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,createWebViewerRuntime,createSlashCommandsRuntime,createPagePreviewRuntime,createAudioRecorderRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime,type WebViewerRuntime,type SlashCommandsRuntime,type PagePreviewRuntime,type AudioRecorderRuntime,type ViewContribution,createUiRuntime,type UiRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
@@ -88,9 +89,9 @@ export function App(){
   const pagePreviewRuntime=useRef<PagePreviewRuntime|null>(null),audioRuntime=useRef<AudioRecorderRuntime|null>(null);
   const viewsRuntime=useRef<ViewsRuntime|null>(null),viewComponents=useRef(new Map<ViewContribution,LazyExoticComponent<ViewComponent>>()),panelComponents=useRef(new Map<ViewContribution,LazyExoticComponent<PanelComponent>>());
   const uiRuntime=useRef<UiRuntime|null>(null),uiUnsub=useRef<(()=>void)|null>(null);
-  const uiRibbon=useMemo(()=>uiRuntime.current?.ui.ribbon()??[],[uiRevision]);
-  const uiStatus=useMemo(()=>uiRuntime.current?.ui.status()??[],[uiRevision]);
-  const uiSettings=useMemo(()=>uiRuntime.current?.ui.settings()??[],[uiRevision]);
+  const uiRibbon=uiRuntime.current?.ui.ribbon()??[];
+  const uiStatus=uiRuntime.current?.ui.status()??[];
+  const uiSettings=uiRuntime.current?.ui.settings()??[];
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   const pluginManifests=useRef(new Map<string,PluginManifest>());
   const pluginFormatStacks=useRef(new Map<string,{pluginId:string;viewType:string;dispose:()=>void}[]>());
@@ -195,7 +196,7 @@ export function App(){
       if(!pagePreviewRuntime.current){const runtime=await createPagePreviewRuntime();if(unmounted.current){void runtime.kernel.stop();return;}pagePreviewRuntime.current=runtime;}
       if(!audioRuntime.current){const runtime=await createAudioRecorderRuntime();if(unmounted.current){void runtime.kernel.stop();return;}audioRuntime.current=runtime;}
       if(!viewsRuntime.current){const runtime=await createViewsRuntime();if(unmounted.current){void runtime.kernel.stop();return;}viewsRuntime.current=runtime;}
-      if(!uiRuntime.current){const runtime=await createUiRuntime();if(unmounted.current){void runtime.kernel.stop();return;}uiRuntime.current=runtime;uiUnsub.current=runtime.ui.subscribe(()=>setUiRevision(v=>v+1));}
+      if(!uiRuntime.current){const runtime=await createUiRuntime({plugins:[editorSettingsPlugin]});if(unmounted.current){void runtime.kernel.stop();return;}uiRuntime.current=runtime;uiUnsub.current=runtime.ui.subscribe(()=>setUiRevision(v=>v+1));}
       editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));

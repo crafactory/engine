@@ -1,6 +1,6 @@
 /* Default native service providers assembled by the kernel.
  * No application entry point is replaced yet; these providers are additive. */
-import {Kernel} from '../kernel';
+import {Kernel,type PluginDefinition} from '../kernel';
 import {createMemoryStoragePlugin, createLocalStoragePlugin, type VaultLike} from './storage';
 import {createCommandsPlugin} from './commands';
 import {createDocumentsPlugin} from './documents';
@@ -83,9 +83,10 @@ export async function createWorkspaceRuntime(options: {engineVersion?: string} =
 export interface UiRuntime {kernel: Kernel; ui: UiService}
 
 /** Build and start a kernel exposing the UI contribution registry. */
-export async function createUiRuntime(options: {engineVersion?: string} = {}): Promise<UiRuntime> {
+export async function createUiRuntime(options: {engineVersion?: string; plugins?: PluginDefinition[]} = {}): Promise<UiRuntime> {
   const kernel = new Kernel({engineVersion: options.engineVersion ?? ENGINE_VERSION});
   kernel.register(uiPlugin());
+  for (const plugin of options.plugins ?? []) kernel.register(plugin);
   await kernel.start();
   const resolved = kernel.runtime.services.resolve(UI_CONTRACT, '^1.0.0');
   if (!resolved.ok) throw new Error('UI service was not provided');

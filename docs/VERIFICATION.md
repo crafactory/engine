@@ -1,5 +1,23 @@
 # Verification results
 
+## Native settings consumer
+
+This section records the first built-in consumer of `engine.ui/v1` settings.
+
+| Check | Result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 803 passed (39 files) | Settings tab validation |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| targeted e2e | settings/themes case passed | Editor controls render from the contribution |
+
+`SettingsContribution` gains `tab` (default `extensions`), and contributed components
+receive `{value, onChange}`. `engine.settings.editor` registers `EditorSettings` for the
+Editor tab; the inline Editor block is removed, so the tab is rendered entirely from the
+native contribution. `createUiRuntime` accepts extra plugins to register UI contributors.
+The settings e2e opens the Editor tab and asserts the mode select and line-number control.
+Other tabs still render inline and can migrate incrementally.
+
 ## Canvas component split
 
 This section records extracting Canvas internals while keeping the view behavior.

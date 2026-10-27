@@ -31,6 +31,8 @@ export interface StatusContribution extends UiContributionBase {
 export interface SettingsContribution extends UiContributionBase {
   kind: 'settings';
   load: () => Promise<unknown>;
+  /** Settings tab id; defaults to the Extensions tab. */
+  tab?: string;
 }
 
 export type UiContribution = RibbonContribution | StatusContribution | SettingsContribution;
@@ -63,6 +65,7 @@ export class UiContributions implements UiService {
       if (typeof contribution.text !== 'string') throw new Error('Status contribution needs text');
     } else if (contribution.kind === 'settings') {
       if (typeof contribution.load !== 'function') throw new Error('Settings contribution needs a loader');
+      if (contribution.tab !== undefined && (typeof contribution.tab !== 'string' || !contribution.tab.trim())) throw new Error('Invalid settings tab');
     } else throw new Error('Invalid UI contribution kind');
     const normalized = {...contribution} as UiContribution;
     const index = this.contributions.findIndex(candidate => candidate.kind === normalized.kind && candidate.id === normalized.id);
