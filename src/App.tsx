@@ -1,4 +1,5 @@
 import {lazy,Suspense,useCallback,useEffect,useMemo,useRef,useState,type ComponentType,type LazyExoticComponent} from 'react';
+import type {CompletionContext} from '@codemirror/autocomplete';
 import {
   Files,Search,Network,LayoutDashboard,CalendarDays,Terminal,Settings as SettingsIcon,
   PanelLeftClose,PanelLeftOpen,PanelRightClose,PanelRightOpen,Plus,X,ChevronRight,ChevronDown,Sparkles,
@@ -23,7 +24,7 @@ import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
 import {checkPermission, validatePluginPackage, readableSnapshot} from './kernel';
-import {createViewsRuntime, loadViewComponent, ViewBoundary, PluginViewHost, type ViewsRuntime, type ViewComponent, type PanelComponent, type SidePanelTab, type GraphViewProps} from './views';
+import {createViewsRuntime, loadViewComponent, ViewBoundary, PluginViewHost, type ViewsRuntime, type ViewComponent, type PanelComponent, type SidePanelTab, type GraphViewProps, type EditorViewProps} from './views';
 import {editorSettingsPlugin} from './ui/settings/plugin';
 import {ENGINE_VERSION} from './services';
 import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,createWebViewerRuntime,createSlashCommandsRuntime,createPagePreviewRuntime,createAudioRecorderRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime,type WebViewerRuntime,type SlashCommandsRuntime,type PagePreviewRuntime,type AudioRecorderRuntime,type ViewContribution,createUiRuntime,type UiRuntime} from './services';
@@ -67,7 +68,7 @@ export function App(){
   const allPluginExtensions=useMemo(()=>Object.values(pluginExtensions).flat() as Extension[],[pluginExtensions]);
   const [dirtyCount,setDirtyCount]=useState(0),[recording,setRecording]=useState(false);
   const [serviceCommands,setServiceCommands]=useState<Choice[]>([]);
-  const notesRef=useRef<Note[]>([]),settingsRef=useRef(settings),editor=useRef<EditorHandle>(null);
+  const notesRef=useRef<Note[]>([]),settingsRef=useRef(settings),editor=useRef<EditorHandle|null>(null);
   const timers=useRef(new Map<string,ReturnType<typeof setTimeout>>()),saves=useRef(new Map<string,Promise<void>>());
   const savedContent=useRef(new Map<string,string>()),versions=useRef(new Map<string,string|undefined>());
   const history=useRef<string[]>([]),historyIndex=useRef(-1),recordingPath=useRef('');
@@ -106,6 +107,18 @@ export function App(){
   function dispatchHoverLink(payload:Omit<HoverLinkPayload,'source'>){
     for(const controller of pluginStops.current.values())for(const source of controller.hoverSources?.()??[])controller.hoverLink?.({...payload,source});
   }
+  /** Query renderer plugin editor suggests for the CodeMirror completion source. */
+  const suggestEditor=useCallback((context:CompletionContext)=>{
+    const text=context.state.doc.toString();
+    for(const controller of pluginStops.current.values()){
+      if(!controller.editorSuggest)continue;
+      const result=controller.editorSuggest(text,context.pos);
+      if(result)return Promise.resolve(result).then(value=>value?{from:value.from,filter:false,options:value.options.map(option=>({label:option.label,detail:option.detail,apply:()=>{void option.apply();}}))}:null);
+    }
+    return null;
+  },[]);
+  /** Keep the App editor handle pointing at the registered editor view. */
+  const setEditorHandle=useCallback((handle:EditorHandle|null)=>{editor.current=handle;},[]);
   /** Resolve a file path to a compatibility plugin view registered for its extension. */
   function pluginViewFor(path:string){
     const extension=path.split('.').pop()?.toLowerCase()??'';
@@ -722,6 +735,7 @@ export function App(){
     const View=viewComponent(resolvedView);
     const pluginBases:Record<string,{controller:PluginController;id:string}>={};for(const [pluginId,controller] of pluginStops.current)for(const viewId of controller.basesViews?.()??[])pluginBases[viewId]={controller,id:viewId};
     const viewProps={note,notes,entries,path:note.path,mode,previews:pagePreviewRuntime.current?.service,pluginBases,onOpen:open,onOpenLink:openLink,onHoverLink:dispatchHoverLink,onChange:(content:string)=>editNote(note.path,content),onNoteChange:editNote,ask:dialog.ask};
+    const EditorView=viewComponent('editor') as LazyExoticComponent<ComponentType<EditorViewProps>>|undefined;
     if(resolvedView!=='markdown'&&mode!=='source'&&View)return <ViewBoundary resetKey={note.path}><View {...viewProps}/></ViewBoundary>;
     return <div className="note-document" onDragOver={e=>e.preventDefault()} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();importFiles(e.dataTransfer.files);}}}>
       <div className={'document-inner '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>
@@ -729,7 +743,7 @@ export function App(){
         {enabled('properties')&&isNote(note.path)&&propertyEditor(note)}
       </div>
       {mode==='reading'&&isNote(note.path)?<div className={'reading-surface '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>{View?<ViewBoundary resetKey={note.path}><View {...viewProps}/></ViewBoundary>:<Markdown content={note.content} notes={notes} path={note.path} previews={pagePreviewRuntime.current?.service} onOpen={openLink} onChange={content=>editNote(note.path,content)}/>}</div>:
-        <Editor ref={secondary?undefined:editor} note={note} notes={notes} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} pluginExtensions={secondary?undefined:allPluginExtensions} settings={{...settings,mode:mode==='reading'?'source':mode}} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={(context)=>{const text=context.state.doc.toString();for(const controller of pluginStops.current.values()){if(!controller.editorSuggest)continue;const result=controller.editorSuggest(text,context.pos);if(result)return Promise.resolve(result).then(value=>{console.log('PLUGIN_SUGGEST_VALUE',value);return value?{from:value.from,filter:false,options:value.options.map(option=>({label:option.label,detail:option.detail,apply:()=>{void option.apply();}}))}:null;});}return null;}}/>}
+        EditorView?<EditorView note={note} notes={notes} settings={{...settings,mode:mode==='reading'?'source':mode}} pluginExtensions={secondary?undefined:allPluginExtensions} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={suggestEditor} onHandle={secondary?undefined:setEditorHandle}/>:<Editor ref={secondary?undefined:editor} note={note} notes={notes} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} pluginExtensions={secondary?undefined:allPluginExtensions} settings={{...settings,mode:mode==='reading'?'source':mode}} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={suggestEditor}/>}
     </div>;
   }
   let paletteItems:Choice[]=[];

@@ -1,5 +1,25 @@
 # Verification results
 
+## Editor surface view
+
+This section records registering the editor surface through `engine.views/v1`.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 803 passed (39 files) | View registry/list |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| targeted e2e | **5 editor/workspace cases passed** | modes, undo/find, tabs, split, outline jump |
+
+`EditorView` registers as `engine.view.editor` and composes the existing `Editor`
+component; `EditorViewProps` carries the note/session/suggest/plugin-extension props and an
+`onHandle` callback so App keeps its imperative handle for focus, jump, selection and
+find. The lazy `Editor` remains as a fallback when the view registry is unavailable.
+Switching to reading unmounts the view and clears the handle. The editor provider contract
+(`engine.editor/v1`) and draft/conflict semantics are unchanged; this increment moves the
+surface registration, not the editing implementation. Shell layout/tabs/ribbon/status
+remain in App.
+
 ## Native settings consumer
 
 This section records the first built-in consumer of `engine.ui/v1` settings.

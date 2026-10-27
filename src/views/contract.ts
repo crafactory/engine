@@ -8,6 +8,11 @@ import type {Entry, Note, Settings} from '../types';
 import type {PagePreviewService} from '../services/page-preview';
 import type {ViewContribution} from '../services/views';
 import type {HoverLinkPayload,PluginController} from '../plugins';
+import type {EditorHandle} from '../Editor';
+import type {EditorSession} from '../services/editor';
+import type {SlashCommandsService} from '../services/slash-commands';
+import type {Extension} from '@codemirror/state';
+import type {CompletionContext,CompletionResult} from '@codemirror/autocomplete';
 import type {IndexService} from '../services/notes-index';
 
 /** Props every reading-surface view receives from the application host. */
@@ -29,6 +34,21 @@ export interface ReadingViewProps {
 }
 
 export type ViewComponent = ComponentType<ReadingViewProps>;
+
+/** Props for the editor surface view. */
+export interface EditorViewProps {
+  note: Note;
+  notes: Note[];
+  settings: Settings;
+  pluginExtensions?: Extension[];
+  session?: EditorSession;
+  slashCommands?: SlashCommandsService;
+  onChange: (content: string) => void;
+  onOpen: (target: string) => void;
+  onCommand: (command: string) => void;
+  onHandle?: (handle: EditorHandle | null) => void;
+  suggest?: (context: CompletionContext) => CompletionResult | null | Promise<CompletionResult | null>;
+}
 
 /** Props for the synthetic graph view. */
 export interface GraphViewProps {notes:Note[];index:IndexService;active:string;local:boolean;onOpen:(path:string)=>void}
