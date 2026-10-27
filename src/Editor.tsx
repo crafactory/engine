@@ -7,12 +7,12 @@ import {searchKeymap,highlightSelectionMatches} from '@codemirror/search';
 import {autocompletion,CompletionContext,type CompletionResult} from '@codemirror/autocomplete';
 import {syntaxHighlighting,HighlightStyle} from '@codemirror/language';
 import {tags as syntaxTags} from '@lezer/highlight';
-import {isNote,tags,title,frontmatter} from './knowledge';
+import {frontmatter,isNote,tags,title} from './knowledge';
 import type {Note,Settings} from './types';
 import {livePreview,refreshLivePreview} from './LivePreview';
 import {inlineLinks} from './inline-links';
 import {liveRegions} from './live-model';
-import {toDocumentOffset,toViewOffset,type EditorChange,type EditorSession} from './services/editor';
+import type {EditorChange,EditorSession} from './services/editor';
 import type {SlashCommandsService} from './services/slash-commands';
 export interface EditorHandle {path():string;insert(text:string):void;selection():string;replaceSelection(text:string):void;jump(offset:number):void;focus():void;find():void;snapshot():{text:string;from:number;to:number};applyPluginEdit(base:string,text:string,from:number,to:number):boolean}
 const engineHighlight=HighlightStyle.define([
@@ -40,33 +40,26 @@ export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Set
 /** Maintain the current CodeMirror document and independently refresh only external preview dependencies. */
 function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,onChange,onOpen,onCommand,suggest},handle) {
   const container=useRef<HTMLDivElement>(null),view=useRef<EditorView>();
-  const pluginCompartment=useRef(new Compartment()),lineNumbersCompartment=useRef(new Compartment()),themeCompartment=useRef(new Compartment()),spellcheckCompartment=useRef(new Compartment());
+  const pluginCompartment=useRef(new Compartment()),lineNumbersCompartment=useRef(new Compartment()),themeCompartment=useRef(new Compartment()),spellcheckCompartment=useRef(new Compartment()),modeCompartment=useRef(new Compartment());
   const sessionRef=useRef(session);
   // Commit the session reference before the setup effect so handlers never use an abandoned render's session.
   useLayoutEffect(()=>{sessionRef.current=session;},[session]);
-  const meta=frontmatter(note.content),hideMeta=settings.mode==='live'&&!meta.error;
-  const viewContent=hideMeta?meta.body:note.content;
-  const prefix=useRef('');prefix.current=hideMeta?meta.raw:'';
-  const callbacks=useRef({onChange,onOpen,onCommand,notes,suggest,slashEnabled:!settings.disabledPlugins.includes('slash')});callbacks.current={onChange,onOpen,onCommand,notes,suggest,slashEnabled:!settings.disabledPlugins.includes('slash')};
+  const callbacks=useRef({onChange,onOpen,onCommand,notes,suggest,mode:settings.mode,slashEnabled:!settings.disabledPlugins.includes('slash')});callbacks.current={onChange,onOpen,onCommand,notes,suggest,mode:settings.mode,slashEnabled:!settings.disabledPlugins.includes('slash')};
   const external=useRef(false);
   const notePath=useRef(note.path);notePath.current=note.path;
-  const hideMetaRef=useRef(hideMeta);hideMetaRef.current=hideMeta;
+  const livePreviewExtension=()=>livePreview(()=>({path:note.path,notes:callbacks.current.notes,onOpen:target=>callbacks.current.onOpen(target)}));
   useImperativeHandle(handle,()=>({
     path(){return notePath.current;},
-    snapshot(){const v=view.current!;const r=v.state.selection.main;return {text:prefix.current+v.state.doc.toString(),from:r.anchor+prefix.current.length,to:r.head+prefix.current.length};},
+    snapshot(){const v=view.current!;const r=v.state.selection.main;return {text:v.state.doc.toString(),from:r.anchor,to:r.head};},
     applyPluginEdit(base,text,from,to){
-      const v=view.current;if(!v||prefix.current+v.state.doc.toString()!==base)return false;
-      const parsed=frontmatter(text),nextPrefix=hideMetaRef.current&&!parsed.error?parsed.raw:'';
-      if(from<nextPrefix.length||to<nextPrefix.length)throw new Error('Plugin selection inside hidden properties requires source mode');
-      const next=text.slice(nextPrefix.length);prefix.current=nextPrefix;
-      v.dispatch({changes:{from:0,to:v.state.doc.length,insert:next},selection:{anchor:Math.max(0,Math.min(next.length,from-nextPrefix.length)),head:Math.max(0,Math.min(next.length,to-nextPrefix.length))},userEvent:'input'});
-      // A prefix-only change produces no CM document change, but must still persist.
+      const v=view.current;if(!v||v.state.doc.toString()!==base)return false;
+      v.dispatch({changes:{from:0,to:v.state.doc.length,insert:text},selection:{anchor:Math.max(0,Math.min(text.length,from)),head:Math.max(0,Math.min(text.length,to))},userEvent:'input'});
       callbacks.current.onChange(text);return true;
     },
     insert(text){const v=view.current!;const r=v.state.selection.main;v.dispatch({changes:{from:r.from,to:r.to,insert:text},selection:{anchor:r.from+text.length}});v.focus();},
     selection(){const v=view.current!;const r=v.state.selection.main;return v.state.sliceDoc(r.from,r.to);},
     replaceSelection(text){const v=view.current!;const r=v.state.selection.main;v.dispatch({changes:{from:r.from,to:r.to,insert:text}});v.focus();},
-    jump(offset){const v=view.current;if(v)v.dispatch({selection:{anchor:Math.min(v.state.doc.length,Math.max(0,offset-prefix.current.length))},scrollIntoView:true});v?.focus();},
+    jump(offset){const v=view.current;if(v)v.dispatch({selection:{anchor:Math.min(v.state.doc.length,Math.max(0,offset))},scrollIntoView:true});v?.focus();},
     focus(){view.current?.focus();},
     find(){import('@codemirror/search').then(({openSearchPanel})=>view.current&&openSearchPanel(view.current));}
   }),[]);
@@ -83,10 +76,10 @@ function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,o
       return callbacks.current.suggest?.(context)??null;
     };
     const editor=new EditorView({
-      parent:container.current!,state:EditorState.create({doc:viewContent,extensions:[
+      parent:container.current!,state:EditorState.create({doc:note.content,extensions:[
         markdown(),history(),drawSelection(),syntaxHighlighting(engineHighlight),highlightSelectionMatches(),EditorView.lineWrapping,pluginCompartment.current.of(pluginExtensions),
         lineNumbersCompartment.current.of(settings.lineNumbers?[lineNumbers()]:[]),
-        ...(settings.mode==='live'?livePreview(()=>({path:note.path,notes:callbacks.current.notes,onOpen:target=>callbacks.current.onOpen(target)})):[highlightActiveLine()]),
+        modeCompartment.current.of(settings.mode==='live'?livePreviewExtension():[highlightActiveLine()]),
         autocompletion({override:[complete]}),
         keymap.of([
           {key:'Mod-b',run:v=>wrap(v,'**')},{key:'Mod-i',run:v=>wrap(v,'*')},
@@ -95,8 +88,12 @@ function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,o
         ]),
         spellcheckCompartment.current.of(contentAttributes(settings.spellcheck)),
         EditorView.updateListener.of(update=>{
-          if(update.docChanged){const text=update.state.doc.toString(),prefixLength=prefix.current.length;if(!external.current){callbacks.current.onChange(prefix.current+text);const changes:EditorChange[]=[];update.changes.iterChanges((fromA,toA,_fromB,_toB,inserted)=>changes.push({from:fromA+prefixLength,to:toA+prefixLength,inserted:inserted.length}));sessionRef.current?.track(prefix.current+text,changes);}else sessionRef.current?.track(prefix.current+text);}
-          if(update.selectionSet||update.docChanged){const range=update.state.selection.main,prefixLength=prefix.current.length;sessionRef.current?.setSelection({anchor:toDocumentOffset(range.anchor,prefixLength),head:toDocumentOffset(range.head,prefixLength)});}
+          if(update.docChanged){const text=update.state.doc.toString();if(!external.current){callbacks.current.onChange(text);const changes:EditorChange[]=[];update.changes.iterChanges((fromA,toA,_fromB,_toB,inserted)=>changes.push({from:fromA,to:toA,inserted:inserted.length}));sessionRef.current?.track(text,changes);}else sessionRef.current?.track(text);}
+          if(update.selectionSet||update.docChanged){const range=update.state.selection.main;sessionRef.current?.setSelection({anchor:range.anchor,head:range.head});}
+          if(callbacks.current.mode==='live'){
+            const end=frontmatter(update.state.doc.toString()).raw.length,range=update.state.selection.main;
+            if(end&&range.anchor<end&&range.head<end)update.view.dispatch({selection:{anchor:end,head:end}});
+          }
         }),
         EditorView.domEventHandlers({
           /** Follow modifier-clicked supported links without intercepting ordinary source editing. */
@@ -117,17 +114,22 @@ function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,o
       ]})
     });view.current=editor;
     const activeSession=sessionRef.current,draft=activeSession?.draft();
-    if(draft){const max=editor.state.doc.length,prefixLength=prefix.current.length;editor.dispatch({selection:{anchor:toViewOffset(draft.selection.anchor,prefixLength,max),head:toViewOffset(draft.selection.head,prefixLength,max)}});const viewport=toViewOffset(draft.viewport.anchor,prefixLength,max);if(viewport>0)editor.dispatch({effects:EditorView.scrollIntoView(viewport,{y:'start'})});}
+    if(draft){const max=editor.state.doc.length;editor.dispatch({selection:{anchor:Math.max(0,Math.min(max,draft.selection.anchor)),head:Math.max(0,Math.min(max,draft.selection.head))}});const viewport=Math.max(0,Math.min(max,draft.viewport.anchor));if(viewport>0)editor.dispatch({effects:EditorView.scrollIntoView(viewport,{y:'start'})});}
     /** Persist the scroll anchor through the editor session so it survives remounts. */
-    const trackScroll=()=>{const offset=toDocumentOffset(viewportTop(editor),prefix.current.length);sessionRef.current?.setViewport({anchor:offset,head:offset});};
+    const trackScroll=()=>{const offset=viewportTop(editor);sessionRef.current?.setViewport({anchor:offset,head:offset});};
     // Register after CodeMirror's scheduled viewport restore so that restore does not overwrite the draft.
     const scrollFrame=requestAnimationFrame(()=>editor.scrollDOM.addEventListener('scroll',trackScroll,{passive:true}));
     return()=>{cancelAnimationFrame(scrollFrame);editor.scrollDOM.removeEventListener('scroll',trackScroll);editor.destroy();};
-  },[note.path,settings.mode,slashCommands]);
+  },[note.path,slashCommands]);
   useEffect(()=>{view.current?.dispatch({effects:lineNumbersCompartment.current.reconfigure(settings.lineNumbers?[lineNumbers()]:[])});},[settings.lineNumbers]);
   useEffect(()=>{view.current?.dispatch({effects:themeCompartment.current.reconfigure(editorTheme(settings))});},[settings.fontSize,settings.theme]);
   useEffect(()=>{view.current?.dispatch({effects:spellcheckCompartment.current.reconfigure(contentAttributes(settings.spellcheck))});},[settings.spellcheck]);
-  useEffect(()=>{const v=view.current;if(v&&v.state.doc.toString()!==viewContent){external.current=true;v.dispatch({changes:{from:0,to:v.state.doc.length,insert:viewContent}});external.current=false;}},[viewContent]);
+  useEffect(()=>{
+    const v=view.current;if(!v)return;
+    v.dispatch({effects:modeCompartment.current.reconfigure(settings.mode==='live'?livePreviewExtension():[highlightActiveLine()])});
+    if(settings.mode==='live'){const end=frontmatter(v.state.doc.toString()).raw.length;if(end&&v.state.selection.main.head<end)v.dispatch({selection:{anchor:end}});}
+  },[settings.mode]);
+  useEffect(()=>{const v=view.current;if(v&&v.state.doc.toString()!==note.content){external.current=true;v.dispatch({changes:{from:0,to:v.state.doc.length,insert:note.content}});external.current=false;}},[note.content]);
   // Current-document edits already rebuild the field in their CM transaction.
   const linkedRevision=notes.filter(n=>n.path!==note.path).map(n=>n.path+'\0'+n.content).join('\0');
   useEffect(()=>{if(settings.mode==='live')view.current?.dispatch({effects:refreshLivePreview.of(null)});},[linkedRevision,settings.mode]);

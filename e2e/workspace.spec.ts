@@ -23,7 +23,7 @@ test('all editor modes work without runtime failures',async({page})=>{
   await expect(page.locator('.markdown')).toBeVisible();
 });
 test('live editing hides frontmatter without dropping it on save',async({page})=>{
-  await page.getByTestId('mode-live').click();await expect(page.getByTestId('note-editor')).not.toContainText('aliases:');
+  await page.getByTestId('mode-live').click();expect(await page.getByTestId('note-editor').evaluate(el=>el.innerText)).not.toContain('aliases:');
   await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.type('\nLive metadata check.');await page.getByTestId('mode-source').click();await page.keyboard.press('ControlOrMeta+Home');await expect(page.getByTestId('note-editor')).toContainText('aliases: [Start here]');
 });
 test('quick switcher supports fuzzy note selection',async({page})=>{
@@ -78,6 +78,13 @@ test('daily notes and templates generate real text',async({page})=>{
 test('settings themes, custom CSS and plugin controls',async({page})=>{
   await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByTestId('theme-light').click();await expect(page.locator('html')).toHaveAttribute('data-theme','light');await page.getByTestId('theme-dark').click();await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
   await page.getByRole('button',{name:'Core plugins',exact:true}).click();await page.getByRole('switch',{name:'Enable Graph view',exact:true}).uncheck();await page.getByRole('button',{name:'Editor',exact:true}).click();await expect(page.locator('select[aria-label="Default editing mode"]')).toBeVisible();await expect(page.getByLabel('lineNumbers')).toBeVisible();await page.getByRole('button',{name:'Extensions',exact:true}).click();await expect(page.getByText('Extensions that contribute settings will appear here.')).toBeVisible();await page.getByTestId('settings-close').click();await expect(page.getByRole('button',{name:'Graph view',exact:true})).toHaveCount(0);
+});
+test('live and source switching preserve editor undo history',async({page})=>{
+  await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.insertText('\nMODE-HISTORY');
+  await page.getByTestId('mode-live').click();await page.getByTestId('mode-source').click();
+  await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+z');
+  await expect(page.getByTestId('note-editor')).not.toContainText('MODE-HISTORY');
 });
 test('appearance changes preserve editor undo history',async({page})=>{
   await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
