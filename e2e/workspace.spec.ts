@@ -79,6 +79,13 @@ test('settings themes, custom CSS and plugin controls',async({page})=>{
   await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByTestId('theme-light').click();await expect(page.locator('html')).toHaveAttribute('data-theme','light');await page.getByTestId('theme-dark').click();await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
   await page.getByRole('button',{name:'Core plugins',exact:true}).click();await page.getByRole('switch',{name:'Enable Graph view',exact:true}).uncheck();await page.getByRole('button',{name:'Editor',exact:true}).click();await expect(page.locator('select[aria-label="Default editing mode"]')).toBeVisible();await expect(page.getByLabel('lineNumbers')).toBeVisible();await page.getByRole('button',{name:'Extensions',exact:true}).click();await expect(page.getByText('Extensions that contribute settings will appear here.')).toBeVisible();await page.getByTestId('settings-close').click();await expect(page.getByRole('button',{name:'Graph view',exact:true})).toHaveCount(0);
 });
+test('appearance changes preserve editor undo history',async({page})=>{
+  await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.insertText('\nHISTORY-MARKER');
+  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByTestId('theme-light').click();await page.getByTestId('settings-close').click();
+  await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+z');
+  await expect(page.getByTestId('note-editor')).not.toContainText('HISTORY-MARKER');
+});
 test('save and restore workspace and split editor',async({page})=>{
   await command(page,'Split editor right');await expect(page.locator('.secondary-pane')).toBeVisible();await command(page,'Save current workspace');await page.getByTestId('dialog-input').fill('QA layout');await page.getByTestId('dialog-submit').click();
   await page.getByRole('button',{name:'Close split pane',exact:true}).click();await command(page,'Load a workspace');await page.getByTestId('palette-input').fill('QA layout');await page.keyboard.press('Enter');await expect(page.locator('.secondary-pane')).toBeVisible();

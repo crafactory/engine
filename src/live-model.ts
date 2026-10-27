@@ -87,3 +87,21 @@ export function minimalBlockChange(from:number,before:string,after:string):{from
   while(endBefore>start&&endAfter>start&&before[endBefore-1]===after[endAfter-1]){endBefore--;endAfter--;}
   return {from:from+start,to:from+endBefore,insert:after.slice(start,endAfter)};
 }
+
+/** Append an empty body row, matching the current column count. */
+export function appendTableRow(content:string,columns?:number):string {
+  const count=columns??Math.max(1,tableCells(content.split('\n')[0]||'').length);
+  return content+'\n|'+Array.from({length:count},()=>'  ').join('|')+'|';
+}
+
+/** Append one column to the header, separator and body rows. */
+export function appendTableColumn(content:string):string {
+  return content.split('\n').map(line=>{
+    if(!line.trim())return line;
+    const separator=/^\|?[\s:|-]+\|?$/.test(line.trim());
+    const extra=separator?' --- ':'  ';
+    const trimmed=line.trimEnd();
+    if(trimmed.endsWith('|'))return trimmed.slice(0,-1)+'|'+extra+'|';
+    return trimmed+'|'+extra+'|';
+  }).join('\n');
+}

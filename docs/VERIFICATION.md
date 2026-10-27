@@ -1,5 +1,30 @@
 # Verification results
 
+## Live Preview editing and inline fixes
+
+This section records the click-to-edit block UX, table editing affordances, internal
+scrolling and editor-history fixes.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 803 passed (39 files) | Existing suites |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` | **56 passed / 0 failed** | +5 Live Preview/editor cases |
+
+- Rendered blocks have no "Edit source" button; clicking a block reveals source at the
+  clicked line (code/diagram line mapping), with Enter/Space on the focused block as the
+  keyboard path.
+- Table Tab/Shift+Tab move cells; Tab on the last cell appends a row and focuses its first
+  cell; hover affordances add a row/column.
+- Long code and table content scroll inside `.live-block`; the editor content is clamped to
+  the viewport width (`cm-content`), so the page no longer scrolls horizontally.
+- Theme/font-size/line-number/spellcheck changes reconfigure compartments instead of
+  recreating the editor; an e2e case verifies undo survives a theme change.
+- Inline bold/italic/highlight/strike/code hide markers per touched span, escaped markers
+  stay literal, and setext headings render. Remaining differences are listed in
+  `QA-LIVE-PREVIEW.md`.
+
 ## Editor surface view
 
 This section records registering the editor surface through `engine.views/v1`.
