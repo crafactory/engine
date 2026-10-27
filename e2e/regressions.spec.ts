@@ -1,4 +1,5 @@
 import {test,expect,type Page} from '@playwright/test';
+const redoShortcut=process.platform==='darwin'?'Meta+Shift+z':'Control+y';
 test('embedded task controls cannot acquire host task source ownership',async({page})=>{
   await page.goto('/');
   const canvas=JSON.stringify({nodes:[{id:'task',type:'text',x:0,y:0,width:260,height:160,text:'- [ ] Canvas task'}],edges:[]});
@@ -139,7 +140,7 @@ test('long document with a tall table keeps the typing caret in the editor viewp
     const cursor=document.querySelector('.cm-cursor')?.getBoundingClientRect(),editor=document.querySelector('.cm-scroller')?.getBoundingClientRect();
     return !!cursor&&!!editor&&cursor.top>=editor.top-2&&cursor.bottom<=editor.bottom+2;
   })).toBe(true);
-  await page.getByTestId('note-editor').focus();await page.keyboard.press('ControlOrMeta+z');await page.getByTestId('note-editor').focus();await page.keyboard.press('ControlOrMeta+Shift+z');
+  await page.getByTestId('note-editor').focus();await page.keyboard.press('ControlOrMeta+z');await page.getByTestId('note-editor').focus();await page.keyboard.press(redoShortcut);
   await page.getByTestId('mode-source').click();await expect(page.getByTestId('note-editor')).toContainText('typed after table');
 });
 test('editing a cell near the bottom of a tall table keeps the focused input and committed cell visible',async({page})=>{
