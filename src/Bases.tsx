@@ -1,15 +1,19 @@
-import {useEffect,useMemo,useRef,useState} from 'react';
+import {useMemo,useState} from 'react';
 import {parse,stringify} from 'yaml';
 import {Table2,LayoutGrid,List,Download,Plus,Filter} from 'lucide-react';
 import {frontmatter,setProperties,title,isNote} from './knowledge';
 import {baseFilter,expression} from './base-expression';
 import type {Note,Entry} from './types';
 import type {PluginController} from './plugins';
+import {builtinBasesViews,displayValue} from './views/bases/registry';
+import PluginBasesHost from './views/bases/PluginBasesHost';
+
 export function Bases({note,notes,entries,onOpen,onChange,onNoteChange,ask,pluginBases}:{note:Note;notes:Note[];entries:Entry[];onOpen:(path:string)=>void;onChange:(value:string)=>void;onNoteChange:(path:string,content:string)=>void;ask:(title:string,value?:string,description?:string)=>Promise<string|null>;pluginBases?:Record<string,{controller:PluginController;id:string}>}) {
   const [viewIndex,setViewIndex]=useState(0),[query,setQuery]=useState(''),[sort,setSort]=useState('file.name'),[desc,setDesc]=useState(false);
   const data=useMemo(()=>{try{return {base:parse(note.content)||{},error:''};}catch(e){return {base:{},error:String(e)};}},[note.content]);
   const view=data.base.views?.[viewIndex]||{type:'table',name:'All notes'};
   const pluginBase=pluginBases&&Object.prototype.hasOwnProperty.call(pluginBases,view.type)?pluginBases[view.type]:undefined;
+  const ViewComponent=pluginBase?undefined:builtinBasesViews.resolve(view.type||'table');
   const columns:string[]=view.order||['file.name','note.status','note.tags','file.folder'];
   const result=useMemo(()=>{
     if(pluginBase)return {rows:[] as Note[],cells:{} as Record<string,Record<string,any>>,error:''};
@@ -17,7 +21,7 @@ export function Bases({note,notes,entries,onOpen,onChange,onNoteChange,ask,plugi
     const cells:Record<string,Record<string,any>>={};
     let rows:Note[]=[];
     try {
-      if(!['table','cards','list'].includes(view.type||'table'))throw new Error('Unsupported view type: '+view.type);
+      if(!ViewComponent)throw new Error('Unsupported view type: '+view.type);
       rows=notes.filter(n=>isNote(n.path)).filter(n=>{
         const entry=entries.find(e=>e.path===n.path);
         if(!baseFilter(data.base.filters,n,entry,notes,data.base.formulas||{})||!baseFilter(view.filters,n,entry,notes,data.base.formulas||{}))return false;
@@ -28,8 +32,7 @@ export function Bases({note,notes,entries,onOpen,onChange,onNoteChange,ask,plugi
       if(view.limit)rows=rows.slice(0,Number(view.limit));
     }catch(e){error=String(e);rows=[];}
     return {rows,cells,error};
-  },[note.content,notes,entries,query,viewIndex,sort,desc,pluginBase,view]);
-  function display(value:any){return Array.isArray(value)?value.join(', '):value===null||value===undefined?'':String(value);}
+  },[note.content,notes,entries,query,viewIndex,sort,desc,pluginBase,ViewComponent,view]);
   async function edit(n:Note,column:string) {
     if(column.startsWith('file.')||column.startsWith('formula.'))return;
     const key=column.replace(/^note\./,''),props=frontmatter(n.content).properties;
@@ -37,7 +40,7 @@ export function Bases({note,notes,entries,onOpen,onChange,onNoteChange,ask,plugi
     if(value!==null){try{onNoteChange(n.path,setProperties(n.content,{...props,[key]:parse(value)}));}catch(e){window.alert(String(e));}}
   }
   function exportCsv(){
-    const encode=(v:any)=>'"'+display(v).replaceAll('"','""')+'"';
+    const encode=(v:any)=>'"'+displayValue(v).replaceAll('"','""')+'"';
     const csv=[columns.map(encode).join(','),...result.rows.map(n=>columns.map(c=>encode(result.cells[n.path][c])).join(','))].join('\n');
     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download=title(note.path)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
@@ -46,22 +49,7 @@ export function Bases({note,notes,entries,onOpen,onChange,onNoteChange,ask,plugi
       <label className="input-icon"><Filter size={14}/><input aria-label="Filter base" value={query} placeholder="Filter rows…" onChange={e=>setQuery(e.target.value)} data-testid="base-filter"/></label>{!pluginBase&&<button onClick={exportCsv}><Download size={14}/>CSV</button>}</header>
     {result.error?<div className="empty"><h2>Cannot evaluate this base</h2><p>{result.error}</p><p>Switch to source mode to inspect the definition. Unsupported expressions are not silently ignored.</p></div>:
       pluginBase?<PluginBasesHost controller={pluginBase.controller} id={pluginBase.id} config={view}/>:
-      view.type==='cards'?<div className="base-cards">{result.rows.map(n=><article key={n.path}><button onClick={()=>onOpen(n.path)}>{title(n.path)}</button>{columns.filter(c=>c!=='file.name').map(c=><p key={c}><span>{c.replace(/^note\./,'')}</span>{display(result.cells[n.path][c])}</p>)}</article>)}</div>:
-      view.type==='list'?<div className="base-list">{result.rows.map(n=><button key={n.path} onClick={()=>onOpen(n.path)}>{title(n.path)}<span>{n.path}</span></button>)}</div>:
-      <div className="table-scroll"><table className="base-table" data-testid="base-table"><thead><tr>{columns.map(c=><th key={c}><button onClick={()=>{setSort(c);setDesc(sort===c?!desc:false);}}>{data.base.properties?.[c]?.displayName||c.replace(/^(note|file)\./,'')}{sort===c?(desc?' ↓':' ↑'):''}</button></th>)}</tr></thead><tbody>{result.rows.map(n=><tr key={n.path}>{columns.map(c=><td key={c}>{c==='file.name'?<button className="table-note" onClick={()=>onOpen(n.path)}>{title(n.path)}</button>:<button onClick={()=>edit(n,c)} disabled={c.startsWith('file.')||c.startsWith('formula.')}>{display(result.cells[n.path][c])||'—'}</button>}</td>)}</tr>)}</tbody></table></div>}
+      ViewComponent?<ViewComponent view={view} rows={result.rows} cells={result.cells} columns={columns} sort={sort} desc={desc} columnLabel={column=>data.base.properties?.[column]?.displayName||column.replace(/^(note|file)\./,'')} display={displayValue} onOpen={onOpen} onSort={column=>{setSort(column);setDesc(sort===column?!desc:false);}} onEdit={edit}/>:null}
     {!pluginBase&&<footer className="view-footer">{result.rows.length} notes · Properties are stored in YAML frontmatter</footer>}
   </section>;
-}
-
-/** Mount a plugin Bases view into the document and dispose it with the React tree. */
-function PluginBasesHost({controller,id,config}:{controller:PluginController;id:string;config:unknown}){
-  const ref=useRef<HTMLDivElement>(null);
-  const [failed,setFailed]=useState(false);
-  useEffect(()=>{
-    if(!ref.current)return;
-    let mounted:{dispose():void}|undefined;
-    try{mounted=controller.mountBasesView?.(id,ref.current,config);}catch(error){console.error('Plugin Bases view failed',error);setFailed(true);}
-    return()=>mounted?.dispose();
-  },[controller,id,config]);
-  return <div className="plugin-bases-host" ref={ref}>{failed&&<div className="empty"><p>Bases view unavailable.</p></div>}</div>;
 }
