@@ -1,5 +1,25 @@
 # Verification results
 
+## Compatibility bootstrap for Dataview startup
+
+This section records a probe-driven compatibility step, not a claim that Dataview works.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 813 passed (40 files) | Renderer/bootstrap cases; vault-event expectations updated |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` | **64 passed / 0 failed** | Existing flows unchanged |
+| local macOS trusted-renderer probe | Dataview 0.5.70 reaches STARTUP_ONLY | Pinned hashes; not a Linux corpus rerun |
+
+Added `App.appId`, an empty `internalPlugins.plugins` stub, bounded Vault create/delete/modify
+event registration (create/delete derived from entry diffs), MetadataCache `resolve` alongside
+`resolved`, `workspace.iterateAllLeaves`, and a minimal CodeMirror 5 `defineMode`/`getMode`
+shim. These were the successive first blockers on the pinned Dataview bundle. A simple
+`dataview` LIST block still remained raw source in the probe, so metadata/query rendering is
+not implemented or verified. Rename is accepted as a subscription but no rename event is
+synthesized. The pinned Linux corpus result files were not regenerated.
+
 ## Callout fold state and code copying
 
 This section records session fold persistence and code-block copy controls.

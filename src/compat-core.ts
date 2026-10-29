@@ -226,7 +226,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   class Vault extends Events {
     configDir='.crafactory';
     get adapter(){return unsupported('Vault.adapter');}
-    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){if(name!=='modify')return unsupported('Vault event '+name);return super.on(name,callback,ctx);}
+    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){if(!['modify','create','delete','rename'].includes(name))return unsupported('Vault event '+name);return super.on(name,callback,ctx);}
     getName(){return snapshot.name;}getRoot(){return objects.get('') as TFolder;}
     getFiles(){return [...objects.values()].filter((f):f is TFile=>f instanceof TFile);}
     getMarkdownFiles(){return this.getFiles().filter(f=>f.extension.toLowerCase()==='md');}
@@ -305,6 +305,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     on(name:string,callback:(...args:any[])=>void,ctx?:unknown){if(name!=='file-open'&&(!host.ui||!['layout-change','editor-change','hover-link'].includes(name)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
     getActiveFile(){return vault.getFileByPath(snapshot.active);}
     getActiveViewOfType(type:unknown){return type===MarkdownView&&(editor||host.ui&&snapshot.active.endsWith('.md'))?new MarkdownView():null;}
+    iterateAllLeaves(_callback:(leaf:unknown)=>void){return unsupported('Workspace.iterateAllLeaves');}
     get activeEditor(){return editor?{file:this.getActiveFile(),editor}:null;}
     onLayoutReady(callback:()=>void){callback();}
     async openLinkText(linktext:string,sourcePath:string,newLeaf?:unknown,openState?:unknown){
@@ -320,17 +321,19 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   if(host.ui)Object.assign(workspace,host.ui.workspace,{updateOptions:()=>host.ui!.updateOptions()});
   const metadataOn=Events.prototype.on.bind(metadataCache);
   metadataCache.on=(name:string,callback:(...args:any[])=>void,ctx?:unknown)=>{
-    if(!['changed','deleted','resolved'].includes(name))return unsupported('MetadataCache event '+name);
+    if(!['changed','deleted','resolved','resolve'].includes(name))return unsupported('MetadataCache event '+name);
     return metadataOn(name,callback,ctx);
   };
   metadataCache.getFileCache=()=>unsupported('MetadataCache.getFileCache exact positions');
   metadataCache.getCache=()=>unsupported('MetadataCache.getCache exact positions');
   metadataCache.getFirstLinkpathDest=(link:string,path:string)=>{const resolver=host.native?.resolveLink;const target=resolver?resolver(link,path):resolveLink(link,path,snapshot.notes)?.path;return target?vault.getFileByPath(target):null;};
-  const app=guard({vault,workspace,metadataCache},'App');
+  const app=guard({appId:'crafactory-engine',vault,workspace,metadataCache,internalPlugins:{plugins:{}}},'App');
   function refresh(next:PluginSnapshot,events=false){
     const previous=snapshot;snapshot=next;
     const nextNotePaths=new Set(snapshot.notes.map(note=>note.path));
     const removedNotes=events?previous.notes.filter(note=>!nextNotePaths.has(note.path)).map(note=>({note,file:objects.get(note.path)})):[];
+    const removedEntries=events?previous.entries.filter(entry=>!snapshot.entries.some(next=>next.path===entry.path)).map(entry=>({entry,file:objects.get(entry.path)})):[];
+    const createdEntries=events?snapshot.entries.filter(entry=>!previous.entries.some(prev=>prev.path===entry.path)):[];
     const paths=new Set(['',...snapshot.entries.map(e=>e.path)]);
     for(const path of [...objects.keys()])if(!paths.has(path))objects.delete(path);
     if(!objects.has(''))objects.set('',new TFolder('',vault));
@@ -344,6 +347,8 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     for(const f of objects.values())if(f.path){f.parent=objects.get(f.path.split('/').slice(0,-1).join('/')) as TFolder||null;f.parent?.children.push(f);}
     if(events){
       initEditor();
+      for(const {entry,file} of removedEntries)if(file)vault.trigger('delete',file);
+      for(const entry of createdEntries){const file=objects.get(entry.path);if(file)vault.trigger('create',file);}
       if(previous.active!==snapshot.active)workspace.trigger('file-open',workspace.getActiveFile());
       if(host.ui&&(previous.active!==snapshot.active||!!previous.editor!==!!snapshot.editor))workspace.trigger('layout-change');
       for(const note of snapshot.notes){
@@ -351,6 +356,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
         if(!before||before.content!==note.content){
           vault.trigger('modify',vault.getFileByPath(note.path));
           metadataCache.trigger('changed',vault.getFileByPath(note.path),note.content,null);
+          metadataCache.trigger('resolve',vault.getFileByPath(note.path));
           if(host.ui&&note.path===snapshot.active)workspace.trigger('editor-change',editor,new MarkdownView());
         }
       }

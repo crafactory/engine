@@ -272,7 +272,7 @@ describe('unsupported methods fail, not no-op',()=>{
   for(const method of rendererOnly)it(`Plugin.${method} requires a renderer UI host`,()=>{const h=harness();expect(()=>new h.api.Plugin()[method]()).toThrow(CompatibilityError);});
   for(const method of ['delete','process','readBinary','createBinary','modifyBinary','appendBinary'])it(`Vault.${method} is explicitly rejected`,()=>{const h=harness();expect(()=>h.runtime.app.vault[method]()).toThrow(CompatibilityError);});
   for(const method of ['getDoc','setSelections','transaction','exec','focus','blur','hasFocus','getScrollInfo','scrollTo','scrollIntoView','undo','redo','refresh','wordAt','processLines'])it(`Editor.${method} is explicitly rejected`,()=>expect(()=>(new Editor({text:'',from:0,to:0},()=>{}) as any)[method]()).toThrow(CompatibilityError));
-  for(const name of ['create','delete','rename'])it(`Vault event ${name} is explicitly rejected`,()=>expect(()=>harness().runtime.app.vault.on(name,()=>{})).toThrow(CompatibilityError));
+  it('accepts the bounded vault lifecycle events',()=>{const h=harness();for(const name of ['create','delete','rename','modify'])expect(()=>h.runtime.app.vault.on(name,()=>{})).not.toThrow();});
   it('renderer-only workspace leaf methods require host.ui',()=>{const h=harness();for(const method of ['getLeaf','getRightLeaf','getLeavesOfType','revealLeaf'])expect(()=>{const value=(h.runtime.app.workspace as any)[method];if(typeof value==='function')value.call(h.runtime.app.workspace);}).toThrow(CompatibilityError);});
   it('rejects undocumented app/workspace/cache access and unsupported events',()=>{
     const h=harness();

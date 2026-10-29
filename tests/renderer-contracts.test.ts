@@ -6,9 +6,9 @@ const manifest={id:'renderer-test',name:'Renderer test',version:'1'};
 const initial=():PluginSnapshot=>({name:'Test',active:'One.md',entries:[{path:'One.md',name:'One.md',folder:false,size:3,ctime:0,mtime:0}],notes:[{path:'One.md',content:'one'}],editor:null});
 function harness(){
   const settingCleanup=vi.fn(),extensionCleanup=vi.fn(),viewCleanup=vi.fn(),extensionsCleanup=vi.fn(),suggestCleanup=vi.fn(),protocolCleanup=vi.fn(),hoverCleanup=vi.fn(),basesCleanup=vi.fn(),updateOptions=vi.fn(),ribbonCleanup=vi.fn(),ribbonElement={remove:ribbonCleanup} as unknown as HTMLElement;
-  const ui={exports:{EditorSuggest},workspace:{getLeaf:()=>({fixture:true})},statusBar:vi.fn(),ribbonIcon:vi.fn(()=>ribbonElement),settingTab:vi.fn(()=>settingCleanup),editorExtension:vi.fn(()=>extensionCleanup),registerView:vi.fn(()=>viewCleanup),registerExtensions:vi.fn(()=>extensionsCleanup),editorSuggest:vi.fn(()=>suggestCleanup),protocolHandler:vi.fn(()=>protocolCleanup),hoverLinkSource:vi.fn(()=>hoverCleanup),basesView:vi.fn(()=>basesCleanup),updateOptions};
+  const iterateAllLeaves=vi.fn(),ui={exports:{EditorSuggest},workspace:{getLeaf:()=>({fixture:true}),iterateAllLeaves},statusBar:vi.fn(),ribbonIcon:vi.fn(()=>ribbonElement),settingTab:vi.fn(()=>settingCleanup),editorExtension:vi.fn(()=>extensionCleanup),registerView:vi.fn(()=>viewCleanup),registerExtensions:vi.fn(()=>extensionsCleanup),editorSuggest:vi.fn(()=>suggestCleanup),protocolHandler:vi.fn(()=>protocolCleanup),hoverLinkSource:vi.fn(()=>hoverCleanup),basesView:vi.fn(()=>basesCleanup),updateOptions};
   const runtime=createCompatibilityRuntime(manifest,initial(),{ui,request:async()=>null,commands:()=>{},notice:()=>{}});
-  return {runtime,api:runtime.api as any,ui,settingCleanup,extensionCleanup,viewCleanup,extensionsCleanup,suggestCleanup,protocolCleanup,hoverCleanup,basesCleanup,updateOptions,ribbonCleanup,ribbonElement};
+  return {runtime,api:runtime.api as any,ui,iterateAllLeaves,settingCleanup,extensionCleanup,viewCleanup,extensionsCleanup,suggestCleanup,protocolCleanup,hoverCleanup,basesCleanup,updateOptions,ribbonCleanup,ribbonElement};
 }
 it('renderer export registry is documented, unique and disjoint from Worker exports',()=>{
   expect(rendererExports).toHaveLength(21);expect(new Set(rendererExports).size).toBe(21);
@@ -38,6 +38,23 @@ it('renderer hook registrations dispose once and updateOptions reaches actual ho
   class Fixture extends h.api.Plugin {onload(){this.addSettingTab(tab);this.addRibbonIcon('star','Star',()=>{});this.registerEditorExtension(extension);this.registerView('test',()=>{});this.registerExtensions(['foo'],'test');this.registerEditorSuggest(new FixtureSuggest());this.registerObsidianProtocolHandler('fixture',()=>{});this.registerHoverLinkSource('fixture',{display:'Fixture',defaultMod:true});this.registerBasesView('fixture-bases',()=>({render(){}}));this.app.workspace.updateOptions();}}
   await h.runtime.boot(Fixture);expect(h.ui.settingTab).toHaveBeenCalledWith(tab);expect(h.ui.ribbonIcon).toHaveBeenCalledWith('star','Star',expect.any(Function));expect(h.ui.editorExtension).toHaveBeenCalledWith(extension);expect(h.ui.registerExtensions).toHaveBeenCalledWith(['foo'],'test');expect(h.ui.editorSuggest).toHaveBeenCalledWith(expect.any(h.api.EditorSuggest));expect(h.ui.protocolHandler).toHaveBeenCalledWith('fixture',expect.any(Function));expect(h.ui.hoverLinkSource).toHaveBeenCalledWith('fixture',{display:'Fixture',defaultMod:true});expect(h.ui.basesView).toHaveBeenCalledWith('fixture-bases',expect.any(Function));expect(h.updateOptions).toHaveBeenCalledOnce();
   await h.runtime.stop();await h.runtime.stop();expect(h.settingCleanup).toHaveBeenCalledOnce();expect(h.extensionCleanup).toHaveBeenCalledOnce();expect(h.viewCleanup).toHaveBeenCalledOnce();expect(h.ribbonCleanup).toHaveBeenCalledOnce();expect(h.extensionsCleanup).toHaveBeenCalledOnce();expect(h.suggestCleanup).toHaveBeenCalledOnce();expect(h.protocolCleanup).toHaveBeenCalledOnce();expect(h.hoverCleanup).toHaveBeenCalledOnce();expect(h.basesCleanup).toHaveBeenCalledOnce();
+});
+it('exposes bounded App bootstrap fields and forwards workspace leaf iteration',()=>{
+  const h=harness();
+  expect(h.runtime.app.appId).toBe('crafactory-engine');
+  expect(h.runtime.app.internalPlugins).toEqual({plugins:{}});
+  h.runtime.app.workspace.iterateAllLeaves(()=>{});
+  expect(h.iterateAllLeaves).toHaveBeenCalledOnce();
+});
+it('fires bounded Vault create/delete and MetadataCache resolve events',async()=>{
+  const h=harness(),base=initial(),created=vi.fn(),deleted=vi.fn(),resolved=vi.fn();
+  const second={...base,entries:[...base.entries,{path:'Two.md',name:'Two.md',folder:false,size:3,ctime:0,mtime:0}],notes:[...base.notes,{path:'Two.md',content:'two'}]};
+  class Fixture extends h.api.Plugin {onload(){this.registerEvent(this.app.vault.on('create',created));this.registerEvent(this.app.vault.on('delete',deleted));this.registerEvent(this.app.metadataCache.on('resolve',resolved));}}
+  await h.runtime.boot(Fixture);
+  h.runtime.sync(second);expect(created).toHaveBeenCalledOnce();expect(created.mock.calls[0][0].path).toBe('Two.md');
+  await vi.waitFor(()=>expect(resolved.mock.calls.some(call=>call[0].path==='Two.md')).toBe(true));
+  h.runtime.sync(base);expect(deleted).toHaveBeenCalledOnce();expect(deleted.mock.calls[0][0].path).toBe('Two.md');
+  await h.runtime.stop();
 });
 it('renderer keeps unsupported events and unrelated runtime exports explicit',()=>{
   const h=harness();expect(()=>h.runtime.app.workspace.on('active-leaf-change',()=>{})).toThrow('Workspace event active-leaf-change');expect(()=>h.api.MarkdownPreviewView).toThrow('export MarkdownPreviewView');
