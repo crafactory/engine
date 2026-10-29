@@ -100,8 +100,8 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
   - Current scope: Hover previews in reading; edit-mode modifier behavior and recursive/scroll handling missing
   - Remaining / boundary: Hover previews in reading; edit-mode modifier behavior and recursive/scroll handling missing
 - [ ] **CORE-properties-view Properties view**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Active properties and vault keys; registry/type controls missing
-  - Remaining / boundary: Active properties and vault keys; registry/type controls missing
+  - Current scope: Inline type-aware editor under the note title (text/number/checkbox/date/date-time/list, type conversion, list chips/suggestions, add/remove); property-type registry persisted per vault, default values, structured/nested values and source-mode parity remain
+  - Remaining / boundary: Inline type-aware editor under the note title (text/number/checkbox/date/date-time/list, type conversion, list chips/suggestions, add/remove); property-type registry persisted per vault, default values, structured/nested values and source-mode parity remain
 - [ ] **CORE-publish Publish**: excluded. Reference: [public documentation](https://help.obsidian.md/plugins).
   - Current scope: Subscription service, no backend included
   - Remaining / boundary: Subscription service, no backend included

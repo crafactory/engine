@@ -11,6 +11,7 @@ This revision removes the custom software-name/vault-name top bar. The operating
 - Inactive task checkboxes update their own Markdown marker, not other tasks or frontmatter.
 - Inline images render through the bridge (or safe external URLs) and reveal source on click; inline `#tags` render as pills outside code/links. Inline math renders away from the active line; math-like text in fenced/inline code stays code. Bold/italic/highlight/strike/inline code hide markers only when the touched span is not active, escaped markers stay literal, and setext headings render as headings.
 - Collapsible callouts honor `+` and `-` in both reading and live views.
+- Inline properties sit under the note title in live/reading modes. Type conversion (text/number/checkbox/date/date-time/list), list chips with vault suggestions, add and remove all write YAML in place; source mode hides the editor and shows raw frontmatter.
 - Source/live switching keeps undo history; reading mode still remounts the editor. Reading processors are not run in live blocks; explicitly registered `engine.ui` block previews (e.g., Mermaid) render and reveal source on click. Source/reading/live switching, frontmatter preservation, saving, closing the desktop app, and existing workflows remain covered by regression tests.
 
 ## Off-happy-path cases
@@ -19,4 +20,4 @@ This revision removes the custom software-name/vault-name top bar. The operating
 - Invalid math/diagrams, missing embeds, long tables/code lines (scroll inside the block, not the page), and selecting across block boundaries.
 - React widget teardown during source switching and undo; no uncaught page error or stale write.
 
-This is a wider implemented subset, not full Live Preview or whole-application parity. An alignment-setting UI, nested lists, complete inline grammar, exact cursor semantics, inline properties UI (properties remain in the side panel), and full reference compatibility remain open.
+This is a wider implemented subset, not full Live Preview or whole-application parity. An alignment-setting UI, nested lists, complete inline grammar, exact cursor semantics, full reference compatibility remain open.

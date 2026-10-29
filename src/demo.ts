@@ -65,7 +65,7 @@ Open today's daily note from the ribbon. Templates in your [[Templates/Meeting|T
 
 ## Work with properties
 
-The properties panel stores metadata in YAML frontmatter. Use tags to discover related notes and the [[Projects/Library.base|Library]] to browse them in a table.
+Inline properties store metadata in YAML frontmatter. Use tags to discover related notes and the [[Projects/Library.base|Library]] to browse them in a table.
 
 > [!note] The browser preview is temporary
 > Install the desktop application to open an actual folder and persist your files. This preview uses an in-memory example vault.

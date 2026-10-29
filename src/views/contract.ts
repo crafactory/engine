@@ -56,7 +56,7 @@ export interface EditorViewProps {
 export interface GraphViewProps {notes:Note[];index:IndexService;active:string;local:boolean;onOpen:(path:string)=>void}
 
 /** Props for a sidebar/panel view contribution. */
-export type SidePanelTab = 'files' | 'search' | 'bookmarks' | 'recent' | 'tags' | 'outline' | 'backlinks' | 'outgoing' | 'properties';
+export type SidePanelTab = 'files' | 'search' | 'bookmarks' | 'recent' | 'tags' | 'outline' | 'backlinks' | 'outgoing';
 
 export interface PanelHeading {level: number; text: string; offset: number}
 
@@ -73,8 +73,6 @@ export interface PanelViewProps {
   mentions: Note[];
   activeTitle: string;
   active: string;
-  note?: Note;
-  propertyKeys?: string[];
   entries?: Entry[];
   activePath?: string;
   fileSort?: string;
@@ -96,10 +94,6 @@ export interface PanelViewProps {
   onToggleCase?: ()=>void;
   onSearchSort?: (sort:string)=>void;
   onCopy?: ()=>void;
-  onSearchProperty?: (key:string)=>void;
-  onNoteChange?: (path:string,content:string)=>void;
-  ask?: (title:string,value?:string,description?:string)=>Promise<string|null>;
-  onError?: (error:unknown)=>void;
   outgoing: PanelLink[];
   onOpen(path: string): void;
   onRemoveBookmark(path: string): void;

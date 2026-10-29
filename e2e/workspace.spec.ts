@@ -52,10 +52,20 @@ test('Bases filters and edits YAML-backed properties',async({page})=>{
   await page.getByTestId('base-table').getByRole('button',{name:'seedling',exact:true}).click();await page.getByTestId('dialog-input').fill('evergreen');await page.getByTestId('dialog-submit').click();await expect(page.getByTestId('base-table')).toContainText('evergreen');
 });
 test('properties retain YAML types and bookmarks work',async({page})=>{
-  await page.locator('.properties>summary').first().click();await page.getByRole('button',{name:'Add property',exact:true}).click();await page.getByTestId('dialog-input').fill('rating');await page.getByTestId('dialog-submit').click();
-  await page.getByTitle('Edit rating',{exact:true}).click();await page.getByTestId('dialog-input').fill('5');await page.getByTestId('dialog-submit').click();
+  const add=async(key:string)=>{await page.getByRole('button',{name:'Add property',exact:true}).click();await page.getByTestId('dialog-input').fill(key);await page.getByTestId('dialog-submit').click();};
+  await add('rating');await page.getByRole('button',{name:'Property type rating',exact:true}).click();await page.getByRole('menuitem',{name:'Number',exact:true}).click();await page.locator('input[aria-label="rating"]').fill('5');await page.locator('input[aria-label="rating"]').press('Enter');
+  await add('done');await page.getByRole('button',{name:'Property type done',exact:true}).click();await page.getByRole('menuitem',{name:'Checkbox',exact:true}).click();await page.getByRole('switch',{name:'done',exact:true}).check();
+  await add('published');await page.getByRole('button',{name:'Property type published',exact:true}).click();await page.getByRole('menuitem',{name:'Date',exact:true}).click();await page.locator('input[aria-label="published"]').fill('2026-08-06');await page.locator('input[aria-label="published"]').press('Enter');
+  await add('authors');await page.getByRole('button',{name:'Property type authors',exact:true}).click();await page.getByRole('menuitem',{name:'List',exact:true}).click();await page.locator('input[aria-label="authors"]').fill('Matt');await page.locator('input[aria-label="authors"]').press('Enter');await page.locator('input[aria-label="authors"]').fill('Ada');await page.locator('input[aria-label="authors"]').press('Enter');
   await page.getByRole('button',{name:'Bookmark note',exact:true}).click();await page.getByRole('button',{name:'Bookmarks',exact:true}).click();await expect(page.locator('.bookmark-list')).toContainText('Welcome');
-  await page.getByTestId('mode-source').click();await expect(page.getByTestId('note-editor')).toContainText('rating: 5');
+  await page.getByTestId('mode-source').click();
+  await expect(page.locator('.inline-properties')).toHaveCount(0);
+  await expect(page.getByTestId('note-editor')).toContainText('rating: 5');
+  await expect(page.getByTestId('note-editor')).toContainText('done: true');
+  await expect(page.getByTestId('note-editor')).toContainText('published: 2026-08-06');
+  await expect(page.getByTestId('note-editor')).toContainText('authors:');
+  await expect(page.getByTestId('note-editor')).toContainText('Matt');
+  await expect(page.getByTestId('note-editor')).toContainText('Ada');
 });
 test('rename updates links across notes',async({page})=>{
   await page.getByTestId('file-Ideas/Connected thinking.md').click();await command(page,'Rename or move current file');await page.getByTestId('dialog-input').fill('Ideas/Renamed idea.md');await page.getByTestId('dialog-submit').click();
@@ -115,7 +125,7 @@ test('tag, outgoing, outline, recent and unlinked context controls work',async({
   await page.getByRole('button',{name:'Tags',exact:true}).click();await page.locator('.tag-list>button').filter({hasText:'thinking'}).click();await expect(page.getByTestId('search-input')).toHaveValue('tag:#thinking');
   await page.getByTestId('search-result-Ideas/Connected thinking.md').click();await page.getByRole('button',{name:'Outgoing links tab',exact:true}).click();await expect(page.locator('.right-sidebar .bookmark-list')).toContainText('Small pieces');
   await page.getByRole('button',{name:'Outline tab',exact:true}).click();await page.locator('.outline-list button').filter({hasText:'A simple model'}).click();await expect(page.locator('.katex-display')).toBeVisible();
-  await page.getByRole('button',{name:'Properties tab',exact:true}).click();await page.locator('.right-sidebar .right-properties .properties>summary').click();await expect(page.locator('.right-sidebar .right-properties .add-property')).toBeVisible();
+  await expect(page.locator('.inline-properties')).toBeVisible();
   await page.getByRole('button',{name:'Recent notes',exact:true}).click();await expect(page.locator('.left-sidebar .bookmark-list')).toContainText('Connected thinking');
 });
 test('new folder, import, attachment embed and ZIP export preserve files',async({page})=>{

@@ -27,7 +27,7 @@ Inspect and capture 1440×940 desktop and 390×844 narrow layouts. Capture initi
 
 ## Controls and limitations
 
-Ribbon and sidebars cover explorer, search, graph, canvas, daily note, palette, bookmarks, tags, audio, vault switcher, settings, pane visibility, folder expansion, sort, contextual file actions, back/forward, mode controls, outline, backlinks, outgoing links, and properties.
+Ribbon and sidebars cover explorer, search, graph, canvas, daily note, palette, bookmarks, tags, audio, vault switcher, settings, pane visibility, folder expansion, sort, contextual file actions, back/forward, mode controls, outline, backlinks and outgoing links; note properties are edited inline under the title.
 
 Audio permission/hardware, fullscreen, PDF save dialogs, and embedded third-party page behavior depend on OS/browser capabilities. Test invocation/UI/error handling where possible, but do not infer successful hardware capture or PDF visual fidelity without specific evidence. Graph groups, complete live block rendering, richer Canvas edges/groups, and full Bases grammar are explicit exclusions from signoff, not ignored test cases.
 

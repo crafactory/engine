@@ -38,13 +38,6 @@ export const outgoingPanelPlugin: PluginDefinition = {
 };
 
 
-/** Note/vault properties panel contribution for the right slot. */
-export const propertiesPanelPlugin: PluginDefinition = {
-  manifest: {id: 'engine.view.properties', name: 'Properties panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
-  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'properties', slot: 'right', label: 'Properties', load: () => import('./PropertiesPanel')})); }
-};
-
-
 /** Vault file tree contribution for the left slot. */
 export const filesPanelPlugin: PluginDefinition = {
   manifest: {id: 'engine.view.files', name: 'Files panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
