@@ -3,6 +3,7 @@
 import {parse as parseYaml,stringify as stringifyYaml} from 'yaml';
 import {frontmatter,resolveLink} from './knowledge';
 import type {Entry,Note,PluginManifest} from './types';
+import type {CachedMetadata} from './metadata';
 
 export interface PluginSnapshot {
   name:string;entries:Entry[];notes:Note[];active:string;
@@ -13,6 +14,8 @@ export interface CompatNativeServices {
   resolveLink?(link: string, from: string): string | undefined;
   /** Editor provider capability; extensions reject when CodeMirror is not active. */
   editor?: {providerId: string; codeMirrorExtensions: boolean};
+  /** Bounded CachedMetadata-shaped lookup for the active note set. */
+  metadata?(path: string): CachedMetadata | undefined;
 }
 export interface CompatHost {
   request(operation:string,args:unknown[]):Promise<unknown>;
@@ -232,9 +235,9 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     getMarkdownFiles(){return this.getFiles().filter(f=>f.extension.toLowerCase()==='md');}
     getAllFolders(includeRoot=false){return [...objects.values()].filter((f):f is TFolder=>f instanceof TFolder&&(includeRoot||!f.isRoot()));}
     getAllLoadedFiles(){return [...objects.values()];}
-    getAbstractFileByPath(path:string){return objects.get(path)||null;}
-    getFileByPath(path:string){const f=objects.get(path);return f instanceof TFile?f:null;}
-    getFolderByPath(path:string){const f=objects.get(path);return f instanceof TFolder?f:null;}
+    getAbstractFileByPath(path:string){return objects.get(path==='/'?'':path)||null;}
+    getFileByPath(path:string){const f=objects.get(path==='/'?'':path);return f instanceof TFile?f:null;}
+    getFolderByPath(path:string){const f=objects.get(path==='/'?'':path);return f instanceof TFolder?f:null;}
     async read(file:TFile){checkFile(file);return request('read',[file.path]) as Promise<string>;}
     async cachedRead(file:TFile){checkFile(file);const note=snapshot.notes.find(n=>n.path===file.path);return note?note.content:this.read(file);}
     async create(path:string,data:string,options?:unknown){checkOptions(options,'Vault.create options');await mutate('create',[path,data]);return this.getFileByPath(path)!;}
@@ -302,7 +305,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   class MarkdownView {file:TFile|null;editor:Editor|null;constructor(){this.file=vault.getFileByPath(snapshot.active);this.editor=editor;return guard(this,'MarkdownView');}getViewType(){return 'markdown';}getViewData(){return snapshot.notes.find(n=>n.path===snapshot.active)?.content||'';}}
   class Workspace extends Events {
     layoutReady=true;
-    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){if(name!=='file-open'&&(!host.ui||!['layout-change','editor-change','hover-link'].includes(name)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
+    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){const custom=name.includes(':');if(name!=='file-open'&&(!host.ui||(!['layout-change','editor-change','hover-link'].includes(name)&&!custom)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
     getActiveFile(){return vault.getFileByPath(snapshot.active);}
     getActiveViewOfType(type:unknown){return type===MarkdownView&&(editor||host.ui&&snapshot.active.endsWith('.md'))?new MarkdownView():null;}
     iterateAllLeaves(_callback:(leaf:unknown)=>void){return unsupported('Workspace.iterateAllLeaves');}
@@ -324,8 +327,12 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     if(!['changed','deleted','resolved','resolve'].includes(name))return unsupported('MetadataCache event '+name);
     return metadataOn(name,callback,ctx);
   };
-  metadataCache.getFileCache=()=>unsupported('MetadataCache.getFileCache exact positions');
-  metadataCache.getCache=()=>unsupported('MetadataCache.getCache exact positions');
+  const readCache=(file:unknown)=>{
+    if(!(file instanceof TFile)||objects.get(file.path)!==file)throw new Error('File does not belong to this vault');
+    return host.native?.metadata?.(file.path)??null;
+  };
+  metadataCache.getFileCache=readCache;
+  metadataCache.getCache=readCache;
   metadataCache.getFirstLinkpathDest=(link:string,path:string)=>{const resolver=host.native?.resolveLink;const target=resolver?resolver(link,path):resolveLink(link,path,snapshot.notes)?.path;return target?vault.getFileByPath(target):null;};
   const app=guard({appId:'crafactory-engine',vault,workspace,metadataCache,internalPlugins:{plugins:{}}},'App');
   function refresh(next:PluginSnapshot,events=false){

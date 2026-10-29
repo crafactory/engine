@@ -11,12 +11,14 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
   const manifest=JSON.parse(await fs.readFile(path.join(source,'manifest.json'),'utf8'));
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-corpus-')),profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-corpus-profile-'));
   const dir=path.join(root,'.crafactory/plugins',manifest.id);await fs.mkdir(dir,{recursive:true});
-  await fs.writeFile(path.join(root,'Test.md'),Array(400).fill('word').join(' '));
+  const note=plugin.name==='Dataview'?'# Test\n\n```dataview\nLIST\n```\n\n- one\n- two\n':Array(400).fill('word').join(' ');
+  await fs.writeFile(path.join(root,'Test.md'),note);
+  if(plugin.name==='Dataview')await fs.writeFile(path.join(root,'Second.md'),'# Second\n');
   for(const file of ['main.js','manifest.json'])await fs.copyFile(path.join(source,file),path.join(dir,file));
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
   const app=await electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:{...process.env,ENGINE_DEV:'0'}});
   try{
-    const page=await app.firstWindow();await expect(page.locator('.note-title h1')).toHaveText('Test');
+    const page=await app.firstWindow();await page.getByTestId('file-Test.md').click();await expect(page.locator('.note-title h1')).toHaveText('Test');
     const settings=async()=>{await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();};
     await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
     const control=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});
@@ -26,6 +28,11 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
     if(await page.locator('.error-banner').count()){
       blocker=await page.locator('.error-banner span').innerText();outcome=blocker.includes('Unsupported Obsidian capability:')?'UNSUPPORTED_STARTUP':'LOAD_ERROR';
       await expect(control).not.toBeChecked();await expect(page.locator('.plugin-status-item')).toHaveCount(0);
+    }else if(plugin.name==='Dataview'){
+      await page.getByTestId('settings-close').click();await page.getByTestId('mode-reading').click();
+      const block=page.locator('.reading-surface .dataview');
+      await expect(block).toContainText('Test');await expect(block).toContainText('Second');await expect(page.locator('.toast')).toHaveCount(0);
+      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['LIST query renders the current page title and a second page'];
     }else if(plugin.name==='Reading Time'){
       const status=page.locator('.plugin-status-item');await expect(status).toHaveText('2 min read');
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await page.getByLabel('Reading speed',{exact:true}).fill('100');await expect(status).toHaveText('4 min read');
@@ -40,7 +47,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await expect(page.getByLabel('Reading speed',{exact:true})).toHaveValue('100');
       outcome='BOUNDED_WORKFLOWS_PASS';workflows=['400-word document at 200 wpm','reading speed setting saves 100 wpm','reading/source transition retains 4 min','editor-change: 800 words -> 8 min','10-word selection modal at 100 wpm','Escape closes modal','disable removes status and settings','re-enable restores setting and 8 min'];
     }
-    if(plugin.name==='Reading Time')expect(outcome).toBe('BOUNDED_WORKFLOWS_PASS');
+    if(plugin.name==='Reading Time'||plugin.name==='Dataview')expect(outcome).toBe('BOUNDED_WORKFLOWS_PASS');
     const result={name:plugin.name,repo:plugin.repo,tag:plugin.tag,manifest_version:manifest.version,main_sha256:plugin.main_sha256,manifest_sha256:plugin.manifest_sha256,platform:'Linux x64 Electron',mode:'trusted renderer (explicit opt-in, not sandboxed)',outcome,first_blocker:blocker,functional_workflows:workflows.length?workflows:'NOT_RUN',checked_at:new Date().toISOString()};
     testInfo.annotations.push({type:'compatibility',description:JSON.stringify(result)});
     if(process.env.ENGINE_RENDERER_CORPUS_REPORT){await fs.mkdir(process.env.ENGINE_RENDERER_CORPUS_REPORT,{recursive:true});await fs.writeFile(path.join(process.env.ENGINE_RENDERER_CORPUS_REPORT,plugin.directory+'.json'),JSON.stringify(result,null,2)+'\n');}

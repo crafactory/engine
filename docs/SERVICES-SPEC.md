@@ -229,8 +229,9 @@ with a tested dependency edge; the kernel rejects daily notes when templates is 
 A derived metadata and search index over Markdown notes: `rebuild`/`update`/`remove`,
 `note` (title, aliases, tags, headings, links, properties, body), `outgoing`, `backlinks`,
 `tags` (counts, optionally restricted to a path set), `headings`, `properties`,
-`propertyKeys` (unique keys, first-seen order), `resolve` (link → path) and `search`
-(case-sensitive option). It builds from caller-supplied note
+`propertyKeys` (unique keys, first-seen order), `metadata` (bounded CachedMetadata-shaped
+frontmatter/headings/links/embeds/tags/sections/listItems/blocks), `resolve` (link → path)
+and `search` (case-sensitive option). It builds from caller-supplied note
 content and caches per-note derivations, so it imports no editor or UI module. The
 application's tags, backlinks, outgoing-links, outline, search, graph and properties views
 consume this contract.

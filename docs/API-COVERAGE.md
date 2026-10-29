@@ -1,6 +1,6 @@
 # Public API export coverage
 
-Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 27 bounded runtime symbols. Explicit opt-in trusted renderer: 48 bounded runtime symbols (21 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
+Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 27 bounded runtime symbols. Explicit opt-in trusted renderer: 50 bounded runtime symbols (23 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
 
 | Symbol | Kind | Default Worker | Trusted renderer | Public documentation |
 |---|---|---|---|---|
@@ -244,8 +244,8 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | WorkspaceWindowInitData | Interfaces | Type only; runtime access rejected | Type only; runtime access rejected | [WorkspaceWindowInitData](https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceWindowInitData) |
 | apiVersion | Variables | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [apiVersion](https://docs.obsidian.md/Reference/TypeScript+API/apiVersion) |
 | editorEditorField | Variables | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [editorEditorField](https://docs.obsidian.md/Reference/TypeScript+API/editorEditorField) |
-| editorInfoField | Variables | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [editorInfoField](https://docs.obsidian.md/Reference/TypeScript+API/editorInfoField) |
-| editorLivePreviewField | Variables | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [editorLivePreviewField](https://docs.obsidian.md/Reference/TypeScript+API/editorLivePreviewField) |
+| editorInfoField | Variables | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [editorInfoField](https://docs.obsidian.md/Reference/TypeScript+API/editorInfoField) |
+| editorLivePreviewField | Variables | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [editorLivePreviewField](https://docs.obsidian.md/Reference/TypeScript+API/editorLivePreviewField) |
 | editorViewField | Variables | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [editorViewField](https://docs.obsidian.md/Reference/TypeScript+API/editorViewField) |
 | livePreviewState | Variables | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [livePreviewState](https://docs.obsidian.md/Reference/TypeScript+API/livePreviewState) |
 | moment | Variables | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [moment](https://docs.obsidian.md/Reference/TypeScript+API/moment) |

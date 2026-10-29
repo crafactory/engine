@@ -10,10 +10,12 @@
       "manifest_sha256": "9235db47112da81b85591c79ecb9ae2574e5e72207056e976472f90616286185",
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
-      "outcome": "STARTUP_ONLY",
+      "outcome": "BOUNDED_WORKFLOWS_PASS",
       "first_blocker": "",
-      "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-10-29T07:31:27.182Z"
+      "functional_workflows": [
+        "LIST query renders the current page title and a second page"
+      ],
+      "checked_at": "2026-10-29T14:53:08.969Z"
     },
     {
       "name": "Templater",
