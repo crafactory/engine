@@ -1,5 +1,23 @@
 # Verification results
 
+## Reading-mode undo history
+
+This section records keeping the editing surface mounted while the reading view is shown.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 813 passed (40 files) | Existing suites |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` | **63 passed / 0 failed** | +1 reading/source undo case |
+
+The Markdown editor now stays mounted in a hidden `.editor-host` while reading mode shows
+the reading surface; it is configured in source mode so the full document is present. The
+same session, undo stack, caret and viewport survive reading/source/live switches. Custom
+Canvas/Bases views still take the reading-surface branch and do not mount the Markdown
+editor. CodeMirror measures itself when the host becomes visible again; the browser suite
+covers the transition.
+
 ## Live list markers and nested continuation
 
 This section records bullet/ordered marker rendering and nested-list editing in live mode.

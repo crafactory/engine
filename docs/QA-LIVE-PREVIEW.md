@@ -12,7 +12,7 @@ This revision removes the custom software-name/vault-name top bar. The operating
 - Inline images render through the bridge (or safe external URLs) and reveal source on click; inline `#tags` render as pills outside code/links. Inline math renders away from the active line; math-like text in fenced/inline code stays code. Bold/italic/highlight/strike/inline code hide markers only when the touched span is not active, escaped markers stay literal, and setext headings render as headings.
 - Collapsible callouts honor `+` and `-` in both reading and live views.
 - Inline properties sit under the note title in live/reading modes. Type conversion (text/number/checkbox/date/date-time/list), list chips with vault suggestions, add and remove all write YAML in place; explicit types persist with the vault and Automatic returns to inference; source mode hides the editor and shows raw frontmatter.
-- Source/live switching keeps undo history; reading mode still remounts the editor. Reading processors are not run in live blocks; explicitly registered `engine.ui` block previews (e.g., Mermaid) render and reveal source on click. Source/reading/live switching, frontmatter preservation, saving, closing the desktop app, and existing workflows remain covered by regression tests.
+- Source/live/reading switching keeps undo history, caret and viewport: the Markdown editor stays mounted (hidden in source configuration) behind the reading surface. Reading processors are not run in live blocks; explicitly registered `engine.ui` block previews (e.g., Mermaid) render and reveal source on click. Source/reading/live switching, frontmatter preservation, saving, closing the desktop app, and existing workflows remain covered by regression tests.
 
 ## Off-happy-path cases
 
