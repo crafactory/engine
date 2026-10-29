@@ -106,6 +106,13 @@ test('live and source switching preserve editor undo history',async({page})=>{
   await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+z');
   await expect(page.getByTestId('note-editor')).not.toContainText('MODE-HISTORY');
 });
+test('reading mode keeps editor undo history',async({page})=>{
+  await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.insertText('\nREADING-HISTORY');
+  await page.getByTestId('mode-reading').click();await expect(page.locator('.markdown')).toBeVisible();
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+z');
+  await expect(page.getByTestId('note-editor')).not.toContainText('READING-HISTORY');
+});
 test('appearance changes preserve editor undo history',async({page})=>{
   await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
   await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.insertText('\nHISTORY-MARKER');
