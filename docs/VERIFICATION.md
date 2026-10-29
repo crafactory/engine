@@ -7,7 +7,7 @@ This section records the `engine.ui` block kind and the built-in Mermaid consume
 | Check | Observed result | Scope |
 |---|---|---|
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
-| `npm run test` | 804 passed (39 files) | +1 block registry/loader case |
+| `npm run test` | 806 passed (39 files) | Block registry/loader + fence parsing cases |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
 | `npm run test:e2e` | **60 passed / 0 failed** | Mermaid preview + existing flows |
 
