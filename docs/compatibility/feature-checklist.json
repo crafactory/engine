@@ -343,8 +343,8 @@
       "title": "Properties view",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Active properties and vault keys; registry/type controls missing",
-      "remaining": "Active properties and vault keys; registry/type controls missing",
+      "implemented": "Inline type-aware editor under the note title (text/number/checkbox/date/date-time/list, type conversion, list chips/suggestions, add/remove); property-type registry persisted per vault, default values, structured/nested values and source-mode parity remain",
+      "remaining": "Inline type-aware editor under the note title (text/number/checkbox/date/date-time/list, type conversion, list chips/suggestions, add/remove); property-type registry persisted per vault, default values, structured/nested values and source-mode parity remain",
       "evidence": []
     },
     {

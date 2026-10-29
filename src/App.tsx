@@ -5,9 +5,8 @@ import {
   PanelLeftClose,PanelLeftOpen,PanelRightClose,PanelRightOpen,Plus,X,ChevronRight,ChevronDown,Sparkles,
   FileText,Folder,FolderPlus,FilePlus,MoreHorizontal,BookOpen,Code2,Pencil,Bookmark,Hash,
   List,ArrowLeft,ArrowRight,Link2,Check,HardDrive,Clock,Pin,Download,Trash2,
-  Copy,Scissors,Mic,Square,Table2,ExternalLink,RefreshCw,Star,Globe,Presentation,Layers,Menu
+  Copy,Scissors,Mic,Square,Table2,ExternalLink,RefreshCw,Star,Globe,Presentation,Menu
 } from 'lucide-react';
-import {parse,stringify} from 'yaml';
 import {bridge,defaults} from './bridge';
 import {renameDestination} from './file-path';
 import {title,isNote,frontmatter,setProperties,resolveLink,headings,applyTemplate,rewriteLinks} from './knowledge';
@@ -25,6 +24,7 @@ import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
 import {checkPermission, validatePluginPackage, readableSnapshot} from './kernel';
 import {createViewsRuntime, loadViewComponent, ViewBoundary, PluginViewHost, type ViewsRuntime, type ViewComponent, type PanelComponent, type SidePanelTab, type GraphViewProps, type EditorViewProps} from './views';
+import {PropertiesEditor} from './PropertiesEditor';
 import {editorSettingsPlugin} from './ui/settings/plugin';
 import {mermaidBlockPlugin} from './ui/blocks/plugin';
 import {ENGINE_VERSION} from './services';
@@ -661,13 +661,6 @@ export function App(){
     const explorer=storageRuntime.current?.explorer;
     return explorer?explorer.children(entries,parent,fileSort==='modified'?'modified':'name'):entries.filter(e=>e.path.includes('/')?e.path.slice(0,e.path.lastIndexOf('/'))===parent:!parent).sort((a,b)=>Number(b.folder)-Number(a.folder)||(fileSort==='modified'?b.mtime-a.mtime:a.name.localeCompare(b.name)));
   }
-  function propertyEditor(note:Note){
-    const fm=frontmatter(note.content),props=indexed?indexed.properties(note.path):fm.properties;
-    if(fm.error)return <div className="property-error">Invalid YAML: fix it in source mode.</div>;
-    return <details className="properties" open={undefined}><summary><Layers size={14}/>Properties<span>{Object.keys(props).length}</span></summary>
-      <div className="property-list">{Object.entries(props).map(([key,value])=><div className="property-row" key={key}><span><Hash size={12}/>{key}</span><button title={'Edit '+key} onClick={async()=>{const v=await dialog.ask('Edit '+key,stringify(value).trim(),'Use a YAML value: text, number, true / false, or [a, b].');if(v!==null)try{editNote(note.path,setProperties(note.content,{...props,[key]:parse(v)}));}catch(e){report(e);}}}>{Array.isArray(value)?value.map((v,i)=><span className="property-chip" key={i}>{String(v)}</span>):String(value??'Empty')}</button><button className="property-remove" aria-label={'Remove '+key} onClick={()=>{const p={...props};delete p[key];try{editNote(note.path,setProperties(note.content,p));}catch(e){report(e);}}}><X size={12}/></button></div>)}
-      <button className="add-property" onClick={async()=>{const key=await dialog.ask('Add property','property');if(key&& !['__proto__','constructor','prototype'].includes(key))try{editNote(note.path,setProperties(note.content,{...props,[key]:''}));}catch(e){report(e);}}}><Plus size={13}/>Add property</button></div></details>;
-  }
   /** Resolve a path to its registered format view, defaulting to Markdown. */
   function viewType(path:string){return workspaceViews.current?.resolveView(path)?.viewType??'markdown';}
   /** Resolve a registered view type to a lazy host component, cached per contribution. */
@@ -742,7 +735,7 @@ export function App(){
     return <div className="note-document" onDragOver={e=>e.preventDefault()} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();importFiles(e.dataTransfer.files);}}}>
       <div className={'document-inner '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>
         <div className="note-title"><h1>{title(note.path)}</h1><button className={bookmarks.includes(path)?'is-bookmarked':''} onClick={()=>toggleBookmarkPath(path)} aria-label="Bookmark note" title="Bookmark note"><Bookmark size={19} fill={bookmarks.includes(path)?'currentColor':'none'}/></button></div>
-        {enabled('properties')&&isNote(note.path)&&propertyEditor(note)}
+        {enabled('properties')&&isNote(note.path)&&mode!=='source'&&<PropertiesEditor note={note} notes={notes} onNoteChange={editNote} onError={report} ask={dialog.ask}/>}
       </div>
       {mode==='reading'&&isNote(note.path)?<div className={'reading-surface '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>{View?<ViewBoundary resetKey={note.path}><View {...viewProps}/></ViewBoundary>:<Markdown content={note.content} notes={notes} path={note.path} previews={pagePreviewRuntime.current?.service} onOpen={openLink} onChange={content=>editNote(note.path,content)}/>}</div>:
         EditorView?<EditorView note={note} notes={notes} settings={{...settings,mode:mode==='reading'?'source':mode}} pluginExtensions={secondary?undefined:allPluginExtensions} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} blocks={uiBlocks} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={suggestEditor} onHandle={secondary?undefined:setEditorHandle}/>:<Editor ref={secondary?undefined:editor} note={note} notes={notes} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} blocks={uiBlocks} pluginExtensions={secondary?undefined:allPluginExtensions} settings={{...settings,mode:mode==='reading'?'source':mode}} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={suggestEditor}/>}
@@ -768,8 +761,6 @@ export function App(){
   const searchProps=SearchView?{...panelBase,sideTab:'search' as const,query,caseSensitive,searchSort,results,onQuery:setQuery,onToggleCase:()=>setCaseSensitive(value=>!value),onSearchSort:setSearchSort,onCopy:()=>{void navigator.clipboard?.writeText(results.map(note=>`[[${note.path.replace(/\.md$/,'')}]]`).join('\n')).then(()=>toast('Search results copied.')).catch(report);},onOpenFile:open}:undefined;
   const FilesView=sideTab==='files'?panelComponent('files','left'):undefined;
   const filesProps=FilesView?{...panelBase,sideTab:'files' as const,entries,activePath:active,fileSort,expanded,loading,childrenFor:treeChildren,onToggleFolder:(path:string)=>setExpanded(current=>{const next=new Set(current);next.has(path)?next.delete(path):next.add(path);return next;}),onOpenFile:open,onFileContextMenu:(path:string,x:number,y:number)=>setContext({path,x:Math.min(x,window.innerWidth-225),y:Math.min(y,window.innerHeight-260)}),onDropFile:(from:string,folder:string)=>renamePath(from,folder+'/'+from.split('/').pop()),onCollapseAll:()=>setExpanded(new Set()),onFileSortChange:setFileSort,onCreateNote:()=>createNote()}:undefined;
-  const PropertiesView=rightTab==='properties'?panelComponent('properties','right'):undefined;
-  const propertiesProps=PropertiesView?{...panelBase,sideTab:'properties' as const,note:activeNote,propertyKeys:[...new Set(indexed?.propertyKeys()??[])],onSearchProperty:(key:string)=>{setLeft(true);setSideTab('search');setQuery('['+key+']');},onNoteChange:editNote,ask:dialog.ask,onError:report}:undefined;
   const OutgoingView=rightTab==='outgoing'?panelComponent('outgoing','right'):undefined;
   const outgoingProps=OutgoingView?{sideTab:'outgoing' as const,...panelBase}:undefined;
   return <div className="app" onClick={()=>context&&setContext(null)}>
@@ -823,9 +814,8 @@ export function App(){
         {loading?<div className="workspace-loading"><div className="skeleton-list"><i/><i/><i/></div><p>Opening vault…</p></div>:<Suspense fallback={<div className="workspace-loading"><p>Opening view…</p></div>}><div className={'panes '+(split?'split':'')}><section className="workspace-pane">{showNote(active)}</section>{split&&<section className="workspace-pane secondary-pane"><header><span>{title(split)}</span><button aria-label="Close split pane" onClick={()=>setSplit(null)}><X size={15}/></button></header>{showNote(split,true)}</section>}</div></Suspense>}
       </main>
       {right&&<aside className="right-sidebar" aria-label="Note context">
-        <div className="sidebar-tabs"><IconButton label="Outline tab" onClick={()=>setRightTab('outline')} active={rightTab==='outline'}><List size={17}/></IconButton><IconButton label="Backlinks tab" onClick={()=>setRightTab('backlinks')} active={rightTab==='backlinks'}><Link2 size={17}/></IconButton><IconButton label="Properties tab" onClick={()=>setRightTab('properties')} active={rightTab==='properties'}><Layers size={16}/></IconButton><IconButton label="Outgoing links tab" onClick={()=>setRightTab('outgoing')} active={rightTab==='outgoing'}><ArrowRight size={17}/></IconButton></div>
+        <div className="sidebar-tabs"><IconButton label="Outline tab" onClick={()=>setRightTab('outline')} active={rightTab==='outline'}><List size={17}/></IconButton><IconButton label="Backlinks tab" onClick={()=>setRightTab('backlinks')} active={rightTab==='backlinks'}><Link2 size={17}/></IconButton><IconButton label="Outgoing links tab" onClick={()=>setRightTab('outgoing')} active={rightTab==='outgoing'}><ArrowRight size={17}/></IconButton></div>
         {rightTab==='outline'&&enabled('outline')&&<><div className="section-heading"><span>Outline</span><List size={13}/></div>{OutlineView&&outlineProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><OutlineView {...outlineProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Outline unavailable.</p>}</>}
-        {rightTab==='properties'&&enabled('properties')&&activeNote&&(PropertiesView&&propertiesProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><PropertiesView {...propertiesProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Properties unavailable.</p>)}
         {(rightTab==='outline'||rightTab==='backlinks')&&enabled('backlinks')&&(BacklinksView&&backlinksProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><BacklinksView {...backlinksProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Backlinks unavailable.</p>)}
         {rightTab==='outgoing'&&enabled('outgoing')&&(OutgoingView&&outgoingProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><OutgoingView {...outgoingProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Outgoing links unavailable.</p>)}
         <footer className="context-footer"><div><Network size={15}/><span>Everything connects</span></div><p>Follow a link. Find a new perspective.</p>{enabled('graph')&&activeNote&&<button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button>}</footer>

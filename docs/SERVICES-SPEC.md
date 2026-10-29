@@ -94,18 +94,23 @@ value and returns a disposer; `resolve(viewType)` returns the contribution; `lis
 them. `slot` is `main` (default), `left` or `right`.
 The service and kernel never import React or a concrete view. Built-in contributions live
 in `src/views/` (`engine.view.markdown`, `engine.view.canvas`, `engine.view.bases`, `engine.view.graph`,
-`engine.view.editor` for the main slot; `engine.view.files`, `engine.view.search`, `engine.view.bookmarks`, `engine.view.recent`, `engine.view.tags` for the left slot and `engine.view.outline`, `engine.view.backlinks`, `engine.view.outgoing`, `engine.view.properties` for the right slot) and load the
+`engine.view.editor` for the main slot; `engine.view.files`, `engine.view.search`, `engine.view.bookmarks`, `engine.view.recent`, `engine.view.tags` for the left slot and `engine.view.outline`, `engine.view.backlinks`, `engine.view.outgoing` for the right slot) and load the
 React modules on demand. The host interprets a loader as a React component and supplies
 different props by slot: main views receive `ReadingViewProps` (note, notes, entries, path,
 mode, previews, open/open-link callbacks, change callbacks and `ask`; the graph view receives its own `GraphViewProps`; the editor view receives `EditorViewProps`
 and reports its imperative handle to the host), while sidebar panels
 (left and right) receive `PanelViewProps` (sideTab, notes, bookmarks, recent, tags, headings, incoming,
-mentions, activeTitle, active, outgoing, note/propertyKeys, entries/activePath/fileSort/expanded/loading/childrenFor, query/caseSensitive/searchSort/results, note-change/ask/error callbacks, file/search callbacks,
+mentions, activeTitle, active, outgoing, entries/activePath/fileSort/expanded/loading/childrenFor, query/caseSensitive/searchSort/results, file/search callbacks,
 open/open-link/remove-bookmark, select-tag and jump-heading callbacks). A panel lookup rejects a contribution that is not registered for the requested
 `left` or `right` slot. Bases built-in `table`/`cards`/`list` renderers are registered in the UI-layer
 `builtinBasesViews` registry; `Bases.tsx` is the host and plugin Bases views use the
 renderer host. Canvas internals are split into `Card`, `FitEmbed`, `CanvasToolbar` and
 `CardEditor` under `src/views/canvas/`. External plugin-package UI loading is not wired yet.
+
+Note properties are not a panel contribution: `src/PropertiesEditor.tsx` renders inline under
+the note title in live/reading modes, infers text/number/checkbox/date/date-time/list from the
+parsed YAML value, and writes through the same `setProperties` host callback. Source mode
+keeps the raw frontmatter. The former right-slot `engine.view.properties` panel was removed.
 
 ### `engine.ui/v1`
 

@@ -1,5 +1,27 @@
 # Verification results
 
+## Inline type-aware properties
+
+This section records replacing the note-body properties `<details>` block and the
+right-sidebar properties tab with an inline Obsidian-style editor.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 806 passed (39 files) | View registry adjusted for the removed right slot |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` | **60 passed / 0 failed** | Inline number/checkbox/date/list editing and source round-trip |
+
+`PropertiesEditor` renders under the note title in live and reading modes; source mode keeps
+the raw frontmatter. It infers text/number/checkbox/date/date-time/list from the parsed YAML
+value and exposes a type menu that converts the value in place. Checkboxes commit
+immediately; text, number, date and date-time commit on blur or Enter; lists render removable
+chips with a datalist of values seen elsewhere in the vault. Add-property and remove-property
+write through `setProperties`, so YAML types and quoting stay valid. Structured values stay
+read-only with an "edit in source mode" hint. The right-slot note-properties tab and its
+`engine.view.properties` contribution were removed so the inline editor is the single
+editing surface; outline/backlinks/outgoing remain in the right slot.
+
 ## Opt-in block preview contributions
 
 This section records the `engine.ui` block kind and the built-in Mermaid consumer.
@@ -33,9 +55,8 @@ Live mode hides frontmatter with line decorations instead of removing it from th
 CodeMirror document; source/live switching now reconfigures a compartment and preserves the
 undo stack. The cursor is clamped below hidden frontmatter so it cannot be edited
 invisibly. Raw reading processors are still not run in live widgets (that duplicated processor
-lifecycles); explicitly registered `engine.ui` block previews are used instead. The
-frontmatter properties UI remains the side panel rather than an inline Obsidian-style
-properties widget.
+lifecycles); explicitly registered `engine.ui` block previews are used instead. Inline
+properties now replace the former side-panel editor; see the section above.
 
 ## Live Preview editing and inline fixes
 
@@ -324,7 +345,7 @@ are not implemented yet.
 | `npm run test:e2e` (macOS) | **51 passed / 0 failed** | Reading, Canvas, Bases and link-creation flows |
 
 `engine.views/v1` stores opaque loaders, so the kernel and services still import no React
-or concrete view. The left-slot files/search/bookmarks/recent/tags panels and right-slot outline/backlinks/outgoing/properties panels use the same registry; their lazy
+or concrete view. The left-slot files/search/bookmarks/recent/tags panels and right-slot outline/backlinks/outgoing panels use the same registry; their lazy
 load needs a local Suspense boundary, which the first e2e run caught (the panel suspended
 inside a synchronous click and the boundary showed its fallback). The host also rejects a
 panel contribution that is not registered for the `left` slot, and bookmark removal is a

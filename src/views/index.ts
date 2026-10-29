@@ -9,7 +9,7 @@ import {VIEWS_CONTRACT, viewsPlugin, type ViewsService} from '../services/views'
 import {markdownViewPlugin} from './markdown';
 import {canvasViewPlugin} from './canvas';
 import {basesViewPlugin} from './bases';
-import {bookmarksPanelPlugin, recentPanelPlugin, tagsPanelPlugin, outlinePanelPlugin, backlinksPanelPlugin, outgoingPanelPlugin, propertiesPanelPlugin, filesPanelPlugin, searchPanelPlugin, graphViewPlugin, editorViewPlugin} from './panels';
+import {bookmarksPanelPlugin, recentPanelPlugin, tagsPanelPlugin, outlinePanelPlugin, backlinksPanelPlugin, outgoingPanelPlugin, filesPanelPlugin, searchPanelPlugin, graphViewPlugin, editorViewPlugin} from './panels';
 
 export interface ViewsRuntime {kernel: Kernel; views: ViewsService}
 
@@ -26,7 +26,6 @@ export async function createViewsRuntime(options: {engineVersion?: string} = {})
   kernel.register(outlinePanelPlugin);
   kernel.register(backlinksPanelPlugin);
   kernel.register(outgoingPanelPlugin);
-  kernel.register(propertiesPanelPlugin);
   kernel.register(filesPanelPlugin);
   kernel.register(searchPanelPlugin);
   kernel.register(graphViewPlugin);
