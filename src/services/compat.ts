@@ -17,11 +17,30 @@ export const COMPAT_VERSION = '1.0.0';
 /** A local package discovered by the support plugin. */
 export interface CompatPackage {manifest: PluginManifest; code: string}
 
+/** Host primitives used by the Obsidian adapter; operation names stay inside src/compat. */
+export interface CompatHost {
+  loadData(id: string): Promise<unknown>;
+  saveData(id: string, data: unknown): Promise<unknown>;
+  read(path: string): Promise<string>;
+  create(path: string, content: string): Promise<unknown>;
+  modify(path: string, content: string): Promise<unknown>;
+  append(path: string, content: string): Promise<unknown>;
+  writeLegacy(path: string, content: string): Promise<unknown>;
+  rename(from: string, to: string): Promise<string>;
+  trash(path: string): Promise<void>;
+  mkdir(path: string): Promise<void>;
+  asset(path: string): Promise<string>;
+  open(path: string): Promise<void>;
+  editor(path: string, base: string, text: string, from: number, to: number): Promise<void>;
+}
+
 /** Host callbacks a compatibility runtime may use while loading a package. */
 export interface CompatStartCallbacks {
   snapshot: () => PluginSnapshot;
   commands: (commands: PluginCommand[]) => void;
-  operation: (name: string, args: unknown[]) => Promise<unknown>;
+  host: CompatHost;
+  /** Observe one in-flight host operation so the application can await it on shutdown. */
+  activity?: (promise: Promise<unknown>) => void;
   notice: (message: string) => void;
   failure: () => void;
   tabs?: (tabs: PluginTab[]) => void;
@@ -38,6 +57,8 @@ export interface CompatStartRequest {
 
 /** Loader/runtime surface consumed by the application host. */
 export interface CompatService {
+  /** Discover and validate local packages before they are offered in Settings. */
+  list(): Promise<CompatPackage[]>;
   start(request: CompatStartRequest): PluginController;
   capabilities(): {worker: boolean; renderer: boolean};
 }

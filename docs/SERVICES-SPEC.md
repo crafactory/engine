@@ -115,24 +115,27 @@ raw frontmatter. The former right-slot `engine.view.properties` panel was remove
 
 ### `engine.compat/v1`
 
-`start({package:{manifest, code}, mode, callbacks})` loads one local Obsidian-compatible
-package through the Worker or trusted-renderer runtime and returns the existing
-`PluginController` (`ready`, `sync`, `stop`, plus renderer-only view/suggest/protocol/Bases/
-hover hooks). `mode` is `worker` or `renderer`; `capabilities()` reports both
-`{worker: true, renderer: true}`. The contract deliberately exposes host callbacks, not
-Obsidian-shaped App/Vault/Workspace types:
+`list()` discovers and validates local packages through the support implementation. `start({package:{manifest, code}, mode, callbacks})` loads one package through the Worker or
+trusted-renderer runtime and returns the existing `PluginController` (`ready`, `sync`,
+`stop`, plus renderer-only view/suggest/protocol/Bases/hover hooks). `mode` is `worker` or
+`renderer`; `capabilities()` reports both `{worker: true, renderer: true}`. The contract
+deliberately exposes typed host primitives, not Obsidian-shaped App/Vault/Workspace types:
 
 - `snapshot()` returns the current `PluginSnapshot`
-- `commands`, `operation`, `notice`, `failure` drive the host
+- `host` provides `loadData/saveData`, vault text operations, rename/trash/mkdir/asset/open
+  and the editor mutation; `src/compat/` maps Obsidian operation names and enforces declared
+  permissions before calling it
+- `activity` observes in-flight host operations so shutdown can await them
+- `commands`, `notice`, `failure` drive the host
 - optional `tabs`, `extensions`, `fileExtensions` and `native` are renderer/host hooks
 
 The built-in `engine.compat` native runtime plugin provides this service
 (`src/compat/`). The application resolves the contract, gates package loading on the
 **Obsidian plugin support** Core plugin switch, and stops enabled packages when it is
-disabled. Package discovery and the Community plugins UI still live in the application for
-now; moving them into the support plugin is a later migration step. Obsidian API semantics
-remain inside the support implementation so adding `MetadataCache` or workspace leaves does
-not change the contract.
+disabled. Package discovery/validation and the permission-to-host mapping live in the support
+implementation; the Community plugins Settings UI and runtime selection still live in the
+application for now. Obsidian API semantics remain inside the support implementation so
+adding `MetadataCache` or workspace leaves does not change the contract.
 
 ### `engine.ui/v1`
 
