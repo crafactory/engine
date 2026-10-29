@@ -32,7 +32,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.getByTestId('settings-close').click();await page.getByTestId('mode-reading').click();
       const block=page.locator('.reading-surface .dataview');
       await expect(block).toContainText('Test');await expect(block).toContainText('Second');await expect(page.locator('.toast')).toHaveCount(0);
-      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['LIST query renders the current page title and list items'];
+      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['LIST query renders the current page title and a second page'];
     }else if(plugin.name==='Reading Time'){
       const status=page.locator('.plugin-status-item');await expect(status).toHaveText('2 min read');
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await page.getByLabel('Reading speed',{exact:true}).fill('100');await expect(status).toHaveText('4 min read');
