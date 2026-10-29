@@ -28,6 +28,19 @@ test('inactive blocks render math, code, diagrams, tables and note embeds',async
   await expect(page.locator('.live-inline-math')).toHaveCount(1);
   expect(errors).toEqual([]);
 });
+test('callout folds persist across modes and code blocks copy',async({page})=>{
+  await page.context().grantPermissions(['clipboard-read','clipboard-write']);
+  await prepare(page,'> [!note]- Folded\n> Hidden text.\n\n```js\nconst answer = 42;\n```');
+  await page.getByTestId('mode-reading').click();
+  const callout=page.locator('.reading-surface details.callout');
+  await expect(callout).not.toHaveAttribute('open','');
+  await callout.locator('summary').click();await expect(callout).toHaveAttribute('open','');
+  await page.getByTestId('mode-live').click();await page.getByTestId('mode-reading').click();
+  await expect(page.locator('.reading-surface details.callout')).toHaveAttribute('open','');
+  const copy=page.locator('.reading-surface pre .code-copy');
+  await expect(copy).toHaveText('Copy');await copy.click();await expect(copy).toHaveText('Copied');
+  expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe('const answer = 42;\n');
+});
 test('live lists render bullets and continue nested items',async({page})=>{
   await prepare(page,'- parent\n  - child\n\n1. first\n2. second\n\n***');
   await expect(page.locator('.live-list-marker')).toHaveCount(4);
