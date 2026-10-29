@@ -93,7 +93,7 @@ export function App(){
   const pagePreviewRuntime=useRef<PagePreviewRuntime|null>(null),audioRuntime=useRef<AudioRecorderRuntime|null>(null);
   const viewsRuntime=useRef<ViewsRuntime|null>(null),viewComponents=useRef(new Map<ViewContribution,LazyExoticComponent<ViewComponent>>()),panelComponents=useRef(new Map<ViewContribution,LazyExoticComponent<PanelComponent>>());
   const uiRuntime=useRef<UiRuntime|null>(null),uiUnsub=useRef<(()=>void)|null>(null);
-  const compatRuntime=useRef<CompatRuntime|null>(null);
+  const compatRuntime=useRef<CompatRuntime|null>(null),supportTransition=useRef<Promise<void>>(Promise.resolve());
   const uiRibbon=uiRuntime.current?.ui.ribbon()??[];
   const uiStatus=uiRuntime.current?.ui.status()??[];
   const uiSettings=uiRuntime.current?.ui.settings()??[];
@@ -240,8 +240,11 @@ export function App(){
   const compatEnabled=!settings.disabledPlugins.includes('compat');
   useEffect(()=>{
     if(!loaded.current)return;
-    if(compatEnabled)void loadPluginPackages(settings.disabledPlugins);
-    else void stopPlugins().then(()=>setPluginList([]));
+    // Serialize load/stop transitions so late cleanup cannot clear a newer controller.
+    const transition=compatEnabled
+      ?supportTransition.current.then(()=>loadPluginPackages(settings.disabledPlugins))
+      :supportTransition.current.then(()=>stopPlugins()).then(()=>setPluginList([]));
+    supportTransition.current=transition.catch(report);
   },[compatEnabled]);
 
   useEffect(()=>{
@@ -506,6 +509,7 @@ export function App(){
     if(!url)return;try{const viewer=webViewerRuntime.current?.service;const normalized=viewer?viewer.normalize(url):(()=>{const parsed=new URL(url);if(parsed.protocol!=='https:')throw new Error('Use an HTTPS URL');return url;})();open('web:'+normalized);}catch(e){report(e);}
   }
   async function togglePlugin(id:string){
+    await supportTransition.current;
     if(!enabled('compat')){toast('Enable Obsidian plugin support in Core plugins first.');return;}
     if(pluginStarting.current.has(id))return;
     if(enabledPlugins.includes(id)){
