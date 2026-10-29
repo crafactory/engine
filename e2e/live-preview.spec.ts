@@ -33,12 +33,10 @@ test('live lists render bullets and continue nested items',async({page})=>{
   await expect(page.locator('.live-list-marker')).toHaveCount(4);
   await expect(page.locator('.live-list-marker').first()).toHaveText('•');
   await expect(page.locator('.live-list-marker.is-ordered')).toHaveCount(2);
-  await page.getByTestId('note-editor').locator('.cm-line').first().click();await page.keyboard.press('End');
+  await page.getByTestId('note-editor').locator('.cm-line').filter({hasText:'child'}).click();await page.keyboard.press('End');
   await page.keyboard.press('Enter');await page.keyboard.type('nested');await page.keyboard.press('Tab');
   await page.getByTestId('mode-source').click();
-  await expect(page.getByTestId('note-editor')).toContainText('- parent');
-  await expect(page.getByTestId('note-editor')).toContainText('  - child');
-  await expect(page.getByTestId('note-editor')).toContainText('- nested');
+  await expect.poll(async()=>(await page.getByTestId('note-editor').locator('.cm-line').allTextContents()).join('\n')).toContain('- parent\n  - child\n    - nested');
 });
 test('edit source reveals one block and moving away restores its preview',async({page})=>{
   await prepare(page);await page.locator('.live-block-code .live-block-body').click();
