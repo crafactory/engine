@@ -16,8 +16,8 @@ import {Settings} from './Settings';
 import {Palette,type Choice} from './Palette';
 import {Slides} from './Slides';
 import {useDialog} from './Dialog';
-import {startPlugin,type HoverLinkPayload,type PluginCommand,type PluginController} from './plugins';
-import {startRendererPlugin} from './plugin-renderer';
+import type {HoverLinkPayload,PluginCommand,PluginController} from './plugins';
+import {createCompatRuntime,type CompatRuntime} from './compat';
 import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
@@ -93,6 +93,7 @@ export function App(){
   const pagePreviewRuntime=useRef<PagePreviewRuntime|null>(null),audioRuntime=useRef<AudioRecorderRuntime|null>(null);
   const viewsRuntime=useRef<ViewsRuntime|null>(null),viewComponents=useRef(new Map<ViewContribution,LazyExoticComponent<ViewComponent>>()),panelComponents=useRef(new Map<ViewContribution,LazyExoticComponent<PanelComponent>>());
   const uiRuntime=useRef<UiRuntime|null>(null),uiUnsub=useRef<(()=>void)|null>(null);
+  const compatRuntime=useRef<CompatRuntime|null>(null),supportTransition=useRef<Promise<void>>(Promise.resolve());
   const uiRibbon=uiRuntime.current?.ui.ribbon()??[];
   const uiStatus=uiRuntime.current?.ui.status()??[];
   const uiSettings=uiRuntime.current?.ui.settings()??[];
@@ -179,7 +180,8 @@ export function App(){
   useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),5000);return()=>clearTimeout(timer);},[notice]);
 
   /** Validate discovered packages before they are offered in Settings or enabled. */
-  async function loadPluginPackages(){
+  async function loadPluginPackages(disabled=settingsRef.current.disabledPlugins){
+    if(disabled.includes('compat')){setPluginList([]);return;}
     const packages=await bridge.plugins(),valid:{manifest:PluginManifest;code:string}[]=[];
     for(const pkg of packages){
       const validation=validatePluginPackage({manifest:pkg.manifest},ENGINE_VERSION);
@@ -214,6 +216,7 @@ export function App(){
       if(!audioRuntime.current){const runtime=await createAudioRecorderRuntime();if(unmounted.current){void runtime.kernel.stop();return;}audioRuntime.current=runtime;}
       if(!viewsRuntime.current){const runtime=await createViewsRuntime();if(unmounted.current){void runtime.kernel.stop();return;}viewsRuntime.current=runtime;}
       if(!uiRuntime.current){const runtime=await createUiRuntime({plugins:[editorSettingsPlugin,mermaidBlockPlugin]});if(unmounted.current){void runtime.kernel.stop();return;}uiRuntime.current=runtime;uiUnsub.current=runtime.ui.subscribe(()=>setUiRevision(v=>v+1));setUiRevision(v=>v+1);}
+      if(!compatRuntime.current){const runtime=await createCompatRuntime();if(unmounted.current){void runtime.kernel.stop();return;}compatRuntime.current=runtime;}
       editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));
@@ -225,15 +228,25 @@ export function App(){
       setBookmarksFromService(state.bookmarks||[]);setWorkspacesFromService(state.workspaces||{});setRecent(state.recent||[]);setPropertyTypes(readPropertyTypes(state.propertyTypes));
       const path=all.find(n=>n.path==='Welcome.md')?.path||all.find(n=>isNote(n.path))?.path||all[0]?.path||'';
       setTabs(path?[path]:[]);setActive(path);setSplit(null);history.current=path?[path]:[];historyIndex.current=path?0:-1;
-      loaded.current=true;await loadPluginPackages();
+      loaded.current=true;await loadPluginPackages(pref.disabledPlugins);
     }catch(e){report(e);}finally{setLoading(false);}
   }
-  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);if(audioRuntime.current)void audioRuntime.current.service.dispose().catch(()=>{});for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();void uniqueNoteRuntime.current?.kernel.stop();void wordCountRuntime.current?.kernel.stop();void slidesRuntime.current?.kernel.stop();void converterRuntime.current?.kernel.stop();void composerRuntime.current?.kernel.stop();void webViewerRuntime.current?.kernel.stop();void slashRuntime.current?.kernel.stop();void pagePreviewRuntime.current?.kernel.stop();void audioRuntime.current?.kernel.stop();void viewsRuntime.current?.kernel.stop();uiUnsub.current?.();void uiRuntime.current?.kernel.stop();};},[]);
+  useEffect(()=>{initialize();return()=>{unmounted.current=true;for(const timer of timers.current.values())clearTimeout(timer);if(audioRuntime.current)void audioRuntime.current.service.dispose().catch(()=>{});for(const controller of pluginStops.current.values())void controller.stop();void workspaceRuntime.current?.kernel.stop();void editorRuntime.current?.kernel.stop();bookmarksUnsub.current?.();void bookmarksRuntime.current?.kernel.stop();void templatesRuntime.current?.kernel.stop();void indexRuntime.current?.kernel.stop();void commandsRuntime.current?.kernel.stop();void storageRuntime.current?.kernel.stop();workspacesUnsub.current?.();void workspacesRuntime.current?.kernel.stop();void uniqueNoteRuntime.current?.kernel.stop();void wordCountRuntime.current?.kernel.stop();void slidesRuntime.current?.kernel.stop();void converterRuntime.current?.kernel.stop();void composerRuntime.current?.kernel.stop();void webViewerRuntime.current?.kernel.stop();void slashRuntime.current?.kernel.stop();void pagePreviewRuntime.current?.kernel.stop();void audioRuntime.current?.kernel.stop();void viewsRuntime.current?.kernel.stop();uiUnsub.current?.();void uiRuntime.current?.kernel.stop();void compatRuntime.current?.kernel.stop();};},[]);
   useEffect(()=>{
     const handler=(event:Event)=>{const url=(event as CustomEvent<unknown>).detail;if(typeof url!=='string')return;for(const controller of pluginStops.current.values())void controller.dispatchProtocol?.(url);};
     window.addEventListener('engine:protocol',handler);return()=>window.removeEventListener('engine:protocol',handler);
   },[]);
   useEffect(()=>{for(const [id,controller] of pluginStops.current)controller.sync(pluginSnapshot(pluginManifests.current.get(id)));},[notes,entries,active,mode]);
+  const compatEnabled=!settings.disabledPlugins.includes('compat');
+  useEffect(()=>{
+    if(!loaded.current)return;
+    // Serialize load/stop transitions so late cleanup cannot clear a newer controller.
+    const transition=compatEnabled
+      ?supportTransition.current.then(()=>loadPluginPackages(settings.disabledPlugins))
+      :supportTransition.current.then(()=>stopPlugins()).then(()=>setPluginList([]));
+    supportTransition.current=transition.catch(report);
+  },[compatEnabled]);
+
   useEffect(()=>{
     if(!loaded.current)return;
     const timer=setTimeout(()=>{bridge.state({settings,bookmarks,workspaces,recent,propertyTypes}).catch(report);},700);
@@ -496,6 +509,8 @@ export function App(){
     if(!url)return;try{const viewer=webViewerRuntime.current?.service;const normalized=viewer?viewer.normalize(url):(()=>{const parsed=new URL(url);if(parsed.protocol!=='https:')throw new Error('Use an HTTPS URL');return url;})();open('web:'+normalized);}catch(e){report(e);}
   }
   async function togglePlugin(id:string){
+    await supportTransition.current;
+    if(!enabled('compat')){toast('Enable Obsidian plugin support in Core plugins first.');return;}
     if(pluginStarting.current.has(id))return;
     if(enabledPlugins.includes(id)){
       try{await pluginStops.current.get(id)?.stop();}
@@ -554,9 +569,12 @@ export function App(){
       const onTabs=(tabs:PluginTab[])=>setPluginTabs(t=>({...t,[id]:tabs}));
       const onExtensions=(extensions:unknown[])=>setPluginExtensions(e=>({...e,[id]:extensions}));
       const onFileExtensions=(nextExtensions:string[],viewType?:string)=>{if(viewType)addPluginExtensions(id,nextExtensions,viewType);else removePluginExtensions(id,nextExtensions);};
-      const controller=renderer
-        ?startRendererPlugin(plugin.manifest,plugin.code,()=>pluginSnapshot(plugin.manifest),onCommands,onOperation,toast,onFailure,onTabs,onExtensions,native,onFileExtensions)
-        :startPlugin(plugin.manifest,plugin.code,()=>pluginSnapshot(plugin.manifest),onCommands,onOperation,toast,onFailure);
+      const service=compatRuntime.current?.service;
+      if(!service)throw new Error('Obsidian plugin support is unavailable');
+      const controller=service.start({package:plugin,mode:renderer?'renderer':'worker',callbacks:{
+        snapshot:()=>pluginSnapshot(plugin.manifest),commands:onCommands,operation:onOperation,notice:toast,failure:onFailure,
+        tabs:onTabs,extensions:onExtensions,fileExtensions:onFileExtensions,native
+      }});
       pluginManifests.current.set(id,plugin.manifest);pluginStops.current.set(id,controller);await controller.ready;
       if(generation!==vaultGeneration.current){clearPluginExtensions(id);await controller.stop();}else setEnabledPlugins(e=>[...e.filter(p=>p!==id),id]);
     }catch(e){clearPluginExtensions(id);pluginStops.current.delete(id);pluginManifests.current.delete(id);report(e);}finally{pluginStarting.current.delete(id);}

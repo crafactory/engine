@@ -18,6 +18,7 @@ export * from './render';
 export * from './workspace';
 export * from './views';
 export * from './ui';
+export * from './compat';
 export * from './formats';
 export * from './editor';
 export * from './bookmarks';

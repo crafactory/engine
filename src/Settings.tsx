@@ -14,6 +14,7 @@ export const corePlugins=[
   ['bookmarks','Bookmarks','Keep frequently used notes close.'],
   ['canvas','Canvas','Arrange cards and connections in JSON Canvas files.'],
   ['commands','Command palette','Run actions from the keyboard.'],
+  ['compat','Obsidian plugin support','Load local Obsidian-compatible plugins in a Worker or trusted renderer.'],
   ['daily','Daily notes','Create a note for each day.'],
   ['explorer','File explorer','Browse your local files and folders.'],
   ['recovery','File recovery','Recover previous versions from local snapshots.'],
