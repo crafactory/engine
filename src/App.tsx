@@ -17,18 +17,18 @@ import {Palette,type Choice} from './Palette';
 import {Slides} from './Slides';
 import {useDialog} from './Dialog';
 import type {HoverLinkPayload,PluginCommand,PluginController} from './plugins';
-import {createCompatRuntime,type CompatRuntime} from './compat';
+import {createCompatRuntime,type CompatHost,type CompatRuntime} from './compat';
 import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
 import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot,PropertyType} from './types';
-import {checkPermission, validatePluginPackage, readableSnapshot} from './kernel';
+import {readableSnapshot} from './kernel';
 import {createViewsRuntime, loadViewComponent, ViewBoundary, PluginViewHost, type ViewsRuntime, type ViewComponent, type PanelComponent, type SidePanelTab, type GraphViewProps, type EditorViewProps} from './views';
 import {PropertiesEditor} from './PropertiesEditor';
 import {readPropertyTypes} from './properties';
 import {editorSettingsPlugin} from './ui/settings/plugin';
 import {mermaidBlockPlugin} from './ui/blocks/plugin';
-import {ENGINE_VERSION} from './services';
+
 import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,createWebViewerRuntime,createSlashCommandsRuntime,createPagePreviewRuntime,createAudioRecorderRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime,type WebViewerRuntime,type SlashCommandsRuntime,type PagePreviewRuntime,type AudioRecorderRuntime,type ViewContribution,createUiRuntime,type UiRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
 const Graph=lazy(()=>import('./Graph').then(m=>({default:m.Graph})));
@@ -182,13 +182,9 @@ export function App(){
   /** Validate discovered packages before they are offered in Settings or enabled. */
   async function loadPluginPackages(disabled=settingsRef.current.disabledPlugins){
     if(disabled.includes('compat')){setPluginList([]);return;}
-    const packages=await bridge.plugins(),valid:{manifest:PluginManifest;code:string}[]=[];
-    for(const pkg of packages){
-      const validation=validatePluginPackage({manifest:pkg.manifest},ENGINE_VERSION);
-      if(validation.ok)valid.push(pkg);
-      else console.warn('Skipped invalid plugin package',pkg.manifest?.id,validation.issues);
-    }
-    setPluginList(valid);
+    const service=compatRuntime.current?.service;
+    if(!service){setPluginList([]);return;}
+    setPluginList(await service.list());
   }
   async function initialize(){
     setLoading(true);setError('');
@@ -523,48 +519,51 @@ export function App(){
       'Trusted renderer mode is NOT sandboxed. This code can access the entire UI and vault bridge, including notes and workspace metadata, during startup, commands and unload. It can freeze the application and cannot be forcibly stopped. Only enable code you trust. Back up your vault first.':
       'This local Worker plugin can read and modify vault notes and save plugin data during startup, commands and unload. Only enable code you trust.'))return;
     const generation=vaultGeneration.current;
-    const operation=async(name:string,args:unknown[])=>{
-      if(generation!==vaultGeneration.current)throw new Error('Plugin belongs to a closed vault');
-      checkPermission(plugin.manifest,name);
-      const storage=storageRuntime.current?.storage??(bridgeStorageFallback.current??=new BridgeStorage(bridge));
-      if(name==='loadData')return storage.pluginData(id);
-      if(name==='saveData')return storage.pluginData(id,args[0],true);
-      if(typeof args[0]!=='string'||!validPath(args[0]))throw new Error('Invalid plugin vault path');
-      const path=args[0];
-      if(name==='rename'){const to=args[1];if(typeof to!=='string'||!validPath(to))throw new Error('Invalid rename target');const actual=await renamePath(path,to,true);return actual??to;}
-      if(name==='trash'){await trashPath(path);return;}
-      if(name==='asset')return storage.asset(path);
-      if(name==='read')return (await storage.read(path)).content;
-      if(name==='open'){if(!notesRef.current.some(n=>n.path===path))throw new Error('File not found');open(path);pluginState.current.active=path;return;}
-      if(name==='editor'){
+    const ensureOpen=()=>{if(generation!==vaultGeneration.current)throw new Error('Plugin belongs to a closed vault');};
+    const storage=()=>storageRuntime.current?.storage??(bridgeStorageFallback.current??=new BridgeStorage(bridge));
+    const checkPath=(path:string)=>{if(!validPath(path))throw new Error('Invalid plugin vault path');};
+    const refreshEntries=async()=>{const next=await storage().list();pluginState.current.entries=next;setEntries(next);};
+    const mutateText=async(name:'create'|'modify'|'append'|'writeLegacy',path:string,text:string)=>{
+      ensureOpen();checkPath(path);
+      if(name==='writeLegacy'&&!isNote(path))throw new Error('Invalid plugin text');
+      await flush();
+      const before=notesRef.current.find(n=>n.path===path)?.content;
+      let result:StoredNote;
+      if(name==='create')result=await storage().create(path,text);
+      else if(name==='append')result=await storage().append(path,text);
+      else if(name==='modify'){const disk=await storage().read(path);result=await storage().write(path,text,disk.version);}
+      else result=await storage().write(path,text,versions.current.get(path));
+      savedContent.current.set(path,result.content);versions.current.set(path,result.version);
+      const existing=notesRef.current.find(n=>n.path===path);
+      updateNotes(existing?notesRef.current.map(n=>n.path===path&&n.content===before?result:n):[...notesRef.current,result]);
+      await refreshEntries();
+      return result;
+    };
+    const host:CompatHost={
+      loadData:async pluginId=>{ensureOpen();return storage().pluginData(pluginId);},
+      saveData:async(pluginId,data)=>{ensureOpen();return storage().pluginData(pluginId,data,true);},
+      read:async path=>{ensureOpen();checkPath(path);return (await storage().read(path)).content;},
+      create:(path,text)=>mutateText('create',path,text),
+      modify:(path,text)=>mutateText('modify',path,text),
+      append:(path,text)=>mutateText('append',path,text),
+      writeLegacy:(path,text)=>mutateText('writeLegacy',path,text),
+      rename:async(from,to)=>{ensureOpen();checkPath(from);if(!validPath(to))throw new Error('Invalid rename target');const actual=await renamePath(from,to,true);return actual??to;},
+      trash:async path=>{ensureOpen();checkPath(path);await trashPath(path);},
+      mkdir:async path=>{ensureOpen();checkPath(path);await storage().mkdir(path);await refreshEntries();},
+      asset:async path=>{ensureOpen();checkPath(path);return storage().asset(path);},
+      open:async path=>{ensureOpen();checkPath(path);if(!notesRef.current.some(n=>n.path===path))throw new Error('File not found');open(path);pluginState.current.active=path;},
+      editor:async(path,base,text,from,to)=>{
+        ensureOpen();checkPath(path);
         if(path!==pluginState.current.active||pluginState.current.mode==='reading'||editor.current?.path()!==path)throw new Error('Editor no longer active');
-        const [base,text,from,to]=args.slice(1);
-        if(typeof base!=='string'||typeof text!=='string'||!Number.isInteger(from)||!Number.isInteger(to))throw new Error('Invalid editor mutation');
-        if(!editor.current.applyPluginEdit(base,text,from as number,to as number))throw new Error('CONFLICT: Editor changed before plugin edit');
-        return;
+        if(!Number.isInteger(from)||!Number.isInteger(to))throw new Error('Invalid editor mutation');
+        if(!editor.current.applyPluginEdit(base,text,from,to))throw new Error('CONFLICT: Editor changed before plugin edit');
       }
-      if(name==='mkdir'){await storage.mkdir(path);}
-      else if(['create','modify','append','writeLegacy'].includes(name)){
-        const text=args[1];if(typeof text!=='string'||(name==='writeLegacy'&&!isNote(path)))throw new Error('Invalid plugin text');
-        await flush();
-        const before=notesRef.current.find(n=>n.path===path)?.content;
-        let result:StoredNote;
-        if(name==='create')result=await storage.create(path,text);
-        else if(name==='append')result=await storage.append(path,text);
-        else if(name==='modify'){const disk=await storage.read(path);result=await storage.write(path,text,disk.version);}
-        else result=await storage.write(path,text,versions.current.get(path));
-        savedContent.current.set(path,result.content);versions.current.set(path,result.version);
-        const existing=notesRef.current.find(n=>n.path===path);
-        updateNotes(existing?notesRef.current.map(n=>n.path===path&&n.content===before?result:n):[...notesRef.current,result]);
-      }else throw new Error('Unsupported plugin host operation: '+name);
-      const next=await storage.list();pluginState.current.entries=next;setEntries(next);
     };
     pluginStarting.current.add(id);
     try{
       const native={resolveLink:(link:string,from:string)=>indexRuntime.current?.index.resolve(link,from),
         editor:{providerId:editorRuntime.current?.provider.id??'unknown',codeMirrorExtensions:editorRuntime.current?.provider.capabilities().codeMirrorExtensions??false}};
       const onCommands=(commands:PluginCommand[])=>setPluginCommands(c=>[...c.filter(p=>p.plugin!==id),...commands]);
-      const onOperation=(name:string,args:unknown[])=>{const request=operation(name,args);pluginRequests.current.add(request);request.then(()=>pluginRequests.current.delete(request),()=>pluginRequests.current.delete(request));return request;};
       const onFailure=()=>{clearPluginExtensions(id);pluginStops.current.delete(id);pluginManifests.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));};
       const onTabs=(tabs:PluginTab[])=>setPluginTabs(t=>({...t,[id]:tabs}));
       const onExtensions=(extensions:unknown[])=>setPluginExtensions(e=>({...e,[id]:extensions}));
@@ -572,7 +571,7 @@ export function App(){
       const service=compatRuntime.current?.service;
       if(!service)throw new Error('Obsidian plugin support is unavailable');
       const controller=service.start({package:plugin,mode:renderer?'renderer':'worker',callbacks:{
-        snapshot:()=>pluginSnapshot(plugin.manifest),commands:onCommands,operation:onOperation,notice:toast,failure:onFailure,
+        snapshot:()=>pluginSnapshot(plugin.manifest),commands:onCommands,host,activity:request=>{pluginRequests.current.add(request);request.then(()=>pluginRequests.current.delete(request),()=>pluginRequests.current.delete(request));},notice:toast,failure:onFailure,
         tabs:onTabs,extensions:onExtensions,fileExtensions:onFileExtensions,native
       }});
       pluginManifests.current.set(id,plugin.manifest);pluginStops.current.set(id,controller);await controller.ready;
