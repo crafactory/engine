@@ -155,7 +155,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     async stopProcessors(){processorsStopped=true;await stopProcessors(processors);processors.clear();},
     workspace:{
       getRightLeaf(split?:boolean){if(split)return unsupported('Workspace.getRightLeaf split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeaf(newLeaf?:boolean|string){if(newLeaf!==undefined&&newLeaf!==true)return unsupported('Workspace.getLeaf reuse/split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},
-      getLeavesOfType(type:string){return [...leaves].filter(l=>l.view?.getViewType()===type);},
+      getLeavesOfType(type:string){return [...leaves].filter(l=>l.view?.getViewType()===type);},iterateAllLeaves(callback:(leaf:any)=>void){for(const leaf of [...leaves])callback(leaf);},
       async detachLeavesOfType(type:string){await Promise.all([...leaves].filter(l=>l.view?.getViewType()===type).map(l=>l.detach()));},
       async revealLeaf(leaf:any){if(!leaves.has(leaf))throw new Error('Foreign leaf');host('plugin-views').append(leaf.containerEl);leaf.containerEl.scrollIntoView({block:'nearest'});}
     },

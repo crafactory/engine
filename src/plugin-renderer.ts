@@ -35,6 +35,9 @@ export function startRendererPlugin(manifest:PluginManifest,code:string,getSnaps
   function fail(reason:unknown){if(!alive||stopping)return;onNotice(manifest.name+': '+(reason instanceof Error?reason.message:String(reason)));void stop().catch(error=>onNotice(String(error))).finally(onFailure);}
   const slot='__engine_plugin_'+crypto.randomUUID().replaceAll('-','');
   const global=window as unknown as Record<string,unknown>;
+  // Compatibility shim for plugins that still register CodeMirror 5 highlighting modes.
+  const codeMirror5=(global.CodeMirror??={}) as {defineMode?:()=>void;getMode?:()=>null};
+  codeMirror5.defineMode??=()=>{};codeMirror5.getMode??=()=>null;
   let execute:((require:(name:string)=>unknown,module:{exports:any},exports:any)=>void)|undefined;
   global[slot]=(callback:typeof execute)=>{execute=callback;};
   const url=URL.createObjectURL(new Blob([`window[${JSON.stringify(slot)}](function(require,module,exports){\n${code}\n});\nexport {};\n`],{type:'text/javascript'}));
