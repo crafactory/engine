@@ -138,21 +138,24 @@ export function renderMarkdown(content:string,editableTasks=false) {
   return DOMPurify.sanitize(html,{ADD_ATTR:['target','data-note','data-embed','data-asset','data-engine-task-offset'],FORBID_TAGS:['style','iframe','object','embed']});
 }
 /** Copy a code block, falling back to a temporary selection when the clipboard API is unavailable. */
-async function copyCode(text:string,button:HTMLButtonElement){
+async function copyCode(text:string,control:HTMLElement,status:HTMLElement){
+  let result='Copied';
   try{
     if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(text);
     else throw new Error('clipboard unavailable');
-    button.textContent='Copied';
   }catch{
     const area=document.createElement('textarea');area.value=text;area.style.position='fixed';area.style.opacity='0';document.body.append(area);area.select();
     const copied=document.execCommand?.('copy')??false;area.remove();
-    button.textContent=copied?'Copied':'Copy failed';
+    result=copied?'Copied':'Copy failed';
   }
-  window.setTimeout(()=>{if(button.isConnected)button.textContent='Copy';},1200);
+  control.textContent=result;
+  status.textContent='';
+  window.setTimeout(()=>{status.textContent=result==='Copied'?'Code copied':'Copy failed';},0);
+  window.setTimeout(()=>{if(control.isConnected)control.textContent='Copy';status.textContent='';},1200);
 }
 
-/** Restore callout folds and add copy controls to the rendered host. */
-function decorateReading(root:HTMLElement,path:string,signal:AbortSignal){
+/** Restore callout folds before plugin processors inspect the host. */
+function restoreCallouts(root:HTMLElement,path:string,signal:AbortSignal){
   for(const details of root.querySelectorAll<HTMLDetailsElement>('details[data-callout-key]')){
     if(details.dataset.foldBound)continue;
     details.dataset.foldBound='1';
@@ -161,12 +164,20 @@ function decorateReading(root:HTMLElement,path:string,signal:AbortSignal){
     if(saved!==undefined)details.open=saved;
     details.addEventListener('toggle',()=>calloutFoldState.set(key,details.open),{signal});
   }
+}
+
+/** Add copy controls only after processors finish reading the raw code text. */
+function addCodeCopy(root:HTMLElement,signal:AbortSignal){
+  let status=root.querySelector<HTMLElement>('[data-copy-status]');
+  if(!status){status=document.createElement('span');status.dataset.copyStatus='';status.className='copy-status';status.setAttribute('aria-live','polite');status.setAttribute('aria-atomic','true');root.append(status);}
   for(const pre of root.querySelectorAll<HTMLPreElement>('pre')){
     if(pre.querySelector(':scope > .code-copy'))continue;
     const code=pre.querySelector('code');if(!code)continue;
-    const button=document.createElement('button');button.type='button';button.className='code-copy';button.textContent='Copy';button.setAttribute('aria-label','Copy code');
-    button.addEventListener('click',()=>{void copyCode(code.textContent||'',button);},{signal});
-    pre.append(button);
+    const control=document.createElement('span');control.className='code-copy';control.tabIndex=0;control.setAttribute('role','button');control.setAttribute('aria-label','Copy code');control.textContent='Copy';
+    const copy=()=>{void copyCode(code.textContent||'',control,status!);};
+    control.addEventListener('click',copy,{signal});
+    control.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();copy();}},{signal});
+    pre.append(control);
   }
 }
 
@@ -182,8 +193,8 @@ export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProce
   const renderKey=useMemo(()=>crypto.randomUUID(),[content,notes,path,depth,revision,!!onChange]);
   useEffect(()=>{
     let disposed=false;const root=ref.current;if(!root)return;
-    const decoration=new AbortController();const decorate=()=>decorateReading(root,path,decoration.signal);
-    decorate();
+    const decoration=new AbortController();
+    restoreCallouts(root,path,decoration.signal);
     // Capture identities before resolving embeds or admitting plugin DOM; neither may acquire host write ownership.
     taskOwners.current=new WeakMap();
     for(const input of root.querySelectorAll<HTMLInputElement>('input[data-engine-task-offset]')){
@@ -244,7 +255,7 @@ export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProce
       }
       if(!disposed&&pluginProcessing){processorSession=processMarkdown(root,content,path);await processorSession.ready;}
     };
-    void load().then(()=>{if(!disposed)decorate();});
+    void load().then(()=>{if(!disposed)addCodeCopy(root,decoration.signal);});
     return()=>{disposed=true;decoration.abort();void processorSession?.close();queueMicrotask(()=>canvasRoots.forEach(root=>root.unmount()));};
   },[content,notes,path,depth,pluginProcessing,renderKey,!!onChange]);
   /** Route note links and persist only task inputs captured from this host's own parsed source. */
