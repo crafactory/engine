@@ -1,5 +1,22 @@
 # Verification results
 
+## Live list markers and nested continuation
+
+This section records bullet/ordered marker rendering and nested-list editing in live mode.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 813 passed (40 files) | +2 list-marker range cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` | **62 passed / 0 failed** | +1 bullet/ordered/nested continuation case |
+
+Inactive list markers are replaced with a styled bullet or the original ordered marker while
+the source text, indentation and selection access remain intact; touching the marker reveals
+its source. Task checkboxes keep their existing widget and are not double-rendered. List
+continuation and Tab indentation use the existing Markdown keymap, verified for a nested
+item. List folding and full nested-list cursor semantics remain open.
+
 ## Persisted explicit property types
 
 This section records the vault-level property type registry behind the inline editor.
