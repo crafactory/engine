@@ -1,5 +1,24 @@
 # Verification results
 
+## Callout fold state and code copying
+
+This section records session fold persistence and code-block copy controls.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 813 passed (40 files) | Existing suites |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` | **64 passed / 0 failed** | +1 callout/copy case |
+
+Callout blocks now carry a short source-identity key; user toggles are kept in memory per
+vault path and re-applied when Markdown re-renders or the note switches between reading and
+live mode. Defaults from `[!type]+` / `[!type]-` still apply when no saved toggle exists.
+Every rendered `<pre><code>` receives an accessible Copy control; it uses the clipboard API
+with a temporary-textarea fallback and briefly reports Copied/Copy failed. The controls are
+re-added after plugin processors finish. Cross-restart fold persistence and plugin-added
+code blocks that appear after the processor ready signal are not claimed.
+
 ## Reading-mode undo history
 
 This section records keeping the editing surface mounted while the reading view is shown.

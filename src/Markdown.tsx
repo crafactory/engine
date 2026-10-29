@@ -15,6 +15,10 @@ import type {Note} from './types';
 import {taskMarker,setTaskChecked} from './task-source';
 
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
+/** Short stable identity for a callout block, independent of surrounding line offsets. */
+function shortHash(value:string){let hash=2166136261;for(let i=0;i<value.length;i++){hash^=value.charCodeAt(i);hash=Math.imul(hash,16777619);}return (hash>>>0).toString(36);}
+/** Session-scoped fold state keyed by note path and callout source identity. */
+const calloutFoldState=new Map<string,boolean>();
 /** Supply an inert external-store subscription for reading-only processors disabled in live widgets. */
 function noProcessors(){
   /** No resources are acquired by this disabled subscription. */
@@ -93,7 +97,9 @@ md.core.ruler.after('inline','engine-callouts',(state:any)=>{
     const match=inline.content.match(/^\[!([a-z-]+)\]([+-]?)([^\n]*)(?:\n|$)/i);
     if(!match)continue;
     const type=match[1].toLowerCase(),fold=match[2],label=match[3].trim()||type[0].toUpperCase()+type.slice(1);
-    open.meta={callout:{type,fold,label}};
+    const startLine=open.map?.[0]??0,endLine=open.map?.[1]??startLine+1;
+    const keySource=state.src.split('\n').slice(startLine,endLine).join('\n');
+    open.meta={callout:{type,fold,label,key:shortHash(keySource)}};
     const close=tokens.slice(i+1).find((token:any)=>token.type==='blockquote_close'&&token.level===open.level);
     if(close)close.meta=open.meta;
     inline.content=inline.content.slice(match[0].length);inline.children=md.parseInline(inline.content,state.env)[0].children;
@@ -103,7 +109,7 @@ md.renderer.rules.blockquote_open=(tokens,idx)=>{
   const callout=tokens[idx].meta?.callout;
   if(!callout)return '<blockquote>\n';
   const classes=`callout callout-${escape(callout.type)}`;
-  return callout.fold?`<details class="${classes}"${callout.fold==='+'?' open':''}><summary class="callout-title">${escape(callout.label)}</summary>\n`:
+  return callout.fold?`<details class="${classes}" data-callout-key="${escape(callout.key)}"${callout.fold==='+'?' open':''}><summary class="callout-title">${escape(callout.label)}</summary>\n`:
     `<blockquote class="${classes}"><div class="callout-title">${escape(callout.label)}</div>\n`;
 };
 md.renderer.rules.blockquote_close=(tokens,idx)=>tokens[idx].meta?.callout?.fold?'</details>\n':'</blockquote>\n';
@@ -131,6 +137,50 @@ export function renderMarkdown(content:string,editableTasks=false) {
   const html=md.render(meta.body,editableTasks?{engineTaskPrefix:meta.raw.length,engineTaskSource:meta.body}:{});
   return DOMPurify.sanitize(html,{ADD_ATTR:['target','data-note','data-embed','data-asset','data-engine-task-offset'],FORBID_TAGS:['style','iframe','object','embed']});
 }
+/** Copy a code block, falling back to a temporary selection when the clipboard API is unavailable. */
+async function copyCode(text:string,control:HTMLElement,status:HTMLElement){
+  let result='Copied';
+  try{
+    if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(text);
+    else throw new Error('clipboard unavailable');
+  }catch{
+    const area=document.createElement('textarea');area.value=text;area.style.position='fixed';area.style.opacity='0';document.body.append(area);area.select();
+    const copied=document.execCommand?.('copy')??false;area.remove();
+    result=copied?'Copied':'Copy failed';
+  }
+  control.textContent=result;
+  status.textContent='';
+  window.setTimeout(()=>{status.textContent=result==='Copied'?'Code copied':'Copy failed';},0);
+  window.setTimeout(()=>{if(control.isConnected)control.textContent='Copy';status.textContent='';},1200);
+}
+
+/** Restore callout folds before plugin processors inspect the host. */
+function restoreCallouts(root:HTMLElement,path:string,signal:AbortSignal){
+  for(const details of root.querySelectorAll<HTMLDetailsElement>('details[data-callout-key]')){
+    if(details.dataset.foldBound)continue;
+    details.dataset.foldBound='1';
+    const key=path+'\0'+details.dataset.calloutKey;
+    const saved=calloutFoldState.get(key);
+    if(saved!==undefined)details.open=saved;
+    details.addEventListener('toggle',()=>calloutFoldState.set(key,details.open),{signal});
+  }
+}
+
+/** Add copy controls only after processors finish reading the raw code text. */
+function addCodeCopy(root:HTMLElement,signal:AbortSignal){
+  let status=root.querySelector<HTMLElement>('[data-copy-status]');
+  if(!status){status=document.createElement('span');status.dataset.copyStatus='';status.className='copy-status';status.setAttribute('aria-live','polite');status.setAttribute('aria-atomic','true');root.append(status);}
+  for(const pre of root.querySelectorAll<HTMLPreElement>('pre')){
+    if(pre.querySelector(':scope > .code-copy'))continue;
+    const code=pre.querySelector('code');if(!code)continue;
+    const control=document.createElement('span');control.className='code-copy';control.tabIndex=0;control.setAttribute('role','button');control.setAttribute('aria-label','Copy code');control.textContent='Copy';
+    const copy=()=>{void copyCode(code.textContent||'',control,status!);};
+    control.addEventListener('click',copy,{signal});
+    control.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();copy();}},{signal});
+    pre.append(control);
+  }
+}
+
 /** Render an immutable reading host; dispose owned processing when content or registry changes. */
 export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProcessing=true,previews,onHoverLink}:{
   content:string;notes:Note[];path:string;onOpen:(target:string)=>void;onChange?:(content:string)=>void;depth?:number;pluginProcessing?:boolean;previews?:PagePreviewService;onHoverLink?:(payload:Omit<HoverLinkPayload,'source'>)=>void;
@@ -143,6 +193,8 @@ export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProce
   const renderKey=useMemo(()=>crypto.randomUUID(),[content,notes,path,depth,revision,!!onChange]);
   useEffect(()=>{
     let disposed=false;const root=ref.current;if(!root)return;
+    const decoration=new AbortController();
+    restoreCallouts(root,path,decoration.signal);
     // Capture identities before resolving embeds or admitting plugin DOM; neither may acquire host write ownership.
     taskOwners.current=new WeakMap();
     for(const input of root.querySelectorAll<HTMLInputElement>('input[data-engine-task-offset]')){
@@ -203,8 +255,8 @@ export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProce
       }
       if(!disposed&&pluginProcessing){processorSession=processMarkdown(root,content,path);await processorSession.ready;}
     };
-    load();
-    return()=>{disposed=true;void processorSession?.close();queueMicrotask(()=>canvasRoots.forEach(root=>root.unmount()));};
+    void load().then(()=>{if(!disposed)addCodeCopy(root,decoration.signal);});
+    return()=>{disposed=true;decoration.abort();void processorSession?.close();queueMicrotask(()=>canvasRoots.forEach(root=>root.unmount()));};
   },[content,notes,path,depth,pluginProcessing,renderKey,!!onChange]);
   /** Route note links and persist only task inputs captured from this host's own parsed source. */
   function click(e:React.MouseEvent) {
