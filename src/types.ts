@@ -7,8 +7,9 @@ export interface Settings {
   dailyFolder: string; dailyTemplate: string; templatesFolder: string; attachmentFolder: string;
   vimMode: boolean; css: string; disabledPlugins: string[]; hotkeys: Record<string,string>;
 }
+export type PropertyType = 'text' | 'number' | 'checkbox' | 'date' | 'datetime' | 'list';
 export interface Workspace {tabs: string[]; active: string; split: string | null; left: boolean; right: boolean; mode: Settings['mode']}
-export interface VaultState {settings: Settings; bookmarks: string[]; workspaces: Record<string,Workspace>; recent: string[]}
+export interface VaultState {settings: Settings; bookmarks: string[]; workspaces: Record<string,Workspace>; recent: string[]; propertyTypes?: Record<string, PropertyType>}
 export interface PluginManifest {id: string; name: string; version: string; description?: string; engine?: string; permissions?: string[]}
 export interface Bridge {
   desktop: boolean;

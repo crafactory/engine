@@ -1,5 +1,22 @@
 # Verification results
 
+## Persisted explicit property types
+
+This section records the vault-level property type registry behind the inline editor.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 811 passed (40 files) | +5 property helper cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` | **61 passed / 0 failed** | +1 explicit-type/automatic case |
+
+Choosing a type stores it in `VaultState.propertyTypes` (the same local-first state JSON as
+settings/bookmarks); choosing Automatic deletes the override and falls back to value
+inference. Types are vault-global and keyed by property name, so a Text override keeps a
+date-like string as text on every note until reset. Unknown persisted values are ignored.
+The initial reset dropdown remains in the editor.
+
 ## Inline type-aware properties
 
 This section records replacing the note-body properties `<details>` block and the
@@ -14,7 +31,8 @@ right-sidebar properties tab with an inline Obsidian-style editor.
 
 `PropertiesEditor` renders under the note title in live and reading modes; source mode keeps
 the raw frontmatter. It infers text/number/checkbox/date/date-time/list from the parsed YAML
-value and exposes a type menu that converts the value in place. Checkboxes commit
+value and exposes a type menu that converts the value in place; an explicit choice is
+persisted per vault (see the section above) and Automatic removes it. Checkboxes commit
 immediately; text, number, date and date-time commit on blur or Enter; lists render removable
 chips with a datalist of values seen elsewhere in the vault. Add-property and remove-property
 write through `setProperties`, so YAML types and quoting stay valid. Structured values stay
