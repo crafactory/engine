@@ -179,3 +179,12 @@ export function fenceSource(content:string):string {
   const closed=lines.length>1&&closing.test(lines[lines.length-1]||'');
   return lines.slice(1,closed?-1:undefined).join('\n');
 }
+
+export interface ListMarker {indent:number; marker:string; ordered:boolean; from:number; to:number; depth:number}
+/** Locate a bullet or ordered-list marker, accepting leading indentation and trailing space. */
+export function listMarker(line:string,offset=0):ListMarker|undefined {
+  const match=line.match(/^([ \t]*)([-*+]|\d{1,9}[.)])([ \t]+)/);
+  if(!match)return;
+  const indent=match[1].replace(/\t/g,'    ').length;
+  return {indent,marker:match[2],ordered:/^\d/.test(match[2]),from:offset+match[1].length,to:offset+match[1].length+match[2].length+match[3].length,depth:Math.floor(indent/2)};
+}

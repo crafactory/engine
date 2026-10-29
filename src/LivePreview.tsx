@@ -6,7 +6,7 @@ import DOMPurify from 'dompurify';
 import katex from 'katex';
 import {Markdown,renderMarkdown} from './Markdown';
 import {frontmatter} from './knowledge';
-import {liveRegions,touchesRange,fenceLanguage,fenceSource,tableRows,replaceTableCell,appendTableRow,appendTableColumn,tableAlignments,deleteTableRow,moveTableRow,deleteTableColumn,moveTableColumn,minimalBlockChange,type LiveBlock,type TableCell} from './live-model';
+import {liveRegions,touchesRange,fenceLanguage,fenceSource,listMarker,tableRows,replaceTableCell,appendTableRow,appendTableColumn,tableAlignments,deleteTableRow,moveTableRow,deleteTableColumn,moveTableColumn,minimalBlockChange,type LiveBlock,type TableCell} from './live-model';
 import {ArrowDown,ArrowLeft,ArrowRight,ArrowUp,Trash2} from 'lucide-react';
 import type {Note} from './types';
 import {inlineLinks,type InlineLink} from './inline-links';
@@ -239,6 +239,15 @@ class TaskWidget extends WidgetType {
   ignoreEvent(){return true;}
 }
 
+class ListMarkerWidget extends WidgetType {
+  /** Capture an immutable list marker and its nesting depth. */
+  constructor(readonly marker:string,readonly ordered:boolean,readonly depth:number){super();}
+  /** Reuse the marker DOM while its source identity is unchanged. */
+  eq(other:ListMarkerWidget){return this.marker===other.marker&&this.ordered===other.ordered&&this.depth===other.depth;}
+  /** Render a bullet or the original ordered marker instead of the list syntax. */
+  toDOM(){const span=document.createElement('span');span.contentEditable='false';span.className='live-list-marker'+(this.ordered?' is-ordered':'');span.style.setProperty('--list-depth',String(this.depth));span.textContent=this.ordered?this.marker:'•';return span;}
+}
+
 /** Register original live decorations and restrict atomic ranges to rendered widgets. */
 export function livePreview(context:()=>Context){
   const field=StateField.define<DecorationSet>({
@@ -298,6 +307,9 @@ function build(state:EditorState,context:()=>Context):DecorationSet {
     if(task){
       const from=line.from,to=line.from+task[1].length+3;
       if(!touchesRange(from,to,selected))ranges.push({from,to,dec:Decoration.replace({widget:new TaskWidget(line.from,task[1],task[2].toLowerCase()==='x',task[3])})});
+    }else{
+      const marker=listMarker(line.text,line.from);
+      if(marker&&!touchesRange(marker.from,marker.to,selected))ranges.push({from:marker.from,to:marker.to,dec:Decoration.replace({widget:new ListMarkerWidget(marker.marker,marker.ordered,marker.depth)})});
     }
     const occupied:{from:number;to:number}[]=[];
     for(const match of line.text.matchAll(/(\*\*|==|~~|`|\*|_)(.+?)\1/g)){

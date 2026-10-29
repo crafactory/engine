@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {liveBlocks,liveRegions,touchesRange,tableCells,tableRows,replaceTableCell,fenceLanguage,fenceSource} from '../src/live-model';
+import {liveBlocks,liveRegions,touchesRange,tableCells,tableRows,replaceTableCell,fenceLanguage,fenceSource,listMarker} from '../src/live-model';
 
 describe('original live Markdown block mapping',()=>{
   it('maps top-level tables, fenced diagrams, quotes, math and embeds',()=>{
@@ -68,5 +68,18 @@ describe('fenced block helpers',()=>{
   it('keeps the last body line for an unclosed fence',()=>{
     expect(fenceSource('```mermaid\nA-->B\n```')).toBe('A-->B');
     expect(fenceSource('```mermaid\nA-->B')).toBe('A-->B');
+  });
+});
+
+describe('list markers',()=>{
+  it('maps bullets and ordered markers with their source ranges',()=>{
+    expect(listMarker('- item',10)).toMatchObject({marker:'-',ordered:false,from:10,to:12,depth:0});
+    expect(listMarker('  2. item',0)).toMatchObject({marker:'2.',ordered:true,from:2,to:5,depth:1});
+    expect(listMarker('\t1) item',0)).toMatchObject({marker:'1)',ordered:true,depth:2});
+  });
+  it('ignores non-list lines and requires trailing space',()=>{
+    expect(listMarker('plain')).toBeUndefined();
+    expect(listMarker('-item')).toBeUndefined();
+    expect(listMarker('---')).toBeUndefined();
   });
 });
