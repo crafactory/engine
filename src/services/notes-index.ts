@@ -9,6 +9,7 @@
 import {Kernel, type PluginDefinition} from '../kernel';
 import type {Note} from '../types';
 import {frontmatter, headings, links, search, tags, title} from '../knowledge';
+import {parseMetadata,type CachedMetadata} from '../metadata';
 import {ENGINE_VERSION} from './version';
 
 export const INDEX_CONTRACT = 'engine.index/v1';
@@ -37,6 +38,8 @@ export interface IndexService {
   headings(path: string): IndexedHeading[];
   properties(path: string): Record<string, unknown>;
   propertyKeys(): string[];
+  /** Bounded Obsidian-shaped metadata cache for a note. */
+  metadata(path: string): CachedMetadata | undefined;
   resolve(linktext: string, from: string): string | undefined;
   search(query: string, options?: {caseSensitive?: boolean}): string[];
 }
@@ -53,6 +56,7 @@ function aliasesOf(properties: Record<string, unknown>): string[] {
 export class NotesIndex implements IndexService {
   private notes: Note[] = [];
   private readonly cache = new Map<string, IndexedNote>();
+  private readonly metadataCache = new Map<string, CachedMetadata>();
   private readonly byPath = new Map<string, string>();
 
   /** Replace the whole note set (one entry per path, last wins) and rebuild lookups. */
@@ -64,6 +68,7 @@ export class NotesIndex implements IndexService {
     }
     this.notes = [...unique.values()];
     this.cache.clear();
+    this.metadataCache.clear();
     this.reindexLookups();
   }
 
@@ -72,6 +77,7 @@ export class NotesIndex implements IndexService {
     this.notes = this.notes.filter(note => note.path !== path);
     this.notes.push({path, content});
     this.cache.delete(path);
+    this.metadataCache.delete(path);
     this.reindexLookups();
   }
 
@@ -79,6 +85,7 @@ export class NotesIndex implements IndexService {
   remove(path: string): void {
     this.notes = this.notes.filter(note => note.path !== path);
     this.cache.delete(path);
+    this.metadataCache.delete(path);
     this.reindexLookups();
   }
 
@@ -110,6 +117,15 @@ export class NotesIndex implements IndexService {
   properties(path: string): Record<string, unknown> {
     const source = this.source(path);
     return structuredClone(source ? this.derive(source).properties : {});
+  }
+
+  /** Bounded CachedMetadata-shaped view derived from the note content. */
+  metadata(path: string): CachedMetadata | undefined {
+    const source = this.source(path);
+    if (!source) return undefined;
+    let value = this.metadataCache.get(path);
+    if (!value) { value = parseMetadata(source.content); this.metadataCache.set(path, value); }
+    return structuredClone(value);
   }
 
   /** Unique frontmatter property keys across the index, in first-seen order. */

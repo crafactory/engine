@@ -1,7 +1,11 @@
 /* Original public-contract adapters. No proprietary SDK or plugin implementation. */
+import {StateField} from '@codemirror/state';
 import {Component,Editor,EditorSuggest,unsupported} from './compat-core';
 import {MarkdownRenderChild,createMarkdownRenderer,registerPostProcessor,registerCodeProcessor,stopProcessors} from './markdown-plugins';
-export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','WorkspaceLeaf','EditorSuggest','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer'] as const;
+export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','WorkspaceLeaf','EditorSuggest','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','editorLivePreviewField','editorInfoField'] as const;
+/** Bounded editor fields: live preview is always active and no file is exposed. */
+export const editorLivePreviewField=StateField.define<boolean>({create:()=>true,update:value=>value});
+export const editorInfoField=StateField.define<{file:null}>({create:()=>({file:null}),update:value=>value});
 export interface PluginTab {id:string;name:string;containerEl:HTMLElement;display():void;hide():void}
 /** Minimal QueryController: config and type only; query data is not implemented. */
 export class QueryController {
@@ -19,6 +23,7 @@ export class BasesView {
 }
 const element=(tag:string,parent?:HTMLElement,cls='')=>{const el=document.createElement(tag);el.className=cls;parent?.append(el);return el;};
 export function installDomHelpers(){
+  if(!(String.prototype as any).contains)Object.defineProperty(String.prototype,'contains',{value:function(this:string,needle:string){return this.includes(needle);},configurable:true,writable:true});
   const methods:Record<string,Function>={
     empty(this:HTMLElement){this.replaceChildren();},
     setText(this:HTMLElement,text:unknown){this.textContent=String(text);},
@@ -37,7 +42,13 @@ export function installDomHelpers(){
       }callback?.(el);return el;
     },
     createDiv(this:HTMLElement,options?:any,callback?:any){return methods.createEl.call(this,'div',options,callback);},
-    createSpan(this:HTMLElement,options?:any,callback?:any){return methods.createEl.call(this,'span',options,callback);}
+    createSpan(this:HTMLElement,options?:any,callback?:any){return methods.createEl.call(this,'span',options,callback);},
+    find(this:HTMLElement,selector:string){return this.querySelector(selector);},
+    findAll(this:HTMLElement,selector:string){return [...this.querySelectorAll(selector)];},
+    findAllSelf(this:HTMLElement,selector:string){return [...(this.matches(selector)?[this]:[]),...this.querySelectorAll(selector)];},
+    onNodeInserted(this:HTMLElement,callback:()=>void){
+      const observer=new MutationObserver(()=>callback());observer.observe(this,{childList:true,subtree:true});return ()=>observer.disconnect();
+    }
   };
   for(const [name,value]of Object.entries(methods))if(!(name in HTMLElement.prototype))Object.defineProperty(HTMLElement.prototype,name,{value,configurable:true,writable:true});
 }
@@ -146,7 +157,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   return {
     setApp(value:any){app=value;},
-    exports:{Modal,SettingTab,PluginSettingTab,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf,EditorSuggest,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app)},
+    exports:{Modal,SettingTab,PluginSettingTab,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf,EditorSuggest,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField},
     /** Bind reading post-processors to this plugin's error and lifecycle ownership. */
     postProcessor(callback:any,sortOrder?:number){if(processorsStopped)throw new Error('Plugin Markdown processors are stopped');return ownProcessor(registerPostProcessor(callback,sortOrder,onError));},
     /** Bind named code-block handlers to the same reading registry. */

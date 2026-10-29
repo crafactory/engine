@@ -88,6 +88,19 @@ describe('notes index', () => {
     expect(index.tags(['Ideas/Alpha.md'])).toEqual([{tag: 'inline', count: 1}, {tag: 'project', count: 1}]);
     expect(index.tags(['Ideas/Beta.md'])).toEqual([]);
   });
+  it('exposes bounded CachedMetadata and invalidates it on update', () => {
+    const index = new NotesIndex();
+    index.rebuild(notes);
+    const alpha = index.metadata('Ideas/Alpha.md')!;
+    expect(alpha.frontmatter?.status).toBe('active');
+    expect(alpha.headings?.map(heading => heading.heading)).toEqual(['Alpha', 'Section']);
+    expect(alpha.links?.map(link => link.link)).toContain('Ideas/Beta');
+    expect(alpha.tags?.map(tag => tag.tag)).toContain('#inline');
+    index.update('Ideas/Alpha.md', '# Changed\n\nNew #tag.\n');
+    expect(index.metadata('Ideas/Alpha.md')?.headings?.[0].heading).toBe('Changed');
+    expect(index.metadata('Ideas/Alpha.md')?.tags?.map(tag => tag.tag)).toEqual(['#tag']);
+    expect(index.metadata('Missing.md')).toBeUndefined();
+  });
   it('lists unique frontmatter property keys in first-seen order', () => {
     const index = new NotesIndex();
     index.rebuild(notes);

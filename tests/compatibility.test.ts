@@ -92,10 +92,11 @@ describe('metadata cache events',()=>{
     h.runtime.sync({...initial(),notes:[{path:'Folder/One.md',content:'changed'}]});
     expect(events).toContain('deleted:Two.md');
   });
-  it('rejects other metadata cache events and exact cache readers',()=>{
+  it('rejects other metadata cache events and invalid cache readers',()=>{
     const h=harness();
     expect(()=>h.runtime.app.metadataCache.on('file-open',()=>{})).toThrow('MetadataCache event file-open');
-    expect(()=>h.runtime.app.metadataCache.getFileCache()).toThrow(CompatibilityError);
+    expect(h.runtime.app.metadataCache.getFileCache(h.runtime.app.vault.getFiles()[0])).toBeNull();
+    expect(()=>h.runtime.app.metadataCache.getFileCache()).toThrow('File does not belong to this vault');
   });
 });
 
@@ -276,7 +277,7 @@ describe('unsupported methods fail, not no-op',()=>{
   it('renderer-only workspace leaf methods require host.ui',()=>{const h=harness();for(const method of ['getLeaf','getRightLeaf','getLeavesOfType','revealLeaf'])expect(()=>{const value=(h.runtime.app.workspace as any)[method];if(typeof value==='function')value.call(h.runtime.app.workspace);}).toThrow(CompatibilityError);});
   it('rejects undocumented app/workspace/cache access and unsupported events',()=>{
     const h=harness();
-    for(const op of [()=>h.runtime.app.fileManager,()=>h.runtime.app.vault.adapter,()=>h.runtime.app.metadataCache.getCache('Two.md'),()=>h.runtime.app.workspace.on('layout-change',()=>{}),()=>h.runtime.app.workspace.on('hover-link',()=>{})])expect(op).toThrow(CompatibilityError);
+    for(const op of [()=>h.runtime.app.fileManager,()=>h.runtime.app.vault.adapter,()=>h.runtime.app.metadataCache.fileToLinktext,()=>h.runtime.app.workspace.on('layout-change',()=>{}),()=>h.runtime.app.workspace.on('hover-link',()=>{})])expect(op).toThrow(CompatibilityError);
   });
 });
 describe('documented utility subsets',()=>{

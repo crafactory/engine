@@ -1,17 +1,17 @@
 import {it,expect,vi} from 'vitest';
-import {EditorSuggest,createCompatibilityRuntime,supportedExports,type PluginSnapshot} from '../src/compat-core';
+import {EditorSuggest,createCompatibilityRuntime,supportedExports,type CompatNativeServices,type PluginSnapshot} from '../src/compat-core';
 import {rendererExports} from '../src/compat-dom';
 import inventory from '../docs/compatibility/obsidian-exports.json';
 const manifest={id:'renderer-test',name:'Renderer test',version:'1'};
 const initial=():PluginSnapshot=>({name:'Test',active:'One.md',entries:[{path:'One.md',name:'One.md',folder:false,size:3,ctime:0,mtime:0}],notes:[{path:'One.md',content:'one'}],editor:null});
-function harness(){
+function harness(native?:CompatNativeServices){
   const settingCleanup=vi.fn(),extensionCleanup=vi.fn(),viewCleanup=vi.fn(),extensionsCleanup=vi.fn(),suggestCleanup=vi.fn(),protocolCleanup=vi.fn(),hoverCleanup=vi.fn(),basesCleanup=vi.fn(),updateOptions=vi.fn(),ribbonCleanup=vi.fn(),ribbonElement={remove:ribbonCleanup} as unknown as HTMLElement;
   const iterateAllLeaves=vi.fn(),ui={exports:{EditorSuggest},workspace:{getLeaf:()=>({fixture:true}),iterateAllLeaves},statusBar:vi.fn(),ribbonIcon:vi.fn(()=>ribbonElement),settingTab:vi.fn(()=>settingCleanup),editorExtension:vi.fn(()=>extensionCleanup),registerView:vi.fn(()=>viewCleanup),registerExtensions:vi.fn(()=>extensionsCleanup),editorSuggest:vi.fn(()=>suggestCleanup),protocolHandler:vi.fn(()=>protocolCleanup),hoverLinkSource:vi.fn(()=>hoverCleanup),basesView:vi.fn(()=>basesCleanup),updateOptions};
-  const runtime=createCompatibilityRuntime(manifest,initial(),{ui,request:async()=>null,commands:()=>{},notice:()=>{}});
+  const runtime=createCompatibilityRuntime(manifest,initial(),{ui,request:async()=>null,commands:()=>{},notice:()=>{},native});
   return {runtime,api:runtime.api as any,ui,iterateAllLeaves,settingCleanup,extensionCleanup,viewCleanup,extensionsCleanup,suggestCleanup,protocolCleanup,hoverCleanup,basesCleanup,updateOptions,ribbonCleanup,ribbonElement};
 }
 it('renderer export registry is documented, unique and disjoint from Worker exports',()=>{
-  expect(rendererExports).toHaveLength(21);expect(new Set(rendererExports).size).toBe(21);
+  expect(rendererExports).toHaveLength(23);expect(new Set(rendererExports).size).toBe(23);
   for(const name of rendererExports){expect(inventory.symbols.some(s=>s.name===name&&s.runtime)).toBe(true);expect(supportedExports).not.toContain(name);}
 });
 it('renderer MarkdownView exposes actual active document in reading mode',()=>{
@@ -55,6 +55,13 @@ it('fires bounded Vault create/delete and MetadataCache resolve events',async()=
   await vi.waitFor(()=>expect(resolved.mock.calls.some(call=>call[0].path==='Two.md')).toBe(true));
   h.runtime.sync(base);expect(deleted).toHaveBeenCalledOnce();expect(deleted.mock.calls[0][0].path).toBe('Two.md');
   await h.runtime.stop();
+});
+it('serves bounded CachedMetadata through getFileCache and getCache',()=>{
+  const h=harness({metadata:path=>({frontmatter:{path},headings:[{heading:'One',level:1,position:{start:{line:0,col:0,offset:0},end:{line:0,col:3,offset:3}}}]})});
+  const file=h.runtime.app.vault.getFileByPath('One.md')!;
+  expect(h.runtime.app.metadataCache.getFileCache(file).frontmatter).toEqual({path:'One.md'});
+  expect(h.runtime.app.metadataCache.getCache(file).headings[0].heading).toBe('One');
+  expect(()=>h.runtime.app.metadataCache.getFileCache({path:'One.md'} as any)).toThrow('File does not belong to this vault');
 });
 it('renderer keeps unsupported events and unrelated runtime exports explicit',()=>{
   const h=harness();expect(()=>h.runtime.app.workspace.on('active-leaf-change',()=>{})).toThrow('Workspace event active-leaf-change');expect(()=>h.api.MarkdownPreviewView).toThrow('export MarkdownPreviewView');

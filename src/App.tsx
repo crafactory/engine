@@ -18,6 +18,7 @@ import {Slides} from './Slides';
 import {useDialog} from './Dialog';
 import type {HoverLinkPayload,PluginCommand,PluginController} from './plugins';
 import {createCompatRuntime,type CompatHost,type CompatRuntime} from './compat';
+import {editorInfoField,editorLivePreviewField} from './compat-dom';
 import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
@@ -68,7 +69,7 @@ export function App(){
   const [recovery,setRecovery]=useState<Snapshot[]|null>(null);
   const [pluginList,setPluginList]=useState<{manifest:PluginManifest;code:string}[]>([]),[enabledPlugins,setEnabledPlugins]=useState<string[]>([]),[pluginCommands,setPluginCommands]=useState<PluginCommand[]>([]);
   const [pluginModes,setPluginModes]=useState<Record<string,string>>({}),[pluginTabs,setPluginTabs]=useState<Record<string,PluginTab[]>>({}),[pluginExtensions,setPluginExtensions]=useState<Record<string,unknown[]>>({});
-  const allPluginExtensions=useMemo(()=>Object.values(pluginExtensions).flat() as Extension[],[pluginExtensions]);
+  const allPluginExtensions=useMemo(()=>{const values=Object.values(pluginExtensions).flat() as Extension[];return values.length?[editorLivePreviewField,editorInfoField,...values]:[];},[pluginExtensions]);
   const [dirtyCount,setDirtyCount]=useState(0),[recording,setRecording]=useState(false);
   const [serviceCommands,setServiceCommands]=useState<Choice[]>([]);
   const notesRef=useRef<Note[]>([]),settingsRef=useRef(settings),editor=useRef<EditorHandle|null>(null);
@@ -562,6 +563,7 @@ export function App(){
     pluginStarting.current.add(id);
     try{
       const native={resolveLink:(link:string,from:string)=>indexRuntime.current?.index.resolve(link,from),
+        metadata:(path:string)=>indexRuntime.current?.index.metadata(path),
         editor:{providerId:editorRuntime.current?.provider.id??'unknown',codeMirrorExtensions:editorRuntime.current?.provider.capabilities().codeMirrorExtensions??false}};
       const onCommands=(commands:PluginCommand[])=>setPluginCommands(c=>[...c.filter(p=>p.plugin!==id),...commands]);
       const onFailure=()=>{clearPluginExtensions(id);pluginStops.current.delete(id);pluginManifests.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));};
