@@ -1,5 +1,25 @@
 # Verification results
 
+## Native compatibility support plugin
+
+This section records extracting the Obsidian compatibility loader behind a native contract.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 816 passed (41 files) | +3 compat-service contract cases |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` | **64 passed / 0 failed** | Existing browser flows |
+| `npm run test:desktop` (macOS) | 40 passed / 1 failed | Known pre-existing CommonJS Control-selection case; CI Linux remains the gate |
+
+`engine.compat/v1` now exposes package start/stop plus host callbacks; the built-in
+`engine.compat` native plugin provides it. `App` resolves the contract and no longer imports
+`startPlugin`/`startRendererPlugin` directly. The **Obsidian plugin support** Core plugin
+switch gates package discovery/enabling; disabling it stops enabled packages and clears the
+community list. Package discovery, Settings, and permission/vault operation binding remain in
+the application for the next migration step. The contract contains no Obsidian App/Vault/
+Workspace types, so metadata/workspace compatibility work can stay inside `src/compat/`.
+
 ## Compatibility bootstrap for Dataview startup
 
 This section records a probe-driven compatibility step, not a claim that Dataview works.

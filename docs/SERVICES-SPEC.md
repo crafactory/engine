@@ -113,6 +113,27 @@ parsed YAML value, and writes through the same `setProperties` host callback. Ex
 are stored in `VaultState.propertyTypes`; Automatic removes the entry. Source mode keeps the
 raw frontmatter. The former right-slot `engine.view.properties` panel was removed.
 
+### `engine.compat/v1`
+
+`start({package:{manifest, code}, mode, callbacks})` loads one local Obsidian-compatible
+package through the Worker or trusted-renderer runtime and returns the existing
+`PluginController` (`ready`, `sync`, `stop`, plus renderer-only view/suggest/protocol/Bases/
+hover hooks). `mode` is `worker` or `renderer`; `capabilities()` reports both
+`{worker: true, renderer: true}`. The contract deliberately exposes host callbacks, not
+Obsidian-shaped App/Vault/Workspace types:
+
+- `snapshot()` returns the current `PluginSnapshot`
+- `commands`, `operation`, `notice`, `failure` drive the host
+- optional `tabs`, `extensions`, `fileExtensions` and `native` are renderer/host hooks
+
+The built-in `engine.compat` native runtime plugin provides this service
+(`src/compat/`). The application resolves the contract, gates package loading on the
+**Obsidian plugin support** Core plugin switch, and stops enabled packages when it is
+disabled. Package discovery and the Community plugins UI still live in the application for
+now; moving them into the support plugin is a later migration step. Obsidian API semantics
+remain inside the support implementation so adding `MetadataCache` or workspace leaves does
+not change the contract.
+
 ### `engine.ui/v1`
 
 `register({kind, id, label, order?, ...})` accepts four contribution kinds:
