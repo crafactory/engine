@@ -10,7 +10,7 @@ This section records the first real Dataview query workflow.
 | `npm run test` | 824 passed (42 files) | Metadata parser, index, renderer and compatibility cases |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
 | `npm run test:e2e` | **64 passed / 0 failed** | Existing browser flows |
-| pinned Linux corpus workflow | Dataview 0.5.70 **BOUNDED_WORKFLOWS_PASS** | Run 40895741655; `LIST` renders the current page and a second page |
+| pinned Linux corpus workflow | Dataview 0.5.70 **BOUNDED_WORKFLOWS_PASS** | Run 40902123676; TABLE/TASK/FROM/WHERE workflows |
 
 `src/metadata.ts` derives an original CachedMetadata-shaped value: frontmatter and its
 position, ATX/setext headings, wiki/Markdown links and embeds, inline/frontmatter tags,
@@ -18,8 +18,7 @@ yaml/heading sections, list items/tasks and `^block` ids, with zero-based line/c
 UTF-16 full-file offsets. `engine.index/v1.metadata(path)` caches and invalidates it, and
 `MetadataCache.getFileCache/getCache` serve it to compatibility plugins. The renderer adds
 real CodeMirror editor fields, DOM query/insertion helpers, namespaced Workspace events, a
-root-path alias and `String.prototype.contains` for the pinned Dataview bundle. The corpus
-test now owns and runs a real `LIST` workflow; this is not full Dataview query semantics.
+root-path alias and `String.prototype.contains` for the pinned Dataview bundle. The corpus test now owns real `TABLE`, `TASK`, `FROM` and `WHERE` workflows; this is not full Dataview query semantics.
 
 ## Native compatibility support plugin
 
