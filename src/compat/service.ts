@@ -13,20 +13,23 @@ type RendererStarter = typeof startRendererPlugin;
 function operationFor(manifest: PluginManifest, host: CompatHost) {
   return async (name: string, args: unknown[]) => {
     checkPermission(manifest, name);
+    const path=(value:unknown)=>{if(typeof value!=='string')throw new Error('Invalid plugin vault path');return value;};
+    const text=(value:unknown)=>{if(typeof value!=='string')throw new Error('Invalid plugin text');return value;};
+    const integer=(value:unknown)=>{if(!Number.isInteger(value))throw new Error('Invalid editor mutation');return value as number;};
     switch (name) {
       case 'loadData': return host.loadData(manifest.id);
       case 'saveData': return host.saveData(manifest.id, args[0]);
-      case 'read': return host.read(String(args[0]));
-      case 'create': return host.create(String(args[0]), String(args[1]));
-      case 'modify': return host.modify(String(args[0]), String(args[1]));
-      case 'append': return host.append(String(args[0]), String(args[1]));
-      case 'writeLegacy': return host.writeLegacy(String(args[0]), String(args[1]));
-      case 'rename': return host.rename(String(args[0]), String(args[1]));
-      case 'trash': return host.trash(String(args[0]));
-      case 'mkdir': return host.mkdir(String(args[0]));
-      case 'asset': return host.asset(String(args[0]));
-      case 'open': return host.open(String(args[0]));
-      case 'editor': return host.editor(String(args[0]), String(args[1]), String(args[2]), Number(args[3]), Number(args[4]));
+      case 'read': return host.read(path(args[0]));
+      case 'create': return host.create(path(args[0]), text(args[1]));
+      case 'modify': return host.modify(path(args[0]), text(args[1]));
+      case 'append': return host.append(path(args[0]), text(args[1]));
+      case 'writeLegacy': return host.writeLegacy(path(args[0]), text(args[1]));
+      case 'rename': return host.rename(path(args[0]), path(args[1]));
+      case 'trash': return host.trash(path(args[0]));
+      case 'mkdir': return host.mkdir(path(args[0]));
+      case 'asset': return host.asset(path(args[0]));
+      case 'open': return host.open(path(args[0]));
+      case 'editor': return host.editor(path(args[0]), text(args[1]), text(args[2]), integer(args[3]), integer(args[4]));
       default: throw new Error('Unsupported plugin host operation: ' + name);
     }
   };

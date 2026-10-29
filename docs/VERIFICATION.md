@@ -7,7 +7,7 @@ This section records extracting the Obsidian compatibility loader behind a nativ
 | Check | Observed result | Scope |
 |---|---|---|
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
-| `npm run test` | 818 passed (41 files) | +5 compat discovery/host/permission cases |
+| `npm run test` | 819 passed (41 files) | +6 compat discovery/host/permission/argument cases |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
 | `npm run test:e2e` | **64 passed / 0 failed** | Existing browser flows |
 | `npm run test:desktop` (macOS) | 40 passed / 1 failed | Known pre-existing CommonJS Control-selection case; CI Linux remains the gate |
@@ -15,7 +15,7 @@ This section records extracting the Obsidian compatibility loader behind a nativ
 `engine.compat/v1` now exposes package discovery, start/stop and typed host primitives; the
 built-in `engine.compat` native plugin provides it. `App` resolves the contract and no longer
 imports `startPlugin`/`startRendererPlugin` directly, validates packages, or checks plugin
-permissions. The **Obsidian plugin support** Core plugin switch gates package
+permissions. Operation arguments are type-checked in the support service before dispatch. The **Obsidian plugin support** Core plugin switch gates package
 loading/enabling; disabling it stops enabled packages and clears the community list. The
 Community plugins Settings UI and runtime selection remain in the application for the next
 migration step. The contract contains no Obsidian App/Vault/Workspace types, so

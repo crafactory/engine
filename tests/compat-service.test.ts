@@ -48,6 +48,16 @@ describe('engine.compat/v1',()=>{
     await expect(operation('nope',[])).rejects.toThrow('Unsupported plugin host operation');
   });
 
+  it('rejects non-string content and non-integer editor ranges before dispatch',async()=>{
+    const worker=vi.fn(()=>controller);
+    const service=createCompatService({worker});
+    service.start({package:{manifest,code:''},mode:'worker',callbacks});
+    const operation=(worker.mock.calls[0] as unknown[])[4] as (name:string,args:unknown[])=>Promise<unknown>;
+    await expect(operation('create',['A.md',null])).rejects.toThrow('Invalid plugin text');
+    await expect(operation('editor',['A.md','base','next',null,0])).rejects.toThrow('Invalid editor mutation');
+    expect(host.create).not.toHaveBeenCalledWith('A.md','null');
+  });
+
   it('exposes the support plugin metadata',()=>{
     const plugin=compatPlugin({list:async()=>[],start:()=>controller,capabilities:()=>({worker:true,renderer:false})});
     expect(plugin.manifest.id).toBe('engine.compat');
