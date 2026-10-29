@@ -11,6 +11,7 @@ import type {HoverLinkPayload,PluginController} from '../plugins';
 import type {EditorHandle} from '../Editor';
 import type {EditorSession} from '../services/editor';
 import type {SlashCommandsService} from '../services/slash-commands';
+import type {BlockContribution} from '../services/ui';
 import type {Extension} from '@codemirror/state';
 import type {CompletionContext,CompletionResult} from '@codemirror/autocomplete';
 import type {IndexService} from '../services/notes-index';
@@ -43,6 +44,7 @@ export interface EditorViewProps {
   pluginExtensions?: Extension[];
   session?: EditorSession;
   slashCommands?: SlashCommandsService;
+  blocks?: BlockContribution[];
   onChange: (content: string) => void;
   onOpen: (target: string) => void;
   onCommand: (command: string) => void;

@@ -26,6 +26,7 @@ import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManif
 import {checkPermission, validatePluginPackage, readableSnapshot} from './kernel';
 import {createViewsRuntime, loadViewComponent, ViewBoundary, PluginViewHost, type ViewsRuntime, type ViewComponent, type PanelComponent, type SidePanelTab, type GraphViewProps, type EditorViewProps} from './views';
 import {editorSettingsPlugin} from './ui/settings/plugin';
+import {mermaidBlockPlugin} from './ui/blocks/plugin';
 import {ENGINE_VERSION} from './services';
 import {createWorkspaceRuntime,createEditorRuntime,createBookmarksRuntime,createDailyNotesRuntime,createNavigationRuntime,createCommandsRuntime,createStorageRuntime,createWorkspacesRuntime,createUniqueNoteRuntime,createWordCountRuntime,createSlidesRuntime,createFormatConverterRuntime,createNoteComposerRuntime,createWebViewerRuntime,createSlashCommandsRuntime,createPagePreviewRuntime,createAudioRecorderRuntime,BridgeStorage,type WorkspaceRuntime,type WorkspaceViewService,type EditorRuntime,type EditorSession,type BookmarksRuntime,type DailyNotesRuntime,type NavigationRuntime,type CommandsRuntime,type CommandsService,type NativeCommand,type AppStorageRuntime,type StoredNote,type WorkspacesRuntime,type UniqueNoteRuntime,type WordCountRuntime,type SlidesRuntime,type FormatConverterRuntime,type NoteComposerRuntime,type WebViewerRuntime,type SlashCommandsRuntime,type PagePreviewRuntime,type AudioRecorderRuntime,type ViewContribution,createUiRuntime,type UiRuntime} from './services';
 const Editor=lazy(()=>import('./Editor').then(m=>({default:m.Editor})));
@@ -93,6 +94,7 @@ export function App(){
   const uiRibbon=uiRuntime.current?.ui.ribbon()??[];
   const uiStatus=uiRuntime.current?.ui.status()??[];
   const uiSettings=uiRuntime.current?.ui.settings()??[];
+  const uiBlocks=useMemo(()=>uiRuntime.current?.ui.blocks()??[],[uiRevision]);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   const pluginManifests=useRef(new Map<string,PluginManifest>());
   const pluginFormatStacks=useRef(new Map<string,{pluginId:string;viewType:string;dispose:()=>void}[]>());
@@ -209,7 +211,7 @@ export function App(){
       if(!pagePreviewRuntime.current){const runtime=await createPagePreviewRuntime();if(unmounted.current){void runtime.kernel.stop();return;}pagePreviewRuntime.current=runtime;}
       if(!audioRuntime.current){const runtime=await createAudioRecorderRuntime();if(unmounted.current){void runtime.kernel.stop();return;}audioRuntime.current=runtime;}
       if(!viewsRuntime.current){const runtime=await createViewsRuntime();if(unmounted.current){void runtime.kernel.stop();return;}viewsRuntime.current=runtime;}
-      if(!uiRuntime.current){const runtime=await createUiRuntime({plugins:[editorSettingsPlugin]});if(unmounted.current){void runtime.kernel.stop();return;}uiRuntime.current=runtime;uiUnsub.current=runtime.ui.subscribe(()=>setUiRevision(v=>v+1));}
+      if(!uiRuntime.current){const runtime=await createUiRuntime({plugins:[editorSettingsPlugin,mermaidBlockPlugin]});if(unmounted.current){void runtime.kernel.stop();return;}uiRuntime.current=runtime;uiUnsub.current=runtime.ui.subscribe(()=>setUiRevision(v=>v+1));setUiRevision(v=>v+1);}
       editorSessions.current.clear();
       const vault=await bridge.vault();
       const all=await Promise.all(vault.entries.filter(e=>!e.folder&&textFile(e.path)).map(e=>bridge.read(e.path)));
@@ -743,7 +745,7 @@ export function App(){
         {enabled('properties')&&isNote(note.path)&&propertyEditor(note)}
       </div>
       {mode==='reading'&&isNote(note.path)?<div className={'reading-surface '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>{View?<ViewBoundary resetKey={note.path}><View {...viewProps}/></ViewBoundary>:<Markdown content={note.content} notes={notes} path={note.path} previews={pagePreviewRuntime.current?.service} onOpen={openLink} onChange={content=>editNote(note.path,content)}/>}</div>:
-        EditorView?<EditorView note={note} notes={notes} settings={{...settings,mode:mode==='reading'?'source':mode}} pluginExtensions={secondary?undefined:allPluginExtensions} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={suggestEditor} onHandle={secondary?undefined:setEditorHandle}/>:<Editor ref={secondary?undefined:editor} note={note} notes={notes} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} pluginExtensions={secondary?undefined:allPluginExtensions} settings={{...settings,mode:mode==='reading'?'source':mode}} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={suggestEditor}/>}
+        EditorView?<EditorView note={note} notes={notes} settings={{...settings,mode:mode==='reading'?'source':mode}} pluginExtensions={secondary?undefined:allPluginExtensions} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} blocks={uiBlocks} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={suggestEditor} onHandle={secondary?undefined:setEditorHandle}/>:<Editor ref={secondary?undefined:editor} note={note} notes={notes} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} blocks={uiBlocks} pluginExtensions={secondary?undefined:allPluginExtensions} settings={{...settings,mode:mode==='reading'?'source':mode}} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={suggestEditor}/>}
     </div>;
   }
   let paletteItems:Choice[]=[];

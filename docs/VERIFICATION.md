@@ -1,5 +1,23 @@
 # Verification results
 
+## Opt-in block preview contributions
+
+This section records the `engine.ui` block kind and the built-in Mermaid consumer.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 804 passed (39 files) | +1 block registry/loader case |
+| `npm run build` | Passed | Strict TypeScript and production bundle |
+| `npm run test:e2e` | **60 passed / 0 failed** | Mermaid preview + existing flows |
+
+`engine.blocks.mermaid` registers a `block` contribution (`language: 'mermaid'`, lazy
+preview loader). Live code/diagram blocks resolve the fence language and render the
+preview through a local Suspense/ViewBoundary; clicking the block reveals the fenced source.
+Removing the contribution falls back to the normal Markdown block rendering. Reading mode
+keeps the existing postprocessor lifecycle; raw processors are not executed in live
+widgets. This is the opt-in preview/edit path for plugin content.
+
 ## Frontmatter decoration and mode-switch undo
 
 This section records keeping the full document in live mode.
@@ -14,9 +32,10 @@ This section records keeping the full document in live mode.
 Live mode hides frontmatter with line decorations instead of removing it from the
 CodeMirror document; source/live switching now reconfigures a compartment and preserves the
 undo stack. The cursor is clamped below hidden frontmatter so it cannot be edited
-invisibly. Plugin code-block processor output is not enabled in live widgets yet: doing so duplicates
-processor lifecycles between live and reading surfaces. The frontmatter properties UI
-remains the side panel rather than an inline Obsidian-style properties widget.
+invisibly. Raw reading processors are still not run in live widgets (that duplicated processor
+lifecycles); explicitly registered `engine.ui` block previews are used instead. The
+frontmatter properties UI remains the side panel rather than an inline Obsidian-style
+properties widget.
 
 ## Live Preview editing and inline fixes
 

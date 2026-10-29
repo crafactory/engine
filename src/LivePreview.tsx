@@ -12,10 +12,15 @@ import type {Note} from './types';
 import {inlineLinks,type InlineLink} from './inline-links';
 import {inlineImages,type InlineImage} from './inline-images';
 import {bridge} from './bridge';
+import {BlockPreviewHost} from './ui/blocks/BlockPreviewHost';
+import type {BlockContribution} from './services/ui';
 
 export const refreshLivePreview=StateEffect.define<null>();
-interface Context {path:string;notes:Note[];onOpen:(target:string)=>void}
+interface Context {path:string;notes:Note[];onOpen:(target:string)=>void;blocks?:()=>BlockContribution[]}
 const roots=new WeakMap<HTMLElement,Root>();
+/** Language of a fenced block and its body without the fence lines. */
+function fenceLanguage(content:string){const first=(content.split('\n')[0]||'').replace(/^[`~]{3,}\s*/,'');return first.split(/\s+/)[0]||'';}
+function fenceSource(content:string){const lines=content.split('\n');return lines.length>2?lines.slice(1,-1).join('\n'):'';}
 const blockOwners=new WeakMap<HTMLElement,BlockWidget>();
 
 /** Edit bounded Markdown cells while retaining source delimiter and literal-pipe semantics. */
@@ -113,6 +118,9 @@ class BlockWidget extends WidgetType {
       }
     };
     const ctx=this.context();
+    const language=this.block.kind==='code'||this.block.kind==='diagram'?fenceLanguage(base):'';
+    const contribution=language?ctx.blocks?.().find(entry=>entry.language===language):undefined;
+    if(contribution){root.render(<BlockPreviewHost contribution={contribution} source={fenceSource(base)} path={ctx.path}/>);return;}
     root.render(this.block.kind==='table'?<LiveTable content={base} onChange={onChange} onMeasure={()=>{if(blockOwners.has(host))view.requestMeasure();}}/>:
       <Markdown content={base} notes={ctx.notes} path={ctx.path} onOpen={ctx.onOpen} onChange={onChange} pluginProcessing={false}/>);
   }

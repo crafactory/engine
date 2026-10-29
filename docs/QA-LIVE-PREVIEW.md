@@ -11,7 +11,7 @@ This revision removes the custom software-name/vault-name top bar. The operating
 - Inactive task checkboxes update their own Markdown marker, not other tasks or frontmatter.
 - Inline images render through the bridge (or safe external URLs) and reveal source on click; inline `#tags` render as pills outside code/links. Inline math renders away from the active line; math-like text in fenced/inline code stays code. Bold/italic/highlight/strike/inline code hide markers only when the touched span is not active, escaped markers stay literal, and setext headings render as headings.
 - Collapsible callouts honor `+` and `-` in both reading and live views.
-- Source/live switching keeps undo history; reading mode still remounts the editor. Plugin code-block processor output is not rendered in live blocks yet (reading mode keeps the existing processor lifecycle). Source/reading/live switching, frontmatter preservation, saving, closing the desktop app, and existing workflows remain covered by regression tests.
+- Source/live switching keeps undo history; reading mode still remounts the editor. Reading processors are not run in live blocks; explicitly registered `engine.ui` block previews (e.g., Mermaid) render and reveal source on click. Source/reading/live switching, frontmatter preservation, saving, closing the desktop app, and existing workflows remain covered by regression tests.
 
 ## Off-happy-path cases
 
