@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {liveBlocks,liveRegions,touchesRange,tableCells,tableRows,replaceTableCell} from '../src/live-model';
+import {liveBlocks,liveRegions,touchesRange,tableCells,tableRows,replaceTableCell,fenceLanguage,fenceSource} from '../src/live-model';
 
 describe('original live Markdown block mapping',()=>{
   it('maps top-level tables, fenced diagrams, quotes, math and embeds',()=>{
@@ -56,5 +56,17 @@ describe('loss-minimizing live table cell edits',()=>{
   it('does not rewrite cell escaping when committing an unchanged value',()=>{
     const text='| A | B |\n|---|---|\n| X\\|Y | Z |',cell=tableRows(text)[1].cells[0];
     expect(replaceTableCell(text,cell,cell.value)).toBe(text);
+  });
+});
+
+describe('fenced block helpers',()=>{
+  it('reads a language with permitted indentation',()=>{
+    expect(fenceLanguage('```mermaid\nA-->B\n```')).toBe('mermaid');
+    expect(fenceLanguage('   ```mermaid title\nA-->B\n   ```')).toBe('mermaid');
+    expect(fenceLanguage('~~~js\n1\n~~~')).toBe('js');
+  });
+  it('keeps the last body line for an unclosed fence',()=>{
+    expect(fenceSource('```mermaid\nA-->B\n```')).toBe('A-->B');
+    expect(fenceSource('```mermaid\nA-->B')).toBe('A-->B');
   });
 });

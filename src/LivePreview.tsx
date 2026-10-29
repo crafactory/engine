@@ -6,15 +6,17 @@ import DOMPurify from 'dompurify';
 import katex from 'katex';
 import {Markdown,renderMarkdown} from './Markdown';
 import {frontmatter} from './knowledge';
-import {liveRegions,touchesRange,tableRows,replaceTableCell,appendTableRow,appendTableColumn,tableAlignments,deleteTableRow,moveTableRow,deleteTableColumn,moveTableColumn,minimalBlockChange,type LiveBlock,type TableCell} from './live-model';
+import {liveRegions,touchesRange,fenceLanguage,fenceSource,tableRows,replaceTableCell,appendTableRow,appendTableColumn,tableAlignments,deleteTableRow,moveTableRow,deleteTableColumn,moveTableColumn,minimalBlockChange,type LiveBlock,type TableCell} from './live-model';
 import {ArrowDown,ArrowLeft,ArrowRight,ArrowUp,Trash2} from 'lucide-react';
 import type {Note} from './types';
 import {inlineLinks,type InlineLink} from './inline-links';
 import {inlineImages,type InlineImage} from './inline-images';
 import {bridge} from './bridge';
+import {BlockPreviewHost} from './ui/blocks/BlockPreviewHost';
+import type {BlockContribution} from './services/ui';
 
 export const refreshLivePreview=StateEffect.define<null>();
-interface Context {path:string;notes:Note[];onOpen:(target:string)=>void}
+interface Context {path:string;notes:Note[];onOpen:(target:string)=>void;blocks?:()=>BlockContribution[]}
 const roots=new WeakMap<HTMLElement,Root>();
 const blockOwners=new WeakMap<HTMLElement,BlockWidget>();
 
@@ -83,11 +85,12 @@ function LiveTable({content,onChange,onMeasure}:{content:string;onChange:(value:
 class BlockWidget extends WidgetType {
   readonly notes:Note[];
   /** Snapshot external documents without treating current-document typing as a dependency refresh. */
-  constructor(readonly block:LiveBlock,readonly context:()=>Context){super();this.notes=context().notes.filter(n=>n.path!==context().path);}
+  readonly contribution:BlockContribution|undefined;
+  constructor(readonly block:LiveBlock,readonly context:()=>Context){super();const ctx=context();this.notes=ctx.notes.filter(n=>n.path!==ctx.path);this.contribution=this.block.kind==='code'||this.block.kind==='diagram'?ctx.blocks?.().find(entry=>entry.language===fenceLanguage(this.block.content)):undefined;}
   /** Compare linked-note content rather than the array replaced by each current-note keystroke. */
   sameContent(other:BlockWidget){return this.block.kind===other.block.kind&&this.block.content===other.block.content&&this.context===other.context&&this.notes.length===other.notes.length&&this.notes.every((n,i)=>n.path===other.notes[i].path&&n.content===other.notes[i].content);}
   /** Let CodeMirror reuse a widget only when both its content and source coordinates match. */
-  eq(other:BlockWidget){return this.block.from===other.block.from&&this.block.to===other.block.to&&this.sameContent(other);}
+  eq(other:BlockWidget){return this.block.from===other.block.from&&this.block.to===other.block.to&&this.contribution===other.contribution&&this.sameContent(other);}
   /** Reuse measured DOM while rebinding edit callbacks to newly mapped source positions. */
   updateDOM(host:HTMLElement,view:EditorView){
     const old=blockOwners.get(host);if(!old)return false;
@@ -113,6 +116,7 @@ class BlockWidget extends WidgetType {
       }
     };
     const ctx=this.context();
+    if(this.contribution){root.render(<BlockPreviewHost contribution={this.contribution} source={fenceSource(base)} path={ctx.path}/>);return;}
     root.render(this.block.kind==='table'?<LiveTable content={base} onChange={onChange} onMeasure={()=>{if(blockOwners.has(host))view.requestMeasure();}}/>:
       <Markdown content={base} notes={ctx.notes} path={ctx.path} onOpen={ctx.onOpen} onChange={onChange} pluginProcessing={false}/>);
   }

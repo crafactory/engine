@@ -2,6 +2,7 @@ import {describe,it,expect,vi} from 'vitest';
 import {Kernel} from '../src/kernel';
 import {UiContributions, uiPlugin, UI_CONTRACT, createUiRuntime, type UiService} from '../src/services';
 import {loadSettingsComponent} from '../src/ui/contract';
+import {loadBlockComponent} from '../src/ui/blocks/contract';
 
 describe('ui contributions', () => {
   it('registers ribbon and status items and orders them', () => {
@@ -15,7 +16,9 @@ describe('ui contributions', () => {
     expect(ui.list()).toHaveLength(3);
     ui.register({kind: 'settings', id: 'prefs', label: 'Preferences', load: async () => ({})});
     expect(ui.settings().map(item => item.id)).toEqual(['prefs']);
-    expect(ui.list()).toHaveLength(4);
+    ui.register({kind: 'block', id: 'mermaid', label: 'Mermaid', language: 'mermaid', load: async () => ({})});
+    expect(ui.blocks().map(item => item.language)).toEqual(['mermaid']);
+    expect(ui.list()).toHaveLength(5);
   });
   it('replaces and revokes contributions with nearest-predecessor semantics', () => {
     const ui = new UiContributions();
@@ -58,6 +61,8 @@ describe('ui contributions', () => {
     expect(() => ui.register({kind: 'status', id: 'x', label: 'x', text: null as unknown as string})).toThrow('text');
     expect(() => ui.register({kind: 'settings', id: 'x', label: 'x', load: null as unknown as () => Promise<unknown>})).toThrow('loader');
     expect(() => ui.register({kind: 'settings', id: 'x', label: 'x', load: async () => ({}), tab: ' '})).toThrow('tab');
+    expect(() => ui.register({kind: 'block', id: 'x', label: 'x', language: '', load: async () => ({})})).toThrow('language');
+    expect(() => ui.register({kind: 'block', id: 'x', label: 'x', language: 'x', load: null as unknown as () => Promise<unknown>})).toThrow('loader');
     expect(() => ui.register({kind: 'other', id: 'x', label: 'x'} as never)).toThrow('kind');
   });
   it('interprets settings loaders as function or default-export components', async () => {
@@ -67,6 +72,12 @@ describe('ui contributions', () => {
     const exotic = {$$typeof: Symbol.for('react.memo')};
     expect(await loadSettingsComponent({kind: 'settings', id: 'm', label: 'M', load: async () => exotic})).toBe(exotic);
     await expect(loadSettingsComponent({kind: 'settings', id: 'c', label: 'C', load: async () => ({})})).rejects.toThrow('did not provide a component');
+  });
+  it('interprets block loaders as function or default-export components', async () => {
+    const component = () => null;
+    expect(await loadBlockComponent({kind: 'block', id: 'a', label: 'A', language: 'a', load: async () => component})).toBe(component);
+    expect(await loadBlockComponent({kind: 'block', id: 'b', label: 'B', language: 'b', load: async () => ({default: component})})).toBe(component);
+    await expect(loadBlockComponent({kind: 'block', id: 'c', label: 'C', language: 'c', load: async () => ({})})).rejects.toThrow('did not provide a component');
   });
   it('assembles a runtime and serves a consumer', async () => {
     const runtime = await createUiRuntime();

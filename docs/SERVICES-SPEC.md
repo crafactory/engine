@@ -109,7 +109,7 @@ renderer host. Canvas internals are split into `Card`, `FitEmbed`, `CanvasToolba
 
 ### `engine.ui/v1`
 
-`register({kind, id, label, order?, ...})` accepts three contribution kinds:
+`register({kind, id, label, order?, ...})` accepts four contribution kinds:
 
 - `ribbon`: `run()` is invoked by the host when the ribbon button is clicked; `icon` is an
   optional name (the host currently renders a generic glyph).
@@ -117,6 +117,10 @@ renderer host. Canvas internals are split into `Card`, `FitEmbed`, `CanvasToolba
 - `settings`: `load()` returns a lazy React component; `tab` selects a Settings tab
   (default `extensions`). Components receive `{value, onChange}` for the current settings
   object. The built-in Editor section is registered this way (`engine.settings.editor`).
+- `block`: `language` names a fenced code language and `load()` returns a lazy preview
+  component. Live blocks match the fence language and render the preview; clicking the
+  block reveals the fenced source. The built-in Mermaid preview is registered as
+  `engine.blocks.mermaid`; raw reading processors are not run inside live widgets.
 
 The registry validates ids, labels and kinds, replaces by `(kind, id)` with
 nearest-active-predecessor revocation, and `subscribe(listener)` reports changes. The

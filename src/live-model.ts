@@ -164,3 +164,18 @@ export function moveTableColumn(content:string,column:number,direction:1|-1):str
     return (leading?'|':'')+raw.join('|')+(trailing?'|':'');
   }).join('\n');
 }
+
+/** Language token of a fenced block, accepting up to three leading spaces. */
+export function fenceLanguage(content:string):string {
+  const first=(content.split('\n')[0]||'').replace(/^[ \t]{0,3}[`~]{3,}\s*/,'');
+  return first.split(/\s+/)[0]||'';
+}
+
+/** Fence body, preserving the last line when the fence is unclosed. */
+export function fenceSource(content:string):string {
+  const lines=content.split('\n'),opening=(lines[0]||'').match(/^[ \t]{0,3}([`~]{3,})/);
+  if(!opening)return content;
+  const marker=opening[1],closing=new RegExp('^[ \\t]{0,3}'+marker[0]+'{'+marker.length+',}\\s*$');
+  const closed=lines.length>1&&closing.test(lines[lines.length-1]||'');
+  return lines.slice(1,closed?-1:undefined).join('\n');
+}

@@ -35,7 +35,13 @@ export interface SettingsContribution extends UiContributionBase {
   tab?: string;
 }
 
-export type UiContribution = RibbonContribution | StatusContribution | SettingsContribution;
+export interface BlockContribution extends UiContributionBase {
+  kind: 'block';
+  language: string;
+  load: () => Promise<unknown>;
+}
+
+export type UiContribution = RibbonContribution | StatusContribution | SettingsContribution | BlockContribution;
 
 /** Register UI contributions and subscribe to changes. */
 export interface UiService {
@@ -44,6 +50,7 @@ export interface UiService {
   ribbon(): RibbonContribution[];
   status(): StatusContribution[];
   settings(): SettingsContribution[];
+  blocks(): BlockContribution[];
   subscribe(listener: () => void): () => void;
 }
 
@@ -66,6 +73,9 @@ export class UiContributions implements UiService {
     } else if (contribution.kind === 'settings') {
       if (typeof contribution.load !== 'function') throw new Error('Settings contribution needs a loader');
       if (contribution.tab !== undefined && (typeof contribution.tab !== 'string' || !contribution.tab.trim())) throw new Error('Invalid settings tab');
+    } else if (contribution.kind === 'block') {
+      if (typeof contribution.language !== 'string' || !contribution.language.trim()) throw new Error('Block contribution needs a language');
+      if (typeof contribution.load !== 'function') throw new Error('Block contribution needs a loader');
     } else throw new Error('Invalid UI contribution kind');
     const normalized = {...contribution} as UiContribution;
     const index = this.contributions.findIndex(candidate => candidate.kind === normalized.kind && candidate.id === normalized.id);
@@ -98,6 +108,9 @@ export class UiContributions implements UiService {
 
   /** Settings contributions in host order. */
   settings(): SettingsContribution[] { return this.list('settings') as SettingsContribution[]; }
+
+  /** Block-preview contributions in host order. */
+  blocks(): BlockContribution[] { return this.list('block') as BlockContribution[]; }
 
   /** Observe contribution changes; returns an unsubscribe function. */
   subscribe(listener: () => void): () => void {

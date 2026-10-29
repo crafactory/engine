@@ -23,7 +23,7 @@ test('inactive blocks render math, code, diagrams, tables and note embeds',async
   await expect(page.locator('.live-block-table table')).toBeVisible();
   await expect(page.locator('.live-block-math .katex-display')).toBeVisible();
   await expect(page.locator('.live-block-code pre')).toContainText('const answer = 42;');
-  await expect(page.locator('.live-block-diagram .mermaid svg')).toBeVisible();
+  await expect(page.locator('[data-block-preview="mermaid"]')).toBeVisible();await expect(page.locator('.live-block-diagram .mermaid svg')).toBeVisible();
   await expect(page.locator('.live-block-embed .embedded-note')).toContainText('Small pieces');
   await expect(page.locator('.live-inline-math')).toHaveCount(1);
   expect(errors).toEqual([]);
