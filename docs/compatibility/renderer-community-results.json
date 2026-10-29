@@ -10,10 +10,10 @@
       "manifest_sha256": "9235db47112da81b85591c79ecb9ae2574e5e72207056e976472f90616286185",
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
-      "outcome": "UNSUPPORTED_STARTUP",
-      "first_blocker": "Unsupported Obsidian capability: App.appId. See docs/PLUGIN-COMPATIBILITY.md.",
+      "outcome": "STARTUP_ONLY",
+      "first_blocker": "",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-10-12T07:46:05.157Z"
+      "checked_at": "2026-10-29T07:31:27.182Z"
     },
     {
       "name": "Templater",
