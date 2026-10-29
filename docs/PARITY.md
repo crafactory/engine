@@ -63,7 +63,7 @@ The following inventory follows the [public core-plugin list](https://help.obsid
 | Outgoing links | Implemented subset | Linked and unresolved targets; advanced context/link actions missing |
 | Outline | Implemented subset | Heading index and jump; complete folding/drag behavior missing |
 | Page preview | Implemented subset | Hover previews in reading; edit-mode modifier behavior and recursive/scroll handling missing |
-| Properties view | Implemented subset | Inline type-aware editor under the note title (text/number/checkbox/date/date-time/list, type conversion, list chips/suggestions, add/remove); property-type registry persisted per vault, default values, structured/nested values and source-mode parity remain |
+| Properties view | Implemented subset | Inline type-aware editor under the note title (text/number/checkbox/date/date-time/list, type conversion, list chips/suggestions, add/remove) with explicit types persisted per vault (Automatic falls back to inference); default values, structured/nested values and source-mode parity remain |
 | Publish | Excluded | Subscription service, no backend included |
 | Quick switcher | Implemented subset | Fuzzy filename/path search, recent order, create-on-no-match; reference ranking/modifier behavior differs |
 | Random note | Implemented subset | Random indexed Markdown file |

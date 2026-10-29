@@ -109,8 +109,9 @@ renderer host. Canvas internals are split into `Card`, `FitEmbed`, `CanvasToolba
 
 Note properties are not a panel contribution: `src/PropertiesEditor.tsx` renders inline under
 the note title in live/reading modes, infers text/number/checkbox/date/date-time/list from the
-parsed YAML value, and writes through the same `setProperties` host callback. Source mode
-keeps the raw frontmatter. The former right-slot `engine.view.properties` panel was removed.
+parsed YAML value, and writes through the same `setProperties` host callback. Explicit types
+are stored in `VaultState.propertyTypes`; Automatic removes the entry. Source mode keeps the
+raw frontmatter. The former right-slot `engine.view.properties` panel was removed.
 
 ### `engine.ui/v1`
 

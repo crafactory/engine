@@ -67,6 +67,16 @@ test('properties retain YAML types and bookmarks work',async({page})=>{
   await expect(page.getByTestId('note-editor')).toContainText('Matt');
   await expect(page.getByTestId('note-editor')).toContainText('Ada');
 });
+test('explicit property types persist across notes and automatic infers again',async({page})=>{
+  await page.getByRole('button',{name:'Add property',exact:true}).click();await page.getByTestId('dialog-input').fill('release');await page.getByTestId('dialog-submit').click();
+  await page.getByRole('button',{name:'Property type release',exact:true}).click();await page.getByRole('menuitem',{name:'Text',exact:true}).click();
+  await page.locator('input[aria-label="release"]').fill('2026-08-06');await page.locator('input[aria-label="release"]').press('Enter');
+  await expect(page.locator('input[aria-label="release"]')).toHaveAttribute('type','text');
+  await page.getByTestId('file-Ideas/Connected thinking.md').click();await page.getByTestId('file-Welcome.md').click();
+  await expect(page.locator('input[aria-label="release"]')).toHaveAttribute('type','text');
+  await page.getByRole('button',{name:'Property type release',exact:true}).click();await page.getByRole('menuitem',{name:'Automatic',exact:true}).click();
+  await expect(page.locator('input[aria-label="release"]')).toHaveAttribute('type','date');
+});
 test('rename updates links across notes',async({page})=>{
   await page.getByTestId('file-Ideas/Connected thinking.md').click();await command(page,'Rename or move current file');await page.getByTestId('dialog-input').fill('Ideas/Renamed idea.md');await page.getByTestId('dialog-submit').click();
   await expect(page.locator('.note-title h1')).toHaveText('Renamed idea');

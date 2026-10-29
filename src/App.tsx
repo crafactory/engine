@@ -21,10 +21,11 @@ import {startRendererPlugin} from './plugin-renderer';
 import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
-import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot} from './types';
+import type {Note,Entry,Settings as Preferences,VaultState,Workspace,PluginManifest,Snapshot,PropertyType} from './types';
 import {checkPermission, validatePluginPackage, readableSnapshot} from './kernel';
 import {createViewsRuntime, loadViewComponent, ViewBoundary, PluginViewHost, type ViewsRuntime, type ViewComponent, type PanelComponent, type SidePanelTab, type GraphViewProps, type EditorViewProps} from './views';
 import {PropertiesEditor} from './PropertiesEditor';
+import {readPropertyTypes} from './properties';
 import {editorSettingsPlugin} from './ui/settings/plugin';
 import {mermaidBlockPlugin} from './ui/blocks/plugin';
 import {ENGINE_VERSION} from './services';
@@ -59,6 +60,7 @@ export function App(){
   const [expanded,setExpanded]=useState<Set<string>>(new Set(['Guides','Ideas','Projects']));
   const [bookmarks,setBookmarks]=useState<string[]>([]),[recent,setRecent]=useState<string[]>([]);
   const [workspaces,setWorkspaces]=useState<Record<string,Workspace>>({});
+  const [propertyTypes,setPropertyTypes]=useState<Record<string,PropertyType>>({});
   const [query,setQuery]=useState(''),[caseSensitive,setCaseSensitive]=useState(false),[searchSort,setSearchSort]=useState('name'),[fileSort,setFileSort]=useState('name');
   const [palette,setPalette]=useState<'commands'|'files'|'templates'|'workspaces'|'merge'|null>(null);
   const [showSettings,setShowSettings]=useState(false),[slides,setSlides]=useState(false);
@@ -220,7 +222,7 @@ export function App(){
       updateNotes(all);setEntries(vault.entries);setVaultName(vault.name);setRoot(vault.root);
       const state=vault.state;
       const pref={...defaults,...state.settings};setSettings(pref);setMode(bridge.desktop?pref.mode:'reading');
-      setBookmarksFromService(state.bookmarks||[]);setWorkspacesFromService(state.workspaces||{});setRecent(state.recent||[]);
+      setBookmarksFromService(state.bookmarks||[]);setWorkspacesFromService(state.workspaces||{});setRecent(state.recent||[]);setPropertyTypes(readPropertyTypes(state.propertyTypes));
       const path=all.find(n=>n.path==='Welcome.md')?.path||all.find(n=>isNote(n.path))?.path||all[0]?.path||'';
       setTabs(path?[path]:[]);setActive(path);setSplit(null);history.current=path?[path]:[];historyIndex.current=path?0:-1;
       loaded.current=true;await loadPluginPackages();
@@ -234,9 +236,9 @@ export function App(){
   useEffect(()=>{for(const [id,controller] of pluginStops.current)controller.sync(pluginSnapshot(pluginManifests.current.get(id)));},[notes,entries,active,mode]);
   useEffect(()=>{
     if(!loaded.current)return;
-    const timer=setTimeout(()=>{bridge.state({settings,bookmarks,workspaces,recent}).catch(report);},700);
+    const timer=setTimeout(()=>{bridge.state({settings,bookmarks,workspaces,recent,propertyTypes}).catch(report);},700);
     return()=>clearTimeout(timer);
-  },[settings,bookmarks,workspaces,recent]);
+  },[settings,bookmarks,workspaces,recent,propertyTypes]);
   useEffect(()=>{document.documentElement.dataset.theme=settings.theme;},[settings.theme]);
   const refresh=useCallback(async()=>{
     try{
@@ -388,7 +390,7 @@ export function App(){
     try{await trashPath(path);}catch(e){report(e);}
   }
   async function chooseVault(create=false){
-    try{await stopPlugins();await flush();await bridge.state({settings,bookmarks,workspaces,recent});if(await bridge.choose(create))await initialize();}catch(e){report(e);}
+    try{await stopPlugins();await flush();await bridge.state({settings,bookmarks,workspaces,recent,propertyTypes});if(await bridge.choose(create))await initialize();}catch(e){report(e);}
   }
   async function dailyNote(){
     const template=notes.find(n=>n.path===settings.dailyTemplate)?.content||'# {{date}}\n\n';
@@ -735,7 +737,7 @@ export function App(){
     return <div className="note-document" onDragOver={e=>e.preventDefault()} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();importFiles(e.dataTransfer.files);}}}>
       <div className={'document-inner '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>
         <div className="note-title"><h1>{title(note.path)}</h1><button className={bookmarks.includes(path)?'is-bookmarked':''} onClick={()=>toggleBookmarkPath(path)} aria-label="Bookmark note" title="Bookmark note"><Bookmark size={19} fill={bookmarks.includes(path)?'currentColor':'none'}/></button></div>
-        {enabled('properties')&&isNote(note.path)&&mode!=='source'&&<PropertiesEditor note={note} notes={notes} onNoteChange={editNote} onError={report} ask={dialog.ask}/>}
+        {enabled('properties')&&isNote(note.path)&&mode!=='source'&&<PropertiesEditor note={note} notes={notes} types={propertyTypes} onTypeChange={(key,type)=>setPropertyTypes(current=>{const next={...current};if(type)next[key]=type;else delete next[key];return next;})} onNoteChange={editNote} onError={report} ask={dialog.ask}/>}
       </div>
       {mode==='reading'&&isNote(note.path)?<div className={'reading-surface '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>{View?<ViewBoundary resetKey={note.path}><View {...viewProps}/></ViewBoundary>:<Markdown content={note.content} notes={notes} path={note.path} previews={pagePreviewRuntime.current?.service} onOpen={openLink} onChange={content=>editNote(note.path,content)}/>}</div>:
         EditorView?<EditorView note={note} notes={notes} settings={{...settings,mode:mode==='reading'?'source':mode}} pluginExtensions={secondary?undefined:allPluginExtensions} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} blocks={uiBlocks} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={suggestEditor} onHandle={secondary?undefined:setEditorHandle}/>:<Editor ref={secondary?undefined:editor} note={note} notes={notes} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} blocks={uiBlocks} pluginExtensions={secondary?undefined:allPluginExtensions} settings={{...settings,mode:mode==='reading'?'source':mode}} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={suggestEditor}/>}
