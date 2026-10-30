@@ -15,8 +15,8 @@ This section records the compatibility surface added while validating Templater.
 Added a bounded `FileSystemAdapter`, `Vault.getConfig`, numeric Notice durations, command
 icon/hotkey metadata, CLI-handler acceptance, CodeMirror 5 mode/helper/MIME shims, Platform
 fields, `addIcon`, `createFragment`, `AbstractInputSuggest`, `FuzzySuggestModal`,
-`SettingPage`, `ConfirmationModal`, `util`/`child_process` stubs, file-menu events and
-`wasm-unsafe-eval` in the default CSP. Templater now starts under the desktop unsafe-eval
+`SettingPage`, `ConfirmationModal`, `util`/`child_process` stubs, a file-menu event backed by `Menu`/`MenuItem` in the file context menu and
+`wasm-unsafe-eval` in the default CSP. `AbstractInputSuggest`/`FuzzySuggestModal` are input-driven and `prepareFuzzySearch` returns the documented score/matches shape. Templater now starts under the desktop unsafe-eval
 entry; template insertion, file creation and shell functions remain unverified. Startup
 errors are no longer masked by an on-unload exception.
 

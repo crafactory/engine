@@ -16,6 +16,8 @@ export interface CompatNativeServices {
   editor?: {providerId: string; codeMirrorExtensions: boolean};
   /** Bounded CachedMetadata-shaped lookup for the active note set. */
   metadata?(path: string): CachedMetadata | undefined;
+  /** Desktop base path for the bounded FileSystemAdapter. */
+  basePath?: string;
 }
 export interface CompatHost {
   request(operation:string,args:unknown[]):Promise<unknown>;
@@ -39,8 +41,8 @@ export interface CompatHost {
 }
 export class FileSystemAdapter {
   constructor(private readonly root=''){}
-  getBasePath(){return this.root;}
-  getName(){return this.root.split(/[\\/]/).filter(Boolean).pop()||'';}
+  getBasePath(){if(!this.root)return unsupported('FileSystemAdapter.getBasePath');return this.root;}
+  getName(){if(!this.root)return unsupported('FileSystemAdapter.getName');return this.root.split(/[\\/]/).filter(Boolean).pop()||'';}
 }
 export class CompatibilityError extends Error {
   constructor(readonly capability:string){super('Unsupported Obsidian capability: '+capability+'. See docs/PLUGIN-COMPATIBILITY.md.');this.name='CompatibilityError';}
@@ -231,7 +233,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     result.then(()=>pending.delete(result),()=>pending.delete(result));return result;
   }
   async function settle(){while(pending.size){const results=await Promise.allSettled([...pending]);const failed=results.find(r=>r.status==='rejected');if(failed?.status==='rejected')throw failed.reason;}}
-  const adapter=new FileSystemAdapter();
+  const adapter=new FileSystemAdapter(host.native?.basePath);
   class Vault extends Events {
     configDir='.crafactory';
     get adapter(){return adapter;}
@@ -312,7 +314,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   class MarkdownView {file:TFile|null;editor:Editor|null;constructor(){this.file=vault.getFileByPath(snapshot.active);this.editor=editor;return guard(this,'MarkdownView');}getViewType(){return 'markdown';}getViewData(){return snapshot.notes.find(n=>n.path===snapshot.active)?.content||'';}}
   class Workspace extends Events {
     layoutReady=true;
-    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){const custom=name.includes(':');if(name!=='file-open'&&(!host.ui||(!['layout-change','editor-change','hover-link','file-menu','files-menu','editor-menu','url-menu'].includes(name)&&!custom)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
+    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){const custom=name.includes(':');if(name!=='file-open'&&(!host.ui||(!['layout-change','editor-change','hover-link','file-menu'].includes(name)&&!custom)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
     getActiveFile(){return vault.getFileByPath(snapshot.active);}
     getActiveViewOfType(type:unknown){return type===MarkdownView&&(editor||host.ui&&snapshot.active.endsWith('.md'))?new MarkdownView():null;}
     iterateAllLeaves(_callback:(leaf:unknown)=>void){return unsupported('Workspace.iterateAllLeaves');}
@@ -484,6 +486,11 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     /** Deliver a hover-link event to renderer plugins with a minimal hover parent. */
     hoverLink(payload:{event:MouseEvent;source:string;targetEl:HTMLElement;linktext:string;sourcePath:string}){
       workspace.trigger('hover-link',{...payload,hoverParent:{hoverPopover:null}});
+    },
+    /** Trigger a bounded workspace event from the renderer host. */
+    triggerWorkspaceEvent(name:string,args:unknown[]){
+      if(name==='file-menu'){const [menu,path,source]=args;workspace.trigger(name,menu,vault.getFileByPath(String(path)),source);}
+      else workspace.trigger(name,...args);
     },
     /** Report the active editor provider and whether CodeMirror-only extensions apply. */
     editorCompatibility(){return host.native?.editor??{providerId:'unknown',codeMirrorExtensions:!!host.ui};},

@@ -2,7 +2,7 @@
 import {StateField} from '@codemirror/state';
 import {Component,Editor,EditorSuggest,unsupported} from './compat-core';
 import {MarkdownRenderChild,createMarkdownRenderer,registerPostProcessor,registerCodeProcessor,stopProcessors} from './markdown-plugins';
-export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','FuzzySuggestModal','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','editorLivePreviewField','editorInfoField','Platform','prepareFuzzySearch'] as const;
+export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','FuzzySuggestModal','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','Menu','MenuItem','editorLivePreviewField','editorInfoField','Platform','prepareFuzzySearch'] as const;
 /** Bounded editor fields: live preview is always active and no file is exposed. */
 export const editorLivePreviewField=StateField.define<boolean>({create:()=>true,update:value=>value});
 export const editorInfoField=StateField.define<{file:null}>({create:()=>({file:null}),update:value=>value});
@@ -20,6 +20,20 @@ export class BasesView {
   render(_container:HTMLElement):void{}
   onload():void{}
   onunload():void{}
+}
+/** Minimal native menu surface used by compatibility plugins. */
+export class MenuItem {
+  title='';icon='';callback:((event:MouseEvent)=>void)|undefined;disabled=false;checked=false;separator=false;
+  setTitle(title:string){this.title=title;return this;}setIcon(icon:string){this.icon=icon;return this;}
+  setChecked(checked:boolean){this.checked=checked;return this;}setDisabled(disabled:boolean){this.disabled=disabled;return this;}
+  onClick(callback:(event:MouseEvent)=>void){this.callback=callback;return this;}
+  then(callback:(item:this)=>void){callback(this);return this;}
+}
+export class Menu {
+  items:MenuItem[]=[];
+  addItem(callback:(item:MenuItem)=>void){const item=new MenuItem();callback(item);this.items.push(item);return this;}
+  addSeparator(){const item=new MenuItem();item.separator=true;this.items.push(item);return this;}
+  setNoIcon(){return this;}onHide(){return this;}hide(){}showAtMouseEvent(){return this;}showAtPosition(){return this;}
 }
 const element=(tag:string,parent?:HTMLElement,cls='')=>{const el=document.createElement(tag);el.className=cls;parent?.append(el);return el;};
 export function installDomHelpers(){
@@ -130,16 +144,17 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     display(){}hide(){this.containerEl.remove();}
   }
   class AbstractInputSuggest {
-    limit=50;
-    constructor(public app:any,public inputEl:HTMLInputElement){}
+    limit=50;suggestionEl:HTMLElement|undefined;
+    constructor(public app:any,public inputEl:HTMLInputElement){this.inputEl.addEventListener('input',()=>this.open());}
     setValue(value:string){this.inputEl.value=value;this.inputEl.dispatchEvent(new Event('input'));}
     getSuggestions(_query:string):unknown[]{return [];}
     renderSuggestion(value:unknown,el:HTMLElement){el.textContent=String(value);}
     selectSuggestion(value:unknown){this.setValue(String(value));this.close();}
-    open(){return this;}close(){return this;}
+    open(){this.close();const items=this.getSuggestions(this.inputEl.value)?.slice(0,this.limit)??[];if(!items.length)return this;const container=element('div',document.body,'suggestion-container');const rect=this.inputEl.getBoundingClientRect();container.style.left=rect.left+'px';container.style.top=(rect.bottom+4)+'px';for(const item of items){const button=element('button',container,'suggestion-item');this.renderSuggestion(item,button);button.addEventListener('mousedown',event=>{event.preventDefault();this.selectSuggestion(item);});}this.suggestionEl=container;return this;}
+    close(){this.suggestionEl?.remove();this.suggestionEl=undefined;return this;}
   }
   /** Match a fuzzy query against text; the bounded version is a case-insensitive contains check. */
-  const prepareFuzzySearch=(query:string)=>(text:string)=>text.toLowerCase().includes(query.toLowerCase())?{}:null;
+  const prepareFuzzySearch=(query:string)=>(text:string)=>{const needle=query.toLowerCase(),haystack=text.toLowerCase(),start=haystack.indexOf(needle);return start<0?null:{score:1/(start+1),matches:[{start,end:start+needle.length}]};};
   const Platform={isMobile:false,isDesktop:true,isDesktopApp:false,isMobileApp:false,isMacOS:/Mac/i.test(navigator.platform),isWin:/Win/i.test(navigator.platform),isLinux:/Linux/i.test(navigator.platform),isIos:false,isAndroid:false};
 
   class Setting {
@@ -185,11 +200,13 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     inputEl=element('input',this.modalEl,'prompt-input') as HTMLInputElement;
     resultContainerEl=element('div',this.modalEl,'prompt-results');
     limit=50;
+    constructor(app:unknown){super(app);this.inputEl.addEventListener('input',()=>this.renderResults(this.inputEl.value));this.inputEl.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();const first=this.resultContainerEl.querySelector<HTMLButtonElement>('button');first?.click();}if(event.key==='Escape'){event.stopPropagation();this.close();}});}
     getItems():unknown[]{return [];}
     getItemText(item:unknown){return String(item);}
     onChooseItem(_item:unknown,_event?:MouseEvent){}
     setPlaceholder(text:string){this.inputEl.placeholder=text;return this;}
-    open(){this.inputEl.value='';this.resultContainerEl.replaceChildren();const items=this.getItems().slice(0,this.limit);for(const item of items){const button=element('button',this.resultContainerEl,'prompt-result');button.textContent=this.getItemText(item);button.addEventListener('click',()=>{this.onChooseItem(item);this.close();});}return super.open();}
+    renderResults(query:string){this.resultContainerEl.replaceChildren();const fuzzy=prepareFuzzySearch(query);const items=this.getItems().filter(item=>!query||fuzzy(this.getItemText(item))).slice(0,this.limit);for(const item of items){const button=element('button',this.resultContainerEl,'prompt-result');button.textContent=this.getItemText(item);button.addEventListener('click',event=>{this.onChooseItem(item,event);this.close();});}}
+    open(){this.inputEl.value='';this.renderResults('');return super.open();}
   }
   let app:any;
   class View extends Component {
@@ -214,7 +231,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   return {
     setApp(value:any){app=value;},
-    exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf,EditorSuggest,AbstractInputSuggest,FuzzySuggestModal,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,addIcon:(_name:string,_svg:string)=>{}},
+    exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf,EditorSuggest,AbstractInputSuggest,FuzzySuggestModal,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,Menu,MenuItem,addIcon:(_name:string,_svg:string)=>{}},
     /** Bind reading post-processors to this plugin's error and lifecycle ownership. */
     postProcessor(callback:any,sortOrder?:number){if(processorsStopped)throw new Error('Plugin Markdown processors are stopped');return ownProcessor(registerPostProcessor(callback,sortOrder,onError));},
     /** Bind named code-block handlers to the same reading registry. */

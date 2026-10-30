@@ -1,6 +1,6 @@
 # Public API export coverage
 
-Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 28 bounded runtime symbols. Explicit opt-in trusted renderer: 55 bounded runtime symbols (27 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
+Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 28 bounded runtime symbols. Explicit opt-in trusted renderer: 57 bounded runtime symbols (29 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
 
 | Symbol | Kind | Default Worker | Trusted renderer | Public documentation |
 |---|---|---|---|---|
@@ -35,8 +35,8 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | MarkdownPreviewView | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [MarkdownPreviewView](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownPreviewView) |
 | MarkdownRenderChild | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [MarkdownRenderChild](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownRenderChild) |
 | MarkdownView | Classes | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [MarkdownView](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownView) |
-| Menu | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [Menu](https://docs.obsidian.md/Reference/TypeScript+API/Menu) |
-| MenuItem | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [MenuItem](https://docs.obsidian.md/Reference/TypeScript+API/MenuItem) |
+| Menu | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [Menu](https://docs.obsidian.md/Reference/TypeScript+API/Menu) |
+| MenuItem | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [MenuItem](https://docs.obsidian.md/Reference/TypeScript+API/MenuItem) |
 | MenuSeparator | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [MenuSeparator](https://docs.obsidian.md/Reference/TypeScript+API/MenuSeparator) |
 | MetadataCache | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [MetadataCache](https://docs.obsidian.md/Reference/TypeScript+API/MetadataCache) |
 | Modal | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [Modal](https://docs.obsidian.md/Reference/TypeScript+API/Modal) |

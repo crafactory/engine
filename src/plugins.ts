@@ -25,6 +25,8 @@ export interface PluginController {
   hoverSources?(): string[];
   /** Renderer-only: deliver a hover-link event for one source. */
   hoverLink?(payload:HoverLinkPayload):void;
+  /** Renderer-only: trigger a compatibility workspace event. */
+  triggerWorkspaceEvent?(name:string,args:unknown[]):void;
 }
 /** CommonJS is wrapped as original source text, not eval/Function and not a proprietary SDK. */
 export function startPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,onCommands:(commands:PluginCommand[])=>void,
