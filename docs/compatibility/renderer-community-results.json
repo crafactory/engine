@@ -20,9 +20,10 @@
         "LIST SORT/LIMIT",
         "GROUP BY folder",
         "FLATTEN etags",
+        "DataviewJS CSP rejection",
         "inline query"
       ],
-      "checked_at": "2026-10-30T03:23:48.865Z"
+      "checked_at": "2026-10-30T03:52:58.102Z"
     },
     {
       "name": "Templater",
