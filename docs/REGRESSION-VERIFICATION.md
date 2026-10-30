@@ -1,5 +1,9 @@
 # Canvas / Live Edit verification
 
+> **Historical bounded record.** Current plugin/API status is in
+> [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); newer verification entries are in
+> [VERIFICATION.md](VERIFICATION.md).
+
 This is a bounded Engine regression record, not an installed Obsidian differential certification.
 
 ## Initial candidate

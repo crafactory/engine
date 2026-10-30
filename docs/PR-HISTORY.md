@@ -1,5 +1,9 @@
 # Pull request history — native plugin architecture and bounded editor work
 
+> **Historical record:** covers PRs #1–#7 only. Later PRs and their verification live in
+> Git history and [VERIFICATION.md](VERIFICATION.md); current plugin support is in
+> [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md).
+
 This document consolidates the outcomes of the pull requests that built Crafactory
 Engine's native plugin architecture and the bounded Markdown / Canvas / Live Edit
 work. It records what each change delivered, the review-driven fixes it required,

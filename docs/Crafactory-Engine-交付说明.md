@@ -1,5 +1,9 @@
 # Crafactory Engine 交付说明
 
+> **Historical v0.4.0 delivery note.** Current plugin/API status is in
+> [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md) and
+> [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md).
+
 本轮版本为 v0.4.0，重点推进插件模块、CodeMirror 与 DOM、设置和视图的原创兼容实现。完整非订阅功能 1:1 目标仍未完成，不把启动通过、导出名称覆盖或负向测试通过算作全面兼容；原创实现继续采用 MIT，没有加入 Obsidian 应用代码、SDK 声明或社区插件实现。
 
 ## 本轮新增

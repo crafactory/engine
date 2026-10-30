@@ -1,5 +1,10 @@
 # Verification results
 
+> **Scope:** this is a chronological evidence log, not the current support matrix. Older
+> sections preserve the counts and boundaries at the time they were recorded. For current
+> plugin status see [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); for API boundaries
+> see [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md).
+
 ## Templater startup compatibility
 
 This section records the compatibility surface added while validating Templater.
