@@ -24,6 +24,8 @@ export class BasesView {
 const element=(tag:string,parent?:HTMLElement,cls='')=>{const el=document.createElement(tag);el.className=cls;parent?.append(el);return el;};
 export function installDomHelpers(){
   if(!(String.prototype as any).contains)Object.defineProperty(String.prototype,'contains',{value:function(this:string,needle:string){return this.includes(needle);},configurable:true,writable:true});
+  const globalWindow=window as unknown as Record<string,unknown>;
+  if(typeof globalWindow.createFragment!=='function')globalWindow.createFragment=(callback?:(element:HTMLElement)=>void)=>{const fragment=document.createDocumentFragment();if(typeof callback==='function'){const element=document.createElement('div');callback(element);fragment.append(...element.childNodes);}return fragment;};
   const classNames=(values:unknown[]):string[]=>values.flat(Infinity).flatMap(value=>String(value).split(/\s+/)).filter(Boolean);
   const methods:Record<string,Function>={
     empty(this:HTMLElement){this.replaceChildren();},
