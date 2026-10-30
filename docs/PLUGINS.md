@@ -1,6 +1,6 @@
 # Local plugin APIs
 
-Engine retains its original Worker API and adds an experimental, independently implemented CommonJS Obsidian API subset in 0.3.0. This is not full community-plugin compatibility. See `PLUGIN-COMPATIBILITY.md`, `API-COVERAGE.md` and `examples/plugins/compat-fixture`. Only local explicit installation is available; no marketplace or unattended installer.
+Engine retains its original Worker API and adds an experimental, independently implemented CommonJS Obsidian API subset in 0.3.0. This is not full community-plugin compatibility. See `PLUGIN-SUPPORT-MATRIX.md`, `PLUGIN-COMPATIBILITY.md`, `API-COVERAGE.md` and `examples/plugins/compat-fixture`. Only local explicit installation is available; no marketplace or unattended installer.
 
 ## Layout
 
