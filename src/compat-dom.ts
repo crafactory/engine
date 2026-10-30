@@ -36,7 +36,10 @@ export function installDomHelpers(){
     appendText(this:HTMLElement,text:unknown){this.append(document.createTextNode(String(text)));},
     removeClass(this:HTMLElement,...names:string[]){this.classList.remove(...names.flatMap(s=>s.split(/\s+/)).filter(Boolean));},
     toggleClass(this:HTMLElement,names:unknown,enabled:boolean){for(const name of classNames([names]))this.classList.toggle(name,enabled);},
-    show(this:HTMLElement){this.hidden=false;},hide(this:HTMLElement){this.hidden=true;},isShown(this:HTMLElement){return !this.hidden && this.isConnected;},
+    show(this:HTMLElement){this.hidden=false;},hide(this:HTMLElement){this.hidden=true;},isShown(this:HTMLElement){
+      for(let element:HTMLElement|null=this;element;element=element.parentElement){if(element.hidden||getComputedStyle(element).display==='none')return false;}
+      return this.isConnected;
+    },
     createEl(this:HTMLElement,tag:string,options:any={},callback?:(el:HTMLElement)=>void){
       const el=element(tag,this);if(typeof options==='string')el.className=options;else{
         if(options.cls)el.className=Array.isArray(options.cls)?options.cls.join(' '):options.cls;

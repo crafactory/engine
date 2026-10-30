@@ -39,10 +39,10 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await expect(blocks.nth(1)).toContainText('Task one');await expect(blocks.nth(1)).toContainText('Task two');await expect(blocks.nth(1)).toContainText('Third task');
       await expect(blocks.nth(2)).toContainText('Third');
       await expect(blocks.nth(3)).toContainText('Second');
-      await expect(blocks.nth(4)).toContainText('Third');await expect(blocks.nth(4)).toContainText('Test');await expect(blocks.nth(4)).not.toContainText('Second');
+      expect((await blocks.nth(4).innerText()).split('\n').map(line=>line.trim()).filter(Boolean)).toEqual(['Third','Test']);
       await expect(blocks.nth(5)).toContainText('Folder');await expect(blocks.nth(5)).toContainText('Third');await expect(blocks.nth(5)).toContainText('2');
       await expect(blocks.nth(6)).toContainText('#alpha');
-      const reading=page.locator('.reading-surface');await expect(reading).toContainText('Inline:');await expect(reading).not.toContainText('= this.file.name');
+      const reading=page.locator('.reading-surface');await expect(reading).toContainText(/Inline:\s*Test/);await expect(reading).not.toContainText('= this.file.name');
       await expect(page.locator('.toast')).toHaveCount(0);
       outcome='BOUNDED_WORKFLOWS_PASS';workflows=['TABLE file.name/file.mtime','TASK','LIST FROM folder','LIST WHERE file.name','LIST SORT/LIMIT','GROUP BY folder','FLATTEN etags','inline query'];
     }else if(plugin.name==='Reading Time'){
