@@ -29,6 +29,7 @@ status tracker.
 
 ## References
 
+- `docs/REPLICATION-PLAYBOOK.md`
 - `docs/PLUGIN-SUPPORT-MATRIX.md`
 - `docs/PLUGIN-COMPATIBILITY.md`
 - `docs/TRUSTED-RENDERER-PLUGIN-TESTS.md`
