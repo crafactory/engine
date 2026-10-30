@@ -1,6 +1,6 @@
 # Plugin compatibility report
 
-Crafactory Engine v0.5.0 provides an experimental independent compatibility subset, not comprehensive Obsidian plugin support. Original code is MIT; dependency licenses remain intact. No proprietary application implementation, SDK package, declaration files or sample-plugin source is used. Public behavioral references and unchanged, external community-plugin release bytes serve different roles: documentation informs original adapters; real plugins are black-box test inputs only. Development and builds now go through a PR; publication waits for completed CodeRabbit review, repaired findings and merge.
+Crafactory Engine v0.5.0 provides an experimental independent compatibility subset, not comprehensive Obsidian plugin support. Current per-plugin and per-capability status is tracked in [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md). Original code is MIT; dependency licenses remain intact. No proprietary application implementation, SDK package, declaration files or sample-plugin source is used. Public behavioral references and unchanged, external community-plugin release bytes serve different roles: documentation informs original adapters; real plugins are black-box test inputs only. Development and builds now go through a PR; publication waits for completed CodeRabbit review, repaired findings and merge.
 
 ## Two explicit runtimes
 
