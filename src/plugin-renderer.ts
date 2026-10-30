@@ -11,7 +11,9 @@ import {createCompatibilityRuntime,CompatibilityError,type CompatNativeServices,
 import {createDomAdapters,type PluginTab} from './compat-dom';
 import type {PluginManifest} from './types';
 import type {PluginCommand,PluginController} from './plugins';
-const modules:Record<string,unknown>={'@codemirror/state':state,'@codemirror/view':view,'@codemirror/commands':commands,'@codemirror/language':language,'@codemirror/search':search,'@codemirror/autocomplete':autocomplete,'@codemirror/lang-markdown':markdown,'@lezer/highlight':highlight};
+const util={promisify(fn:(...args:any[])=>unknown){return (...args:unknown[])=>new Promise((resolve,reject)=>fn(...args,(error:unknown,result:unknown)=>error?reject(error):resolve(result)));}};
+const childProcess={exec(_command:string,_options:unknown,callback?:(error:Error)=>void){callback?.(new Error('child_process is unavailable in the trusted renderer'));}};
+const modules:Record<string,unknown>={'@codemirror/state':state,'@codemirror/view':view,'@codemirror/commands':commands,'@codemirror/language':language,'@codemirror/search':search,'@codemirror/autocomplete':autocomplete,'@codemirror/lang-markdown':markdown,'@lezer/highlight':highlight,'util':util,'child_process':childProcess};
 /** Load explicitly authorized local CommonJS source in the renderer with bounded host adapters. */
 export function startRendererPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,
   onCommands:(commands:PluginCommand[])=>void,operation:(name:string,args:unknown[])=>Promise<unknown>,
@@ -35,9 +37,6 @@ export function startRendererPlugin(manifest:PluginManifest,code:string,getSnaps
   function fail(reason:unknown){if(!alive||stopping)return;onNotice(manifest.name+': '+(reason instanceof Error?reason.message:String(reason)));void stop().catch(error=>onNotice(String(error))).finally(onFailure);}
   const slot='__engine_plugin_'+crypto.randomUUID().replaceAll('-','');
   const global=window as unknown as Record<string,unknown>;
-  // Compatibility shim for plugins that still register CodeMirror 5 highlighting modes.
-  const codeMirror5=(global.CodeMirror??={}) as {defineMode?:()=>void;getMode?:()=>null};
-  codeMirror5.defineMode??=()=>{};codeMirror5.getMode??=()=>null;
   let execute:((require:(name:string)=>unknown,module:{exports:any},exports:any)=>void)|undefined;
   global[slot]=(callback:typeof execute)=>{execute=callback;};
   const url=URL.createObjectURL(new Blob([`window[${JSON.stringify(slot)}](function(require,module,exports){\n${code}\n});\nexport {};\n`],{type:'text/javascript'}));

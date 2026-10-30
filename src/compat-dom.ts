@@ -2,7 +2,7 @@
 import {StateField} from '@codemirror/state';
 import {Component,Editor,EditorSuggest,unsupported} from './compat-core';
 import {MarkdownRenderChild,createMarkdownRenderer,registerPostProcessor,registerCodeProcessor,stopProcessors} from './markdown-plugins';
-export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','WorkspaceLeaf','EditorSuggest','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','editorLivePreviewField','editorInfoField'] as const;
+export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','FuzzySuggestModal','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','editorLivePreviewField','editorInfoField','Platform','prepareFuzzySearch'] as const;
 /** Bounded editor fields: live preview is always active and no file is exposed. */
 export const editorLivePreviewField=StateField.define<boolean>({create:()=>true,update:value=>value});
 export const editorInfoField=StateField.define<{file:null}>({create:()=>({file:null}),update:value=>value});
@@ -26,6 +26,19 @@ export function installDomHelpers(){
   if(!(String.prototype as any).contains)Object.defineProperty(String.prototype,'contains',{value:function(this:string,needle:string){return this.includes(needle);},configurable:true,writable:true});
   const globalWindow=window as unknown as Record<string,unknown>;
   if(typeof globalWindow.createFragment!=='function')globalWindow.createFragment=(callback?:(element:HTMLElement)=>void)=>{const fragment=document.createDocumentFragment();if(typeof callback==='function'){const element=document.createElement('div');callback(element);fragment.append(...element.childNodes);}return fragment;};
+  // Bounded CodeMirror 5 surface for legacy highlighting-mode registration.
+  const codeMirror=(globalWindow.CodeMirror??={}) as Record<string,any>;
+  const genericMode={name:'null',startState:()=>({}),copyState:(state:unknown)=>state,blankLine:()=>null,token:()=>null};
+  const modes=new Map<string,any>([['javascript',{...genericMode,name:'javascript'}]]);
+  codeMirror.defineMode??=(name:string,factory:any)=>modes.set(name,factory);
+  codeMirror.getMode??=((config:unknown,name:string)=>{let mode=modes.get(name);if(typeof mode==='function'){mode=mode({statementIndent:2,indentUnit:2,json:false,jsonld:false,typescript:false,trackScope:true,...(config as Record<string,unknown>||{})});modes.set(name,mode);}return mode??genericMode;}) as any;
+  codeMirror.startState??=((mode:any)=>mode?.startState?.()??{}) as any;
+  codeMirror.registerHelper??=(()=>{}) as any;
+  codeMirror.defineMIME??=((mime:string,name:string)=>{modes.set(mime,modes.get(name)??genericMode);}) as any;
+  codeMirror.customOverlayMode??=((base:any,overlay:any)=>({name:overlay.name||'overlay',startState:()=>({...base?.startState?.(),...overlay?.startState?.()}),copyState:(state:any)=>overlay.copyState?overlay.copyState(state):state,blankLine:(state:any)=>overlay.blankLine?.(state)??base?.blankLine?.(state)??null,token:(stream:any,state:any)=>overlay.token?.(stream,state)??base?.token?.(stream,state)??null})) as any;
+  codeMirror.overlayMode??=codeMirror.customOverlayMode;
+  if(typeof globalWindow.addIcon!=='function')globalWindow.addIcon=()=>{};
+
   const classNames=(values:unknown[]):string[]=>values.flat(Infinity).flatMap(value=>String(value).split(/\s+/)).filter(Boolean);
   const methods:Record<string,Function>={
     empty(this:HTMLElement){this.replaceChildren();},
@@ -112,6 +125,23 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     onChange(callback:(value:number)=>unknown){this.sliderEl.addEventListener('input',()=>safe(callback)(this.getValue()));return this;}
     setDisabled(disabled:boolean){super.setDisabled(disabled);this.sliderEl.disabled=disabled;return this;}
   }
+  class SettingPage extends Component {
+    containerEl=element('div',undefined,'plugin-settings-page');
+    display(){}hide(){this.containerEl.remove();}
+  }
+  class AbstractInputSuggest {
+    limit=50;
+    constructor(public app:any,public inputEl:HTMLInputElement){}
+    setValue(value:string){this.inputEl.value=value;this.inputEl.dispatchEvent(new Event('input'));}
+    getSuggestions(_query:string):unknown[]{return [];}
+    renderSuggestion(value:unknown,el:HTMLElement){el.textContent=String(value);}
+    selectSuggestion(value:unknown){this.setValue(String(value));this.close();}
+    open(){return this;}close(){return this;}
+  }
+  /** Match a fuzzy query against text; the bounded version is a case-insensitive contains check. */
+  const prepareFuzzySearch=(query:string)=>(text:string)=>text.toLowerCase().includes(query.toLowerCase())?{}:null;
+  const Platform={isMobile:false,isDesktop:true,isDesktopApp:false,isMobileApp:false,isMacOS:/Mac/i.test(navigator.platform),isWin:/Win/i.test(navigator.platform),isLinux:/Linux/i.test(navigator.platform),isIos:false,isAndroid:false};
+
   class Setting {
     settingEl:HTMLElement;infoEl:HTMLElement;nameEl:HTMLElement;descEl:HTMLElement;controlEl:HTMLElement;components:any[]=[];
     constructor(parent:HTMLElement){this.settingEl=element('div',parent,'setting-item');this.infoEl=element('div',this.settingEl,'setting-item-info');this.nameEl=element('div',this.infoEl,'setting-item-name');this.descEl=element('div',this.infoEl,'setting-item-description');this.controlEl=element('div',this.settingEl,'setting-item-control');}
@@ -143,6 +173,24 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     open(){if(this.containerEl.isConnected)return;this.previous=document.activeElement;document.body.append(this.containerEl);modals.add(this);safe(()=>this.onOpen())();this.modalEl.setAttribute('aria-label',this.titleEl.textContent||'Plugin modal');this.modalEl.querySelector<HTMLElement>('button,input')?.focus();}
     close(){if(!modals.delete(this))return;this.containerEl.remove();safe(()=>this.onClose())();safe(()=>this.callback?.())();if(this.shouldRestoreSelection&&(this.previous as HTMLElement)?.isConnected)(this.previous as HTMLElement).focus();}
   }
+  class ConfirmationModal extends Modal {
+    /** Add a footer button using the bounded ButtonComponent surface. */
+    addButton(callback:(button:ButtonComponent)=>void){const footer=element('footer',this.modalEl,'modal-button-container');const button=new ButtonComponent(footer);callback(button);return this;}
+    /** Add an acknowledgement checkbox whose callback receives its checked state. */
+    addCheckbox(label:string,callback:(checked:boolean)=>void){const wrap=element('label',this.modalEl,'modal-checkbox');const input=element('input',wrap) as HTMLInputElement;input.type='checkbox';wrap.append(document.createTextNode(label));input.addEventListener('change',()=>safe(callback)(input.checked));return this;}
+    /** Add a cancel button that closes this dialog. */
+    addCancelButton(){return this.addButton(button=>button.setButtonText('Cancel').onClick(()=>this.close()));}
+  }
+  class FuzzySuggestModal extends Modal {
+    inputEl=element('input',this.modalEl,'prompt-input') as HTMLInputElement;
+    resultContainerEl=element('div',this.modalEl,'prompt-results');
+    limit=50;
+    getItems():unknown[]{return [];}
+    getItemText(item:unknown){return String(item);}
+    onChooseItem(_item:unknown,_event?:MouseEvent){}
+    setPlaceholder(text:string){this.inputEl.placeholder=text;return this;}
+    open(){this.inputEl.value='';this.resultContainerEl.replaceChildren();const items=this.getItems().slice(0,this.limit);for(const item of items){const button=element('button',this.resultContainerEl,'prompt-result');button.textContent=this.getItemText(item);button.addEventListener('click',()=>{this.onChooseItem(item);this.close();});}return super.open();}
+  }
   let app:any;
   class View extends Component {
     leaf:any;app:any;containerEl:HTMLElement;icon='file';navigation=false;
@@ -166,7 +214,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   return {
     setApp(value:any){app=value;},
-    exports:{Modal,SettingTab,PluginSettingTab,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf,EditorSuggest,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField},
+    exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf,EditorSuggest,AbstractInputSuggest,FuzzySuggestModal,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,addIcon:(_name:string,_svg:string)=>{}},
     /** Bind reading post-processors to this plugin's error and lifecycle ownership. */
     postProcessor(callback:any,sortOrder?:number){if(processorsStopped)throw new Error('Plugin Markdown processors are stopped');return ownProcessor(registerPostProcessor(callback,sortOrder,onError));},
     /** Bind named code-block handlers to the same reading registry. */

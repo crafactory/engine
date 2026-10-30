@@ -37,6 +37,11 @@ export interface CompatHost {
     codeProcessor?(language:string,callback:any,sortOrder?:number):{processor:any;dispose:()=>Promise<void>};
   };
 }
+export class FileSystemAdapter {
+  constructor(private readonly root=''){}
+  getBasePath(){return this.root;}
+  getName(){return this.root.split(/[\\/]/).filter(Boolean).pop()||'';}
+}
 export class CompatibilityError extends Error {
   constructor(readonly capability:string){super('Unsupported Obsidian capability: '+capability+'. See docs/PLUGIN-COMPATIBILITY.md.');this.name='CompatibilityError';}
 }
@@ -47,7 +52,7 @@ function guard<T extends object>(object:T,label:string):T{return new Proxy(objec
   return unsupported(label+'.'+key);
 }});}
 export const supportedExports=[
-  'Plugin','Component','Events','Notice','TAbstractFile','TFile','TFolder','Vault','Workspace','Editor','MarkdownView',
+  'Plugin','Component','Events','Notice','TAbstractFile','TFile','TFolder','Vault','Workspace','Editor','MarkdownView','FileSystemAdapter',
   'normalizePath','parseYaml','stringifyYaml','parseLinktext','getLinkpath','getAllTags',
   'parseFrontMatterAliases','parseFrontMatterTags','parseFrontMatterEntry','parseFrontMatterStringArray',
   'getFrontMatterInfo','iterateRefs','iterateCacheRefs','debounce','apiVersion','requireApiVersion'
@@ -97,7 +102,7 @@ export class Component {
     this.lifecycle.startup=startup;
     void (async()=>{
       try{await this.onload();if(!this.loaded||generation!==this.generation)return;for(const child of this.children){if(!this.loaded||generation!==this.generation)break;const started=this.childStarts.get(child);try{await (started??Promise.all([child.load(),componentLifecycle(child,'startup')]));}finally{if(this.childStarts.get(child)===started)this.childStarts.delete(child);}}}
-      catch(e){if(generation===this.generation)await this.unload();throw e;}
+      catch(e){if(generation===this.generation){try{await this.unload();}catch{/* preserve the startup error */}}throw e;}
     })().then(resolve,reject);
     try{await startup;}finally{if(this.lifecycle.startup===startup)this.lifecycle.startup=undefined;}
   }
@@ -226,9 +231,11 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     result.then(()=>pending.delete(result),()=>pending.delete(result));return result;
   }
   async function settle(){while(pending.size){const results=await Promise.allSettled([...pending]);const failed=results.find(r=>r.status==='rejected');if(failed?.status==='rejected')throw failed.reason;}}
+  const adapter=new FileSystemAdapter();
   class Vault extends Events {
     configDir='.crafactory';
-    get adapter(){return unsupported('Vault.adapter');}
+    get adapter(){return adapter;}
+    getConfig(key:string){return key==='vimMode'?false:null;}
     on(name:string,callback:(...args:any[])=>void,ctx?:unknown){if(!['modify','create','delete','rename'].includes(name))return unsupported('Vault event '+name);return super.on(name,callback,ctx);}
     getName(){return snapshot.name;}getRoot(){return objects.get('') as TFolder;}
     getFiles(){return [...objects.values()].filter((f):f is TFile=>f instanceof TFile);}
@@ -305,7 +312,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   class MarkdownView {file:TFile|null;editor:Editor|null;constructor(){this.file=vault.getFileByPath(snapshot.active);this.editor=editor;return guard(this,'MarkdownView');}getViewType(){return 'markdown';}getViewData(){return snapshot.notes.find(n=>n.path===snapshot.active)?.content||'';}}
   class Workspace extends Events {
     layoutReady=true;
-    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){const custom=name.includes(':');if(name!=='file-open'&&(!host.ui||(!['layout-change','editor-change','hover-link'].includes(name)&&!custom)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
+    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){const custom=name.includes(':');if(name!=='file-open'&&(!host.ui||(!['layout-change','editor-change','hover-link','file-menu','files-menu','editor-menu','url-menu'].includes(name)&&!custom)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
     getActiveFile(){return vault.getFileByPath(snapshot.active);}
     getActiveViewOfType(type:unknown){return type===MarkdownView&&(editor||host.ui&&snapshot.active.endsWith('.md'))?new MarkdownView():null;}
     iterateAllLeaves(_callback:(leaf:unknown)=>void){return unsupported('Workspace.iterateAllLeaves');}
@@ -394,13 +401,13 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     return checking?result===true:result;
   }
   function publish(){initEditor();host.commands([...commands.values()].filter(c=>available(c,true)).map(c=>({id:c.id,name:manifest.name+': '+c.name})));}
-  class Notice {constructor(message:string|DocumentFragment,timeout?:number){if(typeof message!=='string')unsupported('Notice DocumentFragment');if(timeout!==undefined)unsupported('Notice custom duration');host.notice(String(message));}setMessage(message:string){host.notice(message);return this;}hide(){return unsupported('Notice.hide');}get noticeEl(){return unsupported('Notice.noticeEl');}}
+  class Notice {constructor(message:string|DocumentFragment,timeout?:number){if(typeof message!=='string')unsupported('Notice DocumentFragment');if(timeout!==undefined&&typeof timeout!=='number')unsupported('Notice custom duration');host.notice(String(message));}setMessage(message:string){host.notice(message);return this;}hide(){return unsupported('Notice.hide');}get noticeEl(){return unsupported('Notice.noticeEl');}}
   class Plugin extends Component {
     app=app;manifest=manifest;
     constructor(_app=app,_manifest=manifest){super();this.app=_app;this.manifest=_manifest;}
     addCommand(command:CompatCommand){
       if(typeof command.id!=='string'||typeof command.name!=='string'||!command.id)throw new Error('Invalid plugin command');
-      if(command.hotkeys||command.icon||command.repeatable||command.mobileOnly)return unsupported('Command hotkeys/icon/repeatable/mobileOnly');
+      if(command.repeatable||command.mobileOnly)return unsupported('Command repeatable/mobileOnly');
       commands.set(command.id,command);publish();this.register(()=>{commands.delete(command.id);});return {...command,id:manifest.id+':'+command.id,name:manifest.name+': '+command.name};
     }
     removeCommand(id:string){commands.delete(id.startsWith(manifest.id+':')?id.slice(manifest.id.length+1):id);publish();}
@@ -446,9 +453,9 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
       if(!host.ui?.basesView)return unsupported('Plugin.registerBasesView');
       this.register(host.ui.basesView(id,factory));
     }
-    registerCliHandler(){return unsupported('Plugin.registerCliHandler');}
+    registerCliHandler(){return ()=>{};}
   }
-  const exports:Record<string,unknown>={Plugin,Component,Events,Notice,TAbstractFile,TFile,TFolder,Vault,Workspace,Editor,MarkdownView,
+  const exports:Record<string,unknown>={Plugin,Component,Events,Notice,TAbstractFile,TFile,TFolder,Vault,Workspace,Editor,MarkdownView,FileSystemAdapter,
     normalizePath,parseYaml,stringifyYaml,parseLinktext,getLinkpath:(text:string)=>parseLinktext(text).path,
     getAllTags:(cache:any)=>[...new Set([...(cache?.tags||[]).map((t:any)=>t.tag),...(stringArray(cache?.frontmatter?.tags)||[]).map(t=>t.startsWith('#')?t:'#'+t)])],
     parseFrontMatterAliases:(fm:any)=>stringArray(fm?.aliases??fm?.alias),
