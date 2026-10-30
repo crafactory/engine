@@ -1,6 +1,6 @@
 # Plugin compatibility report
 
-Crafactory Engine v0.5.0 provides an experimental independent compatibility subset, not comprehensive Obsidian plugin support. Current per-plugin and per-capability status is tracked in [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md). Original code is MIT; dependency licenses remain intact. No proprietary application implementation, SDK package, declaration files or sample-plugin source is used. Public behavioral references and unchanged, external community-plugin release bytes serve different roles: documentation informs original adapters; real plugins are black-box test inputs only. Development and builds now go through a PR; publication waits for completed CodeRabbit review, repaired findings and merge.
+Crafactory Engine v0.6.0 provides an experimental independent compatibility subset, not comprehensive Obsidian plugin support. Current per-plugin and per-capability status is tracked in [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md). Original code is MIT; dependency licenses remain intact. No proprietary application implementation, SDK package, declaration files or sample-plugin source is used. Public behavioral references and unchanged, external community-plugin release bytes serve different roles: documentation informs original adapters; real plugins are black-box test inputs only. Development and builds now go through a PR; publication waits for completed CodeRabbit review, repaired findings and merge.
 
 ## Two explicit runtimes
 
@@ -55,17 +55,27 @@ Editor remains a single UTF-16 snapshot selection with asynchronous expected-tex
 
 ## Real plugins and interpretation
 
-Default Worker still fails all five pinned releases at startup, as recorded in `COMMUNITY-PLUGIN-TESTS.md`. Separate trusted-renderer outcomes and exact bounded workflows are recorded in `TRUSTED-RENDERER-PLUGIN-TESTS.md` and `compatibility/renderer-community-results.json`; the input hashes have not changed.
+Current per-plugin outcomes and verified workflows are tracked in
+[PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); per-run hashes and timestamps are in
+[TRUSTED-RENDERER-PLUGIN-TESTS.md](TRUSTED-RENDERER-PLUGIN-TESTS.md) and
+[compatibility/renderer-community-results.json](compatibility/renderer-community-results.json).
+Default Worker still fails all five pinned releases. Reading Time and Dataview have bounded
+functional workflows; Templater, Calendar and Advanced Tables are startup-only. DataviewJS and
+`dv.view` require the explicit desktop `unsafe-eval` entry. A bounded workflow pass is not full
+plugin compatibility, and third-party source is never copied into Engine or its installer.
 
-Reading Time receives positive assertions for document time, settings persistence, editor changes, reading/source transition, selected-text Modal, disable and re-enable. This is not full Reading Time equivalence. Calendar and Advanced Tables startup alone do not certify functional behavior. The pinned Linux corpus run (2026-10-30) now executes bounded Dataview `TABLE`, `TASK`, `FROM`, `WHERE`, `SORT`/`LIMIT`, `GROUP BY`, `FLATTEN` and inline-query workflows after the App/Vault/MetadataCache/CodeMirror and DOM-helper work. DataviewJS and a `dv.view` script execute under the explicit desktop `unsafe-eval` opt-in and are part of the bounded corpus. `dv.view` resolves the script through exact file paths and reads `.js`/`.mjs` vault text. This is not full Dataview expression/frontmatter/workspace-view compatibility; the result file records `BOUNDED_WORKFLOWS_PASS` only for the listed workflows. Templater still has a first-load `LOAD_ERROR`. Generic class errors are not guessed API diagnoses. Community stylesheets remain unsupported, and third-party source is never copied into Engine or installer.
-
-Tests in `tests/renderer-contracts.test.ts` cover renderer dispatch/event contracts; `e2e-desktop/renderer.spec.ts` tests actual controls, focus, editor integration, failure cleanup and view/unload. The original Worker export/member/rejection tests remain. Real corpus tests run only with verified external inputs; ordinary CI skips them, while the manual corpus workflow runs both modes. A passing negative test means refusal was observed, not successful compatibility.
+Tests in `tests/renderer-contracts.test.ts` cover renderer dispatch/event contracts;
+`e2e-desktop/renderer.spec.ts` tests actual controls, focus, editor integration, failure cleanup
+and view/unload. The original Worker export/member/rejection tests remain. Real corpus tests
+run only with verified external inputs; ordinary CI skips them, while the manual corpus
+workflow runs both modes. A passing negative test means refusal was observed, not successful
+compatibility.
 
 ## Unfinished gates
 
 - [ ] Fix an installed reference application version for clean-room external differential tests.
 - [ ] Audit every public member, overload, event, timing contract and DOM extension.
-- [ ] Execute Calendar/Advanced Tables workflows and resolve Dataview/Templater blockers.
+- [ ] Execute Templater template workflows and Calendar/Advanced Tables workflows.
 - [ ] Full renderer processors, MarkdownRenderChild, editor suggestions, ribbons, menus, CSS/theme variables and multiple leaves.
 - [ ] Node/Electron/network/module assumptions under an explicit reviewed permission policy.
 - [ ] Marketplace, version requirements, protocol/URI, hover, Bases and CLI extension APIs.

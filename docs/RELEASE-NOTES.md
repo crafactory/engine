@@ -1,5 +1,8 @@
 # Crafactory Engine v0.6.0 prerelease
 
+> **Historical v0.6.0 prerelease note.** Current compatibility status is in
+> [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md).
+
 Independent original MIT implementation. This is a bounded bug-fix increment and architecture proposal, not complete non-subscription Obsidian parity.
 
 ## Fixes

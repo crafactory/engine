@@ -1,5 +1,8 @@
 # Crafactory Engine v0.4.0
 
+> **Historical v0.4.0 release note.** Current compatibility status is in
+> [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md).
+
 Independent original code remains MIT, without proprietary Obsidian application/SDK code. This is a prerelease increment, not full non-subscription 1:1 parity.
 
 ## New
