@@ -18,7 +18,7 @@ import {Slides} from './Slides';
 import {useDialog} from './Dialog';
 import type {HoverLinkPayload,PluginCommand,PluginController} from './plugins';
 import {createCompatRuntime,type CompatHost,type CompatRuntime} from './compat';
-import {editorInfoField,editorLivePreviewField} from './compat-dom';
+import {Menu as ContextMenu,editorInfoField,editorLivePreviewField} from './compat-dom';
 import type {PluginTab} from './compat-dom';
 import type {Extension} from '@codemirror/state';
 import type {PluginSnapshot} from './compat-core';
@@ -65,7 +65,7 @@ export function App(){
   const [query,setQuery]=useState(''),[caseSensitive,setCaseSensitive]=useState(false),[searchSort,setSearchSort]=useState('name'),[fileSort,setFileSort]=useState('name');
   const [palette,setPalette]=useState<'commands'|'files'|'templates'|'workspaces'|'merge'|null>(null);
   const [showSettings,setShowSettings]=useState(false),[slides,setSlides]=useState(false);
-  const [context,setContext]=useState<{path:string;x:number;y:number}|null>(null);
+  const [context,setContext]=useState<{path:string;x:number;y:number;menu?:ContextMenu}|null>(null);
   const [recovery,setRecovery]=useState<Snapshot[]|null>(null);
   const [pluginList,setPluginList]=useState<{manifest:PluginManifest;code:string}[]>([]),[enabledPlugins,setEnabledPlugins]=useState<string[]>([]),[pluginCommands,setPluginCommands]=useState<PluginCommand[]>([]);
   const [pluginModes,setPluginModes]=useState<Record<string,string>>({}),[pluginTabs,setPluginTabs]=useState<Record<string,PluginTab[]>>({}),[pluginExtensions,setPluginExtensions]=useState<Record<string,unknown[]>>({});
@@ -562,7 +562,7 @@ export function App(){
     };
     pluginStarting.current.add(id);
     try{
-      const native={resolveLink:(link:string,from:string)=>indexRuntime.current?.index.resolve(link,from),
+      const native={basePath:root,resolveLink:(link:string,from:string)=>indexRuntime.current?.index.resolve(link,from),
         metadata:(path:string)=>indexRuntime.current?.index.metadata(path),
         editor:{providerId:editorRuntime.current?.provider.id??'unknown',codeMirrorExtensions:editorRuntime.current?.provider.capabilities().codeMirrorExtensions??false}};
       const onCommands=(commands:PluginCommand[])=>setPluginCommands(c=>[...c.filter(p=>p.plugin!==id),...commands]);
@@ -783,7 +783,7 @@ export function App(){
   const SearchView=sideTab==='search'?panelComponent('search','left'):undefined;
   const searchProps=SearchView?{...panelBase,sideTab:'search' as const,query,caseSensitive,searchSort,results,onQuery:setQuery,onToggleCase:()=>setCaseSensitive(value=>!value),onSearchSort:setSearchSort,onCopy:()=>{void navigator.clipboard?.writeText(results.map(note=>`[[${note.path.replace(/\.md$/,'')}]]`).join('\n')).then(()=>toast('Search results copied.')).catch(report);},onOpenFile:open}:undefined;
   const FilesView=sideTab==='files'?panelComponent('files','left'):undefined;
-  const filesProps=FilesView?{...panelBase,sideTab:'files' as const,entries,activePath:active,fileSort,expanded,loading,childrenFor:treeChildren,onToggleFolder:(path:string)=>setExpanded(current=>{const next=new Set(current);next.has(path)?next.delete(path):next.add(path);return next;}),onOpenFile:open,onFileContextMenu:(path:string,x:number,y:number)=>setContext({path,x:Math.min(x,window.innerWidth-225),y:Math.min(y,window.innerHeight-260)}),onDropFile:(from:string,folder:string)=>renamePath(from,folder+'/'+from.split('/').pop()),onCollapseAll:()=>setExpanded(new Set()),onFileSortChange:setFileSort,onCreateNote:()=>createNote()}:undefined;
+  const filesProps=FilesView?{...panelBase,sideTab:'files' as const,entries,activePath:active,fileSort,expanded,loading,childrenFor:treeChildren,onToggleFolder:(path:string)=>setExpanded(current=>{const next=new Set(current);next.has(path)?next.delete(path):next.add(path);return next;}),onOpenFile:open,onFileContextMenu:(path:string,x:number,y:number)=>{const menu=new ContextMenu();for(const controller of pluginStops.current.values())controller.triggerWorkspaceEvent?.('file-menu',[menu,path,'file-explorer']);setContext({path,x:Math.min(x,window.innerWidth-225),y:Math.min(y,window.innerHeight-260),menu});},onDropFile:(from:string,folder:string)=>renamePath(from,folder+'/'+from.split('/').pop()),onCollapseAll:()=>setExpanded(new Set()),onFileSortChange:setFileSort,onCreateNote:()=>createNote()}:undefined;
   const OutgoingView=rightTab==='outgoing'?panelComponent('outgoing','right'):undefined;
   const outgoingProps=OutgoingView?{sideTab:'outgoing' as const,...panelBase}:undefined;
   return <div className="app" onClick={()=>context&&setContext(null)}>
@@ -849,7 +849,7 @@ export function App(){
     <div id="plugin-views" aria-label="Plugin views"/>
     <div id="plugin-status" aria-label="Plugin status"/>
     {notice&&<div className="toast" role="status"><Check size={15}/>{notice}</div>}
-    {context&&<div className="context-menu" style={{left:context.x,top:context.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>{open(context.path);setContext(null);}}><FileText size={14}/>Open</button><button onClick={()=>{setSplit(context.path);setContext(null);}}><PanelRightOpen size={14}/>Open in split</button><button onClick={()=>{setContext(null);renamePath(context.path);}}><Pencil size={14}/>Rename or move</button><button onClick={()=>{if(!bookmarkPaths().includes(context.path))toggleBookmarkPath(context.path);setContext(null);}}><Bookmark size={14}/>Bookmark</button><button onClick={()=>{navigator.clipboard?.writeText(context.path);setContext(null);}}><Copy size={14}/>Copy path</button><hr/><button className="danger-text" onClick={()=>deletePath(context.path)}><Trash2 size={14}/>Move to trash</button></div>}
+    {context&&<div className="context-menu" style={{left:context.x,top:context.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>{open(context.path);setContext(null);}}><FileText size={14}/>Open</button><button onClick={()=>{setSplit(context.path);setContext(null);}}><PanelRightOpen size={14}/>Open in split</button><button onClick={()=>{setContext(null);renamePath(context.path);}}><Pencil size={14}/>Rename or move</button><button onClick={()=>{if(!bookmarkPaths().includes(context.path))toggleBookmarkPath(context.path);setContext(null);}}><Bookmark size={14}/>Bookmark</button><button onClick={()=>{navigator.clipboard?.writeText(context.path);setContext(null);}}><Copy size={14}/>Copy path</button><hr/><button className="danger-text" onClick={()=>deletePath(context.path)}><Trash2 size={14}/>Move to trash</button>{context.menu?.items.map((item,index)=>item.separator?<hr key={'plugin-'+index}/>:<button key={'plugin-'+index} disabled={item.disabled} onClick={event=>{item.callback?.(event.nativeEvent);setContext(null);}}>{item.title}</button>)}</div>}
     {palette&&<Palette key={palette} title={palette==='commands'?'Command palette':palette==='files'?'Quick switcher':palette==='templates'?'Insert template':palette==='merge'?'Merge into note':'Load workspace'} items={paletteItems} onClose={()=>setPalette(null)} onCreate={palette==='files'?name=>createNote(name):undefined}/>}
     {showSettings&&<Settings value={settings} onChange={s=>{setSettings(s);if(s.mode!==settings.mode)setMode(s.mode);}} onClose={()=>setShowSettings(false)} nativeSettings={uiSettings} plugins={pluginList.map(p=>p.manifest)} enabled={enabledPlugins} onTogglePlugin={togglePlugin} pluginTabs={Object.values(pluginTabs).flat()} modes={pluginModes} onMode={(id,mode)=>{if(!enabledPlugins.includes(id)&&!pluginStarting.current.has(id))setPluginModes(m=>({...m,[id]:mode}));}}/>}
     {recovery&&<div className="modal-backdrop"><section className="modal recovery-modal" role="dialog" aria-label="File recovery"><header><h2>File recovery</h2><button onClick={()=>setRecovery(null)} aria-label="Close recovery"><X size={18}/></button></header><p>Previous saved versions of {active}. Restoring a version also snapshots the current content.</p>{recovery.length?recovery.map(s=><button key={s.id} onClick={()=>restoreSnapshot(s.id)}><Clock size={15}/>{new Date(s.time).toLocaleString()}<span>Restore</span></button>):<div className="empty"><Clock size={25}/><p>No previous versions yet. Snapshots are created when saved content changes.</p></div>}</section></div>}

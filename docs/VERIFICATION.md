@@ -1,5 +1,25 @@
 # Verification results
 
+## Templater startup compatibility
+
+This section records the compatibility surface added while validating Templater.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
+| `npm run test` | 822 passed (42 files) | CodeMirror/Platform/UI/notice cases |
+| `npm run build` | Passed | Strict TypeScript + multi-page build |
+| `npm run test:e2e` | **64 passed / 0 failed** | Existing browser flows |
+| pinned Linux corpus workflow | Templater 2.26.0 **STARTUP_ONLY** | Run 41042973930; no template workflow executed |
+
+Added a bounded `FileSystemAdapter`, `Vault.getConfig`, numeric Notice durations, command
+icon/hotkey metadata, CLI-handler acceptance, CodeMirror 5 mode/helper/MIME shims, Platform
+fields, `addIcon`, `createFragment`, `AbstractInputSuggest`, `FuzzySuggestModal`,
+`SettingPage`, `ConfirmationModal`, `util`/`child_process` stubs, a file-menu event backed by `Menu`/`MenuItem` in the file context menu and
+`wasm-unsafe-eval` in the default CSP. `AbstractInputSuggest`/`FuzzySuggestModal` are input-driven and `prepareFuzzySearch` returns the documented score/matches shape. Templater now starts under the desktop unsafe-eval
+entry; template insertion, file creation and shell functions remain unverified. Startup
+errors are no longer masked by an on-unload exception.
+
 ## Desktop unsafe-eval opt-in
 
 This section records the trusted-renderer-only CSP entry and its restart flow.

@@ -18,13 +18,13 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
     await fs.mkdir(path.join(root,'Folder'),{recursive:true});await fs.writeFile(path.join(root,'Folder/Third.md'),'# Third\n\n#alpha\n\n- [ ] Third task\n');
     await fs.writeFile(path.join(root,'View.js'),'dv.paragraph("VIEW " + input.name);');
   }
-  if(plugin.name==='Dataview')await fs.writeFile(path.join(profile,'trusted-renderer.json'),JSON.stringify({unsafeEval:true}));
+  if(plugin.name==='Dataview'||plugin.name==='Templater')await fs.writeFile(path.join(profile,'trusted-renderer.json'),JSON.stringify({unsafeEval:true}));
   for(const file of ['main.js','manifest.json'])await fs.copyFile(path.join(source,file),path.join(dir,file));
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
   const app=await electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:{...process.env,ENGINE_DEV:'0'}});
   try{
     const page=await app.firstWindow();await page.getByTestId('file-Test.md').click();await expect(page.locator('.note-title h1')).toHaveText('Test');
-    if(plugin.name==='Dataview')await expect(page).toHaveURL('engine://app/trusted.html');
+    if(plugin.name==='Dataview'||plugin.name==='Templater')await expect(page).toHaveURL('engine://app/trusted.html');
     const settings=async()=>{await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();};
     await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
     const control=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});

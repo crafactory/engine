@@ -11,7 +11,7 @@ function harness(native?:CompatNativeServices){
   return {runtime,api:runtime.api as any,ui,iterateAllLeaves,settingCleanup,extensionCleanup,viewCleanup,extensionsCleanup,suggestCleanup,protocolCleanup,hoverCleanup,basesCleanup,updateOptions,ribbonCleanup,ribbonElement};
 }
 it('renderer export registry is documented, unique and disjoint from Worker exports',()=>{
-  expect(rendererExports).toHaveLength(23);expect(new Set(rendererExports).size).toBe(23);
+  expect(rendererExports).toHaveLength(29);expect(new Set(rendererExports).size).toBe(29);
   for(const name of rendererExports){expect(inventory.symbols.some(s=>s.name===name&&s.runtime)).toBe(true);expect(supportedExports).not.toContain(name);}
 });
 it('renderer MarkdownView exposes actual active document in reading mode',()=>{

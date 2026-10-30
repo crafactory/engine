@@ -128,7 +128,8 @@ describe('documented command callback rules',()=>{
     class P extends h.api.Plugin {onload(){p=this;this.addCommand({id:'c',name:'Callback',callback});}}
     await h.runtime.boot(P);await h.runtime.run('c');expect(callback).toHaveBeenCalledTimes(1);p.removeCommand('fixture:c');expect(h.commands).toEqual([]);
   });
-  for(const option of ['hotkeys','icon','repeatable','mobileOnly'])it(`rejects command option ${option} instead of ignoring it`,async()=>{
+  it('accepts command icon and hotkey metadata',async()=>{const h=harness();class P extends h.api.Plugin{onload(){this.addCommand({id:'icon',name:'Icon',icon:'star',hotkeys:[{modifiers:['Mod'],key:'k'}],callback:()=>{}});}}await h.runtime.boot(P);expect(h.commands).toEqual([{id:'icon',name:'Fixture: Icon'}]);});
+  for(const option of ['repeatable','mobileOnly'])it(`rejects command option ${option} instead of ignoring it`,async()=>{
     const h=harness();class P extends h.api.Plugin {onload(){this.addCommand({id:'x',name:'X',[option]:true});}}
     await expect(h.runtime.boot(P)).rejects.toThrow('Unsupported');
   });
@@ -267,7 +268,7 @@ describe('editor snapshot contract',()=>{
   });
 });
 describe('unsupported methods fail, not no-op',()=>{
-  const pluginMethods=['registerCliHandler','registerDomEvent','onExternalSettingsChange'];
+  const pluginMethods=['registerDomEvent','onExternalSettingsChange'];
   for(const method of pluginMethods)it(`Plugin.${method} is explicitly rejected`,()=>{const h=harness();expect(()=>new h.api.Plugin()[method]()).toThrow(CompatibilityError);});
   const rendererOnly=['addRibbonIcon','addSettingTab','addStatusBarItem','registerView','registerExtensions','registerEditorExtension','registerEditorSuggest','registerObsidianProtocolHandler','registerHoverLinkSource','registerBasesView','registerMarkdownPostProcessor','registerMarkdownCodeBlockProcessor'];
   for(const method of rendererOnly)it(`Plugin.${method} requires a renderer UI host`,()=>{const h=harness();expect(()=>new h.api.Plugin()[method]()).toThrow(CompatibilityError);});
@@ -277,7 +278,7 @@ describe('unsupported methods fail, not no-op',()=>{
   it('renderer-only workspace leaf methods require host.ui',()=>{const h=harness();for(const method of ['getLeaf','getRightLeaf','getLeavesOfType','revealLeaf'])expect(()=>{const value=(h.runtime.app.workspace as any)[method];if(typeof value==='function')value.call(h.runtime.app.workspace);}).toThrow(CompatibilityError);});
   it('rejects undocumented app/workspace/cache access and unsupported events',()=>{
     const h=harness();
-    for(const op of [()=>h.runtime.app.fileManager,()=>h.runtime.app.vault.adapter,()=>h.runtime.app.metadataCache.fileToLinktext,()=>h.runtime.app.workspace.on('layout-change',()=>{}),()=>h.runtime.app.workspace.on('hover-link',()=>{})])expect(op).toThrow(CompatibilityError);
+    for(const op of [()=>h.runtime.app.fileManager,()=>h.runtime.app.metadataCache.fileToLinktext,()=>h.runtime.app.workspace.on('layout-change',()=>{}),()=>h.runtime.app.workspace.on('hover-link',()=>{})])expect(op).toThrow(CompatibilityError);
   });
 });
 describe('documented utility subsets',()=>{
@@ -301,5 +302,5 @@ describe('documented utility subsets',()=>{
   it('debounce schedules the latest arguments, cancellation prevents callbacks',()=>{
     vi.useFakeTimers();try{const a=harness().api,callback=vi.fn(),d=a.debounce(callback,10,true);d(1);d(2);vi.advanceTimersByTime(10);expect(callback).toHaveBeenCalledWith(2);d(3);d.cancel();vi.advanceTimersByTime(10);expect(callback).toHaveBeenCalledTimes(1);}finally{vi.useRealTimers();}
   });
-  it('text notices work while DOM, custom duration and hide are rejected',()=>{const h=harness(),notice=new h.api.Notice('one');notice.setMessage('two');expect(h.notices).toEqual(['one','two']);expect(()=>notice.hide()).toThrow(CompatibilityError);expect(()=>new h.api.Notice({})).toThrow(CompatibilityError);expect(()=>new h.api.Notice('long',100)).toThrow(CompatibilityError);});
+  it('text notices accept numeric durations while DOM, invalid durations and hide are rejected',()=>{const h=harness(),notice=new h.api.Notice('one');notice.setMessage('two');new h.api.Notice('long',100);expect(h.notices).toEqual(['one','two','long']);expect(()=>notice.hide()).toThrow(CompatibilityError);expect(()=>new h.api.Notice({})).toThrow(CompatibilityError);expect(()=>new h.api.Notice('bad',false as unknown as number)).toThrow(CompatibilityError);});
 });
