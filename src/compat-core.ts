@@ -333,7 +333,15 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   };
   metadataCache.getFileCache=readCache;
   metadataCache.getCache=readCache;
-  metadataCache.getFirstLinkpathDest=(link:string,path:string)=>{const resolver=host.native?.resolveLink;const target=resolver?resolver(link,path):resolveLink(link,path,snapshot.notes)?.path;return target?vault.getFileByPath(target):null;};
+  metadataCache.getFirstLinkpathDest=(link:string,path:string)=>{
+    const normalized=link.split('|')[0].split('#')[0].replace(/^\.\//,'');
+    const parent=path.includes('/')?path.slice(0,path.lastIndexOf('/')+1):'';
+    for(const candidate of [normalized,parent+normalized,normalized+'.md',parent+normalized+'.md']){
+      const file=objects.get(candidate);if(file instanceof TFile)return file;
+    }
+    const resolver=host.native?.resolveLink;const target=resolver?resolver(link,path):resolveLink(link,path,snapshot.notes)?.path;
+    return target?vault.getFileByPath(target):null;
+  };
   const app=guard({appId:'crafactory-engine',vault,workspace,metadataCache,internalPlugins:{plugins:{}}},'App');
   function refresh(next:PluginSnapshot,events=false){
     const previous=snapshot;snapshot=next;
