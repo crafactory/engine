@@ -35,10 +35,10 @@
       "manifest_sha256": "91c9fa8510082fffa0b3d022aac4986e3b392295b1126e847ead7ed7289169b8",
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
-      "outcome": "LOAD_ERROR",
-      "first_blocker": "Class extends value undefined is not a constructor or null",
+      "outcome": "STARTUP_ONLY",
+      "first_blocker": "",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-10-12T07:46:06.265Z"
+      "checked_at": "2026-10-30T10:45:53.489Z"
     },
     {
       "name": "Calendar (Beta)",
