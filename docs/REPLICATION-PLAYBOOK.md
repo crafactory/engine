@@ -1,525 +1,349 @@
 # Replication Playbook
 
-A reusable playbook for rebuilding a complex software product from public behavior, growing it
-through plugin boundaries, and shipping each increment with evidence. It is distilled from the
-full reachable Crafactory Engine history, including the staged kernel/migration work, release
-and packaging iterations, compatibility corpus runs and review findings; project-specific
-status lives in [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md), not here.
+A theory-driven playbook for rebuilding a complex software product from observed behavior.
+It is distilled from the full Crafactory Engine history: the original local-first workspace,
+release/packaging iterations, the staged kernel and plugin migration, Live Preview changes,
+the compatibility facade, the Dataview/Templater corpus work, and the review findings those
+changes produced.
 
-## Core loop
+This is not a checklist of everything that was done. It is an attempt to state **why** the
+successful moves worked and **where** the failures came from. Project-specific status remains
+in [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); this document should not become a
+second status page.
 
-```text
-observe real behavior
-  -> map capabilities, not feature names
-  -> build a walking skeleton
-  -> extract a stable host contract
-  -> implement reference semantics in an adapter
-  -> verify with real workflows
-  -> record evidence and boundaries
-  -> harden security and UX
-  -> merge, reset, choose the next blocker
-```
+## Evidence base
 
-The default unit of progress is **one blocker advanced to a proven state**, not one API added.
+The conclusions below come from repeated patterns across the repository history:
 
-## State model
+- early releases exposed packaging, checksum and platform-verification gaps;
+- the kernel stages exposed ownership, provider binding, lifecycle and version-semantics bugs;
+- the storage stages exposed conflict, symlink and provider-parity requirements;
+- the compatibility stages exposed the difference between module loading, startup and usable
+  workflows;
+- Live Preview exposed state-continuity requirements such as widget identity, scroll, undo and
+  source preservation;
+- the Dataview/Templater work exposed a long chain of “first blockers” and the danger of
+  silently accepting a capability that was not actually connected;
+- the documentation work exposed how quickly current status drifts when it is copied into
+  historical evidence.
 
-Use explicit states instead of “done / not done”:
+The principles are stated generically. The case notes at the end tie them back to concrete
+history.
 
-| State | Meaning |
-|---|---|
-| Unsupported | The boundary is explicit and fails safely |
-| Loads | Code parses/module loads, but startup is not complete |
-| Starts | Startup hooks complete and the plugin is enabled |
-| Bounded workflow | Named real workflows pass with persisted effects |
-| Broader workflow | Multiple related workflows pass |
-| Parity | All required workflows and boundaries verified (rarely claimable) |
+## What replication actually is
 
-Only the state actually demonstrated may be claimed. A parent capability stays incomplete while
-any required workflow or boundary remains open.
+Replication is not “write the same feature list.” It is:
 
-## Evidence ladder
+> **Maintaining behavioral equivalence for selected workflows while the host, implementation
+> and extension model are different.**
 
-Use the lowest layer that can prove the claim, but do not use a lower layer to replace a higher
-one:
+That definition implies three layers:
 
-1. contract/unit test — local semantics
-2. browser integration test — rendering and interaction
-3. desktop/native test — real host, filesystem, lifecycle
-4. pinned external corpus — real third-party inputs
-5. packaged/real-vault run — release readiness
+1. **Host primitives** — files, editor transactions, views, events, storage, permissions.
+2. **Reference semantics** — the API and lifecycle behavior that plugins/users expect.
+3. **Product behavior** — the workflows a user can actually complete.
 
-Every retained claim should identify: input, environment, command, observed result and date.
+A replica fails when these layers are conflated. A large API surface with no working workflow is
+not compatibility. A workflow that works only because the host hardcodes one plugin is not
+extensibility.
 
----
+The central asymmetry is:
 
-## 1. Replication process
-
-**R1. Replicate behavior, not source.**  
-Use public documentation, public behavior and black-box release artifacts. Never copy reference
-application code, SDK declarations or sample implementations.
-
-**R2. Map capabilities at three layers.**  
-Host primitives, reference API surface, and user workflows. Feature names are not enough.
-
-**R3. Start with a walking skeleton.**  
-Open → render → interact → persist → recover. Make one end-to-end path real before widening.
-
-**R4. Prefer vertical slices.**  
-One observable workflow at a time beats a broad set of disconnected API stubs.
-
-**R5. Prove the failure path too.**  
-A clear refusal or bounded error is evidence; silent no-op is not.
-
-**R6. Advance the first blocker.**  
-Do not fan out to ten blockers. Move the first one, record the next one, repeat.
-
-**R7. Pin external inputs.**  
-Version, hash, platform and mode are part of the evidence. Unpinned artifacts are not a corpus.
-
-**R8. Separate “starts” from “works.”**  
-Startup-only plugins get a startup-only claim.
-
-**R9. Keep parent capabilities unchecked.**  
-A finite subset can sign off a bounded checkpoint, never the whole parent.
-
-**R10. Replicate the semantics users depend on, not the internal object graph.**  
-Exact implementation shape is usually less important than observable behavior and lifecycle.
+> The reference product is the specification; the host is the implementation. The adapter is
+> where one is translated into the other. Do not let the specification become the host
+> architecture.
 
 ---
 
-## 2. Capability and contract architecture
+## Nine laws
 
-**A1. The kernel knows no product features.**  
-No Markdown parser, Canvas, Bases, React, DOM or concrete editor in the kernel.
+The number is not a template. These are the invariants that survived the history; adding a
+tenth law should require new evidence, not a desire for symmetry.
 
-**A2. Contracts expose host primitives, not reference-software objects.**  
-An adapter may speak `App`/`Vault`/`Workspace`; the host contract should not.
+### 1. Equivalence is workflow-level, not API-level
 
-**A3. Keep semantics inside the adapter.**  
-Reference-API behavior belongs in the compatibility plugin, so filling gaps does not churn the
-host.
+**Observed:** Export inventories, module loading and even successful startup repeatedly failed
+to predict whether a plugin could perform a user-visible task. Dataview moved through
+`App.appId`, vault events, internal plugins, CodeMirror shims, workspace iteration and metadata
+before `LIST` worked. Templater reached `STARTUP_ONLY` while template insertion remained
+unverified.
 
-**A4. Version contracts additively.**  
-Prefer optional capabilities and feature detection over breaking existing providers.
+**Consequence:** Acceptance must name a workflow, its input, its persisted effect and its failure
+path. “API exists,” “plugin starts” and “test passes” are lower-level observations, not
+compatibility.
 
-**A5. Make dependencies explicit.**  
-Declare provides/consumes, activation order, rollback and disposal ownership.
+### 2. A stable contract is a translation boundary
 
-**A6. UI enters through host callbacks.**  
-Core services stay UI-agnostic; views, panels, settings and menus are contributions.
+**Observed:** `engine.views/v1`, `engine.ui/v1` and `engine.compat/v1` worked when they exposed
+loaders, contributions or host primitives. They became fragile when they leaked concrete
+reference objects or implementation-specific operation names. Moving compatibility semantics
+into the support plugin kept the shell from changing every time an Obsidian API gap appeared.
 
-**A7. Core features are plugins too.**  
-The application shell is a composition root: resolve contracts, inject host capabilities, render.
+**Consequence:** A contract should be narrower than the reference API and broader than one
+implementation. If every adapter detail changes the contract, the boundary is wrong.
 
-**A8. Wrap before replacing.**  
-Extract behind a contract while preserving behavior; migrate consumers; then delete the old path.
+### 3. Progress is a ratchet over the first blocker
 
-**A9. Test every provider against the same contract.**  
-Memory/local, worker/renderer, and alternate editor implementations need the same acceptance suite.
+**Observed:** The compatibility work did not advance by adding APIs in bulk. Each iteration
+identified the first blocker, removed it, and recorded the next one. Dataview and Templater
+both produced long chains of this form. Trying to “finish the API surface” first would have
+produced unverified stubs and constant shell churn.
 
-**A10. Reject unsupported capabilities explicitly.**  
-No silent stub, empty implementation or false success.
+**Consequence:** Keep a blocker ledger. One blocker per increment. A blocker is only closed when
+the next observable workflow or the next explicit refusal is verified.
 
----
+### 4. Lifecycle and ownership are part of semantics
 
-## 3. Verification and evidence
+**Observed:** The kernel reviews found stale disposers, duplicate providers, scope races, late
+async initialization, child adoption across sessions and cleanup that could mask the original
+startup error. Processor lifecycles had the same shape: late callbacks, owned children and
+generation-sensitive roots. A Templater on-unload failure once hid the real on-load error.
 
-**V1. Layer tests by what they prove.**  
-Unit, browser, desktop, corpus and packaged checks are complementary.
+**Consequence:** Every registration needs an owner. Every async task needs a generation or
+cancellation boundary. Cleanup must not replace the original failure. “Stopped” and “forcibly
+interrupted” are different states.
 
-**V2. Assert real user behavior.**  
-Real clicks, real input, real writes, real restart. Mocks prove wiring, not product behavior.
+### 5. Evidence must be stratified and pinned
 
-**V3. Use a pinned black-box corpus for external compatibility.**  
-Record outcome, first blocker and exact workflows, not only pass/fail.
+**Observed:** Unit tests, browser tests, desktop tests, packaged builds and external corpus
+runs each caught different classes of failure. A local build was not release verification; a
+skipped optional corpus was not a pass; macOS-only keybinding assumptions were not
+cross-platform behavior; line-ending and path handling needed explicit tests.
 
-**V4. A negative result is still a result.**  
-“Rejected as unsupported” is valid evidence; “did nothing” is not.
+**Consequence:** Match the evidence layer to the claim. Record inputs, versions, hashes,
+platform, command and observed result. Do not use a lower layer to certify a higher-layer claim.
 
-**V5. Do not use test count as a coverage claim.**  
-Volume is not parity.
+### 6. Security capability is a separate axis
 
-**V6. Reproduce flakes before blaming the branch.**  
-Run the failing case on clean main; fix harness/environment if the failure is pre-existing.
+**Observed:** The trusted renderer was never a sandbox. CSP blocked WebAssembly and `eval`;
+supporting real plugins required a deliberate desktop-only `unsafe-eval` entry with warning,
+native confirmation, restart and path-gating. Widening the global default would have been the
+cheap but wrong fix.
 
-**V7. Add a regression assertion for every retained review finding.**  
-Root cause first; the test prevents recurrence.
+**Consequence:** Default to the least capability. Scope relaxation to an entry/mode/process.
+Authorize at the protected boundary. Test both the strict refusal and the opt-in success.
 
-**V8. Record environment with evidence.**  
-OS, runtime, pinned version/hash, command and timestamp.
+### 7. Data integrity and interaction continuity are compatibility
 
-**V9. Keep historical evidence but label it.**  
-Current status and historical verification are different artifacts.
+**Observed:** Create-only writes, conflict fingerprints, snapshots, symlink/traversal checks and
+exact-byte round-tripping were not optional “storage polish.” Live Preview required widget
+identity, measured DOM reuse, scroll anchors, source preservation and undo across mode changes.
+Reading mode lost undo until the editor stayed mounted.
 
-**V10. Make every important claim falsifiable.**  
-State what the evidence does *not* prove.
+**Consequence:** Reversibility, conflict handling, focus/scroll/undo continuity and exact bytes
+are part of the behavior being replicated. They cannot be deferred as UI details.
 
----
+### 8. Documentation is part of the system state
 
-## 4. Security and trust boundaries
+**Observed:** Current plugin status was duplicated across compatibility reports, verification
+logs and release notes, then drifted. Historical release notes contained claims that were true
+at the time but false later. A single current tracker plus historical evidence labels was the
+only stable structure.
 
-**S1. Default to least capability.**  
-Do not grant network, filesystem, Node or eval by default.
+**Consequence:** One current source of truth. Historical evidence stays historical. Links replace
+copies. Prune duplicated current claims, not evidence.
 
-**S2. Make risky capability visible and revocable.**  
-Explicit switch, warning, confirmation, restart and a documented risk.
+### 9. Release is a distinct verification layer
 
-**S3. Prefer scoped relaxation over global relaxation.**  
-A separate entry/mode/process is better than weakening the default for everyone.
+**Observed:** Early packaging work exposed checksum naming, download verification, CRLF
+inventory drift and platform-specific test assumptions. Build success never implied that the
+published artifact or another platform worked.
 
-**S4. Put authorization at the protected boundary.**  
-Renderer requests are not authorization; the host/main process confirms privileged changes.
-
-**S5. Validate at every boundary.**  
-Paths, arguments, types and permissions are checked where they are consumed.
-
-**S6. “Trusted” does not mean “sandboxed.”**  
-Document arbitrary-code execution honestly.
-
-**S7. Keep default CSP/security strict.**  
-Any relaxation is an explicit engineering decision with a threat-model note.
-
-**S8. Separate compatibility from security policy.**  
-A plugin needing a capability does not automatically justify granting it.
-
-**S9. Review security changes separately.**  
-Do not hide CSP, permissions or eval changes inside UI refactors.
-
-**S10. Test the escape hatch.**  
-Verify that the strict default rejects the capability and that the opt-in actually enables it,
-including restart and path-gating behavior.
+**Consequence:** Verify the artifact users receive, on the platforms you claim. Separate release
+eligibility from functional verification, and state unsigned/untested boundaries explicitly.
 
 ---
 
-## 5. Migration and refactoring
+## Strategy patterns
 
-**M1. Wrap first, rewrite later.**  
-A behavior-preserving wrapper is the safest migration unit.
+Patterns are choices, not laws. Use the one that matches the uncertainty.
 
-**M2. Strangle the old path.**  
-New contract lives beside old implementation; consumers switch incrementally; old path is deleted.
+### Walking skeleton
 
-**M3. Migrate one surface per PR.**  
-One settings section, one panel, one editor surface, one compatibility service.
+Build one end-to-end path first: open, render, interact, persist, recover. It exposes integration
+mistakes earlier than a perfect subsystem.
 
-**M4. Establish behavior baselines before moving code.**  
-Without a baseline, refactors masquerade as fixes.
+**Use when:** the product surface is new or the boundary is unclear.
 
-**M5. Keep the composition root thin.**  
-When the shell starts knowing plugin internals, the boundary is wrong.
+### Wrapper-first / strangler
 
-**M6. Make side effects owned and reversible.**  
-Registration, listeners, timers, views and child components need cleanup owners.
+Put the new contract around the old implementation; switch consumers incrementally; delete the
+old path only when it is no longer needed.
 
-**M7. Do not leave permanent fallbacks.**  
-A fallback can aid migration; it must not become a hidden missing feature.
+**Use when:** migrating working behavior without changing it.
 
-**M8. Migration is done when the old path can be deleted.**  
-New code running alongside old code is not completion.
+### Contract extraction
 
-**M9. Stabilize the contract before filling capabilities.**  
-Otherwise every new API gap mutates the shell.
+Separate host primitives from reference semantics, then move the adapter behind the contract.
+The contract should survive changes inside the adapter.
 
-**M10. Preserve public behavior while changing internal structure.**  
-Separate no-behavior refactors from behavior changes whenever possible.
+**Use when:** more than one consumer, runtime or provider will share the capability.
 
----
+### Provider parity
 
-## 6. UX and data integrity
+Run the same contract suite against every provider: memory/local, worker/renderer, alternate
+editors. Provider-specific behavior is a bug unless explicitly bounded.
 
-**U1. User data operations must be reversible.**  
-Undo, conflict detection, recovery and explicit overwrite confirmation are baseline.
+**Use when:** the same contract has multiple implementations.
 
-**U2. One capability, one primary surface.**  
-Duplicate editors create drift and user confusion.
+### Corpus ratchet
 
-**U3. Reduce mode switching.**  
-Click-to-edit, inline editing and smooth preview/source transitions beat “open another pane.”
+Pin external artifacts, record the first blocker, verify one workflow, then repeat. Preserve the
+old result as history.
 
-**U4. Preserve history.**  
-Mode changes, appearance changes and reading mode should not silently discard undo.
+**Use when:** compatibility is driven by third-party behavior rather than a fixed internal spec.
 
-**U5. Keep scroll and focus stable.**  
-Re-rendering tables, code blocks and long documents must not jump the caret or viewport.
+### Scoped capability escalation
 
-**U6. Make failure visible.**  
-Plugin failures, parse errors and conflicts need actionable feedback.
+Keep the default strict. Add a separate mode/entry/process with explicit consent and a visible
+risk boundary.
 
-**U7. Progressive disclosure.**  
-Simple default surface; advanced behavior through commands, settings or explicit modes.
+**Use when:** a real workflow requires a capability that the default policy forbids.
 
-**U8. Local-first by default.**  
-Plain files, portable formats, backup and recovery.
+### Ownership and generation
 
-**U9. Performance is part of UX.**  
-Bound long content and use internal scrolling instead of page-level blowups.
+Give every asynchronous or registered resource an owner, a generation and a cleanup path.
+Do not let a stale callback act on a successor.
 
-**U10. Keyboard and accessibility are design inputs.**  
-Focus, shortcuts, hit targets and status announcements belong in the first implementation.
+**Use when:** lifecycle, subscriptions, children, views, editors or plugin runtimes are involved.
+
+### Single-source knowledge
+
+One current tracker; one API boundary document; per-run evidence logs; historical documents
+clearly labeled. Link instead of copying.
+
+**Use when:** status changes faster than the documentation set.
 
 ---
 
-## 7. Documentation and knowledge management
+## Operating loop
 
-**D1. One current source of truth.**  
-Status/parity lives in one tracker; other docs link instead of copying.
+1. **Observe a real failure.** Prefer a pinned external input or a reproducible user workflow.
+2. **Classify the boundary.** Is this a host primitive, adapter semantics, policy, or product
+   behavior?
+3. **Choose the smallest move.** Probe, wrapper, contract change, adapter fix, security opt-in,
+   or product change.
+4. **Verify at the right layer.** Unit, browser, desktop, corpus or packaged artifact.
+5. **Record the state.** What now works, what remains, what is explicitly not claimed.
+6. **Merge and resync.** Do not stack the next change on an old base.
+7. **Choose the next blocker.** Let evidence, not the original plan, set priority.
 
-**D2. Separate current, historical and normative documents.**  
-Current tracker, evidence log, API spec and release history have different jobs.
-
-**D3. Keep history, label it.**  
-Old releases and verification logs are evidence; add a historical banner, not silent edits.
-
-**D4. Maintain one fact in one place.**  
-Duplication drifts; links survive.
-
-**D5. Remap references on moves and renames.**  
-Document links are dependencies.
-
-**D6. Remove only when a replacement is clear.**  
-Do not prune published/reference/historical material without explicit instruction.
-
-**D7. Prune duplicated current claims, not evidence.**  
-Subtraction targets overgrowth and stale guidance.
-
-**D8. Put scope and status at the top.**  
-A reader or agent should know in seconds what the document is and is not.
-
-**D9. Update docs in the same PR as the behavior change.**  
-Tracking after merge is usually stale tracking.
-
-**D10. State boundaries with every supported claim.**  
-“Supported” without a boundary is marketing, not engineering.
+The loop is intentionally shorter than the rule list. A playbook that cannot be applied in a
+few decisions is not a playbook.
 
 ---
 
-## 8. Scope and prioritization
+## Decision guide
 
-**P1. Drive the roadmap by blockers, not wishes.**  
-Resolve the real first blocker; record the next.
-
-**P2. Walking skeleton before breadth.**  
-One complete path first.
-
-**P3. Score by unblock surface × reuse.**  
-Prefer work that unlocks multiple plugins/workflows.
-
-**P4. Keep parent capabilities incomplete.**  
-Bounded checkpoints are the unit of sign-off.
-
-**P5. Ship observable progress.**  
-“The workflow now works” beats “the internal refactor completed.”
-
-**P6. Defer edge APIs until a real input triggers them.**  
-Compatibility is demand-driven, not checklist-driven.
-
-**P7. Do not delay the first useful version for architectural perfection.**  
-Stabilize the contract; fill capabilities later.
-
-**P8. Schedule security decisions.**  
-Do not discover at the end that a workflow needs a relaxed boundary.
-
-**P9. Make goals falsifiable.**  
-Every phase states what it does not prove.
-
-**P10. Let evidence override the plan.**  
-Corpus results should reorder the roadmap.
+| Situation | Default move | Required evidence |
+|---|---|---|
+| Behavior is unclear | Probe or corpus before architecture | A recorded observation and a bounded failure |
+| One workflow is missing | Vertical slice | Real input → visible result → persisted effect |
+| Multiple consumers need the same capability | Extract a primitive contract | Contract tests and provider parity |
+| Existing behavior must move | Wrapper-first | Before/after behavior equivalence |
+| A reference API gap appears | Fix the adapter, not the shell | Adapter test and workflow evidence |
+| A capability is forbidden by policy | Scoped opt-in | Strict refusal + opt-in success + risk note |
+| A file write can conflict | Conflict-checked operation | Concurrent/conflict regression test |
+| UI state is lost | Preserve ownership/session | Undo/scroll/focus continuity test |
+| Status is duplicated in docs | Collapse to one current source | Link check and historical labels |
+| Release is being claimed | Verify the published artifact | Platform/build/download/checksum evidence |
 
 ---
 
-## 9. PR, review and release workflow
+## Failure patterns
 
-**W1. One vertical slice per PR.**  
-Code, tests, docs, evidence and boundaries together.
+These are the recurring ways the work went wrong; they are more useful than generic “best
+practices.”
 
-**W2. Use a stable PR body.**  
-What/why, evidence table, boundaries, security notes, review gates.
-
-**W3. CI green is the merge gate.**  
-Local success is supporting evidence, not a substitute.
-
-**W4. Review the latest head once, completely.**  
-Fix retained findings, reply with the commit, resolve threads; avoid review churn.
-
-**W5. Fix root causes and add regression tests.**  
-A comment-local patch is not a fix.
-
-**W6. Record review-rate-limit/skip states.**  
-A skipped review is not an approval.
-
-**W7. Treat flakes as operational defects.**  
-Attribution first, then harness or implementation fix.
-
-**W8. Keep security and behavior changes separable.**  
-Easier review, easier rollback.
-
-**W9. After merge, immediately resync main.**  
-Never stack new work on an old base.
-
-**W10. Close the loop.**  
-Update the tracker/worklog, record the next blocker, then start the next slice.
+- **API-count compatibility.** Export coverage was mistaken for behavior.
+- **Startup-as-support.** A checked enable switch was treated as plugin compatibility.
+- **Silent stub.** A menu/suggestion/API surface was accepted but never connected.
+- **Global relaxation.** A real plugin need was used to justify weakening the default CSP.
+- **Contract leakage.** Reference types (`App`, `Vault`, `Workspace`) leaked into the host
+  boundary, forcing shell changes for adapter details.
+- **Cleanup masking.** An unload failure replaced the original startup error.
+- **Stale disposer.** An old registration removed a newer one.
+- **Late adoption.** A stale async callback attached to a successor session.
+- **Skipped-as-pass.** Optional corpus tests were treated as green without inputs.
+- **Local-build release claim.** Build output was confused with verified packaged behavior.
+- **Duplicated status.** Current claims were copied into historical documents and drifted.
+- **Rewrite-before-wrap.** Behavior was replaced before equivalence was captured.
 
 ---
 
-## 10. Runtime lifecycle, ownership and failure isolation
+## Case notes from this project
 
-**L1. A disposer acts only while its registration is current.**  
-Re-registering the same id must not let an old disposer remove the newer registration.
+### Dataview: the blocker chain
 
-**L2. Bind providers at activation time.**  
-Do not capture a preconstructed provider instance; resolve the current provider when the
-consumer activates.
+`App.appId` → vault lifecycle events → `internalPlugins` → CodeMirror 5 shim → workspace
+iteration → MetadataCache → root-path/file resolution → `LIST` → `TABLE/TASK/FROM/WHERE` →
+`SORT/LIMIT/GROUP BY/FLATTEN` → inline query → DataviewJS → `dv.view`.
 
-**L3. Serialize start/stop transitions.**  
-Record in-flight startup/shutdown, assign state synchronously, and remove an instance only if
-the map still holds that exact instance.
+The lesson is not “add these APIs.” It is that a long-lived compatibility target advances by
+turning an opaque first blocker into a precise capability, verifying one workflow, and updating
+the ledger. DataviewJS and `dv.view` then required a separate security decision, not more API
+stubs.
 
-**L4. Clean up descendant scopes first.**  
-Stop children before parents; restart exactly the descendants that were stopped during reload.
+### Templater: startup is not the finish line
 
-**L5. Stop async runtimes that resolve after unmount.**  
-A late initialization must be discarded and stopped, not retained as a second live instance.
+Templater moved from a generic class-load error to `STARTUP_ONLY` only after several distinct
+surfaces existed: CodeMirror compatibility, adapter identity, command metadata, menu events,
+suggestions and settings components. The on-unload failure initially hid the real on-load
+failure; fixing error preservation was part of making the compatibility layer diagnosable.
 
-**L6. Preserve the original startup error.**  
-Cleanup/on-unload failures must not replace the error that caused shutdown; otherwise diagnosis
-becomes misleading.
+The remaining gap is functional templates, not another export. This is the difference between
+“starts” and “works.”
 
-**L7. Late async work must target its old generation/root.**  
-Never let a stale callback adopt a successor session's child or write into the replacement DOM.
+### Kernel and storage: invariants found by review
 
-**L8. Keep ownership for resources whose startup is still pending.**  
-A child that has not settled cannot be adopted by a newer owner; revoked contexts cannot unload
-foreign resources.
+The kernel/storage stages produced durable invariants: registration ownership, provider binding
+at activation, serialized start/stop, descendant-first shutdown, late-runtime cleanup, version
+semantics and identical contract suites for memory/local providers. These were not invented
+upfront; they were discovered by reviews and regressions, then encoded as rules.
 
-**L9. Cancellation is cooperative, not a sandbox.**  
-A bounded shutdown may stop admitting work and revoke handlers, but cannot forcibly interrupt
-arbitrary trusted code. Document that distinction.
+### Live Preview: state continuity
 
-**L10. Isolate failures per owner.**  
-One cleanup failure must not prevent unrelated cleanups, and one subscriber/processor must not
-block others.
+The Live Preview work showed that rendering is only half the feature. Widget identity, measured
+DOM reuse, source preservation, table scroll, caret visibility and undo across mode changes are
+all part of the user-visible contract. A renderer that redraws correctly but loses the caret or
+undo stack is not equivalent.
 
-**L11. Use reverse-order cleanup with explicit ownership.**  
-Effects, listeners, intervals, child components and views need owners, not global teardown.
+### Documentation: current vs historical
 
----
-
-## 11. Release, packaging and platform verification
-
-**RP1. A local build is not a release verification.**  
-Packaged artifacts, installers, signatures and target platforms are separate evidence.
-
-**RP2. Verify the artifact that users download.**  
-Check archive contents, checksum naming, download links and the published file—not just the
-local output directory.
-
-**RP3. Treat platform behavior as a first-class input.**  
-Line endings, path separators, case sensitivity, modifier keys and filesystem semantics differ.
-
-**RP4. Use platform-neutral tests where possible.**  
-Prefer `ControlOrMeta`-style abstractions; isolate unavoidable OS-specific cases.
-
-**RP5. Keep generated inventories deterministic.**  
-Generated checklists/API tables must be reproducible and drift-checked in CI.
-
-**RP6. Separate release eligibility from compatibility proof.**  
-“Published” or “built” does not mean “all workflows verified.”
-
-**RP7. Record known failures in release notes.**  
-Unsigned builds, skipped platforms, flaky suites and pre-existing failures stay visible.
-
-**RP8. Test the packaged path, not only source.**  
-Desktop/native and corpus tests should exercise the same loading and storage path users get.
-
-**RP9. Do not silently downgrade a platform claim.**  
-If Windows/macOS/mobile was not run, say so.
-
-**RP10. Make the publication workflow reproducible from the repository.**  
-Pinned inputs, scripts and checksum verification belong in version control.
+The support matrix, compatibility report, verification log and release notes originally
+overlapped. The stable structure was: one current tracker, one API boundary document, per-run
+evidence, and historical documents with banners. Pruning removed duplicated current claims; it
+did not erase history.
 
 ---
 
-## 12. Cross-platform and data-integrity discipline
-
-**CP1. Normalize before comparing.**  
-Paths, line endings, case and Unicode normalization need explicit rules.
-
-**CP2. Test filesystem edges, not only happy paths.**  
-Symlink escape, traversal, hidden paths, case-insensitive collisions, empty folders and rename
-conflicts are contract behavior.
-
-**CP3. Prefer create-only and conflict-checked writes.**  
-Overwrite-capable writes are a deliberate operation, not the default.
-
-**CP4. Keep recoverable history.**  
-Snapshots, trash and undo are part of storage semantics, not UI polish.
-
-**CP5. Serialize mutations that can race.**  
-Appends, writes and cleanup operations need an ordering policy.
-
-**CP6. Make fingerprint/version conflicts explicit.**  
-Never silently overwrite a changed file; report the conflict and keep the draft.
-
-**CP7. Validate generated IDs and names.**  
-Plugin ids, property keys, block ids and paths need deterministic validation.
-
-**CP8. Preserve exact bytes when the format is opaque.**  
-Canvas/JSON/other structured files must round-trip without accidental Markdown conversion.
-
-**CP9. Test platform-specific keybindings once, then abstract them.**  
-OS differences should live in one helper, not scattered through tests.
-
-**CP10. Verify the recovery path after the failure path.**  
-A failed write/startup/unload must leave the workspace recoverable.
-
----
-
-## Anti-patterns
-
-- Counting exports as compatibility.
-- Treating plugin startup as plugin support.
-- Silent no-op stubs for unconnected capabilities.
-- Global security relaxation for one consumer.
-- Leaking reference-application types into host contracts.
-- Duplicating current status across multiple documents.
-- Fixing review comments without regression tests.
-- Rewriting before wrapping.
-- Keeping permanent migration fallbacks.
-- Claiming parity from bounded tests.
-- Letting a cleanup error mask the original startup error.
-- Letting an old disposer remove a newer registration.
-- Treating a skipped optional corpus as a pass.
-- Claiming release readiness from a local build.
-- Ignoring line endings, modifier keys or case-insensitive path collisions.
-
-## Increment checklist
+## Applying the playbook
 
 Before starting:
 
-- [ ] Is the user-visible workflow identified?
-- [ ] Is the evidence layer chosen?
-- [ ] Is the current blocker recorded?
-- [ ] Is the contract/boundary clear?
+- [ ] Can I name the user-visible workflow and its evidence layer?
+- [ ] Is the current first blocker recorded?
+- [ ] Is this a host primitive, adapter semantic, policy, or product behavior?
+- [ ] Is the smallest move a probe, wrapper, contract change, or adapter fix?
 
 Before merge:
 
-- [ ] Real workflow passes at the claimed state.
-- [ ] Failure/refusal path is explicit.
-- [ ] Tests include a regression for new findings.
-- [ ] Docs/tracker updated; history labeled.
-- [ ] Security boundary documented.
-- [ ] CI green on the latest head.
+- [ ] The claimed state is demonstrated at the right evidence layer.
+- [ ] The refusal/failure path is explicit.
+- [ ] New review findings have regression tests.
+- [ ] Security changes are scoped, documented and tested both ways.
+- [ ] Current/historical docs are aligned.
+- [ ] CI is green on the latest head.
 
 After merge:
 
-- [ ] Main reset/synced.
-- [ ] Tracker/worklog updated.
-- [ ] Next first blocker identified.
+- [ ] Main is reset/synced.
+- [ ] Tracker/worklog is updated.
+- [ ] The next first blocker is identified.
 
-## Applying this playbook in Crafactory Engine
+## Current project references
 
-| Concern | Current reference |
+| Concern | Reference |
 |---|---|
 | Plugin/capability status | [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md) |
 | API boundaries | [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md) |
@@ -529,5 +353,5 @@ After merge:
 | Kernel/service contracts | [KERNEL-SPEC.md](KERNEL-SPEC.md), [SERVICES-SPEC.md](SERVICES-SPEC.md) |
 | Architecture roadmap | [NATIVE-PLUGIN-ARCHITECTURE.md](NATIVE-PLUGIN-ARCHITECTURE.md) |
 
-The playbook is intentionally generic. Do not copy current plugin outcomes into it; link to the
-tracker so there is still one source of truth.
+The playbook is a theory of how to replicate, not a second changelog. If a rule stops explaining
+observed behavior, revise the rule rather than forcing history to fit it.
