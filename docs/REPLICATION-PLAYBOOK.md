@@ -401,6 +401,7 @@ After merge:
 
 | Concern | Reference |
 |---|---|
+| Concrete commands and checklists | [REPLICATION-RUNBOOK.md](REPLICATION-RUNBOOK.md) |
 | Plugin/capability status | [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md) |
 | API boundaries | [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md) |
 | Export inventory | [API-COVERAGE.md](API-COVERAGE.md) |
