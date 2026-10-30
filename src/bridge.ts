@@ -51,7 +51,7 @@ function memoryBridge():Bridge {
     },
     snapshots:async(path)=>history.filter(s=>s.path===path).map(({id,path,time})=>({id,path,time})),
     restore:async(id)=>{const s=history.find(s=>s.id===id);if(!s)throw new Error('Snapshot not found');files.set(s.path,s.content);return read(s.path);},
-    plugins:async()=>[],print:async()=>window.print(),onChange:()=>()=>{}
+    plugins:async()=>[],print:async()=>window.print(),unsafeEval:async()=>false,setUnsafeEval:async()=>false,onChange:()=>()=>{}
   };
 }
 export const bridge=window.engine || memoryBridge();

@@ -3,6 +3,7 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const {pathToFileURL} = require('node:url');
 let win, vault, watcher, Vault, currentRoot, closeAllowed=false;
+let unsafeEval=false;
 protocol.registerSchemesAsPrivileged([{scheme:'engine', privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
 app.setName('Crafactory Engine');
 const development = process.env.ENGINE_DEV === '1';
@@ -22,10 +23,12 @@ function ipc(name, handler) {
 }
 async function start() {
   ({Vault}=await import('../core/vault.mjs'));
+  try{unsafeEval=JSON.parse(await fs.readFile(path.join(app.getPath('userData'),'trusted-renderer.json'),'utf8')).unsafeEval===true;}catch{}
   protocol.handle('engine', request=>{
     const url=new URL(request.url);
     if(url.hostname !== 'app') return new Response('Forbidden',{status:403});
     const relative=decodeURIComponent(url.pathname).replace(/^\/+/,'');
+    if(relative==='trusted.html'&&!unsafeEval)return new Response('Forbidden',{status:403});
     const file=path.resolve(__dirname,'../dist',relative || 'index.html');
     const root=path.resolve(__dirname,'../dist');
     if(file!==root && !file.startsWith(root+path.sep)) return new Response('Forbidden',{status:403});
@@ -55,6 +58,8 @@ async function start() {
     if(!closeAllowed){event.preventDefault();win.webContents.send('engine:before-close');}
   });
   ipc('close-ready',()=>{closeAllowed=true;win.close();});
+  ipc('unsafeEval',()=>unsafeEval);
+  ipc('setUnsafeEval',async enabled=>{unsafeEval=enabled===true;await fs.writeFile(path.join(app.getPath('userData'),'trusted-renderer.json'),JSON.stringify({unsafeEval}));return unsafeEval;});
   ipc('vault',async()=>({name:path.basename(currentRoot),root:currentRoot,entries:await vault.list(),state:await vault.loadState()}));
   ipc('choose',async(create=false)=>{
     const result=await dialog.showOpenDialog(win,{title:create?'Choose a folder for your new vault':'Open vault',properties:['openDirectory',...(create?['createDirectory']:[])]});
@@ -74,7 +79,7 @@ async function start() {
     {label:'View',submenu:[{role:'reload'},{role:'toggleDevTools'},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]},
     {label:'Window',submenu:[{role:'minimize'},{role:'close'}]}
   ]));
-  await win.loadURL(development?'http://127.0.0.1:5173':'engine://app/index.html');
+  await win.loadURL(development?`http://127.0.0.1:5173/${unsafeEval?'trusted.html':''}`:`engine://app/${unsafeEval?'trusted.html':'index.html'}`);
 }
 app.whenReady().then(start).catch(e=>{dialog.showErrorBox('Crafactory Engine',e.message);app.quit();});
 app.on('window-all-closed',()=>app.quit());
