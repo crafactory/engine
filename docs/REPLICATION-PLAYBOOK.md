@@ -2,8 +2,9 @@
 
 A reusable playbook for rebuilding a complex software product from public behavior, growing it
 through plugin boundaries, and shipping each increment with evidence. It is distilled from the
-Crafactory Engine work; project-specific status lives in
-[PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md), not here.
+full reachable Crafactory Engine history, including the staged kernel/migration work, release
+and packaging iterations, compatibility corpus runs and review findings; project-specific
+status lives in [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md), not here.
 
 ## Core loop
 
@@ -361,6 +362,119 @@ Update the tracker/worklog, record the next blocker, then start the next slice.
 
 ---
 
+## 10. Runtime lifecycle, ownership and failure isolation
+
+**L1. A disposer acts only while its registration is current.**  
+Re-registering the same id must not let an old disposer remove the newer registration.
+
+**L2. Bind providers at activation time.**  
+Do not capture a preconstructed provider instance; resolve the current provider when the
+consumer activates.
+
+**L3. Serialize start/stop transitions.**  
+Record in-flight startup/shutdown, assign state synchronously, and remove an instance only if
+the map still holds that exact instance.
+
+**L4. Clean up descendant scopes first.**  
+Stop children before parents; restart exactly the descendants that were stopped during reload.
+
+**L5. Stop async runtimes that resolve after unmount.**  
+A late initialization must be discarded and stopped, not retained as a second live instance.
+
+**L6. Preserve the original startup error.**  
+Cleanup/on-unload failures must not replace the error that caused shutdown; otherwise diagnosis
+becomes misleading.
+
+**L7. Late async work must target its old generation/root.**  
+Never let a stale callback adopt a successor session's child or write into the replacement DOM.
+
+**L8. Keep ownership for resources whose startup is still pending.**  
+A child that has not settled cannot be adopted by a newer owner; revoked contexts cannot unload
+foreign resources.
+
+**L9. Cancellation is cooperative, not a sandbox.**  
+A bounded shutdown may stop admitting work and revoke handlers, but cannot forcibly interrupt
+arbitrary trusted code. Document that distinction.
+
+**L10. Isolate failures per owner.**  
+One cleanup failure must not prevent unrelated cleanups, and one subscriber/processor must not
+block others.
+
+**L11. Use reverse-order cleanup with explicit ownership.**  
+Effects, listeners, intervals, child components and views need owners, not global teardown.
+
+---
+
+## 11. Release, packaging and platform verification
+
+**RP1. A local build is not a release verification.**  
+Packaged artifacts, installers, signatures and target platforms are separate evidence.
+
+**RP2. Verify the artifact that users download.**  
+Check archive contents, checksum naming, download links and the published file—not just the
+local output directory.
+
+**RP3. Treat platform behavior as a first-class input.**  
+Line endings, path separators, case sensitivity, modifier keys and filesystem semantics differ.
+
+**RP4. Use platform-neutral tests where possible.**  
+Prefer `ControlOrMeta`-style abstractions; isolate unavoidable OS-specific cases.
+
+**RP5. Keep generated inventories deterministic.**  
+Generated checklists/API tables must be reproducible and drift-checked in CI.
+
+**RP6. Separate release eligibility from compatibility proof.**  
+“Published” or “built” does not mean “all workflows verified.”
+
+**RP7. Record known failures in release notes.**  
+Unsigned builds, skipped platforms, flaky suites and pre-existing failures stay visible.
+
+**RP8. Test the packaged path, not only source.**  
+Desktop/native and corpus tests should exercise the same loading and storage path users get.
+
+**RP9. Do not silently downgrade a platform claim.**  
+If Windows/macOS/mobile was not run, say so.
+
+**RP10. Make the publication workflow reproducible from the repository.**  
+Pinned inputs, scripts and checksum verification belong in version control.
+
+---
+
+## 12. Cross-platform and data-integrity discipline
+
+**CP1. Normalize before comparing.**  
+Paths, line endings, case and Unicode normalization need explicit rules.
+
+**CP2. Test filesystem edges, not only happy paths.**  
+Symlink escape, traversal, hidden paths, case-insensitive collisions, empty folders and rename
+conflicts are contract behavior.
+
+**CP3. Prefer create-only and conflict-checked writes.**  
+Overwrite-capable writes are a deliberate operation, not the default.
+
+**CP4. Keep recoverable history.**  
+Snapshots, trash and undo are part of storage semantics, not UI polish.
+
+**CP5. Serialize mutations that can race.**  
+Appends, writes and cleanup operations need an ordering policy.
+
+**CP6. Make fingerprint/version conflicts explicit.**  
+Never silently overwrite a changed file; report the conflict and keep the draft.
+
+**CP7. Validate generated IDs and names.**  
+Plugin ids, property keys, block ids and paths need deterministic validation.
+
+**CP8. Preserve exact bytes when the format is opaque.**  
+Canvas/JSON/other structured files must round-trip without accidental Markdown conversion.
+
+**CP9. Test platform-specific keybindings once, then abstract them.**  
+OS differences should live in one helper, not scattered through tests.
+
+**CP10. Verify the recovery path after the failure path.**  
+A failed write/startup/unload must leave the workspace recoverable.
+
+---
+
 ## Anti-patterns
 
 - Counting exports as compatibility.
@@ -373,6 +487,11 @@ Update the tracker/worklog, record the next blocker, then start the next slice.
 - Rewriting before wrapping.
 - Keeping permanent migration fallbacks.
 - Claiming parity from bounded tests.
+- Letting a cleanup error mask the original startup error.
+- Letting an old disposer remove a newer registration.
+- Treating a skipped optional corpus as a pass.
+- Claiming release readiness from a local build.
+- Ignoring line endings, modifier keys or case-insensitive path collisions.
 
 ## Increment checklist
 
