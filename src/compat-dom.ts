@@ -24,15 +24,19 @@ export class BasesView {
 const element=(tag:string,parent?:HTMLElement,cls='')=>{const el=document.createElement(tag);el.className=cls;parent?.append(el);return el;};
 export function installDomHelpers(){
   if(!(String.prototype as any).contains)Object.defineProperty(String.prototype,'contains',{value:function(this:string,needle:string){return this.includes(needle);},configurable:true,writable:true});
+  const classNames=(values:unknown[]):string[]=>values.flat(Infinity).flatMap(value=>String(value).split(/\s+/)).filter(Boolean);
   const methods:Record<string,Function>={
     empty(this:HTMLElement){this.replaceChildren();},
     setText(this:HTMLElement,text:unknown){this.textContent=String(text);},
     getText(this:HTMLElement){return this.textContent||'';},
     setAttr(this:HTMLElement,key:string,value:string){this.setAttribute(key,value);},
-    addClass(this:HTMLElement,...names:string[]){this.classList.add(...names.flatMap(s=>s.split(/\s+/)).filter(Boolean));},
+    addClass(this:HTMLElement,...names:unknown[]){this.classList.add(...classNames(names));},
+    addClasses(this:HTMLElement,...names:unknown[]){this.classList.add(...classNames(names));},
+    removeClasses(this:HTMLElement,...names:unknown[]){this.classList.remove(...classNames(names));},
+    appendText(this:HTMLElement,text:unknown){this.append(document.createTextNode(String(text)));},
     removeClass(this:HTMLElement,...names:string[]){this.classList.remove(...names.flatMap(s=>s.split(/\s+/)).filter(Boolean));},
-    toggleClass(this:HTMLElement,names:string,enabled:boolean){for(const name of names.split(/\s+/).filter(Boolean))this.classList.toggle(name,enabled);},
-    show(this:HTMLElement){this.hidden=false;},hide(this:HTMLElement){this.hidden=true;},
+    toggleClass(this:HTMLElement,names:unknown,enabled:boolean){for(const name of classNames([names]))this.classList.toggle(name,enabled);},
+    show(this:HTMLElement){this.hidden=false;},hide(this:HTMLElement){this.hidden=true;},isShown(this:HTMLElement){return !this.hidden && this.isConnected;},
     createEl(this:HTMLElement,tag:string,options:any={},callback?:(el:HTMLElement)=>void){
       const el=element(tag,this);if(typeof options==='string')el.className=options;else{
         if(options.cls)el.className=Array.isArray(options.cls)?options.cls.join(' '):options.cls;

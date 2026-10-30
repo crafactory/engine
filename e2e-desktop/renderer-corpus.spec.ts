@@ -11,11 +11,11 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
   const manifest=JSON.parse(await fs.readFile(path.join(source,'manifest.json'),'utf8'));
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-corpus-')),profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-corpus-profile-'));
   const dir=path.join(root,'.crafactory/plugins',manifest.id);await fs.mkdir(dir,{recursive:true});
-  const note=plugin.name==='Dataview'?'# Test\n\n```dataview\nTABLE file.name AS "Name", file.mtime AS "Modified"\n```\n\n```dataview\nTASK\n```\n\n```dataview\nLIST FROM "Folder"\n```\n\n```dataview\nLIST\nWHERE file.name = "Second"\n```\n\n- [ ] Task one\n- [x] Task two\n':Array(400).fill('word').join(' ');
+  const note=plugin.name==='Dataview'?'# Test\n\n#alpha\n\n```dataview\nTABLE file.name AS "Name", file.mtime AS "Modified"\n```\n\n```dataview\nTASK\n```\n\n```dataview\nLIST FROM "Folder"\n```\n\n```dataview\nLIST\nWHERE file.name = "Second"\n```\n\n```dataview\nLIST FROM ""\nSORT file.name DESC\nLIMIT 2\n```\n\n```dataview\nTABLE rows.file.name AS "Files", length(rows) AS "Count"\nGROUP BY file.folder\n```\n\n```dataview\nTABLE WITHOUT ID file.name AS "Name", Tag\nFLATTEN file.etags AS Tag\n```\n\nInline: `= this.file.name`\n\n- [ ] Task one\n- [x] Task two\n':Array(400).fill('word').join(' ');
   await fs.writeFile(path.join(root,'Test.md'),note);
   if(plugin.name==='Dataview'){
-    await fs.writeFile(path.join(root,'Second.md'),'# Second\n');
-    await fs.mkdir(path.join(root,'Folder'),{recursive:true});await fs.writeFile(path.join(root,'Folder/Third.md'),'# Third\n\n- [ ] Third task\n');
+    await fs.writeFile(path.join(root,'Second.md'),'# Second\n\n#alpha\n');
+    await fs.mkdir(path.join(root,'Folder'),{recursive:true});await fs.writeFile(path.join(root,'Folder/Third.md'),'# Third\n\n#alpha\n\n- [ ] Third task\n');
   }
   for(const file of ['main.js','manifest.json'])await fs.copyFile(path.join(source,file),path.join(dir,file));
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
@@ -34,13 +34,17 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
     }else if(plugin.name==='Dataview'){
       await page.getByTestId('settings-close').click();await page.getByTestId('mode-reading').click();
       const blocks=page.locator('.reading-surface .plugin-code-block');
-      await expect(blocks).toHaveCount(4);
+      await expect(blocks).toHaveCount(7);
       await expect(blocks.nth(0)).toContainText('Name');await expect(blocks.nth(0)).toContainText('Modified');await expect(blocks.nth(0)).toContainText('Third');
       await expect(blocks.nth(1)).toContainText('Task one');await expect(blocks.nth(1)).toContainText('Task two');await expect(blocks.nth(1)).toContainText('Third task');
       await expect(blocks.nth(2)).toContainText('Third');
       await expect(blocks.nth(3)).toContainText('Second');
+      await expect(blocks.nth(4)).toContainText('Third');await expect(blocks.nth(4)).toContainText('Test');await expect(blocks.nth(4)).not.toContainText('Second');
+      await expect(blocks.nth(5)).toContainText('Folder');await expect(blocks.nth(5)).toContainText('Third');await expect(blocks.nth(5)).toContainText('2');
+      await expect(blocks.nth(6)).toContainText('#alpha');
+      const reading=page.locator('.reading-surface');await expect(reading).toContainText('Inline:');await expect(reading).not.toContainText('= this.file.name');
       await expect(page.locator('.toast')).toHaveCount(0);
-      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['TABLE file.name/file.mtime','TASK','LIST FROM folder','LIST WHERE file.name'];
+      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['TABLE file.name/file.mtime','TASK','LIST FROM folder','LIST WHERE file.name','LIST SORT/LIMIT','GROUP BY folder','FLATTEN etags','inline query'];
     }else if(plugin.name==='Reading Time'){
       const status=page.locator('.plugin-status-item');await expect(status).toHaveText('2 min read');
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await page.getByLabel('Reading speed',{exact:true}).fill('100');await expect(status).toHaveText('4 min read');
