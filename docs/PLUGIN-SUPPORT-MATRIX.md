@@ -2,7 +2,8 @@
 
 This document is the single tracking surface for **verified external-plugin compatibility**. It
 records only pinned release bytes exercised as black-box inputs; it is not a claim that every
-plugin or API works. Detailed API boundaries remain in
+plugin or API works. How to work on compatibility is distilled in [REPLICATION-PLAYBOOK.md](REPLICATION-PLAYBOOK.md).
+Detailed API boundaries remain in
 [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md), and per-run evidence remains in
 [TRUSTED-RENDERER-PLUGIN-TESTS.md](TRUSTED-RENDERER-PLUGIN-TESTS.md) and
 [compatibility/renderer-community-results.json](compatibility/renderer-community-results.json).
