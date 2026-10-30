@@ -38,7 +38,7 @@ export interface StorageService {
 /** The subset of the local Vault implementation this contract delegates to. */
 export type VaultLike = StorageService;
 
-const TEXT_EXTENSIONS = new Set(['.md', '.markdown', '.txt', '.canvas', '.base', '.csv', '.json', '.css']);
+const TEXT_EXTENSIONS = new Set(['.md', '.markdown', '.txt', '.canvas', '.base', '.csv', '.json', '.css', '.js', '.mjs']);
 const MAX_TEXT_BYTES = 32 * 1024 * 1024;
 const MAX_PLUGIN_DATA_BYTES = 1024 * 1024;
 const MAX_ATTACHMENT_BYTES = 64 * 1024 * 1024;

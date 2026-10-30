@@ -111,6 +111,12 @@ function storageContract(label: string, create: () => Promise<StorageFixture>): 
       expect((await fixture.service.read(name)).content).toBe('# 你好世界\n\n中文内容。');
       expect((await fixture.service.list()).some(entry => entry.path === name)).toBe(true);
     });
+    it('reads JavaScript sources used by custom views', async () => {
+      await fixture.service.create('View.js', 'dv.paragraph("view");');
+      await fixture.service.create('View.mjs', 'export default 1;');
+      expect((await fixture.service.read('View.js')).content).toBe('dv.paragraph("view");');
+      expect((await fixture.service.read('View.mjs')).content).toBe('export default 1;');
+    });
     it('keeps attachments resolvable across a rename', async () => {
       const attached = await fixture.service.attach('image.png', [1, 2, 3]);
       await fixture.service.rename(attached, 'Moved.png');

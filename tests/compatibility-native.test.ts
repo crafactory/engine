@@ -30,8 +30,9 @@ describe('compatibility facade over native services', () => {
   it('resolves link destinations through the native index', () => {
     const {runtime} = harness({resolveLink: (link, from) => link === 'Alias' && from === 'One.md' ? 'Two.md' : undefined});
     expect((runtime.app.metadataCache.getFirstLinkpathDest('Alias', 'One.md') as any).path).toBe('Two.md');
-    // A native resolver is authoritative: a miss does not fall back to the snapshot.
-    expect(runtime.app.metadataCache.getFirstLinkpathDest('One', 'Two.md') as any).toBeNull();
+    // Exact file paths resolve before the native alias/title resolver; a miss stays null.
+    expect((runtime.app.metadataCache.getFirstLinkpathDest('One', 'Two.md') as any).path).toBe('One.md');
+    expect(runtime.app.metadataCache.getFirstLinkpathDest('Missing', 'One.md') as any).toBeNull();
   });
   it('falls back to snapshot resolution when no native index is supplied', () => {
     const {runtime} = harness();

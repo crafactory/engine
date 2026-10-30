@@ -7,7 +7,7 @@ This section records the trusted-renderer-only CSP entry and its restart flow.
 | Check | Observed result | Scope |
 |---|---|---|
 | `npm run inventory:check` | 118 entries, 29 core, 52 bounded checkpoints | No drift |
-| `npm run test` | 824 passed (42 files) | Existing suites |
+| `npm run test` | 826 passed (42 files) | Includes custom-view script reads and exact metadata resolution |
 | `npm run build` | Passed | Multi-page build includes `trusted.html` |
 | `npm run test:e2e` | **64 passed / 0 failed** | Existing browser flows |
 | `npm run test:desktop` | New opt-in/restart case | Desktop-only setting |
@@ -30,7 +30,7 @@ This section records the first real Dataview query workflow.
 | `npm run test` | 824 passed (42 files) | Metadata parser, index, renderer and compatibility cases |
 | `npm run build` | Passed | Strict TypeScript and production bundle |
 | `npm run test:e2e` | **64 passed / 0 failed** | Existing browser flows |
-| pinned Linux corpus workflow | Dataview 0.5.70 **BOUNDED_WORKFLOWS_PASS** | Run 41006580619; query/inline workflows and DataviewJS |
+| pinned Linux corpus workflow | Dataview 0.5.70 **BOUNDED_WORKFLOWS_PASS** | Run 41009214995; query/inline, DataviewJS and dv.view |
 
 `src/metadata.ts` derives an original CachedMetadata-shaped value: frontmatter and its
 position, ATX/setext headings, wiki/Markdown links and embeds, inline/frontmatter tags,
@@ -38,7 +38,7 @@ yaml/heading sections, list items/tasks and `^block` ids, with zero-based line/c
 UTF-16 full-file offsets. `engine.index/v1.metadata(path)` caches and invalidates it, and
 `MetadataCache.getFileCache/getCache` serve it to compatibility plugins. The renderer adds
 real CodeMirror editor fields, DOM query/insertion helpers, namespaced Workspace events, a
-root-path alias and `String.prototype.contains` for the pinned Dataview bundle. The corpus test now owns real `TABLE`, `TASK`, `FROM`, `WHERE`, `SORT`/`LIMIT`, `GROUP BY`, `FLATTEN` and inline-query workflows; DataviewJS runs through the explicit desktop `unsafe-eval` opt-in. This is not full Dataview query semantics.
+root-path alias and `String.prototype.contains` for the pinned Dataview bundle. The corpus test now owns real `TABLE`, `TASK`, `FROM`, `WHERE`, `SORT`/`LIMIT`, `GROUP BY`, `FLATTEN` and inline-query workflows; DataviewJS and a `dv.view` custom script run through the explicit desktop `unsafe-eval` opt-in; the custom view resolves `.js` files by exact path and reads them as vault text. This is not full Dataview query semantics.
 
 ## Native compatibility support plugin
 

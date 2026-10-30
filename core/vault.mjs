@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const textExtensions = new Set(['.md', '.markdown', '.txt', '.canvas', '.base', '.csv', '.json', '.css']);
+const textExtensions = new Set(['.md', '.markdown', '.txt', '.canvas', '.base', '.csv', '.json', '.css', '.js', '.mjs']);
 const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
 export class Vault {
   constructor(root) {this.root = path.resolve(root); this.queue = Promise.resolve();}
