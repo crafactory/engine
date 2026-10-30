@@ -3,7 +3,7 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const {pathToFileURL} = require('node:url');
 let win, vault, watcher, Vault, currentRoot, closeAllowed=false;
-let unsafeEval=false;
+let unsafeEvalEnabled=false, activeUnsafeEval=false;
 protocol.registerSchemesAsPrivileged([{scheme:'engine', privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
 app.setName('Crafactory Engine');
 const development = process.env.ENGINE_DEV === '1';
@@ -23,14 +23,14 @@ function ipc(name, handler) {
 }
 async function start() {
   ({Vault}=await import('../core/vault.mjs'));
-  try{unsafeEval=JSON.parse(await fs.readFile(path.join(app.getPath('userData'),'trusted-renderer.json'),'utf8')).unsafeEval===true;}catch{}
+  try{unsafeEvalEnabled=JSON.parse(await fs.readFile(path.join(app.getPath('userData'),'trusted-renderer.json'),'utf8')).unsafeEval===true;activeUnsafeEval=unsafeEvalEnabled;}catch{}
   protocol.handle('engine', request=>{
     const url=new URL(request.url);
     if(url.hostname !== 'app') return new Response('Forbidden',{status:403});
     const relative=decodeURIComponent(url.pathname).replace(/^\/+/,'');
-    if(relative==='trusted.html'&&!unsafeEval)return new Response('Forbidden',{status:403});
-    const file=path.resolve(__dirname,'../dist',relative || 'index.html');
     const root=path.resolve(__dirname,'../dist');
+    const file=path.resolve(root,relative || 'index.html');
+    if(file===path.join(root,'trusted.html')&&!activeUnsafeEval)return new Response('Forbidden',{status:403});
     if(file!==root && !file.startsWith(root+path.sep)) return new Response('Forbidden',{status:403});
     return net.fetch(pathToFileURL(file).toString());
   });
@@ -58,8 +58,16 @@ async function start() {
     if(!closeAllowed){event.preventDefault();win.webContents.send('engine:before-close');}
   });
   ipc('close-ready',()=>{closeAllowed=true;win.close();});
-  ipc('unsafeEval',()=>unsafeEval);
-  ipc('setUnsafeEval',async enabled=>{unsafeEval=enabled===true;await fs.writeFile(path.join(app.getPath('userData'),'trusted-renderer.json'),JSON.stringify({unsafeEval}));return unsafeEval;});
+  ipc('unsafeEval',()=>unsafeEvalEnabled);
+  ipc('setUnsafeEval',async enabled=>{
+    if(enabled===true&&!unsafeEvalEnabled){
+      const result=await dialog.showMessageBox(win,{type:'warning',buttons:['Cancel','Enable unsafe-eval'],defaultId:0,cancelId:0,noLink:true,title:'Allow unsafe-eval?',message:'Allow trusted-renderer plugins to run eval?',detail:'DataviewJS and dv.view require this. It weakens the Content Security Policy and takes effect after restart. Plugins remain unsandboxed.'});
+      if(result.response!==1)return unsafeEvalEnabled;
+    }
+    unsafeEvalEnabled=enabled===true;
+    await fs.writeFile(path.join(app.getPath('userData'),'trusted-renderer.json'),JSON.stringify({unsafeEval:unsafeEvalEnabled}));
+    return unsafeEvalEnabled;
+  });
   ipc('vault',async()=>({name:path.basename(currentRoot),root:currentRoot,entries:await vault.list(),state:await vault.loadState()}));
   ipc('choose',async(create=false)=>{
     const result=await dialog.showOpenDialog(win,{title:create?'Choose a folder for your new vault':'Open vault',properties:['openDirectory',...(create?['createDirectory']:[])]});
@@ -79,7 +87,7 @@ async function start() {
     {label:'View',submenu:[{role:'reload'},{role:'toggleDevTools'},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]},
     {label:'Window',submenu:[{role:'minimize'},{role:'close'}]}
   ]));
-  await win.loadURL(development?`http://127.0.0.1:5173/${unsafeEval?'trusted.html':''}`:`engine://app/${unsafeEval?'trusted.html':'index.html'}`);
+  await win.loadURL(development?`http://127.0.0.1:5173/${activeUnsafeEval?'trusted.html':''}`:`engine://app/${activeUnsafeEval?'trusted.html':'index.html'}`);
 }
 app.whenReady().then(start).catch(e=>{dialog.showErrorBox('Crafactory Engine',e.message);app.quit();});
 app.on('window-all-closed',()=>app.quit());
