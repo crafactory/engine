@@ -31,6 +31,10 @@ export interface Bridge {
   restore(id: string): Promise<Note>;
   plugins(): Promise<{manifest: PluginManifest; code: string}[]>;
   print(): Promise<void>;
+  /** Whether this desktop build may serve the trusted-renderer unsafe-eval entry. */
+  unsafeEval?(): Promise<boolean>;
+  /** Persist the unsafe-eval opt-in; takes effect after restart. */
+  setUnsafeEval?(enabled: boolean): Promise<boolean>;
   onChange(fn: () => void): () => void;
   onBeforeClose?(fn: () => void): () => void;
   closeReady?(): Promise<void>;

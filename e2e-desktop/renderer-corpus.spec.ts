@@ -17,11 +17,13 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
     await fs.writeFile(path.join(root,'Second.md'),'# Second\n\n#alpha\n');
     await fs.mkdir(path.join(root,'Folder'),{recursive:true});await fs.writeFile(path.join(root,'Folder/Third.md'),'# Third\n\n#alpha\n\n- [ ] Third task\n');
   }
+  if(plugin.name==='Dataview')await fs.writeFile(path.join(profile,'trusted-renderer.json'),JSON.stringify({unsafeEval:true}));
   for(const file of ['main.js','manifest.json'])await fs.copyFile(path.join(source,file),path.join(dir,file));
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
   const app=await electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:{...process.env,ENGINE_DEV:'0'}});
   try{
     const page=await app.firstWindow();await page.getByTestId('file-Test.md').click();await expect(page.locator('.note-title h1')).toHaveText('Test');
+    if(plugin.name==='Dataview')await expect(page).toHaveURL('engine://app/trusted.html');
     const settings=async()=>{await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();};
     await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
     const control=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});
@@ -41,10 +43,10 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await expect(blocks.nth(3)).toContainText('Second');
       expect((await blocks.nth(4).innerText()).split('\n').map(line=>line.trim()).filter(Boolean)).toEqual(['Third','Test']);
       await expect(blocks.nth(5)).toContainText('Folder');await expect(blocks.nth(5)).toContainText('Third');await expect(blocks.nth(5)).toContainText('2');
-      await expect(blocks.nth(6)).toContainText('#alpha');await expect(blocks.nth(7)).toContainText('Content Security Policy');
+      await expect(blocks.nth(6)).toContainText('#alpha');await expect(blocks.nth(7)).toContainText('JS Test');
       const reading=page.locator('.reading-surface');await expect(reading).toContainText(/Inline:\s*Test/);await expect(reading).not.toContainText('= this.file.name');
       await expect(page.locator('.toast')).toHaveCount(0);
-      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['TABLE file.name/file.mtime','TASK','LIST FROM folder','LIST WHERE file.name','LIST SORT/LIMIT','GROUP BY folder','FLATTEN etags','DataviewJS CSP rejection','inline query'];
+      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['TABLE file.name/file.mtime','TASK','LIST FROM folder','LIST WHERE file.name','LIST SORT/LIMIT','GROUP BY folder','FLATTEN etags','DataviewJS','inline query'];
     }else if(plugin.name==='Reading Time'){
       const status=page.locator('.plugin-status-item');await expect(status).toHaveText('2 min read');
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await page.getByLabel('Reading speed',{exact:true}).fill('100');await expect(status).toHaveText('4 min read');

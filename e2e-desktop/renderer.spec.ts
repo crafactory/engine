@@ -98,3 +98,18 @@ test(`trusted renderer failure cleans up: ${label}`,async()=>{
   await fs.writeFile(path.join(root,'.crafactory/plugins/renderer-fixture/main.js'),source);await settings();await page.getByLabel('Runtime for Renderer fixture',{exact:true}).selectOption('renderer');await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();await page.getByTestId('dialog-submit').click();
   await expect(page.locator('.error-banner')).toBeVisible();await expect(page.getByRole('switch',{name:'Enable Renderer fixture',exact:true})).not.toBeChecked();await expect(page.locator('.plugin-status-item')).toHaveCount(0);
 });
+test('unsafe-eval is opt-in, desktop-only and applies after restart',async()=>{
+  expect(await page.evaluate(()=>new Promise(resolve=>setTimeout(()=>{try{resolve(eval('2 + 2'));}catch{resolve('blocked');}},0)))).toBe('blocked');
+  await settings();
+  const toggle=page.getByRole('switch',{name:'Allow unsafe-eval in trusted renderer',exact:true});
+  await expect(toggle).not.toBeChecked();
+  await app.evaluate(({dialog})=>{dialog.showMessageBox=async()=>({response:1,checkboxChecked:false});});
+  await toggle.click();await expect(page.getByRole('alert')).toContainText('unsafe-eval');await page.getByRole('button',{name:'Enable unsafe-eval',exact:true}).click();await expect(toggle).toBeChecked();
+  await expect(page.getByRole('status').filter({hasText:'Restart Crafactory Engine'})).toBeVisible();
+  await app.close();
+  const executablePath=process.env.E2E_EXECUTABLE_PATH;
+  app=await electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:{...process.env,ENGINE_DEV:'0'}});
+  page=await app.firstWindow();
+  await expect(page).toHaveURL('engine://app/trusted.html');
+  expect(await page.evaluate(()=>new Promise(resolve=>setTimeout(()=>{try{resolve(eval('2 + 2'));}catch(error){resolve(String(error));}},0)))).toBe(4);
+});
