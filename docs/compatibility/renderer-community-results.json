@@ -16,9 +16,13 @@
         "TABLE file.name/file.mtime",
         "TASK",
         "LIST FROM folder",
-        "LIST WHERE file.name"
+        "LIST WHERE file.name",
+        "LIST SORT/LIMIT",
+        "GROUP BY folder",
+        "FLATTEN etags",
+        "inline query"
       ],
-      "checked_at": "2026-10-29T15:31:13.756Z"
+      "checked_at": "2026-10-30T03:23:48.865Z"
     },
     {
       "name": "Templater",
