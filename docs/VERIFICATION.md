@@ -49,6 +49,28 @@ Create-note originally logged a non-fatal internal `this.update` error. Adding t
 declarative settings base `update()` removed it; the Templater corpus now asserts no page errors
 for the combined settings/insert/create-note workflow.
 
+## Templater startup templates
+
+This section records startup-template execution after restart.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run check` | 829 passed (43 files); inventory and build passed | New `App.fileManager.renameFile` case |
+| `npm run test:e2e` | **64 passed / 0 failed** | Browser flows |
+| `npm run test:desktop` (macOS) | **44 passed / 0 failed / 10 skipped** | Includes reusable-leaf/exact-path case |
+| Pinned Templater `2.26.0` corpus (macOS) | **BOUNDED_WORKFLOWS_PASS** | Startup template + settings + insert + create-note + re-enable |
+| Pinned Templater `2.26.0` corpus (Linux) | Not rerun in this change | Checked-in result remains the previous `STARTUP_ONLY` run |
+
+The corpus enables **Enable startup templates**, adds `Templates/Startup.md` to the startup list,
+restarts the app, re-enables Templater, and verifies the template's
+`tp.file.create_new("Startup created", "StartupCreated", false)` creates `StartupCreated.md`
+with the exact content.
+
+The first blocker was `App.fileManager`. A bounded `renameFile` now routes through
+`Vault.rename`; the startup template itself uses `tp.file.create_new`, which exercises the
+existing `getAvailablePath`, `create` and open paths. This does not establish arbitrary startup
+hooks, user scripts or shell/system functions.
+
 ## Templater declarative settings persistence
 
 This section records the Templater settings workflow and the declarative settings API it needs.

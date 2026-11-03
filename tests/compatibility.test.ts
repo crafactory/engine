@@ -289,11 +289,17 @@ describe('unsupported methods fail, not no-op',()=>{
     const h=harness();await h.runtime.app.workspace.openPath('C#.md');
     expect(h.calls).toContainEqual({operation:'open',args:['C#.md']});
   });
+  it('App.fileManager.renameFile routes to Vault.rename',async()=>{
+    const h=harness(),file=h.runtime.app.vault.getFileByPath('Two.md')!;
+    await h.runtime.app.fileManager.renameFile(file,'Renamed.md');
+    expect(h.calls).toContainEqual({operation:'rename',args:['Two.md','Renamed.md']});
+    expect(h.runtime.app.vault.getFileByPath('Renamed.md')).toBe(file);
+  });
   it('accepts the bounded vault lifecycle events',()=>{const h=harness();for(const name of ['create','delete','rename','modify'])expect(()=>h.runtime.app.vault.on(name,()=>{})).not.toThrow();});
   it('renderer-only workspace leaf methods require host.ui',()=>{const h=harness();for(const method of ['getLeaf','getRightLeaf','getLeavesOfType','revealLeaf'])expect(()=>{const value=(h.runtime.app.workspace as any)[method];if(typeof value==='function')value.call(h.runtime.app.workspace);}).toThrow(CompatibilityError);});
   it('rejects undocumented app/workspace/cache access and unsupported events',()=>{
     const h=harness();
-    for(const op of [()=>h.runtime.app.fileManager,()=>h.runtime.app.metadataCache.fileToLinktext,()=>h.runtime.app.workspace.on('layout-change',()=>{}),()=>h.runtime.app.workspace.on('hover-link',()=>{})])expect(op).toThrow(CompatibilityError);
+    for(const op of [()=>h.runtime.app.fileManager.processFrontMatter,()=>h.runtime.app.metadataCache.fileToLinktext,()=>h.runtime.app.workspace.on('layout-change',()=>{}),()=>h.runtime.app.workspace.on('hover-link',()=>{})])expect(op).toThrow(CompatibilityError);
   });
 });
 describe('documented utility subsets',()=>{
