@@ -58,7 +58,7 @@ This section records the Templater settings workflow and the declarative setting
 | `npm run check` | 826 passed (43 files); inventory and build passed | No new unit gate; corpus covers the renderer |
 | `npm run test:e2e` | **64 passed / 0 failed** | Local port 5173 was occupied by an unrelated Vite server; rerun with an equivalent config on 5174 |
 | `npm run test:desktop` (macOS) | **43 passed / 0 failed / 10 skipped** | CommonJS selection test portability fixed; corpus skipped without inputs |
-| Pinned Templater `2.26.0` corpus (macOS) | **BOUNDED_WORKFLOWS_PASS** | Text/toggle/dropdown/list settings + insert + create-note + re-enable |
+| Pinned Templater `2.26.0` corpus (macOS) | **BOUNDED_WORKFLOWS_PASS** | Text/toggle/dropdown/list + dangerous-confirmation/local settings + insert + create-note + re-enable |
 | Pinned Templater `2.26.0` corpus (Linux) | Not rerun in this change | Checked-in result remains the previous `STARTUP_ONLY` run |
 
 The former macOS-only CommonJS Control-selection failure was a test-binding bug:
@@ -74,11 +74,13 @@ descriptions and `visible` predicates. It also required global `createEl`/`creat
 helpers, DocumentFragment DOM helpers, `Array.prototype.contains`, and a base `update()`.
 
 The corpus changes **Template folder location** to `Templates`, enables **Automatic jump to
-cursor**, selects **User script intellisense** value `4`, adds a **Template hotkey** and deletes
-it, verifies the exact `data.json` fields, restarts the app, re-enables Templater, and verifies
-the text/toggle/dropdown values and the persisted list item before deleting it. It then runs the
-insert/create-note workflows. This is not full settings navigation/search, list reordering,
-dangerous-setting confirmation or validation-equivalence coverage.
+cursor**, selects **User script intellisense** value `4`, cancels and then confirms the dangerous
+**Trigger Templater on new file creation** warning (acknowledgement checkbox included), adds a
+**Template hotkey** and deletes it, verifies the exact `data.json` and `templater-local-settings`
+values, restarts the app, re-enables Templater, and verifies the text/toggle/dropdown/local values
+and the persisted list item before deleting it. It then runs the insert/create-note workflows.
+This is not full settings navigation/search, list reordering, other dangerous settings or
+validation-equivalence coverage.
 
 ## Templater template insertion
 

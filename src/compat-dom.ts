@@ -280,8 +280,9 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     }
     private async changeControl(key:string,value:unknown){
       try{
-        await (this as any).setControlValue?.(key,value);
-        await (this as any).commitControlValue?.(key,value);
+        // setControlValue owns the commit path and may defer it behind a confirmation modal.
+        if(typeof (this as any).setControlValue==='function')await (this as any).setControlValue(key,value);
+        else await (this as any).commitControlValue?.(key,value);
       }catch(error){console.error(error);this.update();}
     }
   }
@@ -300,8 +301,12 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     close(){if(!modals.delete(this))return;this.containerEl.remove();safe(()=>this.onClose())();safe(()=>this.callback?.())();if(this.shouldRestoreSelection&&(this.previous as HTMLElement)?.isConnected)(this.previous as HTMLElement).focus();}
   }
   class ConfirmationModal extends Modal {
-    /** Add a footer button using the bounded ButtonComponent surface. */
-    addButton(callback:(button:ButtonComponent)=>void){const footer=element('footer',this.modalEl,'modal-button-container');const button=new ButtonComponent(footer);callback(button);return this;}
+    /** Add a footer action button; confirmation actions close the dialog. */
+    addButton(callback:(button:ButtonComponent)=>void){
+      const footer=element('footer',this.modalEl,'modal-button-container'),button=new ButtonComponent(footer),onClick=button.onClick.bind(button);
+      button.onClick=(handler)=>{onClick((event)=>{handler(event);this.close();});return button;};
+      callback(button);return this;
+    }
     /** Add an acknowledgement checkbox whose callback receives its checked state. */
     addCheckbox(label:string,callback:(checked:boolean)=>void){const wrap=element('label',this.modalEl,'modal-checkbox');const input=element('input',wrap) as HTMLInputElement;input.type='checkbox';wrap.append(document.createTextNode(label));input.addEventListener('change',()=>safe(callback)(input.checked));return this;}
     /** Add a cancel button that closes this dialog. */

@@ -29,7 +29,7 @@ It does **not** certify commands, views, rendering, menus, settings behavior or 
 |---|---|---|---|---|
 | **Dataview** | `0.5.70` / manifest `0.5.68` | ✅ `BOUNDED_WORKFLOWS_PASS` | `TABLE`, `TASK`, `LIST FROM`, `WHERE`, `SORT`/`LIMIT`, `GROUP BY`, `FLATTEN`, inline query, DataviewJS, `dv.view` | Not full query/frontmatter/view semantics; DataviewJS and `dv.view` need 🔒 desktop `unsafe-eval` |
 | **Reading Time** | `1.1.2` | ✅ `BOUNDED_WORKFLOWS_PASS` | 400-word test at 200 wpm; speed setting persists; reading/source transition; editor change 8 min; selected-text modal; disable/re-enable | Format variants, invalid input, timing and multiple leaves remain unverified |
-| **Templater** | `2.26.0` | ✅ `BOUNDED_WORKFLOWS_PASS` | Template folder, toggle and dropdown settings persist across restart; template hotkey list add/delete persists; insert template into the active note; exact inserted content persists; disable/re-enable re-registers the command; create a new note from a template and open its exact content | Dangerous-setting confirmations, other lists, user scripts, startup templates and shell/system functions remain unverified |
+| **Templater** | `2.26.0` | ✅ `BOUNDED_WORKFLOWS_PASS` | Template folder, toggle and dropdown settings persist across restart; dangerous trigger-on-creation confirmation cancel/confirm persists locally; template hotkey list add/delete persists; insert template into the active note; exact inserted content persists; disable/re-enable re-registers the command; create a new note from a template and open its exact content | Other dangerous settings (startup/system commands), other lists, number validation, user scripts, startup templates and shell/system functions remain unverified |
 | **Calendar (Beta)** | `2.0.0-beta.2` | 🟡 `STARTUP_ONLY` | Startup only | Needs a real workspace leaf/view lifecycle, daily-note integration and menu behavior |
 | **Advanced Tables** | `0.23.2` | 🟡 `STARTUP_ONLY` | Startup only | Needs editor-command and CM5/CM6 table integration workflows |
 
@@ -74,8 +74,10 @@ entry (`unsafe-eval` + `wasm-unsafe-eval`):
 
 1. **Settings persistence:** opens the declarative plugin settings, changes **Template folder
    location** to `Templates`, enables **Automatic jump to cursor**, selects **User script
-   intellisense** value `4`, adds a **Template hotkey** and deletes it, verifies `data.json`,
-   restarts the app, re-enables Templater and verifies the text/toggle/dropdown/list values.
+   intellisense** value `4`, cancels and then confirms the dangerous **Trigger Templater on new
+   file creation** warning (including the acknowledgement checkbox), adds a **Template hotkey**
+   and deletes it, verifies `data.json` and `templater-local-settings`, restarts the app,
+   re-enables Templater and verifies the text/toggle/dropdown/local/list values.
 2. **Insert template:** runs **Open insert template modal**, picks the template, and verifies
    exact editor and persisted note bytes.
 3. **Create note from template:** runs **Create new note from template**, picks
@@ -98,7 +100,7 @@ add/delete.
 
 Not yet verified:
 
-- Dangerous-setting confirmation flows and other lists (startup templates, user scripts,
+- Other dangerous settings (startup templates/system commands), other lists (user scripts,
   folder/file templates), number-control validation
 - Nested folder creation and conflict naming beyond the single `Untitled` case
 - User scripts and startup templates

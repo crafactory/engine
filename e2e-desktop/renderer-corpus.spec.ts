@@ -62,6 +62,11 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.getByRole('switch',{name:'Automatic jump to cursor',exact:true}).check();
       await page.getByLabel('User script intellisense',{exact:true}).selectOption('4');
       await expect.poll(async()=>{try{const data=JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8'));return [data.templates_folder,data.auto_jump_to_cursor,data.intellisense_render];}catch{return null;}}).toEqual(['Templates',true,'4']);
+      const dangerous=page.getByRole('switch',{name:'Trigger Templater on new file creation',exact:true});
+      await dangerous.click();const warning=page.getByRole('dialog',{name:'Trigger Templater on new file creation',exact:true});await expect(warning).toContainText('dangerous');
+      await warning.getByRole('button',{name:'Cancel',exact:true}).click();await expect(dangerous).not.toBeChecked();
+      await dangerous.click();await warning.getByRole('checkbox').check();await warning.getByRole('button',{name:'Enable',exact:true}).click();await expect(dangerous).toBeChecked();await expect(warning).toHaveCount(0);
+      await expect.poll(async()=>JSON.parse(await page.evaluate(()=>localStorage.getItem('templater-local-settings')||'{}')).trigger_on_file_creation).toBe(true);
       await page.getByRole('button',{name:'Add template hotkey',exact:true}).click();
       const hotkey=page.getByRole('dialog').nth(1);
       await hotkey.getByLabel('Template',{exact:true}).fill('Templates/Template');
@@ -78,6 +83,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();
       await expect(page.getByLabel('Template folder location',{exact:true})).toHaveValue('Templates');
       await expect(page.getByRole('switch',{name:'Automatic jump to cursor',exact:true})).toBeChecked();
+      await expect(page.getByRole('switch',{name:'Trigger Templater on new file creation',exact:true})).toBeChecked();
       await expect(page.getByLabel('User script intellisense',{exact:true})).toHaveValue('4');
       await expect(page.locator('.plugin-settings-content')).toContainText('Templates/Template');
       await page.getByRole('button',{name:'Delete',exact:true}).first().click();
@@ -107,7 +113,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await expect(page.getByTestId('note-editor')).toContainText('Created body');
       await expect.poll(async()=>fs.readFile(path.join(root,'Untitled.md'),'utf8')).toBe('Created body');
       expect(pageErrors).toEqual([]);
-      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['template folder, toggle and dropdown settings persist across restart','template hotkey list add/delete and restart persistence','insert template into active note','persist exact editor content','disable/re-enable re-registers command','create new note from template and open exact content'];
+      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['template folder, toggle and dropdown settings persist across restart','dangerous setting cancel/confirm persists locally across restart','template hotkey list add/delete and restart persistence','insert template into active note','persist exact editor content','disable/re-enable re-registers command','create new note from template and open exact content'];
     }else if(plugin.name==='Reading Time'){
       const status=page.locator('.plugin-status-item');await expect(status).toHaveText('2 min read');
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await page.getByLabel('Reading speed',{exact:true}).fill('100');await expect(status).toHaveText('4 min read');
