@@ -54,7 +54,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
   if(plugin.styles_sha256){const bytes=await fs.readFile(path.join(source,'styles.css'));expect(crypto.createHash('sha256').update(bytes).digest('hex')).toBe(plugin.styles_sha256);await fs.writeFile(path.join(dir,'styles.css'),bytes);}
   if(plugin.name==='Excalidraw')await fs.writeFile(path.join(dir,'data.json'),'{}');
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
-  const launch=()=>electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:nativeTestEnv(profile)});
+  const launch=()=>electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:gitEnvironment});
   let app=await launch();
   try{
     const pageErrors:string[]=[],consoleErrors:string[]=[],orderedErrors:string[]=[];
@@ -321,6 +321,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
         await page.locator('.palette-list button').filter({hasText:/Toggle between Kanban and markdown mode$/}).click();
       }
       await expect(page.locator('.plugin-view-pane').getByText('Tasks',{exact:true})).toBeVisible();
+      expect(await fs.readFile(path.join(root,boardPath),'utf8')).not.toContain('Compatibility card');
       outcome='BOUNDED_WORKFLOWS_WITH_ERRORS';blocker="Card creation remains blocked: Cannot read properties of undefined (reading 'has'); embedded focus also reports missing setTimeout";
       workflows=['create board Markdown via plugin command','create real list using embedded Markdown input and verify Markdown save','negative acceptance: card Enter reports parser failure and does not persist a card','switch documents and retain the board','restart application, re-enable plugin and reopen the saved list; cards/completion/moves remain unsupported'];
     }
@@ -334,6 +335,8 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       if(orderedErrors.length){outcome='STARTUP_WITH_ERRORS';blocker=orderedErrors[0];}
     }
     if(plugin.name==='Tasks'&&outcome==='BOUNDED_WORKFLOWS_PASS'&&consoleErrors.some(error=>error.startsWith('setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager.'))){outcome='BOUNDED_WORKFLOWS_WITH_ERRORS';blocker='App.metadataTypeManager remains unsupported; task query/completion workflows passed with the recorded property-type error';}
+    // A diagnostic refusal is not an acceptable regression for an already proven workflow.
+    if(!['Copilot','Style Settings'].includes(plugin.name))expect(outcome).toBe(['Excalidraw','Tasks','Kanban'].includes(plugin.name)?'BOUNDED_WORKFLOWS_WITH_ERRORS':'BOUNDED_WORKFLOWS_PASS');
     if(outcome==='BOUNDED_WORKFLOWS_PASS')expect(pageErrors).toEqual([]);
     if(outcome==='BOUNDED_WORKFLOWS_WITH_ERRORS')expect(pageErrors.filter(error=>error!=='Unsupported Obsidian capability: Obsidian core Canvas plugin. See docs/PLUGIN-COMPATIBILITY.md.')).toEqual([]);
     if(outcome.startsWith('BOUNDED_WORKFLOWS_'))expect(consoleErrors.filter(error=>/\b(?:CompatibilityError|TypeError|ReferenceError|Error):/.test(error)&&!(plugin.name==='Kanban'&&/^TypeError: Cannot read properties of undefined \(reading '(?:has|setTimeout)'\)/.test(error))&&!(plugin.name==='Tasks'&&error.startsWith('setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager.')))).toEqual([]);

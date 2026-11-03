@@ -23,11 +23,13 @@ it('translates real key modifiers and middle clicks to the documented pane types
   }
 });
 it('returns a public handler with its actual scope and string modifiers',()=>{
-  const scope=new Scope(),handler=scope.register(['Ctrl','Shift'],'K',()=>false);
+  const scope=new Scope(),keys=scope.keys,handler=scope.register(['Ctrl','Shift'],'K',()=>false);
   expect(handler.scope).toBe(scope);expect(handler.scope.keys).toContain(handler);
   expect(typeof handler.modifiers).toBe('string');
   expect(scope.dispatch(key('k',{ctrlKey:true,shiftKey:true}))).toBe(true);
   scope.unregister(handler);expect(scope.keys).not.toContain(handler);
+  const next=scope.register([],'x',()=>false);expect(scope.keys).toBe(keys);expect(keys).toContain(next);
+  keys.splice(keys.indexOf(next),1);expect(scope.dispatch(key('x'))).toBe(false);
 });
 it('matches exact modifiers, consumes false, and unregisters handlers',()=>{
   const scope=new Scope(),callback=vi.fn(()=>false);

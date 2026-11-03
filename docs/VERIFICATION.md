@@ -59,6 +59,48 @@ failed before packaging: a new Keymap unit assertion hard-coded Control as Mod. 
 explicitly exercises Mac/Meta, Windows/Control and Linux/Control, including refusal of the other
 modifier, without changing product behavior. That failed cloud job is not a macOS build pass.
 
+The first full [CodeRabbit review](https://github.com/crafactory/engine/pull/72#pullrequestreview-5756869972)
+completed on `0a472a4` with sixteen inline findings and two follow-up findings in the review body.
+The review-repair candidate stages binary overwrites before rename/link, checks actual stylesheet
+bytes, enforces one profile writer, catches unsafe-eval persistence errors, flushes/recreates
+renamed/trash views, cancels layout saves before vault switching, removes stale same-leaf
+registrations, rejects lifecycle-flag mutations, rolls back synchronous rejected editor
+mutations, matches delegated once handlers before consuming them, resolves string-backed files,
+preserves input against late embed reads, keeps Scope.keys identity, captures the requested
+Markdown save path, isolates native Git configuration, and asserts card absence after restart.
+The report generator now shows positive bounded workflows together with retained blockers, and
+the support matrix distinguishes default versus native Node behavior.
+
+Repair regression coverage includes injected partial temporary-file write failures preserving
+original attachment bytes and cleaning debris; a growing stylesheet; lifecycle bypass attempts;
+reading-mode editor rollback; queued save/navigation; live key-array mutation; unmatched delegated
+once events; late reads after typing and clearing; same-leaf reuse; pending text saved before
+rename/trash; second-process refusal; both preference rollback paths; and a real native vault
+switch with initialization delayed across the old layout debounce. Two initial layout-fixture
+attempts failed because Playwright's main-process VM supplies neither CommonJS require nor a
+dynamic-import callback; the fixture uses Electron's Node builtin-module accessor instead.
+These harness failures are distinct from the product fix and are not counted as passes.
+
+A first complete repair run had 82 desktop passes and one failed rename assertion: the fixture
+read the destination before the asynchronous rename completed, while its value assertion still
+matched the old input. The fixture now waits for the destination file and recreated active
+plugin view before checking bytes. That run also exposed a Kanban startup regression from an
+overly strict `_loaded` setter; its generic diagnostic case passed despite losing the established
+board/list workflow. That candidate is not accepted evidence. Redundant lifecycle assignments
+are now no-ops without writing host state, state-changing assignments still reject, and the
+corpus explicitly prevents previously verified bounded workflows from downgrading to startup
+refusals. Final reports must come from a new complete pair of corpus directories.
+
+The corrected review-repair candidate passed inventory, 841 unit tests across 47 files,
+TypeScript/production build, all 64 browser tests and all 83 desktop tests, including all
+22 pinned corpus cases without skips. The rename/trash regression also passed three consecutive
+targeted repetitions. Logs are `/tmp/engine-pr72-repairs-final-check.log`,
+`/tmp/engine-pr72-final-browser.log`, `/tmp/engine-pr72-final-desktop.log` and
+`/tmp/engine-pr72-rename-repeat.log`. Reports were regenerated exclusively from
+`/tmp/engine-pr72-final-renderer` and `/tmp/engine-pr72-final-worker`; the outcome distribution and
+remaining compatibility boundaries are unchanged from the accepted initial candidate.
+This local result does not establish completion of the separate latest-head review/CI gates.
+
 ## Narrowed default CSP
 
 This section records removing the default-entry `wasm-unsafe-eval` relaxation left over from

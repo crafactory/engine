@@ -6,7 +6,7 @@ The user requested appropriate permission broadening and maximum practical Excal
 
 Native access is explicit, warned, profile-wide full trust, not per-plugin isolation. Least-capability defaults remain unchanged. Grant/revocation needs restart; development HTTP cannot enable native access. The native test environment excludes service credentials and uses a temporary home, but is not OS filesystem containment.
 
-## Candidate verification
+## Initial candidate verification
 
 The complete candidate run finished successfully: inventory, 838 units across 47 files, production build, 79 desktop cases including all eleven Worker and all eleven renderer inputs, and 64 browser cases. Logs are `/tmp/engine-next-final2-check.log`, `/tmp/engine-next-final2-desktop.log` and `/tmp/engine-next-final2-browser.log`.
 
@@ -25,6 +25,10 @@ The canonical current tracker is [PLUGIN-SUPPORT-MATRIX.md](../docs/PLUGIN-SUPPO
 
 ## Remaining delivery gate
 
-Reports, verification and current tracker are aligned; inventory, diff and identity checks passed before the implementation commit. Follow CONTRIBUTING exactly: completed latest-head CodeRabbit review, all issues addressed, completed re-review after fixes, no unresolved threads, and green latest-head CI before merge. If review is unavailable or blocked, leave the PR open and report the blocker. Do not repeat the quota-limited earlier merge shortcut.
+CodeRabbit completed review of `0a472a4` with sixteen inline findings and two review-body follow-ups. The corrected repair source passed inventory, 841 units across 47 files, build, 64 browser cases and all 83 desktop cases, including all 22 pinned corpus cases without skips. Rename/trash additionally passed three targeted repetitions. Logs use `/tmp/engine-pr72-{repairs-final-check,final-browser,final-desktop,rename-repeat}.log`. Reports were regenerated exclusively from `/tmp/engine-pr72-final-renderer` and `/tmp/engine-pr72-final-worker`.
+
+The earlier repair desktop candidate had 82 passes and one premature rename-fixture assertion, plus a Kanban startup downgrade that a generic diagnostic case incorrectly accepted. Neither that downgrade nor mixed corpus rows is acceptable. The redundant `_loaded` assignment fix and explicit corpus workflow ratchet prevent that regression. Verification preserves the failed candidate.
+
+Review data and thread IDs are in `/tmp/engine-pr72-{reviews,review-comments,review-threads}.json`; prepared inline replies are `/tmp/engine-pr72-review-replies.json`. Use the PR for live reply/resolution/re-review/CI state after this source checkpoint. Follow CONTRIBUTING exactly: completed latest-head CodeRabbit review, all issues addressed, completed re-review after fixes, no unresolved threads, and green latest-head CI before merge. If review is unavailable or blocked, leave the PR open and report the blocker. Do not repeat the quota-limited earlier merge shortcut.
 
 Delivery must distinguish PR/review/merge state, native full-trust risk and bounded compatibility gaps. No issue creation is authorized.

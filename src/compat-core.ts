@@ -116,7 +116,7 @@ export class Component {
   private loaded=false;private disposed=false;private generation=0;private admission=0;private lifecycle:LifecycleState={};private cleanups:(()=>unknown)[]=[];private children:Component[]=[];private childStarts=new Map<Component,Promise<void>>();
   /** Observed private alias backed by actual lifecycle state, not a simulated loaded flag. */
   get _loaded(){return this.loaded&&!this.disposed;}
-  set _loaded(value:boolean){if(typeof value!=='boolean')throw new Error('Expected boolean component loaded state');if(value&&this.disposed)unsupported('Component._loaded reactivation after disposal');this.loaded=value;}
+  set _loaded(value:boolean){if(value!==this._loaded)unsupported('Component._loaded assignment');}
   /** Initialize private host tracking, not an additional Obsidian compatibility export. */
   constructor(){componentLifecycles.set(this,this.lifecycle);}
   /** Serialize reload behind complete old startup and shutdown, including registered cleanup. */
@@ -226,12 +226,13 @@ export class Editor {
   getRange(from:{line:number;ch:number},to:{line:number;ch:number}){return this.value.slice(this.posToOffset(from),this.posToOffset(to));}
   listSelections(){return [{anchor:this.offsetToPos(this.from),head:this.offsetToPos(this.to)}];}
   somethingSelected(){return this.from!==this.to;}
-  setSelection(anchor:{line:number;ch:number},head=anchor){const base=this.value;this.from=this.posToOffset(anchor);this.to=this.posToOffset(head);this.send(base,this.value,this.from,this.to);}
+  private apply(value:string,from:number,to:number){const previous={value:this.value,from:this.from,to:this.to};this.value=value;this.from=from;this.to=to;try{this.send(previous.value,value,from,to);}catch(error){this.value=previous.value;this.from=previous.from;this.to=previous.to;throw error;}}
+  setSelection(anchor:{line:number;ch:number},head=anchor){this.apply(this.value,this.posToOffset(anchor),this.posToOffset(head));}
   setCursor(pos:{line:number;ch:number}|number,ch=0){this.setSelection(typeof pos==='number'?{line:pos,ch}:pos);}
-  setValue(value:string){const base=this.value;this.value=value;this.from=this.to=0;this.send(base,value,0,0);}
+  setValue(value:string){this.apply(value,0,0);}
   replaceRange(value:string,from:{line:number;ch:number},to=from){
     const start=this.posToOffset(from),end=this.posToOffset(to),base=this.value;
-    this.value=base.slice(0,start)+value+base.slice(end);this.from=this.to=start+value.length;this.send(base,this.value,this.from,this.to);
+    this.apply(base.slice(0,start)+value+base.slice(end),start+value.length,start+value.length);
   }
   replaceSelection(value:string){this.replaceRange(value,this.getCursor('from'),this.getCursor('to'));}
   setLine(line:number,value:string){this.replaceRange(value,{line,ch:0},{line,ch:this.getLine(line).length});}
@@ -404,7 +405,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     getState(){return {file:snapshot.active,mode:this.getMode()};}
     getViewData(){return snapshot.notes.find(n=>n.path===snapshot.active)?.content||'';}
     async onClose(){await this.save();}
-    async save(){await mutationQueue;await request('save',[snapshot.active]);}
+    async save(){const path=snapshot.active;await mutationQueue;await request('save',[path]);}
   }
   class Workspace extends Events {
     layoutReady=true;

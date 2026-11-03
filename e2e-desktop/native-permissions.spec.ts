@@ -2,7 +2,30 @@ import {test,expect,_electron as electron} from '@playwright/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+import {spawn} from 'node:child_process';
 import {nativeTestEnv} from './native-env';
+
+test('pending layout writes cannot leak the departing workspace into another vault',async()=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-layout-first-')),next=await fs.mkdtemp(path.join(os.tmpdir(),'engine-layout-second-')),profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-layout-profile-'));
+  await fs.writeFile(path.join(root,'Test.md'),'first');await fs.writeFile(path.join(next,'Other.md'),'second');await fs.mkdir(path.join(next,'.crafactory'));
+  await fs.writeFile(path.join(next,'.crafactory/state.json'),JSON.stringify({layout:{tabs:['Other.md'],active:'Other.md',split:null,left:true,right:true,mode:'reading'}}));
+  const app=await electron.launch({executablePath:process.env.E2E_EXECUTABLE_PATH,args:['--no-sandbox',...(process.env.E2E_EXECUTABLE_PATH?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:nativeTestEnv(profile)});
+  try{
+    const page=await app.firstWindow();await expect(page.locator('.note-title h1')).toHaveText('Test');
+    await app.evaluate(({dialog,ipcMain},next)=>{
+      dialog.showOpenDialog=async()=>({canceled:false,filePaths:[next]});
+      ipcMain.removeHandler('engine:vault');ipcMain.handle('engine:vault',async()=>{
+        // Hold initialization after the real native vault has switched, spanning the old debounce.
+        await new Promise(resolve=>setTimeout(resolve,1100));const fs=process.getBuiltinModule('fs').promises,path=process.getBuiltinModule('path');
+        return {name:'Second',root:next,entries:[{path:'Other.md',name:'Other.md',folder:false,size:6,ctime:0,mtime:0}],state:JSON.parse(await fs.readFile(path.join(next,'.crafactory/state.json'),'utf8'))};
+      });
+    },next);
+    await page.getByRole('button',{name:'Collapse right sidebar',exact:true}).click();
+    await page.getByRole('button',{name:'Open another vault',exact:true}).click();
+    await expect.poll(async()=>({title:await page.locator('.note-title h1').textContent(),errors:await page.locator('.error-banner').allTextContents()})).toEqual({title:'Other',errors:[]});
+    expect(JSON.parse(await fs.readFile(path.join(next,'.crafactory/state.json'),'utf8')).layout.active).toBe('Other.md');
+  }finally{await app.close();for(const folder of [root,next,profile])await fs.rm(folder,{recursive:true,force:true});}
+});
 
 test('native permission is cancellable, preserves eval settings, grants real Node only after restart and revokes after restart',async()=>{
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-native-vault-'));
@@ -22,6 +45,8 @@ test('native permission is cancellable, preserves eval settings, grants real Nod
     let page=await app.firstWindow();
     const settings=async()=>{await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();};
     await expect(page.locator('.note-title h1')).toHaveText('Test');
+    const second=spawn(app.process().spawnfile,['--no-sandbox',...(process.env.E2E_EXECUTABLE_PATH?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],{env:nativeTestEnv(profile),stdio:'ignore'});
+    try{await expect.poll(()=>second.exitCode,{timeout:10000}).toBe(0);}finally{if(second.exitCode===null)second.kill();}
     expect(await page.evaluate(()=>typeof (window as any).require)).toBe('undefined');
     await expect(page.locator('meta[http-equiv="Content-Security-Policy"]')).toHaveAttribute('content',/font-src 'self' data:;/);
     await settings();
@@ -74,6 +99,10 @@ test('native permission is cancellable, preserves eval settings, grants real Nod
     await expect(page.getByRole('alert')).toContainText('Error');
     await expect(page.getByRole('switch',{name:'Allow native Node.js plugins',exact:true})).not.toBeChecked();
     expect(await page.evaluate(()=>window.engine!.nativePlugins!())).toBe(false);
+    await page.getByRole('switch',{name:'Allow unsafe-eval in trusted renderer',exact:true}).click();
+    await expect(page.getByRole('alert').filter({hasText:'Error'})).toHaveCount(2);
+    await expect(page.getByRole('switch',{name:'Allow unsafe-eval in trusted renderer',exact:true})).toBeChecked();
+    expect(await page.evaluate(()=>window.engine!.unsafeEval!())).toBe(true);
     await fs.rm(settingsFile,{recursive:true});await fs.rename(settingsFile+'.backup',settingsFile);
   }finally{await app.close();await fs.rm(root,{recursive:true,force:true});await fs.rm(profile,{recursive:true,force:true});await fs.rm(outside,{recursive:true,force:true});}
 });

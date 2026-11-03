@@ -32,14 +32,60 @@ test('renderer DOM compatibility helpers delegate, unsubscribe and observe real 
     button.className='fixture-delegate';button.append(child);root.append(button);document.body.append(root);
     let calls=0,context=false,delegate=false;const listener=function(this:unknown,_event:Event,target:HTMLElement){calls++;context=this===root;delegate=target===button;};
     root.on('click','.fixture-delegate',listener);child.click();root.off('click','.fixture-delegate',listener);child.click();
+    let once=0;const unrelated=document.createElement('button');root.append(unrelated);
+    root.on('click','.fixture-delegate',()=>once++,{once:true});unrelated.click();child.click();child.click();
     const values=['a','b','a'] as any;values.remove('a');
     const node=document.createElement('div') as any;let inserted=0;const stopInserted=node.onNodeInserted(()=>inserted++,true);root.append(node);await Promise.resolve();node.remove();root.append(node);await Promise.resolve();stopInserted();
     const frame=document.createElement('iframe');root.append(frame);let migrated=0,correctWindow=false;
     const moved=new Promise<void>(resolve=>{const stop=node.onWindowMigrated((win:Window)=>{migrated++;correctWindow=win===frame.contentWindow;stop();resolve();});});
     frame.contentDocument!.body.append(node);await moved;root.append(node);await Promise.resolve();root.remove();
-    return {calls,context,delegate,values:[...values],inserted,migrated,correctWindow};
+    return {calls,once,context,delegate,values:[...values],inserted,migrated,correctWindow};
   });
-  expect(result).toEqual({calls:1,context:true,delegate:true,values:['b'],inserted:1,migrated:1,correctWindow:true});
+  expect(result).toEqual({calls:1,once:1,context:true,delegate:true,values:['b'],inserted:1,migrated:1,correctWindow:true});
+});
+test('embedded input survives a late read, including typing and clearing the buffer',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  await page.evaluate(async()=>{
+    const app=(window as any).app,container=document.createElement('div');document.body.append(container);
+    const embed=app.embedRegistry.embedByExtension.md({containerEl:container},null);await embed.load();
+    embed.file=app.vault.getFileByPath('Zeta.md');(window as any).__lateEmbed={app,container,embed};
+  });
+  for(const value of ['typed before read','']){
+    await page.evaluate(()=>{
+      const state=(window as any).__lateEmbed,read=state.app.vault.read;
+      state.app.vault.read=()=>new Promise(resolve=>state.resolve=resolve);
+      try{state.embed.showEditor();}finally{state.app.vault.read=read;}
+    });
+    const input=page.getByRole('textbox',{name:'Embedded Markdown editor',exact:true});
+    await input.fill('typed before read');if(!value)await input.fill('');
+    await page.evaluate(async()=>{(window as any).__lateEmbed.resolve('late disk text');await Promise.resolve();});
+    await expect(input).toHaveText(value);
+  }
+  await page.evaluate(async()=>{const state=(window as any).__lateEmbed;await state.embed.unload();state.container.remove();delete (window as any).__lateEmbed;});
+});
+test('reused file leaves release their previous document override',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  await command('Open Markdown as text view');await expect(page.getByRole('textbox',{name:'Fixture document',exact:true})).toBeVisible();
+  await command('Reuse leaf for another file');
+  await expect(page.locator('.retained-plugin-view')).toHaveCount(1);
+  expect(await page.evaluate(()=>(window as any).app.workspace.getLeavesOfType('fixture-text').map((leaf:any)=>leaf.view.file.path))).toEqual(['Test.txt']);
+  await page.getByTestId('file-Zeta.md').click();await expect(page.getByRole('textbox',{name:'Fixture document',exact:true})).toBeHidden();
+});
+test('file-specific text views flush pending data and recreate safely across rename and trash',async()=>{
+  await enable();await page.getByTestId('settings-close').click();await command('Open Markdown as text view');
+  await page.getByRole('textbox',{name:'Fixture document',exact:true}).fill('pending before rename');
+  await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Rename or move current file');await page.keyboard.press('Enter');
+  await page.getByRole('dialog',{name:'Rename or move',exact:true}).getByRole('textbox').fill('Moved.md');await page.getByTestId('dialog-submit').click();
+  await expect(page.getByTestId('file-Moved.md')).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>{const view=(window as any).app.workspace.activeLeaf.view;return {type:view.getViewType(),file:view.file?.path};})).toEqual({type:'fixture-text',file:'Moved.md'});
+  await expect(page.getByRole('textbox',{name:'Fixture document',exact:true})).toHaveValue('pending before rename');
+  expect(await fs.readFile(path.join(root,'Moved.md'),'utf8')).toBe('pending before rename');await expect(fs.stat(path.join(root,'Zeta.md'))).rejects.toThrow();
+  await page.getByRole('textbox',{name:'Fixture document',exact:true}).fill('pending before trash');
+  await page.getByTestId('file-Moved.md').click({button:'right'});await page.getByRole('button',{name:'Move to trash',exact:true}).click();await page.getByTestId('dialog-submit').click();
+  await expect(page.getByTestId('file-Moved.md')).toHaveCount(0);await expect(page.getByRole('textbox',{name:'Fixture document',exact:true})).toHaveCount(0);
+  await expect(fs.stat(path.join(root,'Moved.md'))).rejects.toThrow();await expect(fs.stat(path.join(root,'Zeta.md'))).rejects.toThrow();
+  const trash=path.join(root,'.crafactory/trash'),files=(await fs.readdir(trash)).filter(name=>!name.endsWith('.json'));
+  expect(await fs.readFile(path.join(trash,files[0]),'utf8')).toBe('pending before trash');
 });
 /** Minimal valid empty WebAssembly module: magic header plus version 1. */
 const wasm=[0,97,115,109,1,0,0,0];
@@ -84,6 +130,7 @@ test('renderer registerExtensions mounts a custom view in the main document area
   await enable();await page.getByTestId('settings-close').click();
   await page.getByTestId('file-Test.fixture').click();
   await expect(page.locator('.plugin-view-host .plugin-view-content')).toHaveText('Fixture file: Test.fixture');
+  expect(await page.evaluate(()=>{const app=(window as any).app;return {file:app.workspace.activeLeaf.view.file,recent:app.workspace.getMostRecentLeaf()===app.workspace.activeLeaf};})).toEqual({file:'Test.fixture',recent:true});
   await settings();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();await page.getByTestId('settings-close').click();
   await expect(page.locator('.plugin-view-host')).toHaveCount(0);
 });

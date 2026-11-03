@@ -13,6 +13,8 @@ export interface PluginController {
   stop():Promise<void>;
   /** Renderer-only: mount a registered custom view into a host element. */
   mountView?(viewType:string,path:string,parent:HTMLElement,leafId?:string):Promise<{element:HTMLElement;dispose():void}>;
+  /** Host-only: flush and retire file-backed views before a filesystem move/delete. */
+  closeFileViews?(path:string):Promise<void>;
   /** Renderer-only: query registered editor suggests at a document position. */
   editorSuggest?(text:string,pos:number):EditorSuggestResult|null|Promise<EditorSuggestResult|null>;
   /** Renderer-only: dispatch an obsidian:// protocol URL to this plugin's handlers. */

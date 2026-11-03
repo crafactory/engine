@@ -7,6 +7,10 @@ let unsafeEvalEnabled=false, activeUnsafeEval=false;
 let nativePluginsEnabled=false,activeNativePlugins=false;
 protocol.registerSchemesAsPrivileged([{scheme:'engine', privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
 app.setName('Crafactory Engine');
+// One writer per userData profile: stale processes must not restore revoked grants.
+const singleInstance=app.requestSingleInstanceLock();
+if(!singleInstance)app.quit();
+else app.on('second-instance',()=>{if(win&&!win.isDestroyed()){if(win.isMinimized())win.restore();win.focus();}});
 const development = process.env.ENGINE_DEV === '1';
 async function openVault(root) {
   vault = await new Vault(root).init(); currentRoot=root;
@@ -116,6 +120,6 @@ async function start() {
   ]));
   await win.loadURL(development?`http://127.0.0.1:5173/${activeUnsafeEval?'trusted.html':''}`:`engine://app/${activeUnsafeEval?'trusted.html':'index.html'}`);
 }
-app.whenReady().then(start).catch(e=>{dialog.showErrorBox('Crafactory Engine',e.message);app.quit();});
+if(singleInstance)app.whenReady().then(start).catch(e=>{dialog.showErrorBox('Crafactory Engine',e.message);app.quit();});
 app.on('window-all-closed',()=>app.quit());
 app.on('window-all-closed',()=>watcher?.close());

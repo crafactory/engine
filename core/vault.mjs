@@ -83,8 +83,10 @@ export class Vault {
     const bytes=Buffer.from(ArrayBuffer.isView(data)?new Uint8Array(data.buffer,data.byteOffset,data.byteLength):new Uint8Array(data));
     return this.serialize(async()=>{
       const full=await this.safe(relative);await fs.mkdir(path.dirname(full),{recursive:true});
-      if(mode==='modify'){const handle=await fs.open(full,'r+');try{if(!(await handle.stat()).isFile())throw new Error('Not a file');await handle.truncate(0);await handle.writeFile(bytes);}finally{await handle.close();}}
-      else await fs.writeFile(full,bytes,{flag:mode==='create'?'wx':'w'});
+      if(mode==='modify'&&!(await fs.stat(full)).isFile())throw new Error('Not a file');
+      const temporary=full+'.engine-'+crypto.randomUUID();
+      try{await fs.writeFile(temporary,bytes,{flag:'wx'});if(mode==='create')await fs.link(temporary,full);else await fs.rename(temporary,full);}
+      finally{await fs.rm(temporary,{force:true});}
       return {path:relative,version:hash(bytes)};
     });
   }
@@ -192,7 +194,7 @@ export class Vault {
         const manifest=JSON.parse(await fs.readFile(manifestPath,'utf8'));
         if(manifest.id!==entry.name || typeof manifest.name!=='string' || typeof manifest.version!=='string') continue;
         let styles='';
-        try{const stylePath=await this.safe(`.crafactory/plugins/${entry.name}/styles.css`,true);if((await fs.stat(stylePath)).size>4*1024*1024)throw new Error('Plugin stylesheet too large');styles=await fs.readFile(stylePath,'utf8');}catch(error){if(error.code!=='ENOENT')throw error;}
+        try{const stylePath=await this.safe(`.crafactory/plugins/${entry.name}/styles.css`,true);const bytes=await fs.readFile(stylePath);if(bytes.byteLength>4*1024*1024)throw new Error('Plugin stylesheet too large');styles=bytes.toString('utf8');}catch(error){if(error.code!=='ENOENT')throw error;}
         result.push({manifest,code:await fs.readFile(codePath,'utf8'),...(styles?{styles}:{})});
       } catch {}
     }

@@ -27,6 +27,11 @@ it('renderer MarkdownView exposes actual active document in reading mode',()=>{
   const h=harness(),view=h.runtime.app.workspace.getActiveViewOfType(h.api.MarkdownView);
   expect(view).not.toBeNull();expect(view!.getViewData()).toBe('one');expect(view!.editor.getValue()).toBe('one');expect(view!.file!.path).toBe('One.md');
   expect(()=>view!.editor.setValue('no')).toThrow('Markdown preview editing');
+  const editor=view!.editor;
+  for(const change of [()=>editor.setValue('rejected'),()=>editor.replaceRange('bad',{line:0,ch:1}),()=>editor.setSelection({line:0,ch:1},{line:0,ch:2})]){
+    expect(change).toThrow('Markdown preview editing');expect(editor.getValue()).toBe('one');
+    expect(editor.listSelections()).toEqual([{anchor:{line:0,ch:0},head:{line:0,ch:0}}]);
+  }
   h.ui.workspace.activeLeaf.view={getViewType:()=> 'drawing'};
   expect(h.runtime.app.workspace.getActiveViewOfType(h.api.MarkdownView)).toBeNull();
 });
@@ -107,8 +112,24 @@ it('metadata cache admits real local custom event delivery without promising a c
   expect(()=>cache.on('unknown-standard-event',receive)).toThrow('MetadataCache event');
 });
 it('observed private component loaded alias follows actual startup and unload',async()=>{
-  const h=harness(),component=new h.api.Component();expect(component._loaded).toBe(false);
-  await component.load();expect(component._loaded).toBe(true);await component.unload();expect(component._loaded).toBe(false);
+  const h=harness(),component=new h.api.Component(),start=vi.fn(),cleanup=vi.fn();component.onload=start;component.register(cleanup);expect(component._loaded).toBe(false);
+  component._loaded=false;
+  expect(()=>component._loaded=true).toThrow('Component._loaded assignment');expect(component._loaded).toBe(false);
+  await component.load();expect(component._loaded).toBe(true);expect(start).toHaveBeenCalledOnce();
+  component._loaded=true;expect(start).toHaveBeenCalledOnce();
+  expect(()=>component._loaded=false).toThrow('Component._loaded assignment');expect(component._loaded).toBe(true);
+  await component.unload();expect(component._loaded).toBe(false);expect(cleanup).toHaveBeenCalledOnce();
+});
+it('MarkdownView.save retains its requested path while an earlier mutation and navigation complete',async()=>{
+  const h=harness(),snap=initial();snap.entries.push({path:'Two.md',name:'Two.md',folder:false,size:3,ctime:0,mtime:0});snap.notes.push({path:'Two.md',content:'two'});h.runtime.sync(snap);
+  let release!:()=>void;
+  h.request.mockImplementation(async(operation)=>{if(operation==='modify')await new Promise<void>(resolve=>release=resolve);return null;});
+  const mutation=h.runtime.app.vault.modify(h.runtime.app.vault.getFileByPath('One.md')!,'changed');
+  await vi.waitFor(()=>expect(release).toBeTypeOf('function'));
+  const save=new h.api.MarkdownView().save();
+  h.runtime.sync({...snap,active:'Two.md'});release();await mutation;await save;
+  expect(h.request).toHaveBeenCalledWith('save',['One.md']);expect(h.request).not.toHaveBeenCalledWith('save',['Two.md']);
+  await h.runtime.stop();
 });
 it('releases window.app to the previous runtime and clears it',async()=>{
   const descriptor=Object.getOwnPropertyDescriptor(globalThis,'window');

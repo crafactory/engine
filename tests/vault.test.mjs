@@ -1,4 +1,4 @@
-import {describe,it,expect,beforeEach,afterEach} from 'vitest';
+import {describe,it,expect,beforeEach,afterEach,vi} from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -7,6 +7,30 @@ let root,vault,outside;
 beforeEach(async()=>{root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-vault-'));outside=await fs.mkdtemp(path.join(os.tmpdir(),'engine-outside-'));vault=await new Vault(root).init();});
 afterEach(async()=>{await fs.rm(root,{recursive:true,force:true});await fs.rm(outside,{recursive:true,force:true});});
 describe('local vault storage',()=>{
+  it('keeps original binary bytes on partial temporary-write failures and cleans debris',async()=>{
+    const original=fs.writeFile;
+    await vault.writeBinary('image.bin',new Uint8Array([1,2,255]),'create');
+    const write=vi.spyOn(fs,'writeFile').mockImplementation(async(file,data,options)=>{
+      if(String(file).includes('.engine-')){await original(file,new Uint8Array([8]),options);throw new Error('Injected disk-full failure');}
+      return original(file,data,options);
+    });
+    try{
+      for(const mode of ['modify','write']){
+        await expect(vault.writeBinary('image.bin',new Uint8Array([9,9]),mode)).rejects.toThrow('disk-full');
+        expect([...new Uint8Array(await vault.readBinary('image.bin'))]).toEqual([1,2,255]);
+        expect((await fs.readdir(root)).some(name=>name.includes('.engine-'))).toBe(false);
+      }
+      await expect(vault.writeBinary('new.bin',new Uint8Array([9]),'create')).rejects.toThrow('disk-full');
+      await expect(fs.stat(path.join(root,'new.bin'))).rejects.toThrow();
+    }finally{write.mockRestore();}
+  });
+  it('checks actual stylesheet bytes even when the file was previously small',async()=>{
+    const dir=path.join(root,'.crafactory/plugins/growing');await fs.mkdir(dir,{recursive:true});
+    await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id:'growing',name:'Growing',version:'1'}));
+    await fs.writeFile(path.join(dir,'main.js'),'module.exports={};');await fs.writeFile(path.join(dir,'styles.css'),'small');
+    const original=fs.readFile,read=vi.spyOn(fs,'readFile').mockImplementation((file,...args)=>String(file).endsWith('styles.css')?Promise.resolve(Buffer.alloc(4*1024*1024+1)):original(file,...args));
+    try{expect(await vault.plugins()).toEqual([]);}finally{read.mockRestore();}
+  });
   it('round-trips exact binary view slices with create-only and modify-existing semantics',async()=>{
     const buffer=new Uint8Array([99,0,255,128,99]),slice=buffer.subarray(1,4);
     await vault.writeBinary('assets/image.bin',slice,'create');

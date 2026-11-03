@@ -9,7 +9,7 @@ export class Scope {
   register(modifiers:Modifier[]|null,key:string|null,func:Handler['func']):Handler{
     const handler={scope:this,modifiers:modifiers===null?null:modifiers.join('+'),key,func};this.handlers.push(handler);return handler;
   }
-  unregister(handler:Handler){this.handlers=this.handlers.filter(item=>item!==handler);}
+  unregister(handler:Handler){const index=this.handlers.indexOf(handler);if(index>=0)this.handlers.splice(index,1);}
   /** Host-only dispatch; returns true when a callback consumed the event. */
   dispatch(event:KeyboardEvent):boolean{
     const mac=typeof navigator!=='undefined'&&/Mac/i.test(navigator.platform);

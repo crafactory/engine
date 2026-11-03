@@ -85,8 +85,8 @@ export function installDomHelpers(){
   const off=function(this:HTMLElement|Document,type:string,selector:string,listener:Function,options?:boolean|AddEventListenerOptions){const records=delegated.get(this)??[];for(const record of [...records])if(record.type===type&&record.selector===selector&&record.listener===listener&&record.capture===capture(options)){this.removeEventListener(type,record.wrapper,record.capture);records.splice(records.indexOf(record),1);}if(!records.length)delegated.delete(this);};
   const on=function(this:HTMLElement|Document,type:string,selector:string,listener:Function,options?:boolean|AddEventListenerOptions){
     if(typeof type!=='string'||typeof selector!=='string'||typeof listener!=='function')throw new Error('Invalid delegated DOM event');document.createElement('div').matches(selector);
-    const root=this,record:Delegated={type,selector,listener,capture:capture(options),wrapper:event=>{if(typeof options==='object'&&options.once)off.call(root,type,selector,listener,options);const target=event.target instanceof Element?event.target:(event.target as Node|null)?.parentElement,match=target?.closest(selector);if(match&&root.contains(match))listener.call(root,event,match);}};
-    this.addEventListener(type,record.wrapper,options);const records=delegated.get(this)??[];records.push(record);delegated.set(this,records);
+    const root=this,record:Delegated={type,selector,listener,capture:capture(options),wrapper:event=>{const target=event.target instanceof Element?event.target:(event.target as Node|null)?.parentElement,match=target?.closest(selector);if(match&&root.contains(match)){if(typeof options==='object'&&options.once)off.call(root,type,selector,listener,options);listener.call(root,event,match);}}};
+    this.addEventListener(type,record.wrapper,typeof options==='object'?{...options,once:false}:options);const records=delegated.get(this)??[];records.push(record);delegated.set(this,records);
   };
   for(const prototype of [HTMLElement.prototype,Document.prototype])for(const [name,value]of Object.entries({on,off}))if(!(name in prototype))Object.defineProperty(prototype,name,{value,configurable:true,writable:true});
   const globalWindow=window as unknown as Record<string,unknown>;
@@ -547,13 +547,15 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       await this.setViewState({type:extensionViews.get(file.extension?.toLowerCase())??'markdown',state:{...openState?.state,file:file.path},active:openState?.active??true});
     }
     async detachView(){if(this.view){const view=this.view;if(view instanceof View){if(view instanceof TextFileView)await view.save();try{await view.unload();}finally{await view.onClose();}}if(this.view===view)this.view=null;}this.containerEl.replaceChildren();}
-    async detach(notify=true){const path=this.view?.file?.path;await this.detachView();this.containerEl.remove();leaves.delete(this);if(notify&&this.placement==='tab'&&path)onOpenView?.(null,path,this.id);}
+    async detach(notify=true){const path=viewFilePath(this);await this.detachView();this.containerEl.remove();leaves.delete(this);if(notify&&this.placement==='tab'&&path)onOpenView?.(null,path,this.id);}
   }
   const reusableLeaf=new WorkspaceLeaf();
-  function currentLeaf():WorkspaceLeaf{const path=app?.workspace.getActiveFile()?.path;return (path?[...leaves].reverse().find(leaf=>leaf.view?.file?.path===path):null)??reusableLeaf;}
+  function viewFilePath(leaf:WorkspaceLeaf):string|undefined{return typeof leaf.view?.file==='string'?leaf.view.file:leaf.view?.file?.path;}
+  function currentLeaf():WorkspaceLeaf{const path=app?.workspace.getActiveFile()?.path;return (path?[...leaves].reverse().find(leaf=>viewFilePath(leaf)===path):null)??reusableLeaf;}
   const traceEmbed=(member:string)=>{if((window as unknown as {__ENGINE_TRACE_COMPAT?:string}).__ENGINE_TRACE_COMPAT===id)console.debug('[compat:'+id+'] '+member);};
   /** Original embed factory registry; factories own Component lifecycles, not raw HTML. */
   class EmbeddedSourceBase extends Component {
+    revision=0;
     scope=new Scope(scope);
     editor:Editor&{cm?:EditorView};cm:EditorView;
     private localExtensions=new Compartment();
@@ -566,7 +568,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       if(!(this.containerEl instanceof HTMLElement))throw new Error('Embedded Markdown editor requires a container');
       const send=(_base:string,text:string,from:number,to:number)=>{this.cm.dispatch({changes:{from:0,to:this.cm.state.doc.length,insert:text},selection:{anchor:from,head:to}});};
       this.editor=new Editor({text:'',from:0,to:0},send);
-      this.cm=new EditorView({parent:this.containerEl,state:EditorState.create({extensions:[markdown(),history(),this.localExtensions.of([]),cmKeymap.of([...defaultKeymap,...historyKeymap]),EditorView.contentAttributes.of({'aria-label':'Embedded Markdown editor'}),EditorView.updateListener.of(update=>{if(update.docChanged){this.editor=new Editor({text:update.state.doc.toString(),from:update.state.selection.main.from,to:update.state.selection.main.to},send);this.editor.cm=this.cm;}this.onUpdate(update);})]})});
+      this.cm=new EditorView({parent:this.containerEl,state:EditorState.create({extensions:[markdown(),history(),this.localExtensions.of([]),cmKeymap.of([...defaultKeymap,...historyKeymap]),EditorView.contentAttributes.of({'aria-label':'Embedded Markdown editor'}),EditorView.updateListener.of(update=>{if(update.docChanged){this.revision++;this.editor=new Editor({text:update.state.doc.toString(),from:update.state.selection.main.from,to:update.state.selection.main.to},send);this.editor.cm=this.cm;}this.onUpdate(update);})]})});
       this.editor.cm=this.cm;this.register(()=>this.cm.destroy());
       return guardCompatibilityObject(this,'EmbeddedSource',traceEmbed);
     }
@@ -584,7 +586,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     editMode:EmbeddedSource|undefined;
     constructor(public context:{containerEl:HTMLElement},public file:any,public subpath=''){super();this.containerEl=context.containerEl;this.contentEl=element('div',this.containerEl,'markdown-embed-content');return guardCompatibilityObject(this,'MarkdownEmbed',traceEmbed);}
     async loadFile(file=this.file){this.file=file;if(!file)return;const markdown=await app.vault.read(file);this.contentEl.replaceChildren();await createMarkdownRenderer(()=>app).render(app,markdown,this.contentEl,file.path,this);}
-    showEditor(){this.contentEl.replaceChildren();this.editMode=this.addChild(new EmbeddedSource(this));if(this.file)void app.vault.read(this.file).then((text:string)=>this.editMode?.set(text)).catch(onError);}
+    showEditor(){if(this.editMode)this.removeChild(this.editMode);this.contentEl.replaceChildren();const editor=this.editMode=this.addChild(new EmbeddedSource(this)),version=editor.revision;if(this.file)void app.vault.read(this.file).then((text:string)=>{if(this.editMode===editor&&editor.revision===version)editor.set(text);}).catch(onError);}
     showPreview(){if(this.editMode)this.removeChild(this.editMode);this.editMode=undefined;void this.loadFile().catch(onError);}
     async onload(){await this.loadFile();}
     onunload(){this.contentEl.remove();}
@@ -638,7 +640,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       getRightLeaf(split?:boolean){if(split)return unsupported('Workspace.getRightLeaf split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeaf(newLeaf?:boolean|string){if(newLeaf===false||newLeaf===undefined){leaves.add(reusableLeaf);const leaf=currentLeaf();leaf.placement='tab';return leaf;}if(newLeaf!==true&&newLeaf!=='tab')return unsupported('Workspace.getLeaf split/window');const leaf=new WorkspaceLeaf('tab');leaves.add(leaf);return leaf;},
       getUnpinnedLeaf(){const leaf=new WorkspaceLeaf('tab');leaves.add(leaf);return leaf;},getLeavesOfType(type:string){return [...leaves].filter(l=>l.view?.getViewType()===type);},iterateAllLeaves(callback:(leaf:any)=>void){for(const leaf of [...leaves])callback(leaf);},
       async detachLeavesOfType(type:string){await Promise.all([...leaves].filter(l=>l.view?.getViewType()===type).map(l=>l.detach()));},
-      async setActiveLeaf(leaf:WorkspaceLeaf,options?:{focus?:boolean}){if(!leaves.has(leaf))throw new Error('Foreign leaf');const path=leaf.view?.file?.path,previous=app.workspace.getActiveFile()?.path;
+      async setActiveLeaf(leaf:WorkspaceLeaf,options?:{focus?:boolean}){if(!leaves.has(leaf))throw new Error('Foreign leaf');const path=viewFilePath(leaf),previous=app.workspace.getActiveFile()?.path;
         if(path){if(leaf.placement==='tab')onOpenView?.(factories.has(leaf.view.getViewType())?leaf.view.getViewType():null,path,leaf.id);await app.workspace.openPath(path);if(previous===path)app.workspace.trigger('active-leaf-change',leaf);}
         if(options?.focus!==false){const target=leaf.view?.contentEl??leaf.containerEl;target.setAttribute('tabindex','-1');target.focus();}},
       async revealLeaf(leaf:WorkspaceLeaf){if(!leaves.has(leaf))throw new Error('Foreign leaf');if(leaf.placement==='tab'&&leaf.view?.file)await this.setActiveLeaf(leaf);else{host('plugin-views').append(leaf.containerEl);leaf.containerEl.scrollIntoView({block:'nearest'});}}
@@ -719,12 +721,18 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       return()=>{for(const extension of normalized)if(extensionViews.get(extension)===viewType)extensionViews.delete(extension);onFileExtensions?.(normalized);};
     },
     /** Mount a registered view into a host element without going through the global plugin view pane. */
+    async closeFileViews(path:string){
+      const affected=[...leaves].filter(leaf=>{const file=viewFilePath(leaf);return file===path||file?.startsWith(path+'/');});
+      // All saves must succeed before any view is retired. Never move/delete beneath a dirty view.
+      for(const leaf of affected)if(leaf.view instanceof TextFileView)await leaf.view.save();
+      for(const leaf of affected)await leaf.detach(false);
+    },
     async mountView(viewType:string,path:string,parent:HTMLElement,leafId?:string){
       if(!factories.has(viewType))throw new Error('View type not registered: '+viewType);
       let leaf=leafId?[...leaves].find(leaf=>leaf.id===leafId):undefined;
       leaf??=new WorkspaceLeaf('tab');if(leafId)leaf.id=leafId;
       const token=Symbol('view mount');viewMounts.set(leaf,token);leaves.add(leaf);
-      if(leaf.view?.getViewType()===viewType&&leaf.view?.file?.path===path)parent.append(leaf.containerEl);
+      if(leaf.view?.getViewType()===viewType&&viewFilePath(leaf)===path)parent.append(leaf.containerEl);
       else await leaf.setViewState({type:viewType,state:{file:path}},parent);
       const mounted=leaf;
       return {element:mounted.containerEl,dispose:()=>{queueMicrotask(()=>{if(viewMounts.get(mounted)!==token)return;viewMounts.delete(mounted);void mounted.detach(false).catch(onSaveError);});}};
