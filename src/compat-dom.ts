@@ -344,8 +344,12 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     getViewState(){return {type:this.view?.getViewType(),state:this.view?.getState(),active:this.containerEl.isConnected};}
     getEphemeralState(){return this.ephemeralState;}
     setEphemeralState(state:unknown){this.ephemeralState=state;}
-    /** Open a vault file in the host's main document area. */
-    async openFile(file:any){if(!file||typeof file.path!=='string')throw new Error('Invalid file');await app.workspace.openLinkText(file.path,'',false);}
+    /** Open a vault file in the host's main document area without link parsing. */
+    async openFile(file:any){
+      if(!file||typeof file.path!=='string')throw new Error('Invalid file');
+      if(typeof app.workspace.openPath==='function')await app.workspace.openPath(file.path);
+      else await app.workspace.openLinkText(file.path,'',false);
+    }
     async detachView(){if(this.view){const view=this.view;this.view=null;try{await view.onClose();}finally{await view.unload();}}this.containerEl.replaceChildren();}
     async detach(){await this.detachView();this.containerEl.remove();leaves.delete(this);}
   }
@@ -360,7 +364,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     /** Atomically deactivate this plugin's processors before runtime resource cleanup. */
     async stopProcessors(){processorsStopped=true;await stopProcessors(processors);processors.clear();},
     workspace:{
-      getRightLeaf(split?:boolean){if(split)return unsupported('Workspace.getRightLeaf split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeaf(newLeaf?:boolean|string){if(newLeaf===false)return reusableLeaf;if(newLeaf!==undefined&&newLeaf!==true)return unsupported('Workspace.getLeaf reuse/split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},
+      getRightLeaf(split?:boolean){if(split)return unsupported('Workspace.getRightLeaf split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeaf(newLeaf?:boolean|string){if(newLeaf===false){leaves.add(reusableLeaf);return reusableLeaf;}if(newLeaf!==undefined&&newLeaf!==true)return unsupported('Workspace.getLeaf reuse/split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},
       getLeavesOfType(type:string){return [...leaves].filter(l=>l.view?.getViewType()===type);},iterateAllLeaves(callback:(leaf:any)=>void){for(const leaf of [...leaves])callback(leaf);},
       async detachLeavesOfType(type:string){await Promise.all([...leaves].filter(l=>l.view?.getViewType()===type).map(l=>l.detach()));},
       async revealLeaf(leaf:any){if(!leaves.has(leaf))throw new Error('Foreign leaf');host('plugin-views').append(leaf.containerEl);leaf.containerEl.scrollIntoView({block:'nearest'});}

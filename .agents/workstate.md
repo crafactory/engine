@@ -28,6 +28,8 @@ status tracker.
 - Templater create-note, `Vault.getAvailablePath`, reusable leaf `openFile`/ephemeral state.
 - Templater declarative settings persistence (text/toggle/dropdown/list), dangerous-setting
   cancel/confirm and local persistence, global DOM helpers and `Array.prototype.contains`.
+- CodeRabbit fixes: active-note save, case-insensitive available paths, save ordering, storage
+  fallback, exact-path leaf open and reusable-leaf registration.
 
 ## Next
 

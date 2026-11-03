@@ -55,9 +55,9 @@ This section records the Templater settings workflow and the declarative setting
 
 | Check | Observed result | Scope |
 |---|---|---|
-| `npm run check` | 826 passed (43 files); inventory and build passed | No new unit gate; corpus covers the renderer |
+| `npm run check` | 828 passed (43 files); inventory and build passed | Includes CodeRabbit regression cases |
 | `npm run test:e2e` | **64 passed / 0 failed** | Local port 5173 was occupied by an unrelated Vite server; rerun with an equivalent config on 5174 |
-| `npm run test:desktop` (macOS) | **43 passed / 0 failed / 10 skipped** | CommonJS selection test portability fixed; corpus skipped without inputs |
+| `npm run test:desktop` (macOS) | **44 passed / 0 failed / 10 skipped** | Includes reusable-leaf/exact-path case; corpus skipped without inputs |
 | Pinned Templater `2.26.0` corpus (macOS) | **BOUNDED_WORKFLOWS_PASS** | Text/toggle/dropdown/list + dangerous-confirmation/local settings + insert + create-note + re-enable |
 | Pinned Templater `2.26.0` corpus (Linux) | Not rerun in this change | Checked-in result remains the previous `STARTUP_ONLY` run |
 
@@ -65,6 +65,12 @@ The former macOS-only CommonJS Control-selection failure was a test-binding bug:
 `Control+Home`/`Control+Shift+End` is not the macOS select-to-end binding. Switching the test to
 `ControlOrMeta+a` fixed it; the full desktop suite now passes on macOS with 43 passed, 0 failed
 and 10 corpus skips.
+
+CodeRabbit review findings were also fixed with regressions: `save` is restricted to the active
+note; `getAvailablePath` compares candidates case-insensitively; `MarkdownView.save` waits for
+queued editor edits; failed browser-storage writes remain visible in memory; leaf `openFile`
+passes an exact path instead of parsing link text; and the reusable leaf is registered for
+reveal/dispose.
 
 Templater 2.26 uses Obsidian's declarative settings API: its `display()` is empty and its
 `getSettingDefinitions()` returns groups, pages, controls and lists. The first blocker was an

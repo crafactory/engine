@@ -281,8 +281,9 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     getAvailablePath(path:string,extension:string){
       if(typeof path!=='string'||typeof extension!=='string')throw new Error('Invalid available path arguments');
       const base=normalizePath(path),suffix=extension?(extension.startsWith('.')?extension:'.'+extension):'';
+      const taken=new Set([...objects.keys()].map(key=>key.toLowerCase()));
       let candidate=base+suffix,index=1;
-      while(objects.has(candidate))candidate=base+' '+(index++)+suffix;
+      while(taken.has(candidate.toLowerCase()))candidate=base+' '+(index++)+suffix;
       return candidate;
     }
     /** Rename a file or folder through the native host, retaining the object subtree. */
@@ -343,7 +344,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   function checkAbstract(file:TAbstractFile){if(!(file instanceof TAbstractFile)||file.vault!==vault||objects.get(file.path)!==file)throw new Error('File does not belong to this vault');}
   function checkFile(file:TFile){checkAbstract(file);if(!(file instanceof TFile))throw new Error('Expected TFile');}
   const vault=guard(new Vault(),'Vault');
-  class MarkdownView {file:TFile|null;editor:Editor|null;constructor(){this.file=vault.getFileByPath(snapshot.active);this.editor=editor;return guard(this,'MarkdownView');}getViewType(){return 'markdown';}getViewData(){return snapshot.notes.find(n=>n.path===snapshot.active)?.content||'';}async save(){await request('save',[snapshot.active]);}}
+  class MarkdownView {file:TFile|null;editor:Editor|null;constructor(){this.file=vault.getFileByPath(snapshot.active);this.editor=editor;return guard(this,'MarkdownView');}getViewType(){return 'markdown';}getViewData(){return snapshot.notes.find(n=>n.path===snapshot.active)?.content||'';}async save(){await mutationQueue;await request('save',[snapshot.active]);}}
   class Workspace extends Events {
     layoutReady=true;
     on(name:string,callback:(...args:any[])=>void,ctx?:unknown){const custom=name.includes(':');if(name!=='file-open'&&(!host.ui||(!['layout-change','editor-change','hover-link','file-menu'].includes(name)&&!custom)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
@@ -352,6 +353,8 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     iterateAllLeaves(_callback:(leaf:unknown)=>void){return unsupported('Workspace.iterateAllLeaves');}
     get activeEditor(){return editor?{file:this.getActiveFile(),editor}:null;}
     onLayoutReady(callback:()=>void){callback();}
+    /** Internal exact-path open used by workspace leaves; not a reference method. */
+    async openPath(path:string){if(typeof path!=='string'||!path)throw new Error('Invalid open path');await request('open',[path]);}
     async openLinkText(linktext:string,sourcePath:string,newLeaf?:unknown,openState?:unknown){
       if(newLeaf||openState)return unsupported('Workspace.openLinkText new leaf/state');
       // When a native resolver is present it is authoritative; the snapshot resolver is only for runtimes without one.
@@ -387,12 +390,13 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   function localStore(){try{return typeof localStorage==='undefined'?null:localStorage;}catch{return null;}}
   function checkStorageKey(key:unknown){if(typeof key!=='string')throw new TypeError('Local storage key must be a string');}
   function readStorage(key:string){
-    const store=localStore();if(!store)return memoryStorage.get(key);
-    try{return store.getItem(key)??undefined;}catch{return memoryStorage.get(key);}
+    if(memoryStorage.has(key))return memoryStorage.get(key);
+    const store=localStore();if(!store)return undefined;
+    try{return store.getItem(key)??undefined;}catch{return undefined;}
   }
   function writeStorage(key:string,value:string){
     const store=localStore();if(!store){memoryStorage.set(key,value);return;}
-    try{store.setItem(key,value);}catch{memoryStorage.set(key,value);}
+    try{store.setItem(key,value);memoryStorage.delete(key);}catch{memoryStorage.set(key,value);}
   }
   function removeStorage(key:string){
     memoryStorage.delete(key);const store=localStore();

@@ -559,7 +559,7 @@ export function App(){
         if(!Number.isInteger(from)||!Number.isInteger(to))throw new Error('Invalid editor mutation');
         if(!editor.current.applyPluginEdit(base,text,from,to))throw new Error('CONFLICT: Editor changed before plugin edit');
       },
-      save:async path=>{ensureOpen();checkPath(path);await persist(path);}
+      save:async path=>{ensureOpen();checkPath(path);if(path!==pluginState.current.active)throw new Error('Editor no longer active');await persist(path);}
     };
     pluginStarting.current.add(id);
     try{

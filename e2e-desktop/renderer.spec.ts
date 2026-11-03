@@ -5,7 +5,7 @@ import os from 'node:os';
 let root:string,profile:string,app:ElectronApplication,page:Page;
 test.beforeEach(async()=>{
   root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-'));profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-profile-'));
-  await fs.writeFile(path.join(root,'Test.md'),'Original text');await fs.writeFile(path.join(root,'ZTarget.md'),'Target');await fs.writeFile(path.join(root,'Zeta.md'),'[[ZTarget]]');await fs.writeFile(path.join(root,'Test.fixture'),'fixture body');await fs.writeFile(path.join(root,'Test.base'),'views:\n  - type: fixture-bases\n    name: Fixture\n');
+  await fs.writeFile(path.join(root,'Test.md'),'Original text');await fs.writeFile(path.join(root,'ZTarget.md'),'Target');await fs.writeFile(path.join(root,'Zeta.md'),'[[ZTarget]]');await fs.writeFile(path.join(root,'Z#.md'),'Sharp target');await fs.writeFile(path.join(root,'Test.fixture'),'fixture body');await fs.writeFile(path.join(root,'Test.base'),'views:\n  - type: fixture-bases\n    name: Fixture\n');
   const dir=path.join(root,'.crafactory/plugins/renderer-fixture');await fs.mkdir(dir,{recursive:true});
   for(const file of ['manifest.json','main.js'])await fs.copyFile('examples/plugins/renderer-fixture/'+file,path.join(dir,file));
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
@@ -58,6 +58,12 @@ test('renderer registerExtensions mounts a custom view in the main document area
   await expect(page.locator('.plugin-view-host .plugin-view-content')).toHaveText('Fixture file: Test.fixture');
   await settings();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();await page.getByTestId('settings-close').click();
   await expect(page.locator('.plugin-view-host')).toHaveCount(0);
+});
+test('renderer reusable leaf opens an exact path and can be revealed',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  await command('Reuse and open');
+  await expect(page.locator('.note-title h1')).toHaveText('Z#');
+  await expect(page.locator('.plugin-status-item')).toHaveText('Reused leaf');
 });
 test('renderer editor suggests bridge to CodeMirror autocomplete',async()=>{
   await enable();await page.getByTestId('settings-close').click();

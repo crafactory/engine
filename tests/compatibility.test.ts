@@ -283,6 +283,11 @@ describe('unsupported methods fail, not no-op',()=>{
     const h=harness();
     expect(h.runtime.app.vault.getAvailablePath('Folder/New','md')).toBe('Folder/New.md');
     expect(h.runtime.app.vault.getAvailablePath('Folder/One','md')).toBe('Folder/One 1.md');
+    expect(h.runtime.app.vault.getAvailablePath('Folder/ONE','md')).toBe('Folder/ONE 1.md');
+  });
+  it('workspace opens exact paths without link parsing',async()=>{
+    const h=harness();await h.runtime.app.workspace.openPath('C#.md');
+    expect(h.calls).toContainEqual({operation:'open',args:['C#.md']});
   });
   it('accepts the bounded vault lifecycle events',()=>{const h=harness();for(const name of ['create','delete','rename','modify'])expect(()=>h.runtime.app.vault.on(name,()=>{})).not.toThrow();});
   it('renderer-only workspace leaf methods require host.ui',()=>{const h=harness();for(const method of ['getLeaf','getRightLeaf','getLeavesOfType','revealLeaf'])expect(()=>{const value=(h.runtime.app.workspace as any)[method];if(typeof value==='function')value.call(h.runtime.app.workspace);}).toThrow(CompatibilityError);});
