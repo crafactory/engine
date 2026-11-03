@@ -20,8 +20,15 @@ function operationFor(manifest: PluginManifest, host: CompatHost) {
       case 'loadData': return host.loadData(manifest.id);
       case 'saveData': return host.saveData(manifest.id, args[0]);
       case 'read': return host.read(path(args[0]));
+      case 'readVersioned': {
+        if(!host.readVersioned)throw new Error('Versioned text reads are unavailable');
+        return host.readVersioned(path(args[0]));
+      }
       case 'create': return host.create(path(args[0]), text(args[1]));
-      case 'modify': return host.modify(path(args[0]), text(args[1]));
+      case 'modify': {
+        if(args[2]!==undefined&&typeof args[2]!=='string')throw new Error('Invalid expected file version');
+        return host.modify(path(args[0]), text(args[1]),args[2] as string|undefined);
+      }
       case 'append': return host.append(path(args[0]), text(args[1]));
       case 'writeLegacy': return host.writeLegacy(path(args[0]), text(args[1]));
       case 'rename': return host.rename(path(args[0]), path(args[1]));

@@ -18,3 +18,9 @@ it('uses reverse registration priority, parent fallback and wildcard handlers',(
   scope.unregister(newest);scope.dispatch(key('Enter'));expect(calls).toEqual(['newest','older','parent']);
   scope.register(null,null,()=>false);expect(scope.dispatch(key('x',{metaKey:true}))).toBe(true);
 });
+it('deduplicates platform-expanded Mod aliases',()=>{
+  const scope=new Scope(),callback=vi.fn(()=>false);
+  const mac=typeof navigator!=='undefined'&&/Mac/i.test(navigator.platform);
+  scope.register(['Mod',mac?'Meta':'Ctrl'],'k',callback);
+  expect(scope.dispatch(key('k',mac?{metaKey:true}:{ctrlKey:true}))).toBe(true);expect(callback).toHaveBeenCalledOnce();
+});

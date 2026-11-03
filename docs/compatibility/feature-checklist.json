@@ -1053,6 +1053,36 @@
       ]
     },
     {
+      "id": "ACCEPT-renderer-textfile-conflict",
+      "section": "Bounded acceptance checks",
+      "title": "Plugin text view loaded-version conflict and draft retention",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Plugin text view loaded-version conflict and draft retention",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/renderer.spec.ts",
+          "test": "renderer text-file autosave rejects stale versions and retains the live draft"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-renderer-file-transitions",
+      "section": "Bounded acceptance checks",
+      "title": "Serialized file view loads, close and failed-load recovery",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Serialized file view loads, close and failed-load recovery",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/renderer.spec.ts",
+          "test": "renderer file transitions serialize queued loads and close, then recover from failed loads"
+        }
+      ]
+    },
+    {
       "id": "ACCEPT-renderer-suggestions",
       "section": "Bounded acceptance checks",
       "title": "Async suggestion isolation and keyboard choice",

@@ -26,7 +26,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T10:56:56.186Z"
+      "checked_at": "2026-11-03T11:20:42.322Z"
     },
     {
       "name": "Templater",
@@ -52,7 +52,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T10:57:07.442Z"
+      "checked_at": "2026-11-03T11:20:49.194Z"
     },
     {
       "name": "Calendar (Beta)",
@@ -72,7 +72,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T10:57:10.652Z"
+      "checked_at": "2026-11-03T11:20:51.127Z"
     },
     {
       "name": "Advanced Tables",
@@ -91,7 +91,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T10:57:14.719Z"
+      "checked_at": "2026-11-03T11:20:53.612Z"
     },
     {
       "name": "Reading Time",
@@ -116,7 +116,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T10:57:20.773Z"
+      "checked_at": "2026-11-03T11:20:57.392Z"
     },
     {
       "name": "Excalidraw",
@@ -132,7 +132,7 @@
       "functional_workflows": "NOT_RUN",
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T10:57:24.629Z"
+      "checked_at": "2026-11-03T11:20:59.659Z"
     },
     {
       "name": "Tasks",
@@ -151,9 +151,9 @@
       ],
       "runtime_errors": [],
       "console_errors": [
-        "setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager. See docs/PLUGIN-COMPATIBILITY.md.\n    at q (engine://app/assets/main-ErbSsIa5.js:667:1319)\n    at Object.get (engine://app/assets/main-ErbSsIa5.js:667:1455)\n    at my.setObsidianPropertiesTypes (blob:engine://app/eab193d9-5233-42d8-9113-01931559cc78:610:2396)\n    at my.<anonymous> (blob:engine://app/eab193d9-5233-42d8-9113-01931559cc78:610:1473)\n    at Generator.next (<anonymous>)\n    at s (blob:engine://app/eab193d9-5233-42d8-9113-01931559cc78:173:1694)"
+        "setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager. See docs/PLUGIN-COMPATIBILITY.md.\n    at Z (engine://app/assets/main-kG-UBp5q.js:667:1319)\n    at Object.get (engine://app/assets/main-kG-UBp5q.js:667:1455)\n    at my.setObsidianPropertiesTypes (blob:engine://app/5a4ff893-c088-419c-8d05-1a4f09e4745f:610:2396)\n    at my.<anonymous> (blob:engine://app/5a4ff893-c088-419c-8d05-1a4f09e4745f:610:1473)\n    at Generator.next (<anonymous>)\n    at s (blob:engine://app/5a4ff893-c088-419c-8d05-1a4f09e4745f:173:1694)"
       ],
-      "checked_at": "2026-11-03T10:57:28.740Z"
+      "checked_at": "2026-11-03T11:21:01.727Z"
     },
     {
       "name": "Git",
@@ -169,7 +169,7 @@
       "functional_workflows": "NOT_RUN",
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T10:57:31.414Z"
+      "checked_at": "2026-11-03T11:21:03.054Z"
     },
     {
       "name": "Copilot",
@@ -181,13 +181,13 @@
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
       "outcome": "STARTUP_WITH_ERRORS",
-      "first_blocker": "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at q (engine://app/assets/main-ErbSsIa5.js:667:1319)\n    at Object.get (engine://app/assets/main-ErbSsIa5.js:667:1455)\n    at UA.isAvailable (blob:engine://app/1438f5db-7b17-4de3-a286-32d7a8ccbbd1:1189:4232)\n    at m5r (blob:engine://app/1438f5db-7b17-4de3-a286-32d7a8ccbbd1:2428:18714)\n    at f8t (blob:engine://app/1438f5db-7b17-4de3-a286-32d7a8ccbbd1:2428:19014)\n    at qRe.loadSettings (blob:engine://app/1438f5db-7b17-4de3-a286-32d7a8ccbbd1:4279:17601)\n    at async qRe.initialize (blob:engine://app/1438f5db-7b17-4de3-a286-32d7a8ccbbd1:4279:1834)",
+      "first_blocker": "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at Z (engine://app/assets/main-kG-UBp5q.js:667:1319)\n    at Object.get (engine://app/assets/main-kG-UBp5q.js:667:1455)\n    at UA.isAvailable (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:1189:4232)\n    at m5r (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:2428:18714)\n    at f8t (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:2428:19014)\n    at qRe.loadSettings (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:4279:17601)\n    at async qRe.initialize (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:4279:1834)",
       "functional_workflows": "NOT_RUN",
       "runtime_errors": [],
       "console_errors": [
-        "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at q (engine://app/assets/main-ErbSsIa5.js:667:1319)\n    at Object.get (engine://app/assets/main-ErbSsIa5.js:667:1455)\n    at UA.isAvailable (blob:engine://app/1438f5db-7b17-4de3-a286-32d7a8ccbbd1:1189:4232)\n    at m5r (blob:engine://app/1438f5db-7b17-4de3-a286-32d7a8ccbbd1:2428:18714)\n    at f8t (blob:engine://app/1438f5db-7b17-4de3-a286-32d7a8ccbbd1:2428:19014)\n    at qRe.loadSettings (blob:engine://app/1438f5db-7b17-4de3-a286-32d7a8ccbbd1:4279:17601)\n    at async qRe.initialize (blob:engine://app/1438f5db-7b17-4de3-a286-32d7a8ccbbd1:4279:1834)"
+        "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at Z (engine://app/assets/main-kG-UBp5q.js:667:1319)\n    at Object.get (engine://app/assets/main-kG-UBp5q.js:667:1455)\n    at UA.isAvailable (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:1189:4232)\n    at m5r (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:2428:18714)\n    at f8t (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:2428:19014)\n    at qRe.loadSettings (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:4279:17601)\n    at async qRe.initialize (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:4279:1834)"
       ],
-      "checked_at": "2026-11-03T10:57:36.340Z"
+      "checked_at": "2026-11-03T11:21:05.839Z"
     },
     {
       "name": "Style Settings",
@@ -203,7 +203,7 @@
       "functional_workflows": "NOT_RUN",
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T10:57:39.069Z"
+      "checked_at": "2026-11-03T11:21:07.713Z"
     },
     {
       "name": "Kanban",
@@ -221,7 +221,7 @@
         "Unsupported Obsidian capability: Workspace.unregisterHoverLinkSource. See docs/PLUGIN-COMPATIBILITY.md."
       ],
       "console_errors": [],
-      "checked_at": "2026-11-03T10:57:42.177Z"
+      "checked_at": "2026-11-03T11:21:09.054Z"
     }
   ]
 }

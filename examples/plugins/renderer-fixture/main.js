@@ -1,5 +1,5 @@
 // Original MIT test fixture, not copied from a community plugin or SDK.
-const {Plugin,PluginSettingTab,Setting,Modal,SuggestModal,TextFileView,ItemView,EditorSuggest,BasesView,getLanguage,addIcon,getIcon,getIconIds,setIcon,setTooltip}=require('obsidian');
+const {Plugin,PluginSettingTab,Setting,Modal,SuggestModal,FileView,TextFileView,ItemView,EditorSuggest,BasesView,getLanguage,addIcon,getIcon,getIconIds,setIcon,setTooltip}=require('obsidian');
 const {EditorView}=require('@codemirror/view');
 const {StateField}=require('@codemirror/state');
 class FixtureModal extends Modal {
@@ -74,6 +74,22 @@ module.exports=class extends Plugin {
     this.addCommand({id:'reuse-open',name:'Reuse and open',callback:async()=>{const leaf=this.app.workspace.getLeaf(false);await leaf.openFile(this.app.vault.getFileByPath('Z#.md'));await this.app.workspace.revealLeaf(leaf);this.status.setText('Reused leaf');}});
     this.addCommand({id:'modal',name:'Open modal',callback:()=>new FixtureModal(this.app).open()});
     this.addCommand({id:'picker',name:'Show fixture suggestions',callback:()=>new FixturePicker(this.app,this.status).open()});
+    this.addCommand({id:'transitions',name:'Race fixture file transitions',callback:async()=>{
+      const events=[];let release;const gate=new Promise(resolve=>release=resolve);
+      class TransitionView extends FileView {
+        async onLoadFile(file){events.push('load '+file.path);if(file.path==='Test.txt')await gate;events.push('loaded '+file.path);}
+        async onUnloadFile(file){events.push('unload '+file.path);}
+      }
+      const view=new TransitionView(this.app.workspace.getLeaf());
+      const pending=[view.setState({file:'Test.txt'}),view.setState({file:'Test.md'}),view.setState({file:'Zeta.md'}),view.onClose()];
+      setTimeout(release,25);await Promise.all(pending);
+      window.__fileTransitions={events,file:view.file};
+      let reject=true;
+      class RetryView extends FileView {async onLoadFile(){if(reject){reject=false;throw new Error('expected fixture load failure');}}}
+      const retry=new RetryView(this.app.workspace.getLeaf());
+      await retry.setState({file:'Test.md'}).catch(()=>{});await retry.setState({file:'Test.md'});
+      window.__fileTransitions.retry=retry.file.path;await retry.onClose();this.status.setText('Transitions complete');
+    }});
     this.addCommand({id:'icons',name:'Show fixture icons',callback:()=>{
       addIcon('fixture-custom','<path d="M0 0L10 10"/><script>window.badIcon=true</script>');
       const modal=new Modal(this.app);modal.setTitle('Fixture icons');
@@ -82,7 +98,7 @@ module.exports=class extends Plugin {
       modal.contentEl.createSpan({text:getIconIds().includes('fixture-custom')?'Registered icon':'Missing icon'});modal.open();
       modal.contentEl.createSpan({text:getIconIds().every(id=>getIcon(id))?'Icon ID roundtrip':'Broken icon ID'});
     }});
-    const handler=this.app.scope.register(['Ctrl','Shift'],'u',()=>{this.status.setText('Scoped '+getLanguage());return false;});
+    const handler=this.app.scope.register(['Ctrl','Shift'],'u',()=>{window.__scopeCalls=(window.__scopeCalls||0)+1;this.status.setText('Scoped '+getLanguage());return false;});
     this.register(()=>this.app.scope.unregister(handler));
     this.addCommand({id:'extensions',name:'Replace extension',callback:()=>{this.extensions.splice(0,1,EditorView.updateListener.of(update=>{if(update.docChanged)this.status.setText('CM replacement');}));this.app.workspace.updateOptions();}});
     this.registerDomEvent(document,'fixture-dom-test',()=>this.status.setText('DOM event'));

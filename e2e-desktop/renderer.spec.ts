@@ -69,6 +69,24 @@ test('renderer text-file view loads, autosaves, flushes on close and reopens per
   await expect.poll(()=>fs.readFile(path.join(root,'Test.txt'),'utf8')).toBe('close-flushed text');
   await page.getByTestId('file-Test.txt').click();await expect(editor).toHaveValue('close-flushed text');
 });
+test('renderer text-file autosave rejects stale versions and retains the live draft',async()=>{
+  await enable();await page.getByTestId('settings-close').click();await page.getByTestId('file-Test.txt').click();
+  const editor=page.getByRole('textbox',{name:'Fixture document'});await expect(editor).toHaveValue('original text');
+  await editor.fill('unsaved local draft');await fs.writeFile(path.join(root,'Test.txt'),'external edit wins');
+  await expect(page.locator('.toast')).toContainText('CONFLICT',{timeout:8000});
+  expect(await fs.readFile(path.join(root,'Test.txt'),'utf8')).toBe('external edit wins');
+  await expect(editor).toHaveValue('unsaved local draft');
+  // Restore the expected disk version so normal close can flush the retained local draft.
+  await fs.writeFile(path.join(root,'Test.txt'),'original text');await page.getByTestId('file-Test.md').click();
+  await expect.poll(()=>fs.readFile(path.join(root,'Test.txt'),'utf8')).toBe('unsaved local draft');
+});
+test('renderer file transitions serialize queued loads and close, then recover from failed loads',async()=>{
+  await enable();await page.getByTestId('settings-close').click();await command('Race fixture file transitions');
+  await expect(page.locator('.plugin-status-item')).toHaveText('Transitions complete');
+  const result=await page.evaluate(()=>(window as any).__fileTransitions);
+  expect(result.events).toEqual(['load Test.txt','loaded Test.txt','unload Test.txt','load Test.md','loaded Test.md','unload Test.md','load Zeta.md','loaded Zeta.md','unload Zeta.md']);
+  expect(result.file).toBeNull();expect(result.retry).toBe('Test.md');
+});
 test('renderer suggestion picker ignores stale results and supports keyboard choice',async()=>{
   await enable();await page.getByTestId('settings-close').click();await command('Show fixture suggestions');
   const dialog=page.getByRole('dialog',{name:'Fixture suggestions'}),input=dialog.getByPlaceholder('Find fixture choice');
@@ -91,7 +109,9 @@ test('renderer App.scope dispatches hotkeys and revokes them on plugin unload',a
   await enable();await page.getByTestId('settings-close').click();await page.keyboard.press('Control+Shift+u');
   await expect(page.locator('.plugin-status-item')).toHaveText('Scoped en');
   await settings();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();await page.getByTestId('settings-close').click();
+  const calls=await page.evaluate(()=>(window as any).__scopeCalls);expect(calls).toBe(1);
   await page.keyboard.press('Control+Shift+u');await expect(page.locator('.plugin-status-item')).toHaveCount(0);
+  expect(await page.evaluate(()=>(window as any).__scopeCalls)).toBe(calls);
 });
 test('renderer reusable leaf opens an exact path and can be revealed',async()=>{
   await enable();await page.getByTestId('settings-close').click();

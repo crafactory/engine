@@ -14,6 +14,7 @@ export type PluginPermission = (typeof PLUGIN_PERMISSIONS)[number];
 export function requiredPermission(operation: string): PluginPermission | null {
   switch (operation) {
     case 'read':
+    case 'readVersioned':
     case 'open':
     case 'asset':
       return 'vault:read';

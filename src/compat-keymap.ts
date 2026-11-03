@@ -15,7 +15,7 @@ export class Scope {
     if(event.ctrlKey)actual.add('Ctrl');if(event.metaKey)actual.add('Meta');
     if(event.altKey)actual.add('Alt');if(event.shiftKey)actual.add('Shift');
     for(const handler of [...this.handlers].reverse()){
-      const expected=handler.modifiers?.map(value=>value==='Mod'?(mac?'Meta':'Ctrl'):value);
+      const expected=handler.modifiers&&[...new Set(handler.modifiers.map(value=>value==='Mod'?(mac?'Meta':'Ctrl'):value))];
       if(expected&&(expected.length!==actual.size||expected.some(value=>!actual.has(value))))continue;
       if(handler.key!==null&&handler.key.toLowerCase()!==event.key.toLowerCase())continue;
       if(handler.func(event,{vkey:event.key,modifiers:[...actual].join('+')})===false){event.preventDefault();return true;}

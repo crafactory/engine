@@ -52,6 +52,8 @@ const accepted=[
   ['ACCEPT-renderer-opt-in','Explicit renderer mode and canceled trust prompt','e2e-desktop/renderer.spec.ts','trusted renderer requires explicit mode and cancellable permission'],
   ['ACCEPT-renderer-settings','Real renderer settings controls and Modal focus/close','e2e-desktop/renderer.spec.ts','renderer settings controls persist and modal traps focus and closes'],
   ['ACCEPT-renderer-textfile','Plugin text view disk persistence and close-time flush','e2e-desktop/renderer.spec.ts','renderer text-file view loads, autosaves, flushes on close and reopens persisted text'],
+  ['ACCEPT-renderer-textfile-conflict','Plugin text view loaded-version conflict and draft retention','e2e-desktop/renderer.spec.ts','renderer text-file autosave rejects stale versions and retains the live draft'],
+  ['ACCEPT-renderer-file-transitions','Serialized file view loads, close and failed-load recovery','e2e-desktop/renderer.spec.ts','renderer file transitions serialize queued loads and close, then recover from failed loads'],
   ['ACCEPT-renderer-suggestions','Async suggestion isolation and keyboard choice','e2e-desktop/renderer.spec.ts','renderer suggestion picker ignores stale results and supports keyboard choice'],
   ['ACCEPT-renderer-scope','Keyboard scope ownership and unload','e2e-desktop/renderer.spec.ts','renderer App.scope dispatches hotkeys and revokes them on plugin unload'],
   ['ACCEPT-renderer-icons','Cloned sanitized icons and native tooltip','e2e-desktop/renderer.spec.ts','renderer icon lookup clones sanitized SVG and supplies native tooltips'],

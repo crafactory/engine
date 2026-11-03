@@ -14,6 +14,19 @@ const callbacks={snapshot:()=>({name:'V',entries:[],notes:[],active:'',editor:nu
 const controller={ready:Promise.resolve(),sync:()=>{},stop:async()=>{}};
 
 describe('engine.compat/v1',()=>{
+  it('permission-gates versioned reads and preserves the loaded version on modify',async()=>{
+    const worker=vi.fn((..._args:any[])=>controller),readVersioned=vi.fn(async()=>({content:'text',version:'loaded-version'})),modify=vi.fn(async()=>({content:'changed',version:'saved-version'}));
+    const service=createCompatService({worker});
+    service.start({package:{manifest:{...manifest,permissions:['vault:read','vault:write']},code:''},mode:'worker',callbacks:{...callbacks,host:{...host,readVersioned,modify}}});
+    const operation=worker.mock.calls[0][4] as (name:string,args:unknown[])=>Promise<unknown>;
+    await expect(operation('readVersioned',['Test.txt'])).resolves.toEqual({content:'text',version:'loaded-version'});
+    await operation('modify',['Test.txt','changed','loaded-version']);expect(modify).toHaveBeenCalledWith('Test.txt','changed','loaded-version');
+    await expect(operation('modify',['Test.txt','changed',{}])).rejects.toThrow('Invalid expected file version');
+    service.start({package:{manifest:{...manifest,permissions:[]},code:''},mode:'worker',callbacks:{...callbacks,host:{...host,readVersioned}}});
+    const denied=worker.mock.calls[1][4] as typeof operation;
+    await expect(denied('readVersioned',['Test.txt'])).rejects.toThrow('Plugin lacks the vault:read permission');
+    expect(readVersioned).toHaveBeenCalledOnce();
+  });
   it('registers and resolves the support service',async()=>{
     const service:CompatService={list:async()=>[],start:()=>controller,capabilities:()=>({worker:true,renderer:true})};
     const runtime=await createCompatRuntime({service});

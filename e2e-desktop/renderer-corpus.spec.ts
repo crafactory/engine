@@ -43,10 +43,10 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
   const launch=()=>electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:{...process.env,ENGINE_DEV:'0'}});
   let app=await launch();
   try{
-    const pageErrors:string[]=[],consoleErrors:string[]=[];
+    const pageErrors:string[]=[],consoleErrors:string[]=[],orderedErrors:string[]=[];
     let page=await app.firstWindow();const trackPage=()=>{
-      page.on('pageerror',error=>{pageErrors.push(error.message);console.error(plugin.name+' runtime: '+error.stack);});
-      page.on('console',message=>{if(message.type()==='error'){consoleErrors.push(message.text());console.error(plugin.name+' console: '+message.text());}});
+      page.on('pageerror',error=>{pageErrors.push(error.message);orderedErrors.push(error.message);console.error(plugin.name+' runtime: '+error.stack);});
+      page.on('console',message=>{if(message.type()==='error'){consoleErrors.push(message.text());orderedErrors.push(message.text());console.error(plugin.name+' console: '+message.text());}});
     };trackPage();await page.getByTestId('file-Test.md').click();await expect(page.locator('.note-title h1')).toHaveText('Test');
     if(needsEval)await expect(page).toHaveURL('engine://app/trusted.html');
     const settings=async()=>{await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();};
@@ -205,10 +205,10 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await expect(page.getByLabel('Reading speed',{exact:true})).toHaveValue('100');
       outcome='BOUNDED_WORKFLOWS_PASS';workflows=['400-word document at 200 wpm','reading speed setting saves 100 wpm','reading/source transition retains 4 min','editor-change: 800 words -> 8 min','10-word selection modal at 100 wpm','Escape closes modal','disable removes status and settings','re-enable restores setting and 8 min'];
     }
-    if(plugin.name==='Reading Time'||plugin.name==='Dataview'||plugin.name==='Templater'||plugin.name==='Advanced Tables'||plugin.name==='Calendar (Beta)')expect(outcome).toBe('BOUNDED_WORKFLOWS_PASS');
+    if(plugin.name==='Reading Time'||plugin.name==='Dataview'||plugin.name==='Templater'||plugin.name==='Advanced Tables'||plugin.name==='Calendar (Beta)'||plugin.name==='Tasks')expect(outcome).toBe('BOUNDED_WORKFLOWS_PASS');
     if(outcome==='STARTUP_ONLY'){
       await page.waitForTimeout(500);
-      if(pageErrors.length||consoleErrors.length){outcome='STARTUP_WITH_ERRORS';blocker=pageErrors[0]||consoleErrors[0];}
+      if(orderedErrors.length){outcome='STARTUP_WITH_ERRORS';blocker=orderedErrors[0];}
     }
     if(outcome==='BOUNDED_WORKFLOWS_PASS')expect(pageErrors).toEqual([]);
     const platform=process.platform==='linux'?'Linux x64 Electron':process.platform==='darwin'?'macOS '+process.arch+' Electron':process.platform+' '+process.arch+' Electron';

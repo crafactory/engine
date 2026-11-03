@@ -27,3 +27,11 @@ The native suite passed 70/70 including both eleven-input corpus modes. Unit tes
 Renderer evidence: six bounded workflow passes including Reading Time (five top-ten targets), two clean startup-only targets (Excalidraw and Style Settings), two startup refusals (Git and Kanban), one startup with background errors (Copilot). Tasks preserves its recoverable property-type warning. Worker refuses all eleven inputs without making compatibility claims.
 
 Late hardening awaiting final targeted rerun: icon ID acronym round trips, accessible icon-button tooltip, idempotent native close and property-type close flush. The early-close handshake already fixed the formerly hanging unsafe-eval restart teardown.
+
+## PR #71 review and final-source verification
+
+First CodeRabbit review completed with seven actionable inline comments and a modifier-alias nit. Repairs add serialized file transitions with load-failure recovery, loaded-version compare-and-swap text writes, conflict-safe autosave retaining drafts, a hidden hotkey invocation counter checked after unload, an explicit Tasks bounded-workflow gate, chronological first-error selection, corrected eleven-input prose and deduplicated Mod aliases. Native close readiness now also tracks subscriber cleanup with idempotent ref-counted registration.
+
+Repair verification: 837 unit tests and 31 renderer/corpus native cases pass. The earlier full native suite passed 70 cases; the added two native cases are included in the repaired targeted run. All 64 browser tests passed. The manually dispatched cloud corpus workflow passed all 22 mode/input cases on the initial PR head. Generated evidence and inventory were refreshed.
+
+Initial CI verify jobs and Linux/Windows package builds passed. macOS never acquired a hosted runner and was cancelled after 15 minutes with zero steps executed; this is an infrastructure block, not a macOS runtime/build success. Do not claim macOS QA or silently bypass the check. Push repairs, reply to/resolve addressed threads, request another CodeRabbit review and rerun final-head checks.

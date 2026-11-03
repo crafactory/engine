@@ -64,7 +64,7 @@ Current per-plugin outcomes and verified workflows are tracked in
 [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); per-run hashes and timestamps are in
 [TRUSTED-RENDERER-PLUGIN-TESTS.md](TRUSTED-RENDERER-PLUGIN-TESTS.md) and
 [compatibility/renderer-community-results.json](compatibility/renderer-community-results.json).
-Default Worker still fails all five pinned releases. Reading Time and Dataview have bounded
+Default Worker still fails all eleven pinned releases. Reading Time and Dataview have bounded
 functional workflows; Templater has bounded template-insertion, create-note, startup-template
 and user-script workflows; Advanced Tables has a bounded live-mode table-formatting workflow;
 Calendar has a bounded view + today's-daily-note workflow. DataviewJS and `dv.view` require the explicit desktop `unsafe-eval`

@@ -60,6 +60,7 @@ async function start() {
   });
   // Early close requests must survive until the renderer has installed its save/unload handler.
   ipc('close-listener-ready',()=>{closeListenerReady=true;if(closePending){closePending=false;win.webContents.send('engine:before-close');}});
+  ipc('close-listener-unready',()=>{closeListenerReady=false;});
   ipc('close-ready',()=>{closeAllowed=true;win.close();});
   ipc('unsafeEval',()=>unsafeEvalEnabled);
   ipc('setUnsafeEval',async enabled=>{

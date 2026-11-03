@@ -119,7 +119,8 @@ export function installDomHelpers(){
   for(const [name,value]of Object.entries(fragmentMethods))if(!(name in DocumentFragment.prototype))Object.defineProperty(DocumentFragment.prototype,name,{value,configurable:true,writable:true});
 }
 /** Create plugin-owned trusted-renderer UI hooks; this adapter is not an isolation boundary. */
-export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,onFileExtensions?:(extensions:string[],viewType?:string)=>void,applyEditorEdit?:(base:string,text:string,from:number,to:number)=>Promise<unknown>){
+export interface VersionedText {content:string;version:string}
+export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,onFileExtensions?:(extensions:string[],viewType?:string)=>void,applyEditorEdit?:(base:string,text:string,from:number,to:number)=>Promise<unknown>,fileIO?:{read(path:string):Promise<VersionedText>;write(path:string,data:string,version:string):Promise<VersionedText>},onSaveError:(error:unknown)=>void=onError){
   installDomHelpers();
   const resources=new Set<HTMLElement>(),modals=new Set<any>(),tabs=new Set<any>(),extensions:unknown[]=[],factories=new Map<string,(leaf:any)=>any>(),leaves=new Set<any>(),extensionViews=new Map<string,string>(),suggests=new Set<EditorSuggest<any>>(),protocolHandlers=new Map<string,(params:Record<string,string>)=>unknown>(),hoverSources=new Map<string,{display:string;defaultMod:boolean}>(),basesFactories=new Map<string,(controller:QueryController)=>unknown>();
   const processors=new Set<ReturnType<typeof registerPostProcessor>>();
@@ -392,31 +393,46 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   class ItemView extends View {contentEl:HTMLElement;constructor(leaf:any){super(leaf);this.contentEl=element('div',this.containerEl,'plugin-view-content');}addAction(){return unsupported('ItemView.addAction');}}
   class FileView extends ItemView {
     file:any=null;navigation=true;allowNoFile=false;
+    private transitions:Promise<void>=Promise.resolve();
+    private transition(action:()=>Promise<void>){const result=this.transitions.then(action);this.transitions=result.catch(()=>{});return result;}
     getState(){return {file:this.file?.path};}
     getDisplayText(){return this.file?.basename??'No file';}
-    async setState(state:any){
-      if(!state.file)return;
-      const next=app.vault.getFileByPath(state.file);if(!next)throw new Error('File not found: '+state.file);
-      if(this.file===next)return;
-      if(this.file)await this.onUnloadFile(this.file);
-      this.file=next;await this.onLoadFile(next);
+    setState(state:any){
+      const path=state.file;
+      return this.transition(async()=>{
+        if(!path)return;
+        const next=app.vault.getFileByPath(path);if(!next)throw new Error('File not found: '+path);
+        if(this.file===next)return;
+        if(this.file)await this.onUnloadFile(this.file);
+        this.file=next;try{await this.onLoadFile(next);}catch(error){this.file=null;throw error;}
+      });
     }
-    async onClose(){if(this.file){await this.onUnloadFile(this.file);this.file=null;}}
+    onClose(){return this.transition(async()=>{if(this.file){await this.onUnloadFile(this.file);this.file=null;}});}
     onLoadFile(_file:any):any{}onUnloadFile(_file:any):any{}
   }
   class TextFileView extends FileView {
-    data='';private timer:ReturnType<typeof setTimeout>|undefined;
+    data='';private version='';private timer:ReturnType<typeof setTimeout>|undefined;
     private writes:Promise<void>=Promise.resolve();
     getViewData():string{return unsupported('TextFileView.getViewData abstract');}
     setViewData(_data:string,_clear:boolean):void{return unsupported('TextFileView.setViewData abstract');}
     clear():void{return unsupported('TextFileView.clear abstract');}
-    requestSave=()=>{clearTimeout(this.timer);this.timer=setTimeout(()=>{this.timer=undefined;safe(()=>this.save())();},2000);};
-    async onLoadFile(file:any){this.data=await app.vault.read(file);this.setViewData(this.data,true);}
+    requestSave=()=>{clearTimeout(this.timer);this.timer=setTimeout(()=>{this.timer=undefined;void this.save().catch(onSaveError);},2000);};
+    async onLoadFile(file:any){
+      if(!fileIO)return unsupported('TextFileView versioned storage');
+      const note=await fileIO.read(file.path);this.data=note.content;this.version=note.version;this.setViewData(this.data,true);
+    }
     async save(){
       clearTimeout(this.timer);this.timer=undefined;
       const file=this.file;if(!file)return;
       const data=this.getViewData();
-      const write=this.writes.then(async()=>{if(data!==this.data){await app.vault.modify(file,data);if(this.file===file)this.data=data;}});
+      const write=this.writes.then(async()=>{
+        if(this.file!==file)throw new Error('Text file changed before save');
+        if(data!==this.data){
+          if(!fileIO||!this.version)return unsupported('TextFileView versioned storage');
+          const saved=await fileIO.write(file.path,data,this.version);
+          if(this.file===file){this.data=data;this.version=saved.version;}
+        }
+      });
       this.writes=write.catch(()=>{});await write;
     }
     async onUnloadFile(_file:any){await this.save();this.clear();this.data='';}

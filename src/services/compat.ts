@@ -22,8 +22,9 @@ export interface CompatHost {
   loadData(id: string): Promise<unknown>;
   saveData(id: string, data: unknown): Promise<unknown>;
   read(path: string): Promise<string>;
+  readVersioned?(path: string): Promise<{content: string; version: string}>;
   create(path: string, content: string): Promise<unknown>;
-  modify(path: string, content: string): Promise<unknown>;
+  modify(path: string, content: string, expectedVersion?: string): Promise<unknown>;
   append(path: string, content: string): Promise<unknown>;
   writeLegacy(path: string, content: string): Promise<unknown>;
   rename(from: string, to: string): Promise<string>;
