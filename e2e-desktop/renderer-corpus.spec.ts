@@ -12,7 +12,12 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-corpus-')),profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-corpus-profile-'));
   const dir=path.join(root,'.crafactory/plugins',manifest.id);await fs.mkdir(dir,{recursive:true});
   const note=plugin.name==='Dataview'?'# Test\n\n#alpha\n\n```dataview\nTABLE file.name AS "Name", file.mtime AS "Modified"\n```\n\n```dataview\nTASK\n```\n\n```dataview\nLIST FROM "Folder"\n```\n\n```dataview\nLIST\nWHERE file.name = "Second"\n```\n\n```dataview\nLIST FROM ""\nSORT file.name DESC\nLIMIT 2\n```\n\n```dataview\nTABLE rows.file.name AS "Files", length(rows) AS "Count"\nGROUP BY file.folder\n```\n\n```dataview\nTABLE WITHOUT ID file.name AS "Name", Tag\nFLATTEN file.etags AS Tag\n```\n\n```dataviewjs\ndv.paragraph("JS " + dv.current().file.name)\n```\n\n```dataviewjs\nawait dv.view("View", {name: "Test"})\n```\n\nInline: `= this.file.name`\n\n- [ ] Task one\n- [x] Task two\n':Array(400).fill('word').join(' ');
-  await fs.writeFile(path.join(root,'Test.md'),note);
+  await fs.writeFile(path.join(root,'Test.md'),plugin.name==='Templater'?'Original text':note);
+  if(plugin.name==='Templater'){
+    await fs.mkdir(path.join(root,'Templates'),{recursive:true});
+    await fs.writeFile(path.join(root,'Templates/Template.md'),'Template body');
+    await fs.writeFile(path.join(root,'Templates/Create.md'),'Created body');
+  }
   if(plugin.name==='Dataview'){
     await fs.writeFile(path.join(root,'Second.md'),'# Second\n\n#alpha\n');
     await fs.mkdir(path.join(root,'Folder'),{recursive:true});await fs.writeFile(path.join(root,'Folder/Third.md'),'# Third\n\n#alpha\n\n- [ ] Third task\n');
@@ -21,13 +26,15 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
   if(plugin.name==='Dataview'||plugin.name==='Templater')await fs.writeFile(path.join(profile,'trusted-renderer.json'),JSON.stringify({unsafeEval:true}));
   for(const file of ['main.js','manifest.json'])await fs.copyFile(path.join(source,file),path.join(dir,file));
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
-  const app=await electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:{...process.env,ENGINE_DEV:'0'}});
+  const launch=()=>electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:{...process.env,ENGINE_DEV:'0'}});
+  let app=await launch();
   try{
-    const page=await app.firstWindow();await page.getByTestId('file-Test.md').click();await expect(page.locator('.note-title h1')).toHaveText('Test');
+    const pageErrors:string[]=[];
+    let page=await app.firstWindow();const trackPage=()=>page.on('pageerror',error=>pageErrors.push(error.message));trackPage();await page.getByTestId('file-Test.md').click();await expect(page.locator('.note-title h1')).toHaveText('Test');
     if(plugin.name==='Dataview'||plugin.name==='Templater')await expect(page).toHaveURL('engine://app/trusted.html');
     const settings=async()=>{await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();};
     await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
-    const control=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});
+    let control=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});
     await control.click();await page.getByTestId('dialog-submit').click();
     await expect.poll(async()=>(await control.isChecked())||(await page.locator('.error-banner').count())>0,{timeout:15000}).toBe(true);
     let outcome='STARTUP_ONLY',blocker='',workflows:string[]=[];
@@ -48,6 +55,65 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       const reading=page.locator('.reading-surface');await expect(reading).toContainText(/Inline:\s*Test/);await expect(reading).not.toContainText('= this.file.name');
       await expect(page.locator('.toast')).toHaveCount(0);
       outcome='BOUNDED_WORKFLOWS_PASS';workflows=['TABLE file.name/file.mtime','TASK','LIST FROM folder','LIST WHERE file.name','LIST SORT/LIMIT','GROUP BY folder','FLATTEN etags','DataviewJS','dv.view custom view','inline query'];
+    }else if(plugin.name==='Templater'){
+      await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();
+      const folder=page.getByLabel('Template folder location',{exact:true});
+      await folder.fill('Templates');await folder.press('Tab');
+      await page.getByRole('switch',{name:'Automatic jump to cursor',exact:true}).check();
+      await page.getByLabel('User script intellisense',{exact:true}).selectOption('4');
+      await expect.poll(async()=>{try{const data=JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8'));return [data.templates_folder,data.auto_jump_to_cursor,data.intellisense_render];}catch{return null;}}).toEqual(['Templates',true,'4']);
+      const dangerous=page.getByRole('switch',{name:'Trigger Templater on new file creation',exact:true});
+      await dangerous.click();const warning=page.getByRole('dialog',{name:'Trigger Templater on new file creation',exact:true});await expect(warning).toContainText('dangerous');
+      await warning.getByRole('button',{name:'Cancel',exact:true}).click();await expect(dangerous).not.toBeChecked();
+      await dangerous.click();await warning.getByRole('checkbox').check();await warning.getByRole('button',{name:'Enable',exact:true}).click();await expect(dangerous).toBeChecked();await expect(warning).toHaveCount(0);
+      await expect.poll(async()=>JSON.parse(await page.evaluate(()=>localStorage.getItem('templater-local-settings')||'{}')).trigger_on_file_creation).toBe(true);
+      await page.getByRole('button',{name:'Add template hotkey',exact:true}).click();
+      const hotkey=page.getByRole('dialog').nth(1);
+      await hotkey.getByLabel('Template',{exact:true}).fill('Templates/Template');
+      await hotkey.getByRole('switch',{name:'Insert command',exact:true}).check();
+      await hotkey.getByRole('button',{name:'Done',exact:true}).click();
+      await expect.poll(async()=>{try{return JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8')).enabled_templates_hotkeys;}catch{return null;}}).toEqual(['Templates/Template']);
+      await page.getByTestId('settings-close').click();
+      await app.close();
+      app=await launch();page=await app.firstWindow();trackPage();
+      await page.getByTestId('file-Test.md').click();await expect(page.locator('.note-title h1')).toHaveText('Test');
+      await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
+      control=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});
+      await control.click();await page.getByTestId('dialog-submit').click();await expect(control).toBeChecked();
+      await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();
+      await expect(page.getByLabel('Template folder location',{exact:true})).toHaveValue('Templates');
+      await expect(page.getByRole('switch',{name:'Automatic jump to cursor',exact:true})).toBeChecked();
+      await expect(page.getByRole('switch',{name:'Trigger Templater on new file creation',exact:true})).toBeChecked();
+      await expect(page.getByLabel('User script intellisense',{exact:true})).toHaveValue('4');
+      await expect(page.locator('.plugin-settings-content')).toContainText('Templates/Template');
+      await page.getByRole('button',{name:'Delete',exact:true}).first().click();
+      await expect.poll(async()=>{try{return JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8')).enabled_templates_hotkeys;}catch{return null;}}).toEqual([]);
+      await page.getByTestId('settings-close').click();
+      await page.getByTestId('note-editor').click();await page.keyboard.press('Control+End');
+      await page.getByRole('button',{name:'Command palette',exact:true}).click();
+      await page.getByTestId('palette-input').fill(manifest.name+': Open insert template modal');
+      await page.keyboard.press('Enter');
+      const picker=page.getByRole('dialog');await expect(picker).toBeVisible();
+      await picker.getByRole('button',{name:/^(Templates\/)?Template$/}).click();
+      await expect(page.getByTestId('note-editor')).toContainText('Template body');
+      await expect.poll(async()=>fs.readFile(path.join(root,'Test.md'),'utf8')).toBe('Original textTemplate body');
+      await settings();await control.click();await expect(control).not.toBeChecked();
+      await control.click();await page.getByTestId('dialog-submit').click();await expect(control).toBeChecked();
+      await page.getByTestId('settings-close').click();
+      await page.getByRole('button',{name:'Command palette',exact:true}).click();
+      await page.getByTestId('palette-input').fill(manifest.name+': Open insert template modal');
+      await expect(page.locator('.palette-list')).toContainText(manifest.name+': Open insert template modal');
+      await page.keyboard.press('Escape');
+      await page.getByRole('button',{name:'Command palette',exact:true}).click();
+      await page.getByTestId('palette-input').fill(manifest.name+': Create new note from template');
+      await page.keyboard.press('Enter');
+      const createPicker=page.getByRole('dialog');await expect(createPicker).toBeVisible();
+      await createPicker.getByRole('button',{name:/^(Templates\/)?Create$/}).click();
+      await expect(page.locator('.note-title h1')).toHaveText('Untitled');
+      await expect(page.getByTestId('note-editor')).toContainText('Created body');
+      await expect.poll(async()=>fs.readFile(path.join(root,'Untitled.md'),'utf8')).toBe('Created body');
+      expect(pageErrors).toEqual([]);
+      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['template folder, toggle and dropdown settings persist across restart','dangerous setting cancel/confirm persists locally across restart','template hotkey list add/delete and restart persistence','insert template into active note','persist exact editor content','disable/re-enable re-registers command','create new note from template and open exact content'];
     }else if(plugin.name==='Reading Time'){
       const status=page.locator('.plugin-status-item');await expect(status).toHaveText('2 min read');
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await page.getByLabel('Reading speed',{exact:true}).fill('100');await expect(status).toHaveText('4 min read');
@@ -62,8 +128,9 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await expect(page.getByLabel('Reading speed',{exact:true})).toHaveValue('100');
       outcome='BOUNDED_WORKFLOWS_PASS';workflows=['400-word document at 200 wpm','reading speed setting saves 100 wpm','reading/source transition retains 4 min','editor-change: 800 words -> 8 min','10-word selection modal at 100 wpm','Escape closes modal','disable removes status and settings','re-enable restores setting and 8 min'];
     }
-    if(plugin.name==='Reading Time'||plugin.name==='Dataview')expect(outcome).toBe('BOUNDED_WORKFLOWS_PASS');
-    const result={name:plugin.name,repo:plugin.repo,tag:plugin.tag,manifest_version:manifest.version,main_sha256:plugin.main_sha256,manifest_sha256:plugin.manifest_sha256,platform:'Linux x64 Electron',mode:'trusted renderer (explicit opt-in, not sandboxed)',outcome,first_blocker:blocker,functional_workflows:workflows.length?workflows:'NOT_RUN',checked_at:new Date().toISOString()};
+    if(plugin.name==='Reading Time'||plugin.name==='Dataview'||plugin.name==='Templater')expect(outcome).toBe('BOUNDED_WORKFLOWS_PASS');
+    const platform=process.platform==='linux'?'Linux x64 Electron':process.platform==='darwin'?'macOS '+process.arch+' Electron':process.platform+' '+process.arch+' Electron';
+    const result={name:plugin.name,repo:plugin.repo,tag:plugin.tag,manifest_version:manifest.version,main_sha256:plugin.main_sha256,manifest_sha256:plugin.manifest_sha256,platform,mode:'trusted renderer (explicit opt-in, not sandboxed)',outcome,first_blocker:blocker,functional_workflows:workflows.length?workflows:'NOT_RUN',checked_at:new Date().toISOString()};
     testInfo.annotations.push({type:'compatibility',description:JSON.stringify(result)});
     if(process.env.ENGINE_RENDERER_CORPUS_REPORT){await fs.mkdir(process.env.ENGINE_RENDERER_CORPUS_REPORT,{recursive:true});await fs.writeFile(path.join(process.env.ENGINE_RENDERER_CORPUS_REPORT,plugin.directory+'.json'),JSON.stringify(result,null,2)+'\n');}
   }finally{await app.close();await fs.rm(root,{recursive:true,force:true});await fs.rm(profile,{recursive:true,force:true});}

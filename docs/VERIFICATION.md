@@ -5,6 +5,113 @@
 > plugin status see [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); for API boundaries
 > see [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md).
 
+## Narrowed default CSP
+
+This section records removing the default-entry `wasm-unsafe-eval` relaxation left over from
+Templater startup work.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run check` | 824 passed (43 files); inventory and build passed | Includes two CSP source tests |
+| `npm run test:e2e` | **64 passed / 0 failed** | Browser flows |
+| `npm run test:desktop` (macOS) | **42 passed / 1 failed / 10 skipped** | New WebAssembly case; known pre-existing CommonJS Control-selection failure; corpus skipped without inputs |
+| Desktop WebAssembly check | Default entry throws `CompileError` under CSP; trusted entry compiles | Minimal empty module `[0,97,115,109,1,0,0,0]` |
+
+`index.html` now uses `script-src 'self' blob:`. `trusted.html` retains
+`script-src 'self' blob: 'unsafe-eval' 'wasm-unsafe-eval'`. Source tests assert both directives,
+and desktop tests exercise the actual entries: the default entry refuses WebAssembly compilation
+and JS eval, while the opt-in trusted entry allows both after restart. This does **not** claim
+default-entry WebAssembly support; no default-entry plugin currently has a verified
+WebAssembly-only workflow. Templater still requires the trusted entry and remains
+`STARTUP_ONLY`.
+
+## Templater create note from template
+
+This section records the second bounded Templater workflow.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run check` | 826 passed (43 files); inventory and build passed | New available-path and leaf cases |
+| `npm run test:e2e` | **64 passed / 0 failed** | Browser flows |
+| `npm run test:desktop` (macOS) | **42 passed / 1 failed / 10 skipped** | Known pre-existing CommonJS Control-selection failure; corpus skipped without inputs |
+| Pinned Templater `2.26.0` corpus (macOS) | **BOUNDED_WORKFLOWS_PASS** | Insert, create-note, exact persistence, disable/re-enable |
+| Pinned Templater `2.26.0` corpus (Linux) | Not rerun in this change | Checked-in result remains the previous `STARTUP_ONLY` run |
+
+The corpus now runs **Create new note from template**, selects `Templates/Create`, and asserts
+that `Untitled.md` opens with the exact template content and persists to disk. It then continues
+to the existing insert/re-enable checks.
+
+The first blockers removed for create-note were `Vault.getAvailablePath`, `Workspace.getLeaf(false)`
+and the leaf operations `openFile`/`setEphemeralState`. The reusable leaf routes `openFile` to the
+existing host open primitive; it is not a reference tab/leaf tree.
+
+Create-note originally logged a non-fatal internal `this.update` error. Adding the missing
+declarative settings base `update()` removed it; the Templater corpus now asserts no page errors
+for the combined settings/insert/create-note workflow.
+
+## Templater declarative settings persistence
+
+This section records the Templater settings workflow and the declarative settings API it needs.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run check` | 828 passed (43 files); inventory and build passed | Includes CodeRabbit regression cases |
+| `npm run test:e2e` | **64 passed / 0 failed** | Local port 5173 was occupied by an unrelated Vite server; rerun with an equivalent config on 5174 |
+| `npm run test:desktop` (macOS) | **44 passed / 0 failed / 10 skipped** | Includes reusable-leaf/exact-path case; corpus skipped without inputs |
+| Pinned Templater `2.26.0` corpus (macOS) | **BOUNDED_WORKFLOWS_PASS** | Text/toggle/dropdown/list + dangerous-confirmation/local settings + insert + create-note + re-enable |
+| Pinned Templater `2.26.0` corpus (Linux) | Not rerun in this change | Checked-in result remains the previous `STARTUP_ONLY` run |
+
+The former macOS-only CommonJS Control-selection failure was a test-binding bug:
+`Control+Home`/`Control+Shift+End` is not the macOS select-to-end binding. Switching the test to
+`ControlOrMeta+a` fixed it; the full desktop suite now passes on macOS with 43 passed, 0 failed
+and 10 corpus skips.
+
+CodeRabbit review findings were also fixed with regressions: `save` is restricted to the active
+note; `getAvailablePath` compares candidates case-insensitively; `MarkdownView.save` waits for
+queued editor edits; failed browser-storage writes remain visible in memory; leaf `openFile`
+passes an exact path instead of parsing link text; and the reusable leaf is registered for
+reveal/dispose.
+
+Templater 2.26 uses Obsidian's declarative settings API: its `display()` is empty and its
+`getSettingDefinitions()` returns groups, pages, controls and lists. The first blocker was an
+empty settings tab because the base class did not render those definitions. The bounded renderer
+now handles toggle/dropdown/text/number/folder controls, list add/delete, group/page headings,
+descriptions and `visible` predicates. It also required global `createEl`/`createDiv`/`createSpan`
+helpers, DocumentFragment DOM helpers, `Array.prototype.contains`, and a base `update()`.
+
+The corpus changes **Template folder location** to `Templates`, enables **Automatic jump to
+cursor**, selects **User script intellisense** value `4`, cancels and then confirms the dangerous
+**Trigger Templater on new file creation** warning (acknowledgement checkbox included), adds a
+**Template hotkey** and deletes it, verifies the exact `data.json` and `templater-local-settings`
+values, restarts the app, re-enables Templater, and verifies the text/toggle/dropdown/local values
+and the persisted list item before deleting it. It then runs the insert/create-note workflows.
+This is not full settings navigation/search, list reordering, other dangerous settings or
+validation-equivalence coverage.
+
+## Templater template insertion
+
+This section records the first bounded Templater workflow beyond startup.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run check` | 825 passed (43 files); inventory and build passed | New App storage, `Editor.getDoc` and save cases |
+| `npm run test:e2e` | **64 passed / 0 failed** | Browser flows |
+| `npm run test:desktop` (macOS) | **42 passed / 1 failed / 10 skipped** | Known pre-existing CommonJS Control-selection failure; corpus skipped without inputs |
+| Pinned Templater `2.26.0` corpus (macOS) | **BOUNDED_WORKFLOWS_PASS** | Insert template, exact persistence, disable/re-enable |
+| Pinned Templater `2.26.0` corpus (Linux) | Not rerun in this change | Checked-in result remains the previous `STARTUP_ONLY` run |
+
+The corpus workflow creates `Templates/Template.md`, enables Templater in the trusted renderer,
+runs **Open insert template modal** from the command palette, selects `Templates/Template`, and
+asserts both the editor text and exact `Test.md` bytes (`Original textTemplate body`). It then
+disables and re-enables the plugin and verifies the command is registered again.
+
+The first blockers removed were `App.loadLocalStorage`, `Editor.getDoc` and
+`MarkdownView.save`. App storage is JSON-backed and profile-local; `getDoc` is a bounded
+CodeMirror 5 document view over the existing snapshot selection; `save` flushes pending editor
+writes through a new typed host `save` operation. This is not a full CM5 `Doc`, not a different
+editor implementation, and at the time was not proof of create-note, settings persistence, user
+scripts or shell functions. Create-note was later verified; see the section above.
+
 ## Templater startup compatibility
 
 This section records the compatibility surface added while validating Templater.
@@ -21,9 +128,7 @@ Added a bounded `FileSystemAdapter`, `Vault.getConfig`, numeric Notice durations
 icon/hotkey metadata, CLI-handler acceptance, CodeMirror 5 mode/helper/MIME shims, Platform
 fields, `addIcon`, `createFragment`, `AbstractInputSuggest`, `FuzzySuggestModal`,
 `SettingPage`, `ConfirmationModal`, `util`/`child_process` stubs, a file-menu event backed by `Menu`/`MenuItem` in the file context menu and
-`wasm-unsafe-eval` in the default CSP. `AbstractInputSuggest`/`FuzzySuggestModal` are input-driven and `prepareFuzzySearch` returns the documented score/matches shape. Templater now starts under the desktop unsafe-eval
-entry; template insertion, file creation and shell functions remain unverified. Startup
-errors are no longer masked by an on-unload exception.
+`wasm-unsafe-eval` in the default CSP. `AbstractInputSuggest`/`FuzzySuggestModal` are input-driven and `prepareFuzzySearch` returns the documented score/matches shape. Templater then started under the desktop unsafe-eval entry; at that time template insertion, file creation and shell functions remained unverified. Startup errors are no longer masked by an on-unload exception. The default-entry `wasm-unsafe-eval` noted above was later removed, and template insertion was later verified; see the narrowed default CSP and Templater template insertion sections.
 
 ## Desktop unsafe-eval opt-in
 

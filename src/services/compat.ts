@@ -32,6 +32,8 @@ export interface CompatHost {
   asset(path: string): Promise<string>;
   open(path: string): Promise<void>;
   editor(path: string, base: string, text: string, from: number, to: number): Promise<void>;
+  /** Flush pending editor writes for a note so plugin-initiated saves observe the result. */
+  save(path: string): Promise<void>;
 }
 
 /** Host callbacks a compatibility runtime may use while loading a package. */

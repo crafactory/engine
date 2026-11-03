@@ -5,7 +5,7 @@ import os from 'node:os';
 let root:string,profile:string,app:ElectronApplication,page:Page;
 test.beforeEach(async()=>{
   root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-'));profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-profile-'));
-  await fs.writeFile(path.join(root,'Test.md'),'Original text');await fs.writeFile(path.join(root,'ZTarget.md'),'Target');await fs.writeFile(path.join(root,'Zeta.md'),'[[ZTarget]]');await fs.writeFile(path.join(root,'Test.fixture'),'fixture body');await fs.writeFile(path.join(root,'Test.base'),'views:\n  - type: fixture-bases\n    name: Fixture\n');
+  await fs.writeFile(path.join(root,'Test.md'),'Original text');await fs.writeFile(path.join(root,'ZTarget.md'),'Target');await fs.writeFile(path.join(root,'Zeta.md'),'[[ZTarget]]');await fs.writeFile(path.join(root,'Z#.md'),'Sharp target');await fs.writeFile(path.join(root,'Test.fixture'),'fixture body');await fs.writeFile(path.join(root,'Test.base'),'views:\n  - type: fixture-bases\n    name: Fixture\n');
   const dir=path.join(root,'.crafactory/plugins/renderer-fixture');await fs.mkdir(dir,{recursive:true});
   for(const file of ['manifest.json','main.js'])await fs.copyFile('examples/plugins/renderer-fixture/'+file,path.join(dir,file));
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
@@ -13,6 +13,10 @@ test.beforeEach(async()=>{
   page=await app.firstWindow();await expect(page.locator('.note-title h1')).toHaveText('Test');
 });
 test.afterEach(async()=>{await app?.close();await fs.rm(root,{recursive:true,force:true});await fs.rm(profile,{recursive:true,force:true});});
+/** Minimal valid empty WebAssembly module: magic header plus version 1. */
+const wasm=[0,97,115,109,1,0,0,0];
+/** Compile WebAssembly from page context so the entry's real CSP decides. */
+async function compileWasm(){return page.evaluate(bytes=>new Promise<string>(resolve=>setTimeout(async()=>{try{await WebAssembly.compile(new Uint8Array(bytes));resolve('compiled');}catch(error){resolve(String(error));}},0)),wasm);}
 /** Open the native application's community-plugin settings using visible controls. */
 async function settings(){await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();}
 /** Explicitly authorize and enable the original trusted-renderer fixture. */
@@ -54,6 +58,12 @@ test('renderer registerExtensions mounts a custom view in the main document area
   await expect(page.locator('.plugin-view-host .plugin-view-content')).toHaveText('Fixture file: Test.fixture');
   await settings();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();await page.getByTestId('settings-close').click();
   await expect(page.locator('.plugin-view-host')).toHaveCount(0);
+});
+test('renderer reusable leaf opens an exact path and can be revealed',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  await command('Reuse and open');
+  await expect(page.locator('.note-title h1')).toHaveText('Z#');
+  await expect(page.locator('.plugin-status-item')).toHaveText('Reused leaf');
 });
 test('renderer editor suggests bridge to CodeMirror autocomplete',async()=>{
   await enable();await page.getByTestId('settings-close').click();
@@ -98,6 +108,13 @@ test(`trusted renderer failure cleans up: ${label}`,async()=>{
   await fs.writeFile(path.join(root,'.crafactory/plugins/renderer-fixture/main.js'),source);await settings();await page.getByLabel('Runtime for Renderer fixture',{exact:true}).selectOption('renderer');await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();await page.getByTestId('dialog-submit').click();
   await expect(page.locator('.error-banner')).toBeVisible();await expect(page.getByRole('switch',{name:'Enable Renderer fixture',exact:true})).not.toBeChecked();await expect(page.locator('.plugin-status-item')).toHaveCount(0);
 });
+test('default entry refuses WebAssembly compilation',async()=>{
+  const result=await compileWasm();
+  expect(result).not.toBe('compiled');
+  expect(result).toContain('CompileError');
+  expect(result).toContain('Content Security Policy');
+  await expect(page).toHaveURL('engine://app/index.html');
+});
 test('unsafe-eval is opt-in, desktop-only and applies after restart',async()=>{
   expect(await page.evaluate(()=>new Promise(resolve=>setTimeout(()=>{try{resolve(eval('2 + 2'));}catch{resolve('blocked');}},0)))).toBe('blocked');
   await settings();
@@ -112,4 +129,5 @@ test('unsafe-eval is opt-in, desktop-only and applies after restart',async()=>{
   page=await app.firstWindow();
   await expect(page).toHaveURL('engine://app/trusted.html');
   expect(await page.evaluate(()=>new Promise(resolve=>setTimeout(()=>{try{resolve(eval('2 + 2'));}catch(error){resolve(String(error));}},0)))).toBe(4);
+  expect(await compileWasm()).toBe('compiled');
 });

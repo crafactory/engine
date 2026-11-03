@@ -9,10 +9,14 @@ status tracker.
 
 - Dataview: bounded query/inline/DataviewJS/`dv.view` workflows pass under the desktop
   unsafe-eval opt-in.
-- Templater: `STARTUP_ONLY`; template insertion and user scripts remain unverified.
+- Templater: `BOUNDED_WORKFLOWS_PASS` for text/toggle/dropdown/list settings persistence,
+  dangerous trigger-on-creation cancel/confirm and local persistence, template insertion,
+  create-note and disable/re-enable; other dangerous settings, other lists, user scripts and
+  startup templates remain unverified.
 - Calendar / Advanced Tables: `STARTUP_ONLY`; no functional workflows.
 - Reading Time: bounded workflows pass.
-- Default CSP remains strict except `wasm-unsafe-eval`; `unsafe-eval` is desktop opt-in only.
+- Default CSP is strict (`script-src 'self' blob:`); `unsafe-eval` and `wasm-unsafe-eval` are
+  desktop trusted-entry opt-ins only.
 
 ## Recent changes
 
@@ -20,10 +24,16 @@ status tracker.
 - Live list markers, reading-mode undo, callout folds and code copy.
 - `engine.compat/v1`, native support plugin, MetadataCache and Dataview corpus.
 - Desktop unsafe-eval opt-in, Dataview `dv.view`, Templater startup surface.
+- Templater template insertion, App local storage, `Editor.getDoc`, `MarkdownView.save`.
+- Templater create-note, `Vault.getAvailablePath`, reusable leaf `openFile`/ephemeral state.
+- Templater declarative settings persistence (text/toggle/dropdown/list), dangerous-setting
+  cancel/confirm and local persistence, global DOM helpers and `Array.prototype.contains`.
+- CodeRabbit fixes: active-note save, case-insensitive available paths, save ordering, storage
+  fallback, exact-path leaf open and reusable-leaf registration.
 
 ## Next
 
-- Templater template insertion/create-note workflows.
+- Templater other dangerous settings, other lists, user scripts and startup templates.
 - Advanced Tables editor commands; Calendar workspace/daily-note behavior.
 - Candidate plugins: Tasks, QuickAdd, Kanban, Excalidraw, Style Settings, Omnisearch.
 

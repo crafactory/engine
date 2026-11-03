@@ -7,8 +7,9 @@ const initial=():PluginSnapshot=>({name:'Test',active:'One.md',entries:[{path:'O
 function harness(native?:CompatNativeServices){
   const settingCleanup=vi.fn(),extensionCleanup=vi.fn(),viewCleanup=vi.fn(),extensionsCleanup=vi.fn(),suggestCleanup=vi.fn(),protocolCleanup=vi.fn(),hoverCleanup=vi.fn(),basesCleanup=vi.fn(),updateOptions=vi.fn(),ribbonCleanup=vi.fn(),ribbonElement={remove:ribbonCleanup} as unknown as HTMLElement;
   const iterateAllLeaves=vi.fn(),ui={exports:{EditorSuggest},workspace:{getLeaf:()=>({fixture:true}),iterateAllLeaves},statusBar:vi.fn(),ribbonIcon:vi.fn(()=>ribbonElement),settingTab:vi.fn(()=>settingCleanup),editorExtension:vi.fn(()=>extensionCleanup),registerView:vi.fn(()=>viewCleanup),registerExtensions:vi.fn(()=>extensionsCleanup),editorSuggest:vi.fn(()=>suggestCleanup),protocolHandler:vi.fn(()=>protocolCleanup),hoverLinkSource:vi.fn(()=>hoverCleanup),basesView:vi.fn(()=>basesCleanup),updateOptions};
-  const runtime=createCompatibilityRuntime(manifest,initial(),{ui,request:async()=>null,commands:()=>{},notice:()=>{},native});
-  return {runtime,api:runtime.api as any,ui,iterateAllLeaves,settingCleanup,extensionCleanup,viewCleanup,extensionsCleanup,suggestCleanup,protocolCleanup,hoverCleanup,basesCleanup,updateOptions,ribbonCleanup,ribbonElement};
+  const request=vi.fn(async(_operation:string,_args:unknown[])=>null);
+  const runtime=createCompatibilityRuntime(manifest,initial(),{ui,request,commands:()=>{},notice:()=>{},native});
+  return {runtime,api:runtime.api as any,ui,iterateAllLeaves,request,settingCleanup,extensionCleanup,viewCleanup,extensionsCleanup,suggestCleanup,protocolCleanup,hoverCleanup,basesCleanup,updateOptions,ribbonCleanup,ribbonElement};
 }
 it('renderer export registry is documented, unique and disjoint from Worker exports',()=>{
   expect(rendererExports).toHaveLength(29);expect(new Set(rendererExports).size).toBe(29);
@@ -45,6 +46,40 @@ it('exposes bounded App bootstrap fields and forwards workspace leaf iteration',
   expect(h.runtime.app.internalPlugins).toEqual({plugins:{}});
   h.runtime.app.workspace.iterateAllLeaves(()=>{});
   expect(h.iterateAllLeaves).toHaveBeenCalledOnce();
+});
+it('Editor.getDoc exposes a bounded CodeMirror 5 document adapter',async()=>{
+  const h=harness();
+  h.runtime.sync({...initial(),editor:{text:'one\ntwo',from:0,to:0}});
+  const editor=h.runtime.app.workspace.activeEditor!.editor;
+  const doc=editor.getDoc();
+  expect(doc).toBe(editor.getDoc());
+  expect(doc.getValue()).toBe('one\ntwo');expect(doc.lineCount()).toBe(2);expect(doc.lastLine()).toBe(1);
+  expect(doc.getCursor()).toEqual({line:0,ch:0});expect(doc.getRange({line:0,ch:0},{line:0,ch:3})).toBe('one');
+  doc.replaceRange('X',{line:0,ch:0});
+  expect(doc.getValue()).toBe('Xone\ntwo');
+  await h.runtime.app.workspace.getActiveViewOfType(h.api.MarkdownView)!.save();
+  expect(h.request).toHaveBeenCalledWith('save',['One.md']);
+  const operations=h.request.mock.calls.map(call=>call[0]);
+  expect(operations.indexOf('editor')).toBeGreaterThanOrEqual(0);
+  expect(operations.indexOf('editor')).toBeLessThan(operations.indexOf('save'));
+});
+it('App local storage round-trips JSON and rejects non-string keys',()=>{
+  const h=harness(),key='renderer-contracts-'+Math.random().toString(36).slice(2);
+  expect(h.runtime.app.loadLocalStorage(key)).toBeNull();
+  h.runtime.app.saveLocalStorage(key,{text:'value'});
+  expect(h.runtime.app.loadLocalStorage(key)).toEqual({text:'value'});
+  expect(()=>h.runtime.app.loadLocalStorage(1 as any)).toThrow('must be a string');
+});
+it('App local storage keeps a failed browser write visible in memory',()=>{
+  const descriptor=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:()=> 'old',setItem(){throw new Error('quota');},removeItem(){}}});
+  try{
+    const h=harness();h.runtime.app.saveLocalStorage('quota-key','new');
+    expect(h.runtime.app.loadLocalStorage('quota-key')).toBe('new');
+  }finally{
+    if(descriptor)Object.defineProperty(globalThis,'localStorage',descriptor);
+    else delete (globalThis as any).localStorage;
+  }
 });
 it('fires bounded Vault create/delete and MetadataCache resolve events',async()=>{
   const h=harness(),base=initial(),created=vi.fn(),deleted=vi.fn(),resolved=vi.fn();

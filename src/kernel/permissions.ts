@@ -20,6 +20,7 @@ export function requiredPermission(operation: string): PluginPermission | null {
     case 'trash':
       return 'vault:trash';
     case 'editor':
+    case 'save':
       return 'editor:write';
     case 'create':
     case 'modify':
