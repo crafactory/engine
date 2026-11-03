@@ -368,7 +368,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     /** Atomically deactivate this plugin's processors before runtime resource cleanup. */
     async stopProcessors(){processorsStopped=true;await stopProcessors(processors);processors.clear();},
     workspace:{
-      get activeLeaf(){return reusableLeaf;},
+      get activeLeaf(){leaves.add(reusableLeaf);return reusableLeaf;},
       getRightLeaf(split?:boolean){if(split)return unsupported('Workspace.getRightLeaf split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeaf(newLeaf?:boolean|string){if(newLeaf===false){leaves.add(reusableLeaf);return reusableLeaf;}if(newLeaf!==undefined&&newLeaf!==true)return unsupported('Workspace.getLeaf reuse/split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},
       getUnpinnedLeaf(){const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeavesOfType(type:string){return [...leaves].filter(l=>l.view?.getViewType()===type);},iterateAllLeaves(callback:(leaf:any)=>void){for(const leaf of [...leaves])callback(leaf);},
       async detachLeavesOfType(type:string){await Promise.all([...leaves].filter(l=>l.view?.getViewType()===type).map(l=>l.detach()));},

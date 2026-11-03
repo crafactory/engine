@@ -55,7 +55,7 @@ This section records the first bounded Calendar workflow.
 
 | Check | Observed result | Scope |
 |---|---|---|
-| `npm run check` | 827 passed (43 files); inventory and build passed | New `moment`, link-map, daily-note and view cases |
+| `npm run check` | 829 passed (43 files); inventory and build passed | New `moment`, link-map, daily-note and view cases |
 | `npm run test:e2e` | **64 passed / 0 failed** | Browser flows |
 | `npm run test:desktop` (macOS) | **44 passed / 0 failed / 10 skipped** | Includes reusable-leaf/exact-path case |
 | Pinned Calendar `2.0.0-beta.2` corpus (macOS) | **BOUNDED_WORKFLOWS_PASS** | Open view + create today's daily note + exact content/open |
@@ -71,8 +71,11 @@ The blockers removed were Obsidian's untyped globals and Daily Notes view plumbi
 `window.app`, a production-only `process.env` shim, `app.isMobile`, `app.plugins.getPlugin`, a
 synthetic `daily-notes` internal plugin, `app.foldManager`, `Workspace.getUnpinnedLeaf`/
 `activeLeaf`, `FileView`, `metadataCache.getCache(path)` and derived
-`resolvedLinks`/`unresolvedLinks`. Week numbers, other dates/navigation, context menus, Calendar
-settings, mobile behavior and a real multi-leaf workspace remain unverified.
+`resolvedLinks`/`unresolvedLinks`. CodeRabbit follow-ups were also fixed: daily-note settings are
+read at call time, `getCache(path)` returns null for missing paths, `window.app` is released when
+its owning runtime stops, and `activeLeaf` is registered before reveal. Week numbers, other
+dates/navigation, context menus, Calendar settings, mobile behavior and a real multi-leaf
+workspace remain unverified.
 
 ## Advanced Tables formatting
 

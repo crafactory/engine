@@ -565,7 +565,7 @@ export function App(){
     try{
       const native={basePath:root,resolveLink:(link:string,from:string)=>indexRuntime.current?.index.resolve(link,from),
         metadata:(path:string)=>indexRuntime.current?.index.metadata(path),
-        dailyNotes:{folder:settings.dailyFolder,format:'YYYY-MM-DD',template:settings.dailyTemplate},
+        get dailyNotes(){return {folder:settingsRef.current.dailyFolder,format:'YYYY-MM-DD',template:settingsRef.current.dailyTemplate};},
         editor:{providerId:editorRuntime.current?.provider.id??'unknown',codeMirrorExtensions:editorRuntime.current?.provider.capabilities().codeMirrorExtensions??false}};
       const onCommands=(commands:PluginCommand[])=>setPluginCommands(c=>[...c.filter(p=>p.plugin!==id),...commands]);
       const onFailure=()=>{clearPluginExtensions(id);pluginStops.current.delete(id);pluginManifests.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));};

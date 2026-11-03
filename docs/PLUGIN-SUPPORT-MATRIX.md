@@ -161,7 +161,7 @@ and has explicit rejection or documented gaps for the rest.
 |---|---|---|---|
 | Plugin lifecycle, commands, settings, ribbon/status | ✅ | Load/unload, commands (including icon/hotkey metadata), settings tabs, ribbon/status, notices, `registerCliHandler` acceptance | Exact reference timing/visuals differ |
 | App identity / local storage | 🟡 | `appId`, `isMobile:false`, bounded `app.plugins.getPlugin`, synthetic `daily-notes` internal plugin, no-op `foldManager`, JSON-backed `loadLocalStorage`/`saveLocalStorage` | Other App members reject; trusted-renderer storage is per profile with a per-runtime memory fallback, not a vault file |
-| Global compatibility | 🟡 | `window.app`, `moment` as module export/global/`require`, production-only `process.env.NODE_ENV` shim | Not Node `process`; no filesystem/env mutation or arbitrary Node globals |
+| Global compatibility | 🟡 | `window.app` (active renderer, released on stop), `moment` as module export/global/`require`, production-only `process.env.NODE_ENV` shim | Not Node `process`; no filesystem/env mutation or arbitrary Node globals |
 | File manager | 🟡 | `app.fileManager.renameFile` routes through `Vault.rename` | Other FileManager members reject |
 | Vault text I/O and file identity | 🟡 | Read/create/modify/append/copy/mkdir/rename/trash, `getAvailablePath`; `.md/.txt/.canvas/.base/.csv/.json/.css/.js/.mjs`; plugin data | No binary/process/delete APIs; rename event not synthesized |
 | `FileSystemAdapter` / platform identity | 🟡 | Bounded `getBasePath`/`getName` from the desktop base path; `Platform` fields | Rejects when no base path; not a complete adapter |

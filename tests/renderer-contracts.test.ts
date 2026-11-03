@@ -68,6 +68,29 @@ it('Editor.getDoc exposes a bounded CodeMirror 5 document adapter',async()=>{
   expect(operations.indexOf('editor')).toBeGreaterThanOrEqual(0);
   expect(operations.indexOf('editor')).toBeLessThan(operations.indexOf('save'));
 });
+it('reads daily-note settings at call time',()=>{
+  let daily={folder:'A',format:'YYYY-MM-DD',template:''};
+  const h=harness({get dailyNotes(){return daily;}} as unknown as CompatNativeServices);
+  expect(h.runtime.app.vault.getConfig('dailyNotes')).toEqual(daily);
+  daily={folder:'B',format:'YYYY-MM-DD',template:''};
+  expect((h.runtime.app.vault.getConfig('dailyNotes') as {folder:string}).folder).toBe('B');
+  expect(h.runtime.app.internalPlugins.getPluginById('daily-notes')!.instance.options.folder).toBe('B');
+});
+it('releases window.app to the previous runtime and clears it',async()=>{
+  const descriptor=Object.getOwnPropertyDescriptor(globalThis,'window');
+  Object.defineProperty(globalThis,'window',{configurable:true,value:{}});
+  try{
+    const first=harness(),second=harness();
+    expect((window as any).app).toBe(second.runtime.app);
+    await second.runtime.stop();
+    expect((window as any).app).toBe(first.runtime.app);
+    await first.runtime.stop();
+    expect((window as any).app).toBeUndefined();
+  }finally{
+    if(descriptor)Object.defineProperty(globalThis,'window',descriptor);
+    else delete (globalThis as any).window;
+  }
+});
 it('App local storage round-trips JSON and rejects non-string keys',()=>{
   const h=harness(),key='renderer-contracts-'+Math.random().toString(36).slice(2);
   expect(h.runtime.app.loadLocalStorage(key)).toBeNull();
@@ -110,7 +133,7 @@ it('serves bounded CachedMetadata through getFileCache and getCache',()=>{
   expect(h.runtime.app.metadataCache.getFileCache(file).frontmatter).toEqual({path:'One.md'});
   expect(h.runtime.app.metadataCache.getCache('One.md').headings[0].heading).toBe('One');
   expect(()=>h.runtime.app.metadataCache.getFileCache({path:'One.md'} as any)).toThrow('File does not belong to this vault');
-  expect(()=>h.runtime.app.metadataCache.getCache('Missing.md')).toThrow('File does not belong to this vault');
+  expect(h.runtime.app.metadataCache.getCache('Missing.md')).toBeNull();
 });
 it('renderer keeps unsupported events and unrelated runtime exports explicit',()=>{
   const h=harness();expect(()=>h.runtime.app.workspace.on('active-leaf-change',()=>{})).toThrow('Workspace event active-leaf-change');expect(()=>h.api.MarkdownPreviewView).toThrow('export MarkdownPreviewView');
