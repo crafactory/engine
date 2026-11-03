@@ -59,7 +59,15 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();
       const folder=page.getByLabel('Template folder location',{exact:true});
       await folder.fill('Templates');await folder.press('Tab');
-      await expect.poll(async()=>{try{return JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8')).templates_folder;}catch{return null;}}).toBe('Templates');
+      await page.getByRole('switch',{name:'Automatic jump to cursor',exact:true}).check();
+      await page.getByLabel('User script intellisense',{exact:true}).selectOption('4');
+      await expect.poll(async()=>{try{const data=JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8'));return [data.templates_folder,data.auto_jump_to_cursor,data.intellisense_render];}catch{return null;}}).toEqual(['Templates',true,'4']);
+      await page.getByRole('button',{name:'Add template hotkey',exact:true}).click();
+      const hotkey=page.getByRole('dialog').nth(1);
+      await hotkey.getByLabel('Template',{exact:true}).fill('Templates/Template');
+      await hotkey.getByRole('switch',{name:'Insert command',exact:true}).check();
+      await hotkey.getByRole('button',{name:'Done',exact:true}).click();
+      await expect.poll(async()=>{try{return JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8')).enabled_templates_hotkeys;}catch{return null;}}).toEqual(['Templates/Template']);
       await page.getByTestId('settings-close').click();
       await app.close();
       app=await launch();page=await app.firstWindow();trackPage();
@@ -69,6 +77,11 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await control.click();await page.getByTestId('dialog-submit').click();await expect(control).toBeChecked();
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();
       await expect(page.getByLabel('Template folder location',{exact:true})).toHaveValue('Templates');
+      await expect(page.getByRole('switch',{name:'Automatic jump to cursor',exact:true})).toBeChecked();
+      await expect(page.getByLabel('User script intellisense',{exact:true})).toHaveValue('4');
+      await expect(page.locator('.plugin-settings-content')).toContainText('Templates/Template');
+      await page.getByRole('button',{name:'Delete',exact:true}).first().click();
+      await expect.poll(async()=>{try{return JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8')).enabled_templates_hotkeys;}catch{return null;}}).toEqual([]);
       await page.getByTestId('settings-close').click();
       await page.getByTestId('note-editor').click();await page.keyboard.press('Control+End');
       await page.getByRole('button',{name:'Command palette',exact:true}).click();
@@ -94,7 +107,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await expect(page.getByTestId('note-editor')).toContainText('Created body');
       await expect.poll(async()=>fs.readFile(path.join(root,'Untitled.md'),'utf8')).toBe('Created body');
       expect(pageErrors).toEqual([]);
-      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['template folder setting persists across restart','insert template into active note','persist exact editor content','disable/re-enable re-registers command','create new note from template and open exact content'];
+      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['template folder, toggle and dropdown settings persist across restart','template hotkey list add/delete and restart persistence','insert template into active note','persist exact editor content','disable/re-enable re-registers command','create new note from template and open exact content'];
     }else if(plugin.name==='Reading Time'){
       const status=page.locator('.plugin-status-item');await expect(status).toHaveText('2 min read');
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await page.getByLabel('Reading speed',{exact:true}).fill('100');await expect(status).toHaveText('4 min read');
