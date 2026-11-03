@@ -49,6 +49,30 @@ Create-note originally logged a non-fatal internal `this.update` error. Adding t
 declarative settings base `update()` removed it; the Templater corpus now asserts no page errors
 for the combined settings/insert/create-note workflow.
 
+## Calendar view and daily note
+
+This section records the first bounded Calendar workflow.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run check` | 827 passed (43 files); inventory and build passed | New `moment`, link-map, daily-note and view cases |
+| `npm run test:e2e` | **64 passed / 0 failed** | Browser flows |
+| `npm run test:desktop` (macOS) | **44 passed / 0 failed / 10 skipped** | Includes reusable-leaf/exact-path case |
+| Pinned Calendar `2.0.0-beta.2` corpus (macOS) | **BOUNDED_WORKFLOWS_PASS** | Open view + create today's daily note + exact content/open |
+| Pinned Calendar `2.0.0-beta.2` corpus (Linux) | Not rerun in this change | Checked-in result remains the previous `STARTUP_ONLY` run |
+
+The corpus opens the Calendar view from the command palette, clicks today, confirms
+**New Daily Note**, and verifies `Daily notes/YYYY-MM-DD.md` matches the configured folder/template
+(`# YYYY-MM-DD\n\n`) and opens with the date as the note title. The Templater corpus and this
+Calendar corpus both assert no page errors.
+
+The blockers removed were Obsidian's untyped globals and Daily Notes view plumbing: `moment`,
+`window.app`, a production-only `process.env` shim, `app.isMobile`, `app.plugins.getPlugin`, a
+synthetic `daily-notes` internal plugin, `app.foldManager`, `Workspace.getUnpinnedLeaf`/
+`activeLeaf`, `FileView`, `metadataCache.getCache(path)` and derived
+`resolvedLinks`/`unresolvedLinks`. Week numbers, other dates/navigation, context menus, Calendar
+settings, mobile behavior and a real multi-leaf workspace remain unverified.
+
 ## Advanced Tables formatting
 
 This section records the first bounded Advanced Tables workflow.

@@ -7,13 +7,14 @@ import * as search from '@codemirror/search';
 import * as autocomplete from '@codemirror/autocomplete';
 import * as markdown from '@codemirror/lang-markdown';
 import * as highlight from '@lezer/highlight';
+import moment from 'moment';
 import {createCompatibilityRuntime,CompatibilityError,type CompatNativeServices,type PluginSnapshot} from './compat-core';
 import {createDomAdapters,type PluginTab} from './compat-dom';
 import type {PluginManifest} from './types';
 import type {PluginCommand,PluginController} from './plugins';
 const util={promisify(fn:(...args:any[])=>unknown){return (...args:unknown[])=>new Promise((resolve,reject)=>fn(...args,(error:unknown,result:unknown)=>error?reject(error):resolve(result)));}};
 const childProcess={exec(_command:string,optionsOrCallback:unknown,callback?:(error:Error)=>void){const done=typeof optionsOrCallback==='function'?optionsOrCallback as (error:Error)=>void:callback;done?.(new Error('child_process is unavailable in the trusted renderer'));}};
-const modules:Record<string,unknown>={'@codemirror/state':state,'@codemirror/view':view,'@codemirror/commands':commands,'@codemirror/language':language,'@codemirror/search':search,'@codemirror/autocomplete':autocomplete,'@codemirror/lang-markdown':markdown,'@lezer/highlight':highlight,'util':util,'child_process':childProcess};
+const modules:Record<string,unknown>={'@codemirror/state':state,'@codemirror/view':view,'@codemirror/commands':commands,'@codemirror/language':language,'@codemirror/search':search,'@codemirror/autocomplete':autocomplete,'@codemirror/lang-markdown':markdown,'@lezer/highlight':highlight,'moment':moment,'util':util,'child_process':childProcess};
 /** Load explicitly authorized local CommonJS source in the renderer with bounded host adapters. */
 export function startRendererPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,
   onCommands:(commands:PluginCommand[])=>void,operation:(name:string,args:unknown[])=>Promise<unknown>,

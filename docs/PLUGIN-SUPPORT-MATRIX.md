@@ -30,7 +30,7 @@ It does **not** certify commands, views, rendering, menus, settings behavior or 
 | **Dataview** | `0.5.70` / manifest `0.5.68` | ✅ `BOUNDED_WORKFLOWS_PASS` | `TABLE`, `TASK`, `LIST FROM`, `WHERE`, `SORT`/`LIMIT`, `GROUP BY`, `FLATTEN`, inline query, DataviewJS, `dv.view` | Not full query/frontmatter/view semantics; DataviewJS and `dv.view` need 🔒 desktop `unsafe-eval` |
 | **Reading Time** | `1.1.2` | ✅ `BOUNDED_WORKFLOWS_PASS` | 400-word test at 200 wpm; speed setting persists; reading/source transition; editor change 8 min; selected-text modal; disable/re-enable | Format variants, invalid input, timing and multiple leaves remain unverified |
 | **Templater** | `2.26.0` | ✅ `BOUNDED_WORKFLOWS_PASS` | Template folder, toggle and dropdown settings persist across restart; dangerous trigger-on-creation cancel/confirm and startup acknowledgement persist locally; template hotkey list add/delete persists; startup template runs after restart and creates an exact note; user script function inserts exact output; insert template into the active note; exact inserted content persists; disable/re-enable re-registers the command; create a new note from a template and open its exact content | Other dangerous settings (system commands), other startup/user-script functions, other lists, number validation and shell/system functions remain unverified |
-| **Calendar (Beta)** | `2.0.0-beta.2` | 🟡 `STARTUP_ONLY` | Startup only | Needs a real workspace leaf/view lifecycle, daily-note integration and menu behavior |
+| **Calendar (Beta)** | `2.0.0-beta.2` | ✅ `BOUNDED_WORKFLOWS_PASS` | Opens the calendar view; creates today's daily note from the configured folder/template; exact note content and open state | Week numbers, other dates/navigation, context menus, calendar settings and mobile behavior remain unverified |
 | **Advanced Tables** | `0.23.2` | ✅ `BOUNDED_WORKFLOWS_PASS` | **Format table at the cursor** in live mode; exact editor/disk formatting persists | Source-mode command availability, navigation, row/column edits, sort, formulas and CM5/CM6 edge cases remain unverified |
 
 Evidence references: Dataview from pinned Linux corpus workflow `41042973930`; Templater
@@ -124,6 +124,20 @@ the same command produced `Advanced Tables: Command unavailable`; live mode is t
 configuration. Navigation, row/column edits, sorting, formulas, source-mode behavior and
 CM5/CM6 edge cases remain unverified.
 
+## Calendar detail
+
+Calendar reaches `BOUNDED_WORKFLOWS_PASS` for one live workflow: opening the calendar view,
+clicking today, confirming **New Daily Note**, and verifying the created
+`Daily notes/YYYY-MM-DD.md` matches the configured daily-note folder/template and opens in the
+editor.
+
+The bounded surface includes `window.app`, `moment`, a production-only `process.env` shim,
+`app.isMobile`, `app.plugins.getPlugin`, a synthetic `daily-notes` internal plugin,
+`app.foldManager`, `Workspace.activeLeaf`/`getUnpinnedLeaf`, `FileView`,
+`metadataCache.getCache(path)` and `resolvedLinks`/`unresolvedLinks`. Week numbers, other
+navigation/dates, context menus, calendar settings, mobile behavior and a real multi-leaf
+workspace remain unverified.
+
 ## Candidate plugins (next validation targets)
 
 | Candidate | What it would exercise |
@@ -146,16 +160,17 @@ and has explicit rejection or documented gaps for the rest.
 | Capability | State | Implemented / verified | Boundary or consumer |
 |---|---|---|---|
 | Plugin lifecycle, commands, settings, ribbon/status | ✅ | Load/unload, commands (including icon/hotkey metadata), settings tabs, ribbon/status, notices, `registerCliHandler` acceptance | Exact reference timing/visuals differ |
-| App identity / local storage | 🟡 | `appId`, empty `internalPlugins`, JSON-backed `loadLocalStorage`/`saveLocalStorage` | Other App members reject; trusted-renderer storage is per profile with a per-runtime memory fallback, not a vault file |
+| App identity / local storage | 🟡 | `appId`, `isMobile:false`, bounded `app.plugins.getPlugin`, synthetic `daily-notes` internal plugin, no-op `foldManager`, JSON-backed `loadLocalStorage`/`saveLocalStorage` | Other App members reject; trusted-renderer storage is per profile with a per-runtime memory fallback, not a vault file |
+| Global compatibility | 🟡 | `window.app`, `moment` as module export/global/`require`, production-only `process.env.NODE_ENV` shim | Not Node `process`; no filesystem/env mutation or arbitrary Node globals |
 | File manager | 🟡 | `app.fileManager.renameFile` routes through `Vault.rename` | Other FileManager members reject |
 | Vault text I/O and file identity | 🟡 | Read/create/modify/append/copy/mkdir/rename/trash, `getAvailablePath`; `.md/.txt/.canvas/.base/.csv/.json/.css/.js/.mjs`; plugin data | No binary/process/delete APIs; rename event not synthesized |
 | `FileSystemAdapter` / platform identity | 🟡 | Bounded `getBasePath`/`getName` from the desktop base path; `Platform` fields | Rejects when no base path; not a complete adapter |
-| MetadataCache | 🟡 | `getFileCache/getCache` with frontmatter, headings, links/embeds, tags, sections, listItems, blocks and full-file positions; changed/deleted/resolved/resolve | No exact reference section partitioning, frontmatter-link cache or resolved/unresolved link maps |
-| Workspace / views / leaves | 🟡 | Dedicated plugin view panes, getLeaf/getRightLeaf/getLeavesOfType/revealLeaf, reusable `getLeaf(false)` with `openFile`/ephemeral state, `file-menu` with rendered `Menu`/`MenuItem`, `MarkdownView.save` flushes pending editor writes | No real tab/leaf tree, splits, popouts, activeLeaf or layout persistence |
+| MetadataCache | 🟡 | `getFileCache/getCache` with frontmatter, headings, links/embeds, tags, sections, listItems, blocks and full-file positions; changed/deleted/resolved/resolve; derived resolved/unresolved link maps | No exact reference section partitioning, frontmatter-link cache or complete link-resolution parity |
+| Workspace / views / leaves | 🟡 | Dedicated plugin view panes, getLeaf/getRightLeaf/getUnpinnedLeaf/getLeavesOfType/revealLeaf, reusable `getLeaf(false)` with `openFile`/ephemeral state, bounded `activeLeaf`, `file-menu` with rendered `Menu`/`MenuItem`, `MarkdownView.save` flushes pending editor writes | No real tab/leaf tree, splits, popouts, multi-leaf active state or layout persistence |
 | Editor / CodeMirror | 🟡 | CM6 provider, selection/mutation host, plugin extensions, editor suggest, `editorInfoField`/`editorLivePreviewField`, bounded CM5 shim and `Editor.getDoc` document view | Multiple leaves, undocumented CM internals and a real CM5 Doc object are unsupported |
 | Markdown processors | ✅ | Reading post-processors, named code processors, `MarkdownRenderChild`, static sanitized renderer, opt-in live block previews | Live processors are opt-in block kinds, not full reference Live Preview |
-| DOM / UI components | 🟡 | Bounded HTMLElement/DocumentFragment helpers, global `createEl`/`createDiv`/`createSpan`, Modal, ConfirmationModal, Menu/MenuItem, Settings, declarative `getSettingDefinitions` rendering, AbstractInputSuggest, FuzzySuggestModal, View/ItemView/WorkspaceLeaf | Full settings navigation/search/list semantics, theme icons, menus, popovers, mobile and accessibility parity unverified |
-| Network / Node modules | ❌ | `util` and refusing `child_process` shims only | No `requestUrl`, `moment`, `fs`, `path`, arbitrary npm or Electron Node |
+| DOM / UI components | 🟡 | Bounded HTMLElement/DocumentFragment helpers, global `createEl`/`createDiv`/`createSpan`, Modal, ConfirmationModal, Menu/MenuItem, Settings, declarative `getSettingDefinitions` rendering, AbstractInputSuggest, FuzzySuggestModal, View/ItemView/FileView/WorkspaceLeaf | Full settings navigation/search/list semantics, theme icons, menus, popovers, mobile and accessibility parity unverified |
+| Network / Node modules | ❌ | `util`, refusing `child_process` shims and `moment` as the bounded date library | No `requestUrl`, `fs`, `path`, arbitrary npm or Electron Node |
 | CSP / security | 🔒 | Default entry is `script-src 'self' blob:` (no `unsafe-eval` or `wasm-unsafe-eval`); desktop `trusted.html` opt-in adds both; native confirmation + restart | Trusted renderer is **not** sandboxed; `unsafe-eval` is a deliberate risk; the default entry has no verified WebAssembly-only workflow |
 | Plugin discovery / distribution | ❌ | Local `.crafactory/plugins/<id>/{manifest.json,main.js}` only | No `.obsidian` discovery, marketplace, updates, dependency install or signatures |
 

@@ -13,8 +13,8 @@ status tracker.
   dangerous trigger-on-creation/startup confirmations, startup-template execution, user-script
   invocation, template insertion, create-note and disable/re-enable; other dangerous settings,
   other lists and other user-script exports remain unverified.
-- Advanced Tables: `BOUNDED_WORKFLOWS_PASS` for live-mode table formatting; Calendar remains
-  `STARTUP_ONLY`.
+- Advanced Tables: `BOUNDED_WORKFLOWS_PASS` for live-mode table formatting.
+- Calendar: `BOUNDED_WORKFLOWS_PASS` for the calendar view and today's daily note.
 - Reading Time: bounded workflows pass.
 - Default CSP is strict (`script-src 'self' blob:`); `unsafe-eval` and `wasm-unsafe-eval` are
   desktop trusted-entry opt-ins only.
@@ -34,10 +34,11 @@ status tracker.
 - Templater startup-template execution; `App.fileManager.renameFile`.
 - Templater user-script invocation (`tp.user.hello()` in a template).
 - Advanced Tables live-mode table formatting.
+- Calendar view + today's daily note; `moment`/`window.app`/Daily Notes globals.
 
 ## Next
 
-- Calendar daily-note/workspace workflow; other Advanced Tables commands and source-mode behavior.
+- Calendar navigation/menus/settings and other Advanced Tables commands; candidate plugins.
 - Advanced Tables editor commands; Calendar workspace/daily-note behavior.
 - Candidate plugins: Tasks, QuickAdd, Kanban, Excalidraw, Style Settings, Omnisearch.
 
