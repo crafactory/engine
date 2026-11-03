@@ -251,7 +251,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await expect.poll(rectangles).toEqual(originalRectangles);
       await app.close();app=await launch();page=await app.firstWindow();trackPage();
       await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
-      await page.getByRole('switch',{name:'Enable '+manifest.name,exact:true}).click();await page.getByTestId('dialog-submit').click();await page.getByTestId('settings-close').click();
+      const restartedControl=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});await restartedControl.click();await page.getByTestId('dialog-submit').click();await expect(restartedControl).toBeChecked();await page.getByTestId('settings-close').click();
       await page.waitForFunction(()=>Boolean((window as any).ExcalidrawAutomate));
       await page.evaluate(async drawingPath=>{await (window as any).app.workspace.openLinkText(drawingPath,'',false);},drawingPath);
       await page.waitForFunction(()=>Boolean(document.querySelector('.plugin-view-pane canvas')),{},{timeout:3000}).catch(()=>{});
@@ -313,7 +313,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await expect(page.locator('.plugin-view-pane').getByText('Tasks',{exact:true})).toBeVisible();
       await app.close();app=await launch();page=await app.firstWindow();trackPage();
       await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
-      await page.getByRole('switch',{name:'Enable '+manifest.name,exact:true}).click();await page.getByTestId('dialog-submit').click();await page.getByTestId('settings-close').click();
+      const restartedControl=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});await restartedControl.click();await page.getByTestId('dialog-submit').click();await expect(restartedControl).toBeChecked();await page.getByTestId('settings-close').click();
       await page.getByTestId('file-'+boardPath).click();
       await page.waitForFunction(()=>Boolean(document.querySelector('.kanban-plugin')),{},{timeout:3000}).catch(()=>{});
       if(!await page.locator('.kanban-plugin').count()){

@@ -10,6 +10,7 @@ import {
 import {bridge,defaults} from './bridge';
 import {renameDestination} from './file-path';
 import {readWorkspaceLayout} from './workspace-layout';
+import {recordPluginDocumentView,type PluginDocumentView} from './plugin-document-views';
 import {title,isNote,frontmatter,setProperties,resolveLink,headings,applyTemplate,rewriteLinks} from './knowledge';
 import type {EditorHandle} from './Editor';
 import {Markdown,renderMarkdown} from './Markdown';
@@ -58,7 +59,7 @@ export function App(){
   const [tabs,setTabs]=useState<string[]>([]),[active,setActive]=useState(''),[split,setSplit]=useState<string|null>(null);
   const [uiRevision,setUiRevision]=useState(0);
   const [pluginFormats,setPluginFormats]=useState<Record<string,{viewType:string;pluginId:string}>>({});
-  const pluginDocumentViews=useRef(new Map<string,{viewType:string;pluginId:string;leafId:string}>());
+  const pluginDocumentViews=useRef(new Map<string,PluginDocumentView>());
   const [,refreshPluginDocumentViews]=useState(0);
   const layoutSaveTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined),switchingVault=useRef(false);
   const [left,setLeft]=useState(()=>window.innerWidth>650),[right,setRight]=useState(true),[sideTab,setSideTab]=useState('files'),[rightTab,setRightTab]=useState('outline');
@@ -626,7 +627,7 @@ export function App(){
       const onTabs=(tabs:PluginTab[])=>setPluginTabs(t=>({...t,[id]:tabs}));
       const onExtensions=(extensions:unknown[])=>setPluginExtensions(e=>({...e,[id]:extensions}));
       const onFileExtensions=(nextExtensions:string[],viewType?:string)=>{if(viewType)addPluginExtensions(id,nextExtensions,viewType);else removePluginExtensions(id,nextExtensions);};
-      const onOpenView=(viewType:string|null,path:string,leafId:string)=>{if(generation!==vaultGeneration.current)return;checkPath(path);if(viewType){for(const [known,view]of pluginDocumentViews.current)if(view.pluginId===id&&view.leafId===leafId&&known!==path)pluginDocumentViews.current.delete(known);pluginDocumentViews.current.set(path,{viewType,pluginId:id,leafId});}else if(pluginDocumentViews.current.get(path)?.leafId===leafId)pluginDocumentViews.current.delete(path);refreshPluginDocumentViews(value=>value+1);};
+      const onOpenView=(viewType:string|null,path:string,leafId:string)=>{if(generation!==vaultGeneration.current)return;checkPath(path);recordPluginDocumentView(pluginDocumentViews.current,id,viewType,path,leafId);refreshPluginDocumentViews(value=>value+1);};
       const service=compatRuntime.current?.service;
       if(!service)throw new Error('Obsidian plugin support is unavailable');
       const controller=service.start({package:plugin,mode:renderer?'renderer':'worker',callbacks:{

@@ -101,6 +101,32 @@ targeted repetitions. Logs are `/tmp/engine-pr72-repairs-final-check.log`,
 remaining compatibility boundaries are unchanged from the accepted initial candidate.
 This local result does not establish completion of the separate latest-head review/CI gates.
 
+During the re-review quota wait, the repaired unit fixtures were run against the unchanged
+pre-repair implementation `0a472a4` in a disposable worktree: six expected failures and 54
+passes across the same three unit files. Four current desktop fixtures against that baseline
+gave three expected failures (late embedded reads, pending cross-vault layout writes, and
+file-specific rename/trash) and one pass (same-leaf reuse). The passing same-leaf UI fixture
+therefore is coverage, not a detector of the stale-registration bug. The host's registration
+update was extracted into a pure internal helper with direct tests for moving only the matching
+owner/leaf and ignoring stale/foreign close notifications. Baseline logs are
+`/tmp/engine-pr72-review-baseline.log.gz`, `/tmp/engine-pr72-review-baseline-build.log` and
+`/tmp/engine-pr72-review-baseline-desktop.log`; the disposable worktree was removed afterward.
+
+The next full desktop candidate had 82 passes and one Excalidraw restart failure exposing
+`MarkdownView.currentMode` while the fixture reopened a drawing without awaiting enable
+completion. The Excalidraw and Kanban restart fixtures now wait for the checked enable control,
+which is published only after `controller.ready`, before leaving Settings and reopening.
+Excalidraw then passed three consecutive complete draw/save/restart/reopen repetitions.
+The unsupported private Markdown-mode surface is not implemented or certified by that result.
+
+The final strengthened source passed inventory, 843 units across 48 files, build and all 64
+browser cases (`/tmp/engine-pr72-leaf-{check,browser}.log`); all 83 desktop cases, including all
+22 pinned corpus cases, then passed without skips (`/tmp/engine-pr72-reviewed-desktop.log`).
+Final reports use only `/tmp/engine-pr72-reviewed-renderer` and
+`/tmp/engine-pr72-reviewed-worker`. The repeated Excalidraw log is
+`/tmp/engine-pr72-restart-repeat.log`. This supersedes the earlier 841-unit repair checkpoint,
+not the retained historical failures, and still does not replace completed latest-head review.
+
 ## Narrowed default CSP
 
 This section records removing the default-entry `wasm-unsafe-eval` relaxation left over from

@@ -31,4 +31,20 @@ The earlier repair desktop candidate had 82 passes and one premature rename-fixt
 
 Review data and thread IDs are in `/tmp/engine-pr72-{reviews,review-comments,review-threads}.json`; prepared inline replies are `/tmp/engine-pr72-review-replies.json`. Use the PR for live reply/resolution/re-review/CI state after this source checkpoint. Follow CONTRIBUTING exactly: completed latest-head CodeRabbit review, all issues addressed, completed re-review after fixes, no unresolved threads, and green latest-head CI before merge. If review is unavailable or blocked, leave the PR open and report the blocker. Do not repeat the quota-limited earlier merge shortcut.
 
+Final strengthened checkpoint: 843 units /48 files, inventory/build, 64 browser cases and
+83 desktop cases passed, including all 22 pinned corpus cases; final report directories are
+`/tmp/engine-pr72-reviewed-{renderer,worker}`. Host path registration now has direct pure tests
+because the same-leaf UI case also passed the pre-repair baseline. Original baseline probes
+gave six unit failures /54 passes and three desktop failures /one pass. A later candidate's
+Excalidraw restart failed before waiting for plugin enable completion; both restart fixtures
+now await the checked control, and three targeted Excalidraw repetitions passed. See the
+verification log for separate failed-candidate evidence and exact paths.
+
+All initial sixteen review threads have individual replies and were resolved after fixes;
+both review-body follow-ups were answered in the re-review request. CodeRabbit returned a
+temporary review quota limit until approximately 18:18 UTC. No completed re-review of repairs
+exists yet; empty chat-reply reviews and the skipped check do not count. Request a real new
+review after this checkpoint is pushed, verify its exact head, and require clean latest checks
+and no unresolved findings before merging. No latest-request results email has been sent.
+
 Delivery must distinguish PR/review/merge state, native full-trust risk and bounded compatibility gaps. No issue creation is authorized.
