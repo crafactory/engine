@@ -64,7 +64,8 @@ This section records the first bounded Calendar workflow.
 The corpus opens the Calendar view from the command palette, clicks today, confirms
 **New Daily Note**, and verifies `Daily notes/YYYY-MM-DD.md` matches the configured folder/template
 (`# YYYY-MM-DD\n\n`) and opens with the date as the note title. The Templater corpus and this
-Calendar corpus both assert no page errors.
+Calendar corpus both assert no page errors. The corpus dismisses the command palette explicitly
+after **Open view**; palette auto-close for plugin view commands remains a follow-up.
 
 The blockers removed were Obsidian's untyped globals and Daily Notes view plumbing: `moment`,
 `window.app`, a production-only `process.env` shim, `app.isMobile`, `app.plugins.getPlugin`, a
