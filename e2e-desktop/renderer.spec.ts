@@ -13,6 +13,10 @@ test.beforeEach(async()=>{
   page=await app.firstWindow();await expect(page.locator('.note-title h1')).toHaveText('Test');
 });
 test.afterEach(async()=>{await app?.close();await fs.rm(root,{recursive:true,force:true});await fs.rm(profile,{recursive:true,force:true});});
+/** Minimal valid empty WebAssembly module: magic header plus version 1. */
+const wasm=[0,97,115,109,1,0,0,0];
+/** Compile WebAssembly from page context so the entry's real CSP decides. */
+async function compileWasm(){return page.evaluate(bytes=>new Promise<string>(resolve=>setTimeout(async()=>{try{await WebAssembly.compile(new Uint8Array(bytes));resolve('compiled');}catch(error){resolve(String(error));}},0)),wasm);}
 /** Open the native application's community-plugin settings using visible controls. */
 async function settings(){await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();}
 /** Explicitly authorize and enable the original trusted-renderer fixture. */
@@ -98,6 +102,13 @@ test(`trusted renderer failure cleans up: ${label}`,async()=>{
   await fs.writeFile(path.join(root,'.crafactory/plugins/renderer-fixture/main.js'),source);await settings();await page.getByLabel('Runtime for Renderer fixture',{exact:true}).selectOption('renderer');await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();await page.getByTestId('dialog-submit').click();
   await expect(page.locator('.error-banner')).toBeVisible();await expect(page.getByRole('switch',{name:'Enable Renderer fixture',exact:true})).not.toBeChecked();await expect(page.locator('.plugin-status-item')).toHaveCount(0);
 });
+test('default entry refuses WebAssembly compilation',async()=>{
+  const result=await compileWasm();
+  expect(result).not.toBe('compiled');
+  expect(result).toContain('CompileError');
+  expect(result).toContain('Content Security Policy');
+  await expect(page).toHaveURL('engine://app/index.html');
+});
 test('unsafe-eval is opt-in, desktop-only and applies after restart',async()=>{
   expect(await page.evaluate(()=>new Promise(resolve=>setTimeout(()=>{try{resolve(eval('2 + 2'));}catch{resolve('blocked');}},0)))).toBe('blocked');
   await settings();
@@ -112,4 +123,5 @@ test('unsafe-eval is opt-in, desktop-only and applies after restart',async()=>{
   page=await app.firstWindow();
   await expect(page).toHaveURL('engine://app/trusted.html');
   expect(await page.evaluate(()=>new Promise(resolve=>setTimeout(()=>{try{resolve(eval('2 + 2'));}catch(error){resolve(String(error));}},0)))).toBe(4);
+  expect(await compileWasm()).toBe('compiled');
 });
