@@ -127,7 +127,7 @@ test('CommonJS plugin loads through the packaged worker and persists text/data o
 });
 test('CommonJS editor callback replaces the actual source selection and saves',async()=>{
   const control=await installCompat();await expect(control).toBeChecked();await page.getByTestId('settings-close').click();
-  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+Home');await page.keyboard.press('Control+Shift+End');
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+a');
   await pluginCommand('Compatibility fixture: Replace the selection');
   await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toBe('PLUGIN');
   await expect(page.getByTestId('note-editor')).toHaveText('PLUGIN');

@@ -65,8 +65,8 @@ require new evidence, not a desire for symmetry.
 **Observed:** Export inventories, module loading and even successful startup repeatedly failed
 to predict whether a plugin could perform a user-visible task. Dataview moved through
 `App.appId`, vault events, internal plugins, CodeMirror shims, workspace iteration and metadata
-before `LIST` worked. Templater reached `STARTUP_ONLY` while template insertion remained
-unverified.
+before `LIST` worked. Templater first reached `STARTUP_ONLY` while template insertion remained
+unverified; a later slice verified insertion as a bounded workflow.
 
 **Consequence:** Acceptance must name a workflow, its input, its persisted effect and its failure
 path. “API exists,” “plugin starts” and “test passes” are lower-level observations, not
@@ -118,9 +118,11 @@ State whether evidence is functional, visual, exploratory or negative.
 
 ### 6. Security capability is a separate axis
 
-**Observed:** The trusted renderer was never a sandbox. CSP blocked WebAssembly and `eval`;
-supporting real plugins required a deliberate desktop-only `unsafe-eval` entry with warning,
-native confirmation, restart and path-gating. Widening the global default would have been the
+**Observed:** The trusted renderer was never a sandbox. The strict default entry blocked both
+WebAssembly and `eval`; supporting real plugins required a deliberate desktop-only entry with
+`unsafe-eval` and `wasm-unsafe-eval`, plus warning, native confirmation, restart and path-gating.
+A temporary `wasm-unsafe-eval` in the default entry was later removed because no default-entry
+plugin had a verified WebAssembly workflow. Widening the global default would have been the
 cheap but wrong fix.
 
 **Consequence:** Default to the least capability. Scope relaxation to an entry/mode/process.
@@ -333,9 +335,14 @@ Templater moved from a generic class-load error to `STARTUP_ONLY` only after sev
 surfaces existed: CodeMirror compatibility, adapter identity, command metadata, menu events,
 suggestions and settings components. The on-unload failure initially hid the real on-load
 failure; fixing error preservation was part of making the compatibility layer diagnosable.
+Insertion then exposed a second chain (`App.loadLocalStorage`, `Editor.getDoc`,
+`MarkdownView.save`) before a template actually reached the editor and disk. Create-note exposed
+a third (`Vault.getAvailablePath`, reusable `getLeaf(false)`, leaf `openFile`/ephemeral state).
+Settings persistence exposed a fourth: the declarative `getSettingDefinitions()` API and its
+global DOM helpers.
 
-The remaining gap is functional templates, not another export. This is the difference between
-“starts” and “works.”
+Startup and the next workflow are different claims. This is the difference between “starts” and
+“works.”
 
 ### Kernel and storage: invariants found by review
 

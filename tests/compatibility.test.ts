@@ -273,7 +273,17 @@ describe('unsupported methods fail, not no-op',()=>{
   const rendererOnly=['addRibbonIcon','addSettingTab','addStatusBarItem','registerView','registerExtensions','registerEditorExtension','registerEditorSuggest','registerObsidianProtocolHandler','registerHoverLinkSource','registerBasesView','registerMarkdownPostProcessor','registerMarkdownCodeBlockProcessor'];
   for(const method of rendererOnly)it(`Plugin.${method} requires a renderer UI host`,()=>{const h=harness();expect(()=>new h.api.Plugin()[method]()).toThrow(CompatibilityError);});
   for(const method of ['delete','process','readBinary','createBinary','modifyBinary','appendBinary'])it(`Vault.${method} is explicitly rejected`,()=>{const h=harness();expect(()=>h.runtime.app.vault[method]()).toThrow(CompatibilityError);});
-  for(const method of ['getDoc','setSelections','transaction','exec','focus','blur','hasFocus','getScrollInfo','scrollTo','scrollIntoView','undo','redo','refresh','wordAt','processLines'])it(`Editor.${method} is explicitly rejected`,()=>expect(()=>(new Editor({text:'',from:0,to:0},()=>{}) as any)[method]()).toThrow(CompatibilityError));
+  for(const method of ['setSelections','transaction','exec','focus','blur','hasFocus','getScrollInfo','scrollTo','scrollIntoView','undo','redo','refresh','wordAt','processLines'])it(`Editor.${method} is explicitly rejected`,()=>expect(()=>(new Editor({text:'',from:0,to:0},()=>{}) as any)[method]()).toThrow(CompatibilityError));
+  it('Editor.getDoc returns a bounded CodeMirror document adapter',()=>{
+    const editor=new Editor({text:'one\ntwo',from:0,to:0},()=>{}),doc=editor.getDoc();
+    expect(doc.getValue()).toBe('one\ntwo');expect(doc.lineCount()).toBe(2);
+    doc.replaceRange('X',{line:0,ch:0});expect(doc.getValue()).toBe('Xone\ntwo');
+  });
+  it('Vault.getAvailablePath returns a collision-free extension path',()=>{
+    const h=harness();
+    expect(h.runtime.app.vault.getAvailablePath('Folder/New','md')).toBe('Folder/New.md');
+    expect(h.runtime.app.vault.getAvailablePath('Folder/One','md')).toBe('Folder/One 1.md');
+  });
   it('accepts the bounded vault lifecycle events',()=>{const h=harness();for(const name of ['create','delete','rename','modify'])expect(()=>h.runtime.app.vault.on(name,()=>{})).not.toThrow();});
   it('renderer-only workspace leaf methods require host.ui',()=>{const h=harness();for(const method of ['getLeaf','getRightLeaf','getLeavesOfType','revealLeaf'])expect(()=>{const value=(h.runtime.app.workspace as any)[method];if(typeof value==='function')value.call(h.runtime.app.workspace);}).toThrow(CompatibilityError);});
   it('rejects undocumented app/workspace/cache access and unsupported events',()=>{

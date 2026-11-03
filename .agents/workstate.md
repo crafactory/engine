@@ -9,10 +9,13 @@ status tracker.
 
 - Dataview: bounded query/inline/DataviewJS/`dv.view` workflows pass under the desktop
   unsafe-eval opt-in.
-- Templater: `STARTUP_ONLY`; template insertion and user scripts remain unverified.
+- Templater: `BOUNDED_WORKFLOWS_PASS` for settings persistence, template insertion, create-note
+  and disable/re-enable; other settings/list workflows, user scripts and startup templates remain
+  unverified.
 - Calendar / Advanced Tables: `STARTUP_ONLY`; no functional workflows.
 - Reading Time: bounded workflows pass.
-- Default CSP remains strict except `wasm-unsafe-eval`; `unsafe-eval` is desktop opt-in only.
+- Default CSP is strict (`script-src 'self' blob:`); `unsafe-eval` and `wasm-unsafe-eval` are
+  desktop trusted-entry opt-ins only.
 
 ## Recent changes
 
@@ -20,10 +23,13 @@ status tracker.
 - Live list markers, reading-mode undo, callout folds and code copy.
 - `engine.compat/v1`, native support plugin, MetadataCache and Dataview corpus.
 - Desktop unsafe-eval opt-in, Dataview `dv.view`, Templater startup surface.
+- Templater template insertion, App local storage, `Editor.getDoc`, `MarkdownView.save`.
+- Templater create-note, `Vault.getAvailablePath`, reusable leaf `openFile`/ephemeral state.
+- Templater declarative settings persistence, global DOM helpers and `Array.prototype.contains`.
 
 ## Next
 
-- Templater template insertion/create-note workflows.
+- Templater other settings/list workflows, user scripts and startup templates.
 - Advanced Tables editor commands; Calendar workspace/daily-note behavior.
 - Candidate plugins: Tasks, QuickAdd, Kanban, Excalidraw, Style Settings, Omnisearch.
 

@@ -170,8 +170,20 @@ export function debounce<T extends (...args:any[])=>unknown>(callback:T,timeout=
 }
 
 /** Snapshot-based synchronous editor projection. Host applies each mutation with a conflict check. */
+export interface CodeMirrorDocument {
+  getValue():string;setValue(value:string):void;
+  getLine(line:number):string;lineCount():number;lastLine():number;
+  getRange(from:EditorPosition,to:EditorPosition):string;
+  replaceRange(value:string,from:EditorPosition,to?:EditorPosition):void;
+  replaceSelection(value:string):void;getSelection():string;somethingSelected():boolean;
+  getCursor(side?:'from'|'to'|'head'|'anchor'):EditorPosition;
+  setCursor(pos:EditorPosition|number,ch?:number):void;
+  listSelections():{anchor:EditorPosition;head:EditorPosition}[];
+  setSelection(anchor:EditorPosition,head?:EditorPosition):void;
+  posFromIndex(index:number):EditorPosition;indexFromPos(pos:EditorPosition):number;
+}
 export class Editor {
-  private value:string;private from:number;private to:number;
+  private value:string;private from:number;private to:number;private doc:CodeMirrorDocument|null=null;
   constructor(snapshot:{text:string;from:number;to:number},private send:(base:string,text:string,from:number,to:number)=>void){this.value=snapshot.text;this.from=snapshot.from;this.to=snapshot.to;}
   getValue(){return this.value;}getSelection(){return this.value.slice(Math.min(this.from,this.to),Math.max(this.from,this.to));}
   lineCount(){return this.value.split('\n').length;}lastLine(){return this.lineCount()-1;}
@@ -191,7 +203,19 @@ export class Editor {
   }
   replaceSelection(value:string){this.replaceRange(value,this.getCursor('from'),this.getCursor('to'));}
   setLine(line:number,value:string){this.replaceRange(value,{line,ch:0},{line,ch:this.getLine(line).length});}
-  getDoc(){return unsupported('Editor.getDoc');}
+  /** Bounded CodeMirror 5 document view used by legacy editor integrations. */
+  getDoc():CodeMirrorDocument{
+    return this.doc??={
+      getValue:()=>this.getValue(),setValue:value=>this.setValue(value),
+      getLine:line=>this.getLine(line),lineCount:()=>this.lineCount(),lastLine:()=>this.lastLine(),
+      getRange:(from,to)=>this.getRange(from,to),replaceRange:(value,from,to)=>this.replaceRange(value,from,to),
+      replaceSelection:value=>this.replaceSelection(value),getSelection:()=>this.getSelection(),
+      somethingSelected:()=>this.somethingSelected(),getCursor:side=>this.getCursor(side),
+      setCursor:(pos,ch)=>this.setCursor(pos,ch),listSelections:()=>this.listSelections(),
+      setSelection:(anchor,head)=>this.setSelection(anchor,head),
+      posFromIndex:index=>this.offsetToPos(index),indexFromPos:pos=>this.posToOffset(pos)
+    };
+  }
   setSelections(){return unsupported('Editor.setSelections');}transaction(){return unsupported('Editor.transaction');}
   exec(){return unsupported('Editor.exec');}focus(){return unsupported('Editor.focus');}blur(){return unsupported('Editor.blur');}
   hasFocus(){return unsupported('Editor.hasFocus');}getScrollInfo(){return unsupported('Editor.getScrollInfo');}
@@ -253,6 +277,14 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     async modify(file:TFile,data:string,options?:unknown){checkFile(file);checkOptions(options,'Vault.modify options');await mutate('modify',[file.path,data]);}
     async append(file:TFile,data:string,options?:unknown){checkFile(file);checkOptions(options,'Vault.append options');await mutate('append',[file.path,data]);}
     async createFolder(path:string){await mutate('mkdir',[path]);return this.getFolderByPath(path)!;}
+    /** Return a collision-free path with a normalized extension; no file is created. */
+    getAvailablePath(path:string,extension:string){
+      if(typeof path!=='string'||typeof extension!=='string')throw new Error('Invalid available path arguments');
+      const base=normalizePath(path),suffix=extension?(extension.startsWith('.')?extension:'.'+extension):'';
+      let candidate=base+suffix,index=1;
+      while(objects.has(candidate))candidate=base+' '+(index++)+suffix;
+      return candidate;
+    }
     /** Rename a file or folder through the native host, retaining the object subtree. */
     async rename(file:TAbstractFile,newPath:string):Promise<void>{
       checkAbstract(file);
@@ -311,7 +343,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   function checkAbstract(file:TAbstractFile){if(!(file instanceof TAbstractFile)||file.vault!==vault||objects.get(file.path)!==file)throw new Error('File does not belong to this vault');}
   function checkFile(file:TFile){checkAbstract(file);if(!(file instanceof TFile))throw new Error('Expected TFile');}
   const vault=guard(new Vault(),'Vault');
-  class MarkdownView {file:TFile|null;editor:Editor|null;constructor(){this.file=vault.getFileByPath(snapshot.active);this.editor=editor;return guard(this,'MarkdownView');}getViewType(){return 'markdown';}getViewData(){return snapshot.notes.find(n=>n.path===snapshot.active)?.content||'';}}
+  class MarkdownView {file:TFile|null;editor:Editor|null;constructor(){this.file=vault.getFileByPath(snapshot.active);this.editor=editor;return guard(this,'MarkdownView');}getViewType(){return 'markdown';}getViewData(){return snapshot.notes.find(n=>n.path===snapshot.active)?.content||'';}async save(){await request('save',[snapshot.active]);}}
   class Workspace extends Events {
     layoutReady=true;
     on(name:string,callback:(...args:any[])=>void,ctx?:unknown){const custom=name.includes(':');if(name!=='file-open'&&(!host.ui||(!['layout-change','editor-change','hover-link','file-menu'].includes(name)&&!custom)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
@@ -351,7 +383,34 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     const resolver=host.native?.resolveLink;const target=resolver?resolver(link,path):resolveLink(link,path,snapshot.notes)?.path;
     return target?vault.getFileByPath(target):null;
   };
-  const app=guard({appId:'crafactory-engine',vault,workspace,metadataCache,internalPlugins:{plugins:{}}},'App');
+  const memoryStorage=new Map<string,string>();
+  function localStore(){try{return typeof localStorage==='undefined'?null:localStorage;}catch{return null;}}
+  function checkStorageKey(key:unknown){if(typeof key!=='string')throw new TypeError('Local storage key must be a string');}
+  function readStorage(key:string){
+    const store=localStore();if(!store)return memoryStorage.get(key);
+    try{return store.getItem(key)??undefined;}catch{return memoryStorage.get(key);}
+  }
+  function writeStorage(key:string,value:string){
+    const store=localStore();if(!store){memoryStorage.set(key,value);return;}
+    try{store.setItem(key,value);}catch{memoryStorage.set(key,value);}
+  }
+  function removeStorage(key:string){
+    memoryStorage.delete(key);const store=localStore();
+    if(store)try{store.removeItem(key);}catch{}
+  }
+  function loadLocalStorage(key:unknown){
+    checkStorageKey(key);
+    const raw=readStorage(key as string);
+    if(raw==null)return null;
+    try{return JSON.parse(raw);}catch{return raw;}
+  }
+  function saveLocalStorage(key:unknown,value:unknown){
+    checkStorageKey(key);
+    const raw=JSON.stringify(value);
+    if(raw===undefined){removeStorage(key as string);return;}
+    writeStorage(key as string,raw);
+  }
+  const app=guard({appId:'crafactory-engine',vault,workspace,metadataCache,internalPlugins:{plugins:{}},loadLocalStorage,saveLocalStorage},'App');
   function refresh(next:PluginSnapshot,events=false){
     const previous=snapshot;snapshot=next;
     const nextNotePaths=new Set(snapshot.notes.map(note=>note.path));

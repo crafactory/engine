@@ -8,7 +8,7 @@ const host:CompatHost={
   loadData:vi.fn(async()=>null),saveData:vi.fn(async()=>null),read:vi.fn(async()=> 'text'),
   create:vi.fn(async()=>null),modify:vi.fn(async()=>null),append:vi.fn(async()=>null),writeLegacy:vi.fn(async()=>null),
   rename:vi.fn(async(_from,to)=>to),trash:vi.fn(async()=>{}),mkdir:vi.fn(async()=>{}),asset:vi.fn(async()=> 'data:'),
-  open:vi.fn(async()=>{}),editor:vi.fn(async()=>{})
+  open:vi.fn(async()=>{}),editor:vi.fn(async()=>{}),save:vi.fn(async()=>{})
 };
 const callbacks={snapshot:()=>({name:'V',entries:[],notes:[],active:'',editor:null}),commands:()=>{},host,notice:()=>{},failure:()=>{}};
 const controller={ready:Promise.resolve(),sync:()=>{},stop:async()=>{}};
@@ -55,6 +55,8 @@ describe('engine.compat/v1',()=>{
     const operation=(worker.mock.calls[0] as unknown[])[4] as (name:string,args:unknown[])=>Promise<unknown>;
     await expect(operation('create',['A.md',null])).rejects.toThrow('Invalid plugin text');
     await expect(operation('editor',['A.md','base','next',null,0])).rejects.toThrow('Invalid editor mutation');
+    await expect(operation('save',['A.md'])).resolves.toBeUndefined();
+    expect(host.save).toHaveBeenCalledWith('A.md');
     expect(host.create).not.toHaveBeenCalledWith('A.md','null');
   });
 

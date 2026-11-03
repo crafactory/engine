@@ -139,7 +139,9 @@ Use when a real workflow needs a capability forbidden by the default policy.
 1. **Prove the strict default.**  
    Test that the capability is refused in the normal entry.
 2. **Define the smallest scope.**  
-   Separate entry/mode/process; never widen the global default for one consumer.
+   Separate entry/mode/process; never widen the global default for one consumer. Keep
+   `wasm-unsafe-eval` out of the default entry unless a default-entry workflow is verified to
+   need only WebAssembly.
 3. **Authorize at the boundary.**  
    Renderer requests are not approval; confirm in the host/main process.
 4. **Make it restart-scoped.**  

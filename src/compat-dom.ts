@@ -38,8 +38,24 @@ export class Menu {
 const element=(tag:string,parent?:HTMLElement,cls='')=>{const el=document.createElement(tag);el.className=cls;parent?.append(el);return el;};
 export function installDomHelpers(){
   if(!(String.prototype as any).contains)Object.defineProperty(String.prototype,'contains',{value:function(this:string,needle:string){return this.includes(needle);},configurable:true,writable:true});
+  if(!(Array.prototype as any).contains)Object.defineProperty(Array.prototype,'contains',{value:function(this:any[],value:unknown,fromIndex?:number){return this.includes(value,fromIndex);},configurable:true,writable:true});
   const globalWindow=window as unknown as Record<string,unknown>;
   if(typeof globalWindow.createFragment!=='function')globalWindow.createFragment=(callback?:(element:HTMLElement)=>void)=>{const fragment=document.createDocumentFragment();if(typeof callback==='function'){const element=document.createElement('div');callback(element);fragment.append(...element.childNodes);}return fragment;};
+  /** Detached element helper exposed globally by the reference API. */
+  const createDetached=(tag:string,options:any={},callback?:(element:HTMLElement)=>void)=>{
+    const element=document.createElement(tag);
+    if(typeof options==='string')element.className=options;else{
+      if(options?.cls)element.className=Array.isArray(options.cls)?options.cls.join(' '):options.cls;
+      if(options?.text!==undefined)element.textContent=String(options.text);
+      for(const [key,value]of Object.entries(options?.attr||{}))element.setAttribute(key,String(value));
+      if(options?.type)element.setAttribute('type',options.type);
+      if(options?.value!==undefined)(element as HTMLInputElement).value=String(options.value);
+    }
+    callback?.(element);return element;
+  };
+  if(typeof globalWindow.createEl!=='function')globalWindow.createEl=createDetached;
+  if(typeof globalWindow.createDiv!=='function')globalWindow.createDiv=(options?:any,callback?:any)=>createDetached('div',options,callback);
+  if(typeof globalWindow.createSpan!=='function')globalWindow.createSpan=(options?:any,callback?:any)=>createDetached('span',options,callback);
   // Bounded CodeMirror 5 surface for legacy highlighting-mode registration.
   const codeMirror=(globalWindow.CodeMirror??={}) as Record<string,any>;
   const genericMode={name:'null',startState:()=>({}),copyState:(state:unknown)=>state,blankLine:()=>null,token:()=>null};
@@ -87,6 +103,9 @@ export function installDomHelpers(){
     }
   };
   for(const [name,value]of Object.entries(methods))if(!(name in HTMLElement.prototype))Object.defineProperty(HTMLElement.prototype,name,{value,configurable:true,writable:true});
+  // Obsidian's DOM helpers also build children on document fragments and shadow roots.
+  const fragmentMethods:Record<string,Function>={empty:methods.empty,createEl:methods.createEl,createDiv:methods.createDiv,createSpan:methods.createSpan,appendText:methods.appendText,setText:methods.setText,getText:methods.getText,find:methods.find,findAll:methods.findAll};
+  for(const [name,value]of Object.entries(fragmentMethods))if(!(name in DocumentFragment.prototype))Object.defineProperty(DocumentFragment.prototype,name,{value,configurable:true,writable:true});
 }
 /** Create plugin-owned trusted-renderer UI hooks; this adapter is not an isolation boundary. */
 export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,onFileExtensions?:(extensions:string[],viewType?:string)=>void,applyEditorEdit?:(base:string,text:string,from:number,to:number)=>Promise<unknown>){
@@ -97,7 +116,8 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   /** Keep registration handles private to this plugin and remove them after disposal. */
   const ownProcessor=(entry:ReturnType<typeof registerPostProcessor>)=>{processors.add(entry);return {processor:entry.processor,dispose:async()=>{await entry.dispose();processors.delete(entry);}};};
   const host=(name:string)=>{const el=document.getElementById(name);if(!el)throw new Error('Plugin UI host missing: '+name);return el;};
-  const publishTabs=()=>onTabs([...tabs].map((t,i)=>({id:id+':'+i,name,containerEl:t.containerEl,display:()=>safe(()=>t.display())(),hide:()=>safe(()=>t.hide())()})));
+  const create=(parent:HTMLElement,tag:string,options:any={})=>{const el=element(tag,parent,typeof options==='string'?options:options.cls||'');if(typeof options!=='string'&&options.text!==undefined)el.textContent=String(options.text);return el;};
+  const publishTabs=()=>onTabs([...tabs].map((t,i)=>({id:id+':'+i,name,containerEl:t.containerEl,display:()=>safe(()=>{t.display();if(!t.containerEl.childNodes.length)t.renderDeclarative();})(),hide:()=>safe(()=>t.hide())()})));
   const safe=(callback:(...args:any[])=>unknown)=>(...args:any[])=>{try{Promise.resolve(callback(...args)).catch(onError);}catch(e){onError(e);}};
   class BaseComponent {disabled=false;then(callback:(self:this)=>void){callback(this);return this;}setDisabled(disabled:boolean){this.disabled=disabled;return this;}}
   class ValueComponent extends BaseComponent {registerOptionListener(){return unsupported('ValueComponent.registerOptionListener');}}
@@ -173,7 +193,98 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     addSearch(){return unsupported('Setting.addSearch');}addMomentFormat(){return unsupported('Setting.addMomentFormat');}
     addProgressBar(){return unsupported('Setting.addProgressBar');}addComponent(){return unsupported('Setting.addComponent');}
   }
-  class SettingTab {containerEl=element('div',undefined,'plugin-settings-content');app:any;icon='settings';constructor(app:any){this.app=app;}display(){}hide(){this.containerEl.replaceChildren();}}
+  class SettingTab {
+    containerEl=element('div',undefined,'plugin-settings-content');app:any;icon='settings';constructor(app:any){this.app=app;}
+    display(){this.renderDeclarative();}
+    hide(){this.containerEl.replaceChildren();}
+    /** Re-render declarative settings after a value change. */
+    update(){this.renderDeclarative();}
+    /** Render the bounded subset of Obsidian's declarative setting definitions. */
+    renderDeclarative(){
+      const definitions=(this as any).getSettingDefinitions?.();
+      if(!Array.isArray(definitions))return;
+      this.containerEl.replaceChildren();this.renderDefinitions(this.containerEl,definitions);
+    }
+    private renderDefinitions(container:HTMLElement,definitions:any[]){
+      for(const definition of definitions){
+        if(!definition)continue;
+        try{if(typeof definition.visible==='function'&&!definition.visible.call(this))continue;}catch(error){console.error(error);continue;}
+        if(definition.type==='group'){
+          if(definition.heading)create(container,'h3',{text:String(definition.heading)});
+          this.renderDefinitions(container,definition.items||[]);continue;
+        }
+        if(definition.type==='page'){
+          const section=create(container,'section',{cls:'setting-page'});
+          if(definition.name)create(section,'h4',{text:String(definition.name)});
+          this.renderDescription(section,definition.desc);
+          if(definition.items)this.renderDefinitions(section,definition.items);
+          else if(typeof definition.page==='function'){
+            try{const result=definition.page.call(this,section);if(Array.isArray(result))this.renderDefinitions(section,result);}catch(error){console.error(error);}
+          }
+          continue;
+        }
+        if(definition.type==='list'){this.renderList(container,definition);continue;}
+        this.renderItem(container,definition);
+      }
+    }
+    private renderDescription(container:HTMLElement,description:unknown){
+      if(typeof description==='string'&&description)create(container,'p',{cls:'setting-item-description',text:description});
+      else if(description instanceof Node)container.append(description);
+    }
+    private renderItem(container:HTMLElement,definition:any){
+      if(!definition.name)return;
+      const setting=new Setting(container).setName(String(definition.name));
+      this.renderDescription(setting.infoEl,definition.desc);
+      if(definition.control)this.renderControl(setting,definition.control);
+    }
+    private renderControl(setting:any,control:any){
+      const key=control.key;if(typeof key!=='string')return;
+      const current=(this as any).getControlValue?.(key)??(this as any).plugin?.settings?.[key];
+      const commit=(value:unknown)=>{void this.changeControl(key,value);};
+      if(control.type==='toggle'){
+        setting.addToggle((toggle:any)=>{toggle.setValue(Boolean(current));toggle.onChange(commit);});return;
+      }
+      if(control.type==='dropdown'){
+        setting.addDropdown((dropdown:any)=>{
+          for(const [value,label]of Object.entries(control.options||{}))dropdown.addOption(value,String(label));
+          dropdown.setValue(String(current??''));dropdown.onChange(commit);
+        });return;
+      }
+      if(control.type==='text'||control.type==='folder'||control.type==='number'){
+        setting.addText((text:any)=>{
+          if(control.type==='number')text.inputEl.type='number';
+          if(control.placeholder)text.setPlaceholder(String(control.placeholder));
+          text.setValue(current==null?'':String(current));
+          text.inputEl.addEventListener('change',()=>commit(control.type==='number'?Number(text.getValue()):text.getValue()));
+        });return;
+      }
+    }
+    private renderList(container:HTMLElement,definition:any){
+      const setting=new Setting(container).setName(String(definition.name||''));
+      this.renderDescription(setting.infoEl,definition.desc);
+      const list=create(container,'div',{cls:'setting-list'});
+      const items=Array.isArray(definition.items)?definition.items:[];
+      if(!items.length)create(list,'p',{cls:'setting-item-description',text:String(definition.emptyState||'No items.')});
+      else for(const item of items){
+        const row=create(list,'div',{cls:'setting-list-item'});
+        create(row,'span',{text:String(item?.name??item)});
+        if(typeof definition.onDelete==='function'){
+          const remove=create(row,'button',{text:'Delete'});
+          remove.addEventListener('click',()=>{void Promise.resolve(definition.onDelete(item)).then(()=>this.update()).catch((error:unknown)=>console.error(error));});
+        }
+      }
+      if(definition.addItem?.name&&typeof definition.addItem.action==='function'){
+        const add=create(list,'button',{text:String(definition.addItem.name)});
+        add.addEventListener('click',()=>{void Promise.resolve(definition.addItem.action.call(this)).then(()=>this.update()).catch((error:unknown)=>console.error(error));});
+      }
+    }
+    private async changeControl(key:string,value:unknown){
+      try{
+        await (this as any).setControlValue?.(key,value);
+        await (this as any).commitControlValue?.(key,value);
+      }catch(error){console.error(error);this.update();}
+    }
+  }
   class PluginSettingTab extends SettingTab {plugin:any;constructor(app:any,plugin:any){super(app);this.plugin=plugin;}}
   class Modal {
     app:any;containerEl=element('div',undefined,'modal-backdrop plugin-modal-backdrop');modalEl=element('section',this.containerEl,'modal plugin-modal');titleEl=element('h2',this.modalEl);contentEl=element('div',this.modalEl);shouldRestoreSelection=true;
@@ -218,7 +329,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   class ItemView extends View {contentEl:HTMLElement;constructor(leaf:any){super(leaf);this.contentEl=element('div',this.containerEl,'plugin-view-content');}addAction(){return unsupported('ItemView.addAction');}}
   class WorkspaceLeaf {
-    containerEl=element('section',undefined,'plugin-view-pane');view:any=null;
+    containerEl=element('section',undefined,'plugin-view-pane');view:any=null;private ephemeralState:unknown=null;
     async setViewState(state:any,parent?:HTMLElement){if(!state||typeof state.type!=='string')throw new Error('Invalid view state');const factory=factories.get(state.type);if(!factory)return unsupported('View type '+state.type);
       await this.detachView();this.view=factory(this);if(!(this.view instanceof View)){this.view=null;throw new Error('View factory must return View');}
       try{await this.view.load();await this.view.onOpen();await this.view.setState(state.state||{},{history:false});
@@ -226,9 +337,14 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       }catch(error){await this.detach();throw error;}
     }
     getViewState(){return {type:this.view?.getViewType(),state:this.view?.getState(),active:this.containerEl.isConnected};}
+    getEphemeralState(){return this.ephemeralState;}
+    setEphemeralState(state:unknown){this.ephemeralState=state;}
+    /** Open a vault file in the host's main document area. */
+    async openFile(file:any){if(!file||typeof file.path!=='string')throw new Error('Invalid file');await app.workspace.openLinkText(file.path,'',false);}
     async detachView(){if(this.view){const view=this.view;this.view=null;try{await view.onClose();}finally{await view.unload();}}this.containerEl.replaceChildren();}
     async detach(){await this.detachView();this.containerEl.remove();leaves.delete(this);}
   }
+  const reusableLeaf=new WorkspaceLeaf();
   return {
     setApp(value:any){app=value;},
     exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf,EditorSuggest,AbstractInputSuggest,FuzzySuggestModal,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,Menu,MenuItem,addIcon:(_name:string,_svg:string)=>{}},
@@ -239,7 +355,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     /** Atomically deactivate this plugin's processors before runtime resource cleanup. */
     async stopProcessors(){processorsStopped=true;await stopProcessors(processors);processors.clear();},
     workspace:{
-      getRightLeaf(split?:boolean){if(split)return unsupported('Workspace.getRightLeaf split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeaf(newLeaf?:boolean|string){if(newLeaf!==undefined&&newLeaf!==true)return unsupported('Workspace.getLeaf reuse/split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},
+      getRightLeaf(split?:boolean){if(split)return unsupported('Workspace.getRightLeaf split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeaf(newLeaf?:boolean|string){if(newLeaf===false)return reusableLeaf;if(newLeaf!==undefined&&newLeaf!==true)return unsupported('Workspace.getLeaf reuse/split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},
       getLeavesOfType(type:string){return [...leaves].filter(l=>l.view?.getViewType()===type);},iterateAllLeaves(callback:(leaf:any)=>void){for(const leaf of [...leaves])callback(leaf);},
       async detachLeavesOfType(type:string){await Promise.all([...leaves].filter(l=>l.view?.getViewType()===type).map(l=>l.detach()));},
       async revealLeaf(leaf:any){if(!leaves.has(leaf))throw new Error('Foreign leaf');host('plugin-views').append(leaf.containerEl);leaf.containerEl.scrollIntoView({block:'nearest'});}

@@ -30,6 +30,7 @@ function operationFor(manifest: PluginManifest, host: CompatHost) {
       case 'asset': return host.asset(path(args[0]));
       case 'open': return host.open(path(args[0]));
       case 'editor': return host.editor(path(args[0]), text(args[1]), text(args[2]), integer(args[3]), integer(args[4]));
+      case 'save': return host.save(path(args[0]));
       default: throw new Error('Unsupported plugin host operation: ' + name);
     }
   };
