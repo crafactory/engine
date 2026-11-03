@@ -2,13 +2,13 @@
 
 ## Scope and authorization
 
-The user requested appropriate permission broadening and maximum practical Excalidraw, Kanban and Git functionality after [PR #71](https://github.com/crafactory/engine/pull/71) merged at `e1dbd49`. Work is on `compat/native-drawing-board-git`. No agents were delegated. Third-party bundles/styles remain unchanged, hash-pinned external black-box inputs; their implementation is neither inspected nor incorporated.
+The user requested appropriate permission broadening and maximum practical Excalidraw, Kanban and Git functionality after [PR #71](https://github.com/crafactory/engine/pull/71) merged at `e1dbd49`. Implementation and evidence are on `compat/native-drawing-board-git` in [PR #72](https://github.com/crafactory/engine/pull/72); use the PR for live review/CI/merge state. No agents were delegated. Third-party bundles/styles remain unchanged, hash-pinned external black-box inputs; their implementation is neither inspected nor incorporated.
 
 Native access is explicit, warned, profile-wide full trust, not per-plugin isolation. Least-capability defaults remain unchanged. Grant/revocation needs restart; development HTTP cannot enable native access. The native test environment excludes service credentials and uses a temporary home, but is not OS filesystem containment.
 
 ## Candidate verification
 
-Changes are not yet committed and no new PR exists. The complete candidate run finished successfully: inventory, 838 units across 47 files, production build, 79 desktop cases including all eleven Worker and all eleven renderer inputs, and 64 browser cases. Logs are `/tmp/engine-next-final2-check.log`, `/tmp/engine-next-final2-desktop.log` and `/tmp/engine-next-final2-browser.log`.
+The complete candidate run finished successfully: inventory, 838 units across 47 files, production build, 79 desktop cases including all eleven Worker and all eleven renderer inputs, and 64 browser cases. Logs are `/tmp/engine-next-final2-check.log`, `/tmp/engine-next-final2-desktop.log` and `/tmp/engine-next-final2-browser.log`.
 
 Both corpus reports were regenerated only from the complete candidate directories `/tmp/engine-next-final2-renderer` and `/tmp/engine-next-final2-worker`; no earlier probes were combined. Node 22 is at `/tmp/engine-node/node_modules/node/bin`, and immutable corpus inputs are at `/tmp/engine-plugin-corpus`.
 
@@ -25,6 +25,6 @@ The canonical current tracker is [PLUGIN-SUPPORT-MATRIX.md](../docs/PLUGIN-SUPPO
 
 ## Remaining delivery gate
 
-Reports, verification and current tracker are aligned. Finish diff/security/clean-room and inventory checks and verify git author/committer. Commit and push the feature branch, then open a PR. Follow CONTRIBUTING exactly: completed latest-head CodeRabbit review, all issues addressed, completed re-review after fixes, no unresolved threads, and green latest-head CI before merge. If review is unavailable or blocked, leave the PR open and report the blocker. Do not repeat the quota-limited earlier merge shortcut.
+Reports, verification and current tracker are aligned; inventory, diff and identity checks passed before the implementation commit. Follow CONTRIBUTING exactly: completed latest-head CodeRabbit review, all issues addressed, completed re-review after fixes, no unresolved threads, and green latest-head CI before merge. If review is unavailable or blocked, leave the PR open and report the blocker. Do not repeat the quota-limited earlier merge shortcut.
 
-No results email has been sent for this request. Deliver an honest Chinese summary privately to the owner, with PR/review/merge state, native full-trust risk and bounded compatibility gaps. No issue creation is authorized.
+Delivery must distinguish PR/review/merge state, native full-trust risk and bounded compatibility gaps. No issue creation is authorized.
