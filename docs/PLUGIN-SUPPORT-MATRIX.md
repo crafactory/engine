@@ -31,7 +31,7 @@ It does **not** certify commands, views, rendering, menus, settings behavior or 
 | **Reading Time** | `1.1.2` | ✅ `BOUNDED_WORKFLOWS_PASS` | 400-word test at 200 wpm; speed setting persists; reading/source transition; editor change 8 min; selected-text modal; disable/re-enable | Format variants, invalid input, timing and multiple leaves remain unverified |
 | **Templater** | `2.26.0` | ✅ `BOUNDED_WORKFLOWS_PASS` | Template folder, toggle and dropdown settings persist across restart; dangerous trigger-on-creation cancel/confirm and startup acknowledgement persist locally; template hotkey list add/delete persists; startup template runs after restart and creates an exact note; user script function inserts exact output; insert template into the active note; exact inserted content persists; disable/re-enable re-registers the command; create a new note from a template and open its exact content | Other dangerous settings (system commands), other startup/user-script functions, other lists, number validation and shell/system functions remain unverified |
 | **Calendar (Beta)** | `2.0.0-beta.2` | 🟡 `STARTUP_ONLY` | Startup only | Needs a real workspace leaf/view lifecycle, daily-note integration and menu behavior |
-| **Advanced Tables** | `0.23.2` | 🟡 `STARTUP_ONLY` | Startup only | Needs editor-command and CM5/CM6 table integration workflows |
+| **Advanced Tables** | `0.23.2` | ✅ `BOUNDED_WORKFLOWS_PASS` | **Format table at the cursor** in live mode; exact editor/disk formatting persists | Source-mode command availability, navigation, row/column edits, sort, formulas and CM5/CM6 edge cases remain unverified |
 
 Evidence references: Dataview from pinned Linux corpus workflow `41042973930`; Templater
 insertion from the local macOS desktop corpus run on 2026-11-03 (pinned Linux rerun still
@@ -112,6 +112,17 @@ Not yet verified:
 - Other user-script exports/startup hooks beyond the single `hello()`/`create_new` cases
 - Shell/system functions (`child_process` is deliberately refused)
 - Exact reference settings navigation/search, leaf, unload and error-recovery semantics
+
+## Advanced Tables detail
+
+Advanced Tables reaches `BOUNDED_WORKFLOWS_PASS` for one live-mode editor workflow. The corpus
+opens `|Name|Value|` with unpadded rows, runs **Format table at the cursor** from the command
+palette, and verifies the exact padded table in the editor and on disk.
+
+Exploratory probing found that switching to source mode and moving the cursor before executing
+the same command produced `Advanced Tables: Command unavailable`; live mode is the verified
+configuration. Navigation, row/column edits, sorting, formulas, source-mode behavior and
+CM5/CM6 edge cases remain unverified.
 
 ## Candidate plugins (next validation targets)
 
