@@ -18,6 +18,9 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
     await fs.writeFile(path.join(root,'Templates/Template.md'),'Template body');
     await fs.writeFile(path.join(root,'Templates/Create.md'),'Created body');
     await fs.writeFile(path.join(root,'Templates/Startup.md'),'<%* await tp.file.create_new("Startup created", "StartupCreated", false) %>');
+    await fs.writeFile(path.join(root,'Templates/UserScript.md'),'<%* tR += await tp.user.hello() %>');
+    await fs.mkdir(path.join(root,'Scripts'),{recursive:true});
+    await fs.writeFile(path.join(root,'Scripts/hello.js'),'module.exports = async () => "User script output";\n');
   }
   if(plugin.name==='Dataview'){
     await fs.writeFile(path.join(root,'Second.md'),'# Second\n\n#alpha\n');
@@ -60,9 +63,11 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();
       const folder=page.getByLabel('Template folder location',{exact:true});
       await folder.fill('Templates');await folder.press('Tab');
+      const scripts=page.getByLabel('User scripts folder',{exact:true});
+      await scripts.fill('Scripts');await scripts.press('Tab');
       await page.getByRole('switch',{name:'Automatic jump to cursor',exact:true}).check();
       await page.getByLabel('User script intellisense',{exact:true}).selectOption('4');
-      await expect.poll(async()=>{try{const data=JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8'));return [data.templates_folder,data.auto_jump_to_cursor,data.intellisense_render];}catch{return null;}}).toEqual(['Templates',true,'4']);
+      await expect.poll(async()=>{try{const data=JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8'));return [data.templates_folder,data.user_scripts_folder,data.auto_jump_to_cursor,data.intellisense_render];}catch{return null;}}).toEqual(['Templates','Scripts',true,'4']);
       const dangerous=page.getByRole('switch',{name:'Trigger Templater on new file creation',exact:true});
       await dangerous.click();const warning=page.getByRole('dialog',{name:'Trigger Templater on new file creation',exact:true});await expect(warning).toContainText('dangerous');
       await warning.getByRole('button',{name:'Cancel',exact:true}).click();await expect(dangerous).not.toBeChecked();
@@ -92,6 +97,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await control.click();await page.getByTestId('dialog-submit').click();await expect(control).toBeChecked();
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();
       await expect(page.getByLabel('Template folder location',{exact:true})).toHaveValue('Templates');
+      await expect(page.getByLabel('User scripts folder',{exact:true})).toHaveValue('Scripts');
       await expect(page.getByRole('switch',{name:'Automatic jump to cursor',exact:true})).toBeChecked();
       await expect(page.getByRole('switch',{name:'Trigger Templater on new file creation',exact:true})).toBeChecked();
       await expect(page.getByRole('switch',{name:'Enable startup templates',exact:true})).toBeChecked();
@@ -116,6 +122,14 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.getByTestId('palette-input').fill(manifest.name+': Open insert template modal');
       await expect(page.locator('.palette-list')).toContainText(manifest.name+': Open insert template modal');
       await page.keyboard.press('Escape');
+      await page.getByTestId('note-editor').click();await page.keyboard.press('Control+End');
+      await page.getByRole('button',{name:'Command palette',exact:true}).click();
+      await page.getByTestId('palette-input').fill(manifest.name+': Open insert template modal');
+      await page.keyboard.press('Enter');
+      const userPicker=page.getByRole('dialog');await expect(userPicker).toBeVisible();
+      await userPicker.getByRole('button',{name:/^(Templates\/)?UserScript$/}).click();
+      await expect(page.getByTestId('note-editor')).toContainText('User script output');
+      await expect.poll(async()=>fs.readFile(path.join(root,'Test.md'),'utf8')).toBe('Original textTemplate bodyUser script output');
       await page.getByRole('button',{name:'Command palette',exact:true}).click();
       await page.getByTestId('palette-input').fill(manifest.name+': Create new note from template');
       await page.keyboard.press('Enter');
@@ -125,7 +139,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await expect(page.getByTestId('note-editor')).toContainText('Created body');
       await expect.poll(async()=>fs.readFile(path.join(root,'Untitled.md'),'utf8')).toBe('Created body');
       expect(pageErrors).toEqual([]);
-      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['template folder, toggle and dropdown settings persist across restart','dangerous setting cancel/confirm persists locally across restart','startup template runs and creates an exact note after restart','template hotkey list add/delete and restart persistence','insert template into active note','persist exact editor content','disable/re-enable re-registers command','create new note from template and open exact content'];
+      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['template folder, toggle and dropdown settings persist across restart','dangerous setting cancel/confirm persists locally across restart','startup template runs and creates an exact note after restart','user script function inserts exact output','template hotkey list add/delete and restart persistence','insert template into active note','persist exact editor content','disable/re-enable re-registers command','create new note from template and open exact content'];
     }else if(plugin.name==='Reading Time'){
       const status=page.locator('.plugin-status-item');await expect(status).toHaveText('2 min read');
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await page.getByLabel('Reading speed',{exact:true}).fill('100');await expect(status).toHaveText('4 min read');

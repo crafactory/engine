@@ -49,6 +49,27 @@ Create-note originally logged a non-fatal internal `this.update` error. Adding t
 declarative settings base `update()` removed it; the Templater corpus now asserts no page errors
 for the combined settings/insert/create-note workflow.
 
+## Templater user scripts
+
+This section records user-script loading and invocation after restart.
+
+| Check | Observed result | Scope |
+|---|---|---|
+| `npm run check` | 829 passed (43 files); inventory and build passed | No new unit gate; corpus covers the workflow |
+| `npm run test:e2e` | **64 passed / 0 failed** | Browser flows |
+| `npm run test:desktop` (macOS) | **44 passed / 0 failed / 10 skipped** | Includes reusable-leaf/exact-path case |
+| Pinned Templater `2.26.0` corpus (macOS) | **BOUNDED_WORKFLOWS_PASS** | User script + startup + settings + insert + create-note + re-enable |
+| Pinned Templater `2.26.0` corpus (Linux) | Not rerun in this change | Checked-in result remains the previous `STARTUP_ONLY` run |
+
+The corpus sets **User scripts folder** to `Scripts`, creates `Scripts/hello.js` exporting
+`async () => "User script output"`, restarts and re-enables Templater, then inserts
+`Templates/UserScript.md` containing `<%* tR += await tp.user.hello() %>`. The editor and exact
+`Test.md` bytes gain `User script output`.
+
+No new compatibility blocker was required: the existing `.js` vault read and trusted-renderer
+execution path was sufficient. This covers one exported function; other exports and startup hooks
+remain unverified, and it does not imply shell/system support.
+
 ## Templater startup templates
 
 This section records startup-template execution after restart.
