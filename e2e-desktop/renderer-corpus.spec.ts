@@ -12,7 +12,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-corpus-')),profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-corpus-profile-'));
   const dir=path.join(root,'.crafactory/plugins',manifest.id);await fs.mkdir(dir,{recursive:true});
   const note=plugin.name==='Dataview'?'# Test\n\n#alpha\n\n```dataview\nTABLE file.name AS "Name", file.mtime AS "Modified"\n```\n\n```dataview\nTASK\n```\n\n```dataview\nLIST FROM "Folder"\n```\n\n```dataview\nLIST\nWHERE file.name = "Second"\n```\n\n```dataview\nLIST FROM ""\nSORT file.name DESC\nLIMIT 2\n```\n\n```dataview\nTABLE rows.file.name AS "Files", length(rows) AS "Count"\nGROUP BY file.folder\n```\n\n```dataview\nTABLE WITHOUT ID file.name AS "Name", Tag\nFLATTEN file.etags AS Tag\n```\n\n```dataviewjs\ndv.paragraph("JS " + dv.current().file.name)\n```\n\n```dataviewjs\nawait dv.view("View", {name: "Test"})\n```\n\nInline: `= this.file.name`\n\n- [ ] Task one\n- [x] Task two\n':Array(400).fill('word').join(' ');
-  await fs.writeFile(path.join(root,'Test.md'),plugin.name==='Templater'?'Original text':note);
+  await fs.writeFile(path.join(root,'Test.md'),plugin.name==='Templater'?'Original text':plugin.name==='Advanced Tables'?'|Name|Value|\n|-|-|\n|One|1|\n|Two|2|\n':note);
   if(plugin.name==='Templater'){
     await fs.mkdir(path.join(root,'Templates'),{recursive:true});
     await fs.writeFile(path.join(root,'Templates/Template.md'),'Template body');
@@ -142,6 +142,16 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await expect.poll(async()=>fs.readFile(path.join(root,'Untitled.md'),'utf8')).toBe('Created body');
       expect(pageErrors).toEqual([]);
       outcome='BOUNDED_WORKFLOWS_PASS';workflows=['template folder, toggle and dropdown settings persist across restart','dangerous setting cancel/confirm persists locally across restart','startup template runs and creates an exact note after restart','user script function inserts exact output','template hotkey list add/delete and restart persistence','insert template into active note','persist exact editor content','disable/re-enable re-registers command','create new note from template and open exact content'];
+    }else if(plugin.name==='Advanced Tables'){
+      await page.getByTestId('settings-close').click();
+      await page.getByRole('button',{name:'Command palette',exact:true}).click();
+      await page.getByTestId('palette-input').fill(manifest.name+': Format table at the cursor');
+      await page.keyboard.press('Enter');
+      const formatted='| Name | Value |\n| ---- | ----- |\n| One  | 1     |\n| Two  | 2     |\n';
+      await expect(page.getByTestId('note-editor')).toContainText('| Name | Value |');
+      await expect.poll(async()=>fs.readFile(path.join(root,'Test.md'),'utf8')).toBe(formatted);
+      expect(pageErrors).toEqual([]);
+      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['format table at cursor','exact editor/disk persistence'];
     }else if(plugin.name==='Reading Time'){
       const status=page.locator('.plugin-status-item');await expect(status).toHaveText('2 min read');
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await page.getByLabel('Reading speed',{exact:true}).fill('100');await expect(status).toHaveText('4 min read');
@@ -156,7 +166,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await expect(page.getByLabel('Reading speed',{exact:true})).toHaveValue('100');
       outcome='BOUNDED_WORKFLOWS_PASS';workflows=['400-word document at 200 wpm','reading speed setting saves 100 wpm','reading/source transition retains 4 min','editor-change: 800 words -> 8 min','10-word selection modal at 100 wpm','Escape closes modal','disable removes status and settings','re-enable restores setting and 8 min'];
     }
-    if(plugin.name==='Reading Time'||plugin.name==='Dataview'||plugin.name==='Templater')expect(outcome).toBe('BOUNDED_WORKFLOWS_PASS');
+    if(plugin.name==='Reading Time'||plugin.name==='Dataview'||plugin.name==='Templater'||plugin.name==='Advanced Tables')expect(outcome).toBe('BOUNDED_WORKFLOWS_PASS');
     const platform=process.platform==='linux'?'Linux x64 Electron':process.platform==='darwin'?'macOS '+process.arch+' Electron':process.platform+' '+process.arch+' Electron';
     const result={name:plugin.name,repo:plugin.repo,tag:plugin.tag,manifest_version:manifest.version,main_sha256:plugin.main_sha256,manifest_sha256:plugin.manifest_sha256,platform,mode:'trusted renderer (explicit opt-in, not sandboxed)',outcome,first_blocker:blocker,functional_workflows:workflows.length?workflows:'NOT_RUN',checked_at:new Date().toISOString()};
     testInfo.annotations.push({type:'compatibility',description:JSON.stringify(result)});

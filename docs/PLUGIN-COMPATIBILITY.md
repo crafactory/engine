@@ -61,7 +61,8 @@ Current per-plugin outcomes and verified workflows are tracked in
 [compatibility/renderer-community-results.json](compatibility/renderer-community-results.json).
 Default Worker still fails all five pinned releases. Reading Time and Dataview have bounded
 functional workflows; Templater has bounded template-insertion, create-note, startup-template
-and user-script workflows; Calendar and Advanced Tables are startup-only. DataviewJS and `dv.view` require the explicit desktop `unsafe-eval`
+and user-script workflows; Advanced Tables has a bounded live-mode table-formatting workflow;
+Calendar remains startup-only. DataviewJS and `dv.view` require the explicit desktop `unsafe-eval`
 entry, and Templater also needs `wasm-unsafe-eval` for its Rust/WASM parser. Both capabilities
 exist only in the trusted entry. A bounded workflow pass is not full
 plugin compatibility, and third-party source is never copied into Engine or its installer.
