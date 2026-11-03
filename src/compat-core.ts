@@ -414,7 +414,15 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     if(raw===undefined){removeStorage(key as string);return;}
     writeStorage(key as string,raw);
   }
-  const app=guard({appId:'crafactory-engine',vault,workspace,metadataCache,internalPlugins:{plugins:{}},loadLocalStorage,saveLocalStorage},'App');
+  const fileManager=guard({
+    /** Rename a vault file through the existing host rename primitive. */
+    async renameFile(file:TAbstractFile,newPath:string){
+      checkAbstract(file);
+      if(typeof newPath!=='string'||!newPath.trim())throw new Error('Invalid rename target');
+      await vault.rename(file,newPath);
+    }
+  },'FileManager');
+  const app=guard({appId:'crafactory-engine',vault,workspace,metadataCache,fileManager,internalPlugins:{plugins:{}},loadLocalStorage,saveLocalStorage},'App');
   function refresh(next:PluginSnapshot,events=false){
     const previous=snapshot;snapshot=next;
     const nextNotePaths=new Set(snapshot.notes.map(note=>note.path));

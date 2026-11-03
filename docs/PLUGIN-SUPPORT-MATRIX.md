@@ -29,7 +29,7 @@ It does **not** certify commands, views, rendering, menus, settings behavior or 
 |---|---|---|---|---|
 | **Dataview** | `0.5.70` / manifest `0.5.68` | ✅ `BOUNDED_WORKFLOWS_PASS` | `TABLE`, `TASK`, `LIST FROM`, `WHERE`, `SORT`/`LIMIT`, `GROUP BY`, `FLATTEN`, inline query, DataviewJS, `dv.view` | Not full query/frontmatter/view semantics; DataviewJS and `dv.view` need 🔒 desktop `unsafe-eval` |
 | **Reading Time** | `1.1.2` | ✅ `BOUNDED_WORKFLOWS_PASS` | 400-word test at 200 wpm; speed setting persists; reading/source transition; editor change 8 min; selected-text modal; disable/re-enable | Format variants, invalid input, timing and multiple leaves remain unverified |
-| **Templater** | `2.26.0` | ✅ `BOUNDED_WORKFLOWS_PASS` | Template folder, toggle and dropdown settings persist across restart; dangerous trigger-on-creation confirmation cancel/confirm persists locally; template hotkey list add/delete persists; insert template into the active note; exact inserted content persists; disable/re-enable re-registers the command; create a new note from a template and open its exact content | Other dangerous settings (startup/system commands), other lists, number validation, user scripts, startup templates and shell/system functions remain unverified |
+| **Templater** | `2.26.0` | ✅ `BOUNDED_WORKFLOWS_PASS` | Template folder, toggle and dropdown settings persist across restart; dangerous trigger-on-creation cancel/confirm and startup acknowledgement persist locally; template hotkey list add/delete persists; startup template runs after restart and creates an exact note; user script function inserts exact output; insert template into the active note; exact inserted content persists; disable/re-enable re-registers the command; create a new note from a template and open its exact content | Other dangerous settings (system commands), other startup/user-script functions, other lists, number validation and shell/system functions remain unverified |
 | **Calendar (Beta)** | `2.0.0-beta.2` | 🟡 `STARTUP_ONLY` | Startup only | Needs a real workspace leaf/view lifecycle, daily-note integration and menu behavior |
 | **Advanced Tables** | `0.23.2` | 🟡 `STARTUP_ONLY` | Startup only | Needs editor-command and CM5/CM6 table integration workflows |
 
@@ -69,18 +69,24 @@ Known Dataview gaps:
 
 ## Templater detail
 
-Templater reaches `BOUNDED_WORKFLOWS_PASS` for three workflows under the 🔒 desktop trusted
+Templater reaches `BOUNDED_WORKFLOWS_PASS` for five workflows under the 🔒 desktop trusted
 entry (`unsafe-eval` + `wasm-unsafe-eval`):
 
 1. **Settings persistence:** opens the declarative plugin settings, changes **Template folder
    location** to `Templates`, enables **Automatic jump to cursor**, selects **User script
    intellisense** value `4`, cancels and then confirms the dangerous **Trigger Templater on new
-   file creation** warning (including the acknowledgement checkbox), adds a **Template hotkey**
-   and deletes it, verifies `data.json` and `templater-local-settings`, restarts the app,
-   re-enables Templater and verifies the text/toggle/dropdown/local/list values.
-2. **Insert template:** runs **Open insert template modal**, picks the template, and verifies
+   file creation** warning (including the acknowledgement checkbox), acknowledges and confirms
+   **Enable startup templates**, adds a **Template hotkey** and deletes it, verifies `data.json` and
+   `templater-local-settings`, restarts the app, re-enables Templater and verifies the
+   text/toggle/dropdown/local/list values.
+2. **Startup template:** adds `Templates/Startup.md` to the startup list; after restart and
+   re-enable it runs `tp.file.create_new` and creates `StartupCreated.md` with exact content.
+3. **User script:** sets the **User scripts folder** to `Scripts`, adds `Scripts/hello.js`
+   exporting an async function, restarts/re-enables, then inserts `Templates/UserScript.md`
+   which calls `tp.user.hello()` and appends the exact `User script output`.
+4. **Insert template:** runs **Open insert template modal**, picks the template, and verifies
    exact editor and persisted note bytes.
-3. **Create note from template:** runs **Create new note from template**, picks
+5. **Create note from template:** runs **Create new note from template**, picks
    `Templates/Create`, and verifies the new `Untitled.md` opens with the exact template content
    and persists to disk.
 
@@ -100,10 +106,10 @@ add/delete.
 
 Not yet verified:
 
-- Other dangerous settings (startup templates/system commands), other lists (user scripts,
-  folder/file templates), number-control validation
+- Other dangerous settings (system commands), other lists (folder/file templates),
+  number-control validation
 - Nested folder creation and conflict naming beyond the single `Untitled` case
-- User scripts and startup templates
+- Other user-script exports/startup hooks beyond the single `hello()`/`create_new` cases
 - Shell/system functions (`child_process` is deliberately refused)
 - Exact reference settings navigation/search, leaf, unload and error-recovery semantics
 
@@ -130,6 +136,7 @@ and has explicit rejection or documented gaps for the rest.
 |---|---|---|---|
 | Plugin lifecycle, commands, settings, ribbon/status | ✅ | Load/unload, commands (including icon/hotkey metadata), settings tabs, ribbon/status, notices, `registerCliHandler` acceptance | Exact reference timing/visuals differ |
 | App identity / local storage | 🟡 | `appId`, empty `internalPlugins`, JSON-backed `loadLocalStorage`/`saveLocalStorage` | Other App members reject; trusted-renderer storage is per profile with a per-runtime memory fallback, not a vault file |
+| File manager | 🟡 | `app.fileManager.renameFile` routes through `Vault.rename` | Other FileManager members reject |
 | Vault text I/O and file identity | 🟡 | Read/create/modify/append/copy/mkdir/rename/trash, `getAvailablePath`; `.md/.txt/.canvas/.base/.csv/.json/.css/.js/.mjs`; plugin data | No binary/process/delete APIs; rename event not synthesized |
 | `FileSystemAdapter` / platform identity | 🟡 | Bounded `getBasePath`/`getName` from the desktop base path; `Platform` fields | Rejects when no base path; not a complete adapter |
 | MetadataCache | 🟡 | `getFileCache/getCache` with frontmatter, headings, links/embeds, tags, sections, listItems, blocks and full-file positions; changed/deleted/resolved/resolve | No exact reference section partitioning, frontmatter-link cache or resolved/unresolved link maps |
