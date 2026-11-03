@@ -1,6 +1,6 @@
 // Original MIT test fixture, not copied from a community plugin or SDK.
 const {Plugin,PluginSettingTab,Setting,Modal,SuggestModal,FileView,TextFileView,ItemView,EditorSuggest,BasesView,getLanguage,addIcon,getIcon,getIconIds,setIcon,setTooltip}=require('obsidian');
-const {EditorView}=require('@codemirror/view');
+const {EditorView,keymap}=require('@codemirror/view');
 const {StateField}=require('@codemirror/state');
 class FixtureModal extends Modal {
   onOpen(){this.setTitle('Fixture modal');this.contentEl.createEl('input',{attr:{'aria-label':'Modal input'}});}
@@ -9,7 +9,7 @@ class FixtureModal extends Modal {
 class FixtureView extends ItemView {
   getViewType(){return 'fixture-view';}
   getDisplayText(){return 'Fixture view';}
-  onOpen(){this.contentEl.setText('Independent view opened');}
+  onOpen(){this.contentEl.setText('Independent view opened');const action=this.addAction('check','Fixture view action',()=>{window.__fixtureViewActions=(window.__fixtureViewActions||0)+1;this.contentEl.setText('View action invoked');});action.addClass('fixture-style-probe');const icon=getIcon('check');icon.addClass('fixture-svg-probe');icon.removeClass('fixture-svg-probe');}
   setState(state){if(state?.file){this.file=state.file;this.contentEl.setText('Fixture file: '+this.file);}}
   getState(){return {file:this.file};}
 }
@@ -18,10 +18,10 @@ class FixtureBasesView extends BasesView {
 }
 class FixtureSuggest extends EditorSuggest {
   constructor(app){super(app);this.limit=5;}
-  onTrigger(editor){
-    const cursor=editor.getCursor(),line=editor.getLine(cursor.line),match=line.slice(0,cursor.ch).match(/@(\w*)$/);
+  onTrigger(cursor,editor){
+    const line=editor.getLine(cursor.line),match=line.slice(0,cursor.ch).match(/@(\w*)$/);
     if(!match)return null;
-    return {start:{line:cursor.line,ch:cursor.ch-match[0].length},end:cursor};
+    return {start:{line:cursor.line,ch:cursor.ch-match[0].length},end:cursor,query:match[1]};
   }
   getSuggestions(context){const query=context.query.replace(/^@/,'');return ['Alpha','Beta'].filter(value=>value.toLowerCase().startsWith(query.toLowerCase()));}
   selectSuggestion(value){
@@ -48,10 +48,29 @@ class FixturePicker extends SuggestModal {
 }
 class FixtureTextView extends TextFileView {
   getViewType(){return 'fixture-text';}
-  onOpen(){this.input=this.contentEl.createEl('textarea',{attr:{'aria-label':'Fixture document'}});this.input.addEventListener('input',()=>this.requestSave());}
+  onOpen(){window.__fixtureTextView=this;this.input=this.contentEl.createEl('textarea',{attr:{'aria-label':'Fixture document'}});this.input.addEventListener('input',()=>{this.data=this.input.value;this.requestSave();});}
   getViewData(){return this.input.value;}
   setViewData(data){this.input.value=data;}
   clear(){this.input.value='';}
+}
+class FixtureEmbeddedView extends ItemView {
+  getViewType(){return 'fixture-embedded';}
+  getDisplayText(){return 'Embedded fixture';}
+  async onOpen(){
+    const probeEl=this.contentEl.createDiv(),embed=this.app.embedRegistry.embedByExtension.md({containerEl:probeEl},null);
+    await embed.load();embed.showEditor();
+    const Base=Object.getPrototypeOf(Object.getPrototypeOf(embed.editMode)).constructor;
+    await embed.unload();probeEl.remove();
+    const status=this.contentEl.createDiv({attr:{'data-testid':'embedded-editor-status'}});
+    class LocalEditor extends Base {
+      onChange(){status.setText(this.get());}
+      onUpdate(update){super.onUpdate(update);if(update.docChanged)window.__fixtureSourceUpdates=(window.__fixtureSourceUpdates||0)+1;}
+      buildLocalExtensions(){return [...super.buildLocalExtensions(),keymap.of([{key:'Enter',run:()=>{window.__fixtureSourceSubmit=this.get();return true;}}])];}
+    }
+    const editor=this.addChild(new LocalEditor(this.app,this.contentEl.createDiv(),{}));
+    editor.set('embedded initial');
+    window.__fixtureEmbeddedEditor=editor;
+  }
 }
 module.exports=class extends Plugin {
   async onload(){
@@ -64,6 +83,7 @@ module.exports=class extends Plugin {
     this.registerView('fixture-view',leaf=>new FixtureView(leaf));
     this.registerExtensions(['fixture'],'fixture-view');
     this.registerView('fixture-text',leaf=>new FixtureTextView(leaf));this.registerExtensions(['txt'],'fixture-text');
+    this.registerView('fixture-embedded',leaf=>new FixtureEmbeddedView(leaf));
     this.registerEditorSuggest(new FixtureSuggest(this.app));
     this.registerObsidianProtocolHandler('fixture-protocol',params=>this.status.setText('Protocol '+(params.value||'')));
     this.registerHoverLinkSource('fixture-hover',{display:'Fixture hover',defaultMod:true});
@@ -71,6 +91,8 @@ module.exports=class extends Plugin {
     this.registerBasesView('fixture-bases',controller=>new FixtureBasesView(controller));
     this.addCommand({id:'protocol',name:'Dispatch protocol',callback:()=>window.dispatchEvent(new CustomEvent('engine:protocol',{detail:'obsidian://fixture-protocol?value=ok'}))});
     this.addCommand({id:'view',name:'Open view',callback:async()=>{const leaf=this.app.workspace.getRightLeaf(false);await leaf.setViewState({type:'fixture-view'});await this.app.workspace.revealLeaf(leaf);}});
+    this.addCommand({id:'embedded-editor',name:'Open embedded editor',callback:async()=>{await this.app.workspace.getRightLeaf(false).setViewState({type:'fixture-embedded'});}});
+    this.addCommand({id:'same-view-state',name:'Update current view state',callback:async()=>{const leaf=this.app.workspace.getMostRecentLeaf(),view=leaf.view;await leaf.setViewState({type:'fixture-text',state:{file:'Test.txt'}},{probe:true});this.status.setText('View reused: '+(leaf.view===view));window.__fixtureEphemeral=leaf.getEphemeralState();}});
     this.addCommand({id:'reuse-open',name:'Reuse and open',callback:async()=>{const leaf=this.app.workspace.getLeaf(false);await leaf.openFile(this.app.vault.getFileByPath('Z#.md'));await this.app.workspace.revealLeaf(leaf);this.status.setText('Reused leaf');}});
     this.addCommand({id:'modal',name:'Open modal',callback:()=>new FixtureModal(this.app).open()});
     this.addCommand({id:'picker',name:'Show fixture suggestions',callback:()=>new FixturePicker(this.app,this.status).open()});

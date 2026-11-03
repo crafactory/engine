@@ -15,6 +15,7 @@ export function requiredPermission(operation: string): PluginPermission | null {
   switch (operation) {
     case 'read':
     case 'readVersioned':
+    case 'readBinary':
     case 'open':
     case 'asset':
       return 'vault:read';
@@ -26,6 +27,9 @@ export function requiredPermission(operation: string): PluginPermission | null {
     case 'create':
     case 'modify':
     case 'append':
+    case 'writeBinary':
+    case 'createBinary':
+    case 'modifyBinary':
     case 'writeLegacy':
     case 'mkdir':
     case 'rename':

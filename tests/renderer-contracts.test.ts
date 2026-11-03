@@ -6,7 +6,7 @@ const manifest={id:'renderer-test',name:'Renderer test',version:'1'};
 const initial=():PluginSnapshot=>({name:'Test',active:'One.md',entries:[{path:'One.md',name:'One.md',folder:false,size:3,ctime:0,mtime:0}],notes:[{path:'One.md',content:'one'}],editor:null});
 function harness(native?:CompatNativeServices){
   const settingCleanup=vi.fn(),extensionCleanup=vi.fn(),viewCleanup=vi.fn(),extensionsCleanup=vi.fn(),suggestCleanup=vi.fn(),protocolCleanup=vi.fn(),hoverCleanup=vi.fn(),basesCleanup=vi.fn(),updateOptions=vi.fn(),ribbonCleanup=vi.fn(),ribbonElement={remove:ribbonCleanup} as unknown as HTMLElement;
-  const iterateAllLeaves=vi.fn(),ui={exports:{EditorSuggest},workspace:{getLeaf:()=>({fixture:true}),iterateAllLeaves},statusBar:vi.fn(),ribbonIcon:vi.fn(()=>ribbonElement),settingTab:vi.fn(()=>settingCleanup),editorExtension:vi.fn(()=>extensionCleanup),registerView:vi.fn(()=>viewCleanup),registerExtensions:vi.fn(()=>extensionsCleanup),editorSuggest:vi.fn(()=>suggestCleanup),protocolHandler:vi.fn(()=>protocolCleanup),hoverLinkSource:vi.fn(()=>hoverCleanup),basesView:vi.fn(()=>basesCleanup),updateOptions};
+  const iterateAllLeaves=vi.fn(),ui={exports:{EditorSuggest},workspace:{activeLeaf:{view:null as any},getLeaf:()=>({fixture:true}),iterateAllLeaves},statusBar:vi.fn(),ribbonIcon:vi.fn(()=>ribbonElement),settingTab:vi.fn(()=>settingCleanup),editorExtension:vi.fn(()=>extensionCleanup),registerView:vi.fn(()=>viewCleanup),registerExtensions:vi.fn(()=>extensionsCleanup),editorSuggest:vi.fn(()=>suggestCleanup),protocolHandler:vi.fn(()=>protocolCleanup),hoverLinkSource:vi.fn(()=>hoverCleanup),basesView:vi.fn(()=>basesCleanup),updateOptions};
   const request=vi.fn(async(_operation:string,_args:unknown[])=>null);
   const runtime=createCompatibilityRuntime(manifest,initial(),{ui,request,commands:()=>{},notice:()=>{},native});
   return {runtime,api:runtime.api as any,ui,iterateAllLeaves,request,settingCleanup,extensionCleanup,viewCleanup,extensionsCleanup,suggestCleanup,protocolCleanup,hoverCleanup,basesCleanup,updateOptions,ribbonCleanup,ribbonElement};
@@ -25,7 +25,10 @@ it('renderer custom style events dispatch through Events and are revocable',asyn
 });
 it('renderer MarkdownView exposes actual active document in reading mode',()=>{
   const h=harness(),view=h.runtime.app.workspace.getActiveViewOfType(h.api.MarkdownView);
-  expect(view).not.toBeNull();expect(view!.getViewData()).toBe('one');expect(view!.editor).toBeNull();expect(view!.file!.path).toBe('One.md');
+  expect(view).not.toBeNull();expect(view!.getViewData()).toBe('one');expect(view!.editor.getValue()).toBe('one');expect(view!.file!.path).toBe('One.md');
+  expect(()=>view!.editor.setValue('no')).toThrow('Markdown preview editing');
+  h.ui.workspace.activeLeaf.view={getViewType:()=> 'drawing'};
+  expect(h.runtime.app.workspace.getActiveViewOfType(h.api.MarkdownView)).toBeNull();
 });
 it('renderer editor-change listeners observe refreshed editor and clean up on unload',async()=>{
   const h=harness(),calls:string[]=[],snap=initial();
@@ -82,7 +85,30 @@ it('reads daily-note settings at call time',()=>{
   expect(h.runtime.app.vault.getConfig('dailyNotes')).toEqual(daily);
   daily={folder:'B',format:'YYYY-MM-DD',template:''};
   expect((h.runtime.app.vault.getConfig('dailyNotes') as {folder:string}).folder).toBe('B');
-  expect(h.runtime.app.internalPlugins.getPluginById('daily-notes')!.instance.options.folder).toBe('B');
+  expect(h.runtime.app.internalPlugins.getPluginById('daily-notes')!.instance!.options.folder).toBe('B');
+  expect(h.runtime.app.internalPlugins.getPluginById('canvas')).toMatchObject({enabled:false,_loaded:false,instance:null});
+  expect(()=>h.runtime.app.internalPlugins.plugins.canvas.load()).toThrow('Obsidian core Canvas plugin');
+});
+it('private command manager lists and executes only live commands owned by its plugin',async()=>{
+  const h=harness(),run=vi.fn();
+  class P extends h.api.Plugin {onload(){this.addCommand({id:'owned',name:'Owned command',callback:run});}}
+  await h.runtime.boot(P);const manager=h.runtime.app.commands!;
+  expect(manager.listCommands()).toEqual([expect.objectContaining({id:manifest.id+':owned',name:manifest.name+': Owned command'})]);
+  expect(manager.findCommand(manifest.id+':owned')).not.toBeNull();
+  expect(manager.executeCommandById(manifest.id+':owned')).toBe(true);expect(run).toHaveBeenCalledOnce();
+  expect(manager.executeCommandById('other-plugin:owned')).toBe(false);
+  expect(manager.executeCommandById('editor:toggle-source')).toBe(false);
+  await h.runtime.stop();expect(manager.executeCommandById(manifest.id+':owned')).toBe(false);
+});
+it('metadata cache admits real local custom event delivery without promising a cross-plugin bus',()=>{
+  const h=harness(),receive=vi.fn(),cache=h.runtime.app.metadataCache;
+  const ref=cache.on('fixture:metadata-change',receive);cache.trigger('fixture:metadata-change','updated');expect(receive).toHaveBeenCalledWith('updated');
+  cache.offref(ref);cache.trigger('fixture:metadata-change','late');expect(receive).toHaveBeenCalledOnce();
+  expect(()=>cache.on('unknown-standard-event',receive)).toThrow('MetadataCache event');
+});
+it('observed private component loaded alias follows actual startup and unload',async()=>{
+  const h=harness(),component=new h.api.Component();expect(component._loaded).toBe(false);
+  await component.load();expect(component._loaded).toBe(true);await component.unload();expect(component._loaded).toBe(false);
 });
 it('releases window.app to the previous runtime and clears it',async()=>{
   const descriptor=Object.getOwnPropertyDescriptor(globalThis,'window');
@@ -127,6 +153,31 @@ it('fires bounded Vault create/delete and MetadataCache resolve events',async()=
   h.runtime.sync(base);expect(deleted).toHaveBeenCalledOnce();expect(deleted.mock.calls[0][0].path).toBe('Two.md');
   await h.runtime.stop();
 });
+it('never delivers a null metadata file when content arrives before the directory listing',async()=>{
+  const h=harness(),base=initial(),changed=vi.fn(),created=vi.fn();
+  class Fixture extends h.api.Plugin {onload(){this.registerEvent(this.app.metadataCache.on('changed',changed));this.registerEvent(this.app.vault.on('create',created));}}
+  await h.runtime.boot(Fixture);
+  const early={...base,notes:[...base.notes,{path:'Folder/New.md',content:'new'}]};
+  h.runtime.sync(early);
+  const file=h.runtime.app.vault.getFileByPath('Folder/New.md');
+  expect(file).toBeInstanceOf(h.api.TFile);expect(file?.parent?.path).toBe('Folder');
+  expect(changed.mock.calls.find(call=>call[0]?.path==='Folder/New.md')?.[0]).toBe(file);
+  expect(changed.mock.calls.every(call=>call[0]!==null)).toBe(true);
+  h.runtime.sync({...early,entries:[...base.entries,{path:'Folder/New.md',name:'New.md',folder:false,size:3,ctime:0,mtime:0}]});
+  expect(h.runtime.app.vault.getFileByPath('Folder/New.md')).toBe(file);
+  expect(created.mock.calls.filter(call=>call[0].path==='Folder/New.md')).toHaveLength(1);
+  await h.runtime.stop();
+});
+it('returns real file/folder objects from successful creation before a snapshot update',async()=>{
+  const h=harness();class Fixture extends h.api.Plugin {}
+  await h.runtime.boot(Fixture);
+  const folder=await h.runtime.app.vault.createFolder('Created');
+  const file=await h.runtime.app.vault.create('Created/Note.md','new');
+  expect(folder).toBeInstanceOf(h.api.TFolder);expect(file).toBeInstanceOf(h.api.TFile);
+  expect(file.parent).toBe(folder);expect(folder.children).toContain(file);
+  expect(h.runtime.app.vault.getAbstractFileByPathInsensitive('created/NOTE.MD')).toBe(file);
+  await h.runtime.stop();
+});
 it('serves bounded resolved and unresolved link maps',()=>{
   const h=harness({
     resolveLink:(link:string)=>link==='Two'?'Two.md':undefined,
@@ -144,5 +195,5 @@ it('serves bounded CachedMetadata through getFileCache and getCache',()=>{
   expect(h.runtime.app.metadataCache.getCache('Missing.md')).toBeNull();
 });
 it('renderer keeps unsupported events and unrelated runtime exports explicit',()=>{
-  const h=harness();expect(()=>h.runtime.app.workspace.on('active-leaf-change',()=>{})).toThrow('Workspace event active-leaf-change');expect(()=>h.api.MarkdownPreviewView).toThrow('export MarkdownPreviewView');
+  const h=harness();const changed=vi.fn();h.runtime.app.workspace.on('active-leaf-change',changed);h.runtime.triggerWorkspaceEvent('active-leaf-change',[null]);expect(changed).toHaveBeenCalledWith(null);expect(()=>h.runtime.app.workspace.on('unknown-event',()=>{})).toThrow('Workspace event unknown-event');expect(()=>h.api.MarkdownPreviewView).toThrow('export MarkdownPreviewView');
 });

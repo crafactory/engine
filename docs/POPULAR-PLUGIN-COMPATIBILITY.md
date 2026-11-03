@@ -1,6 +1,6 @@
 # Popular-plugin compatibility: evidence and remaining gaps
 
-This increment extends PR #70 rather than replacing its five bounded renderer workflows. The ten targets below are a roadmap and reproducible corpus, not a claim that all ten are fully supported.
+This increment extends PR #70 and PR #71 rather than replacing their bounded renderer workflows. The ten targets below are a roadmap and reproducible corpus, not a claim that all ten are fully supported.
 
 ## Selection and reproducibility
 
@@ -8,18 +8,18 @@ The target set is the all-time download top ten on [Obsidian Stats](https://www.
 
 | Rank | Target | Pinned release | Verification scope |
 |---|---|---|---|
-| 1 | Excalidraw | 2.29.1 | Startup/background-error observation; drawing workflows unfinished |
+| 1 | Excalidraw | 2.29.1 | Native-profile pointer drawing, saved scene and application restart; private core Canvas integration still rejected |
 | 2 | Templater | 2.26.0 | Existing insertion, creation, startup/user scripts and settings workflows |
 | 3 | Dataview | tag 0.5.70 / manifest 0.5.68 | Existing bounded DQL and DataviewJS workflows |
 | 4 | Tasks | 8.6.0 | Cross-note not-done query, completion persisted to source, query refresh |
-| 5 | Git | 2.42.0 | Startup boundary; Node `path` is not exposed |
+| 5 | Git | 2.42.0 | Native-profile stage/commit/push to local bare remote and peer-commit pull; authentication/conflicts not certified |
 | 6 | Advanced Tables | 0.23.2 | Existing live-editor table-formatting workflow |
 | 7 | Calendar | tag 2.0.0-beta.2 / manifest 2.0.0 | Existing today/create/open daily-note workflow |
 | 8 | Copilot | 4.0.17 | Startup with background failure at `App.secretStorage`; inference not tested |
 | 9 | Style Settings | 1.0.9 | Startup only; full theme/snippet acceptance unfinished |
-| 10 | Kanban | 2.0.51 | Private `App.embedRegistry` boundary; board editing unfinished |
+| 10 | Kanban | 2.0.51 | Board/list creation and Markdown save/restart; card submission remains blocked by a recorded parser error |
 
-Reading Time 1.1.2 remains an eleventh regression sentinel, not a top-ten claim. Hashes, repositories, identities, actual outcomes and workflows are recorded in the [pins](compatibility/community-corpus.json), [renderer evidence](TRUSTED-RENDERER-PLUGIN-TESTS.md), and [Worker evidence](REAL-COMMUNITY-PLUGIN-TESTS.md). External binaries stay outside checkout and packaging inputs. New input licenses have not been audited; test downloads do not authorize redistribution.
+Reading Time 1.1.2 remains an eleventh regression sentinel, not a top-ten claim. Hashes, repositories, identities, actual outcomes and workflows are recorded in the [pins](compatibility/community-corpus.json), [renderer evidence](TRUSTED-RENDERER-PLUGIN-TESTS.md), and [Worker evidence](COMMUNITY-PLUGIN-TESTS.md). External binaries stay outside checkout and packaging inputs. New input licenses have not been audited; test downloads do not authorize redistribution.
 
 ## Implementation
 
@@ -33,11 +33,11 @@ Reading Time 1.1.2 remains an eleventh regression sentinel, not a top-ten claim.
 
 ## Remaining scope and security
 
-Worker remains the default and rejects DOM/native modules. Renderer execution remains explicit, unsandboxed opt-in. Unsafe evaluation is a separate profile-level opt-in; corpus profiles are disposable. No change enables unrestricted filesystem/process access.
+Worker remains the default and rejects DOM/native modules. Renderer execution remains explicit, unsandboxed opt-in. Unsafe evaluation is a separate profile-level opt-in; corpus profiles are disposable. The separately confirmed [native profile](NATIVE-PLUGIN-PERMISSIONS.md) grants unrestricted filesystem/process access to every renderer script, not just one plugin. Neither default execution nor enabling a renderer plugin alone grants native access.
 
-Git requires a reviewed permissioned native service, storage/conflict integration, cancellation, and disposable-repository acceptance tests, not fake filesystem/process modules. Private internals such as `embedRegistry` and `metadataTypeManager` remain explicit gaps. Tasks' recoverable property-type warning is recorded; automatic reference-app property-type integration is not implemented.
+Git receives actual native modules in that full-trust profile rather than fake filesystem/process modules. Disposable-repository acceptance does not establish credential, cancellation or conflict safety for arbitrary user repositories. The original embed registry and editable CodeMirror source surface are bounded implementations, not complete private-API parity; `metadataTypeManager` remains unsupported. Tasks' recoverable property-type warning is recorded; automatic reference-app property-type integration is not implemented.
 
-The remaining goal includes Excalidraw drawing/edit/reopen, Kanban board edits/conversion, Git commit/diff/backup/conflict flows, Copilot authorized authenticated inference, and Style Settings CSS round trips. Existing bounded tests establish neither mobile compatibility nor arbitrary versions, complete settings coverage or all upstream features.
+The remaining goal includes additional Excalidraw tools/export/embedding and core Canvas integration, Kanban card/completion/move/conversion workflows, Git diff/backup/conflict/authentication flows, Copilot authorized authenticated inference, and Style Settings CSS round trips. Existing bounded tests establish neither mobile compatibility nor arbitrary versions, complete settings coverage or all upstream features.
 
 ## Public contracts
 

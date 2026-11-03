@@ -68,6 +68,26 @@ export class Vault {
       return {path:relative,content,version:hash(content)};
   }
   async create(relative, content) {return this.write(relative,content,undefined,true);}
+  async readBinary(relative) {
+    const full=await this.safe(relative),stat=await fs.stat(full);
+    if(!stat.isFile()||stat.size>64*1024*1024)throw new Error('Invalid or oversized binary file');
+    const data=await fs.readFile(full);
+    if(data.byteLength>64*1024*1024)throw new Error('Binary file grew beyond the size limit');
+    return data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength);
+  }
+  async writeBinary(relative,data,mode='write') {
+    if(!['write','create','modify'].includes(mode))throw new Error('Invalid binary write mode');
+    if(!(data instanceof ArrayBuffer)&&!ArrayBuffer.isView(data))throw new Error('Binary data must be an ArrayBuffer or view');
+    if(ArrayBuffer.isView(data)&&!(data.buffer instanceof ArrayBuffer))throw new Error('Shared binary buffers are unsupported');
+    if(data.byteLength>64*1024*1024)throw new Error('Binary data is too large');
+    const bytes=Buffer.from(ArrayBuffer.isView(data)?new Uint8Array(data.buffer,data.byteOffset,data.byteLength):new Uint8Array(data));
+    return this.serialize(async()=>{
+      const full=await this.safe(relative);await fs.mkdir(path.dirname(full),{recursive:true});
+      if(mode==='modify'){const handle=await fs.open(full,'r+');try{if(!(await handle.stat()).isFile())throw new Error('Not a file');await handle.truncate(0);await handle.writeFile(bytes);}finally{await handle.close();}}
+      else await fs.writeFile(full,bytes,{flag:mode==='create'?'wx':'w'});
+      return {path:relative,version:hash(bytes)};
+    });
+  }
   async append(relative, content) {
     if(typeof content!=='string')throw new Error('Invalid text');
     return this.serialize(async()=>{
@@ -171,7 +191,9 @@ export class Vault {
       try {
         const manifest=JSON.parse(await fs.readFile(manifestPath,'utf8'));
         if(manifest.id!==entry.name || typeof manifest.name!=='string' || typeof manifest.version!=='string') continue;
-        result.push({manifest,code:await fs.readFile(codePath,'utf8')});
+        let styles='';
+        try{const stylePath=await this.safe(`.crafactory/plugins/${entry.name}/styles.css`,true);if((await fs.stat(stylePath)).size>4*1024*1024)throw new Error('Plugin stylesheet too large');styles=await fs.readFile(stylePath,'utf8');}catch(error){if(error.code!=='ENOENT')throw error;}
+        result.push({manifest,code:await fs.readFile(codePath,'utf8'),...(styles?{styles}:{})});
       } catch {}
     }
     return result;

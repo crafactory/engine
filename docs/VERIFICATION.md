@@ -5,6 +5,55 @@
 > plugin status see [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); for API boundaries
 > see [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md).
 
+## Native profile, drawing, board and Git increment
+
+On 2026-11-03, the complete Linux x64 candidate passed inventory validation, 838 unit tests
+across 47 files, TypeScript/production build, all 64 browser tests and all 79 Electron desktop
+tests. The desktop run included all eleven unchanged, hash-pinned upstream inputs in each of
+Worker and renderer mode; none of those corpus cases was skipped. Build output retained the
+existing large-chunk warning. This is source-runtime evidence, not installer/release or native
+Windows/macOS acceptance.
+
+The renderer report contains six `BOUNDED_WORKFLOWS_PASS`, three
+`BOUNDED_WORKFLOWS_WITH_ERRORS`, one `STARTUP_WITH_ERRORS` and one `STARTUP_ONLY` outcome.
+All eleven default Worker inputs still refuse startup. Exact inputs, grants, timestamps,
+workflow assertions and runtime/console diagnostics are retained in
+[renderer evidence](compatibility/renderer-community-results.json) and
+[Worker evidence](compatibility/community-results.json), generated from one complete run per
+mode rather than mixed probes. The current tracker is
+[PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md).
+
+The explicit native profile test verifies default refusal, both cancellation layers,
+restart-based grant/revocation, real bytes outside a disposable vault, a Git subprocess,
+package-relative CommonJS loading, concurrent preference updates and rollback on write failure.
+The profile grants every renderer script OS-user filesystem/process/credential/network access;
+it is not per-plugin isolation. Test processes use allowlisted environments and temporary
+homes, not OS filesystem containment. Defaults retain context isolation, sandboxing and no Node
+integration; the Xvfb launcher's `--no-sandbox` means these runs do not certify OS sandbox
+enforcement. See [native permissions](NATIVE-PLUGIN-PERMISSIONS.md).
+
+Excalidraw acceptance draws a real rectangle through pointer input, checks actual file save,
+switches documents, restarts the application, re-enables the plugin and reopens the exact
+element identity/dimensions. Its private Obsidian core Canvas integration still rejects.
+Git acceptance stages the real index, makes a specific-message commit, pushes to a local bare
+remote and pulls a peer commit into the actual editor. Kanban creates and persists a board/list,
+switches/restarts/reopens it, but card submission still reports undefined `has`, and focus
+reports undefined `setTimeout`; negative acceptance checks that no card was saved. Tasks retains
+its property-type error, and Copilot initialization reaches unsupported secret storage.
+These are bounded observations, not full-feature compatibility.
+
+An earlier complete candidate had 75 desktop passes and three failures: Templater exposed
+legacy CM5 configuration/specification, state-copy and stream-advancement gaps; Excalidraw's
+harness dragged before the rectangle tool finished activating; Tasks' retained property-type
+error required an explicit with-errors outcome instead of a clean workflow pass. Original CM5
+repairs, active-tool synchronization and accurate outcome classification preceded the complete
+passing run. The additional CM5 regression fixture is included in the final 79 cases.
+
+The final-source CodeRabbit review and cloud checks are separate merge gates, not established
+by these local results. Authentication/signing/hooks/conflicts, additional drawing tools/export/
+embedding, Kanban cards/completion/moves, arbitrary plugin leaf-state restoration, installed
+reference differential testing and native Windows/macOS/mobile remain unverified or unsupported.
+
 ## Narrowed default CSP
 
 This section records removing the default-entry `wasm-unsafe-eval` relaxation left over from

@@ -5,6 +5,7 @@ import {parse as parseYaml,stringify as stringifyYaml} from 'yaml';
 import {frontmatter,resolveLink} from './knowledge';
 import type {Entry,Note,PluginManifest} from './types';
 import type {CachedMetadata} from './metadata';
+import {Scope} from './compat-keymap';
 
 const exposedApps:any[]=[];
 /** Expose the latest trusted renderer App globally, matching Obsidian's untyped window.app. */
@@ -42,9 +43,13 @@ export interface CompatHost {
   request(operation:string,args:unknown[]):Promise<unknown>;
   commands(commands:{id:string;name:string}[]):void;
   notice(message:string):void;
+  trace?:(member:string)=>void;
   native?:CompatNativeServices;
   ui?:{
     scope?:unknown;
+    keymap?:unknown;
+    embedRegistry?:unknown;
+    reportError?:(error:unknown)=>void;
     exports:Record<string,unknown>;workspace:Record<string,unknown>;
     statusBar():HTMLElement;settingTab(tab:any):()=>void;
     editorExtension(extension:unknown):()=>void;updateOptions():void;
@@ -60,19 +65,23 @@ export interface CompatHost {
   };
 }
 export class FileSystemAdapter {
-  constructor(private readonly root=''){}
+  constructor(private readonly root='',private readonly binary?:{read:(path:string)=>Promise<ArrayBuffer>;write:(path:string,data:ArrayBuffer|ArrayBufferView)=>Promise<unknown>}){}
   getBasePath(){if(!this.root)return unsupported('FileSystemAdapter.getBasePath');return this.root;}
   getName(){if(!this.root)return unsupported('FileSystemAdapter.getName');return this.root.split(/[\\/]/).filter(Boolean).pop()||'';}
+  async readBinary(path:string){if(!this.binary)return unsupported('FileSystemAdapter.readBinary');return this.binary.read(path);}
+  async writeBinary(path:string,data:ArrayBuffer|ArrayBufferView){if(!this.binary)return unsupported('FileSystemAdapter.writeBinary');await this.binary.write(path,data);}
 }
 export class CompatibilityError extends Error {
   constructor(readonly capability:string){super('Unsupported Obsidian capability: '+capability+'. See docs/PLUGIN-COMPATIBILITY.md.');this.name='CompatibilityError';}
 }
 export const unsupported=(name:string):never=>{throw new CompatibilityError(name);};
-function guard<T extends object>(object:T,label:string):T{return new Proxy(object,{get(target,key,receiver){
+export function guardCompatibilityObject<T extends object>(object:T,label:string,trace?:(member:string)=>void):T{return new Proxy(object,{get(target,key,receiver){
   if(key==='then')return undefined;
+  if(typeof key==='string')trace?.(label+'.'+key);
   if(typeof key==='symbol'||Reflect.has(target,key))return Reflect.get(target,key,receiver);
   return unsupported(label+'.'+key);
 }});}
+const guard=guardCompatibilityObject;
 export const supportedExports=[
   'Plugin','Component','Events','Notice','TAbstractFile','TFile','TFolder','Vault','Workspace','Editor','MarkdownView','FileSystemAdapter',
   'normalizePath','parseYaml','stringifyYaml','parseLinktext','getLinkpath','getAllTags',
@@ -105,6 +114,9 @@ export function componentLifecycle(component:Component,phase:'startup'|'shutdown
 }
 export class Component {
   private loaded=false;private disposed=false;private generation=0;private admission=0;private lifecycle:LifecycleState={};private cleanups:(()=>unknown)[]=[];private children:Component[]=[];private childStarts=new Map<Component,Promise<void>>();
+  /** Observed private alias backed by actual lifecycle state, not a simulated loaded flag. */
+  get _loaded(){return this.loaded&&!this.disposed;}
+  set _loaded(value:boolean){if(typeof value!=='boolean')throw new Error('Expected boolean component loaded state');if(value&&this.disposed)unsupported('Component._loaded reactivation after disposal');this.loaded=value;}
   /** Initialize private host tracking, not an additional Obsidian compatibility export. */
   constructor(){componentLifecycles.set(this,this.lifecycle);}
   /** Serialize reload behind complete old startup and shutdown, including registered cleanup. */
@@ -254,9 +266,11 @@ export interface EditorSuggestTriggerInfo {start:EditorPosition;end:EditorPositi
 export interface EditorSuggestContext {editor:Editor;file:TFile|null;query:string;start:EditorPosition;end:EditorPosition}
 /** Bounded EditorSuggest base: trigger, suggestions and selection are bridged by the renderer host. */
 export class EditorSuggest<T=unknown> {
+  scope:Scope;
+  constructor(public app?:any){this.scope=new Scope(app?.scope);}
   context:EditorSuggestContext|null=null;
   limit=50;
-  onTrigger(_editor:Editor,_cm:Editor,_file:TFile|null):EditorSuggestTriggerInfo|null{return null;}
+  onTrigger(_cursor:EditorPosition,_editor:Editor,_file:TFile|null):EditorSuggestTriggerInfo|null{return null;}
   getSuggestions(_context:EditorSuggestContext):T[]|Promise<T[]>{return [];}
   getSuggestionDisplayText(value:T):string{const label=(value as {label?:unknown})?.label;return typeof value==='string'?value:typeof label==='string'?label:String(value);}
   renderSuggestion(_value:T,_el:HTMLElement):void{}
@@ -265,8 +279,10 @@ export class EditorSuggest<T=unknown> {
   setInstructions(_instructions:unknown[]):void{}
 }
 export function createCompatibilityRuntime(manifest:PluginManifest,initial:PluginSnapshot,host:CompatHost){
+  const guard=<T extends object>(object:T,label:string)=>guardCompatibilityObject(object,label,host.trace);
   let snapshot=initial,plugin:InstanceType<typeof Plugin>|undefined,unloaded=false,editor:Editor|null=null;
   const pending=new Set<Promise<unknown>>(),commands=new Map<string,CompatCommand>(),objects=new Map<string,TAbstractFile>();
+  const pendingCreatedPaths=new Set<string>();
   let mutationQueue=Promise.resolve<unknown>(undefined);
   function request(operation:string,args:unknown[]=[]){
     if(unloaded)return Promise.reject(new Error('Plugin is unloaded'));
@@ -277,12 +293,18 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     result.then(()=>pending.delete(result),()=>pending.delete(result));return result;
   }
   async function settle(){while(pending.size){const results=await Promise.allSettled([...pending]);const failed=results.find(r=>r.status==='rejected');if(failed?.status==='rejected')throw failed.reason;}}
-  const adapter=new FileSystemAdapter(host.native?.basePath);
+  const adapter=new FileSystemAdapter(host.native?.basePath,{read:path=>request('readBinary',[path]) as Promise<ArrayBuffer>,write:(path,data)=>mutate('writeBinary',[path,data])});
+  function ensureAbstract(path:string,folder:boolean):TAbstractFile{
+    const current=objects.get(path);if(current)return current;
+    const file=folder?new TFolder(path,vault):new TFile(path,vault);objects.set(path,file);
+    if(path){const parent=ensureAbstract(path.split('/').slice(0,-1).join('/'),true) as TFolder;file.parent=parent;if(!parent.children.some(child=>child.path===path))parent.children.push(file);}
+    return file;
+  }
   const dailyNotes=()=>host.native?.dailyNotes??{folder:'Daily notes',format:'YYYY-MM-DD',template:''};
   class Vault extends Events {
     configDir='.crafactory';
     get adapter(){return adapter;}
-    getConfig(key:string){return key==='vimMode'?false:key==='dailyNotes'||key==='daily-notes'?dailyNotes():null;}
+    getConfig(key:string){host.trace?.('Vault.getConfig('+key+')');return key==='vimMode'?false:key==='dailyNotes'||key==='daily-notes'?dailyNotes():null;}
     on(name:string,callback:(...args:any[])=>void,ctx?:unknown){if(!['modify','create','delete','rename'].includes(name))return unsupported('Vault event '+name);return super.on(name,callback,ctx);}
     getName(){return snapshot.name;}getRoot(){return objects.get('') as TFolder;}
     getFiles(){return [...objects.values()].filter((f):f is TFile=>f instanceof TFile);}
@@ -290,14 +312,15 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     getAllFolders(includeRoot=false){return [...objects.values()].filter((f):f is TFolder=>f instanceof TFolder&&(includeRoot||!f.isRoot()));}
     getAllLoadedFiles(){return [...objects.values()];}
     getAbstractFileByPath(path:string){return objects.get(path==='/'?'':path)||null;}
+    getAbstractFileByPathInsensitive(path:string){const exact=this.getAbstractFileByPath(path);if(exact)return exact;const folded=normalizePath(path).normalize('NFC').toLowerCase();return [...objects.values()].find(file=>file.path.normalize('NFC').toLowerCase()===folded)??null;}
     getFileByPath(path:string){const f=objects.get(path==='/'?'':path);return f instanceof TFile?f:null;}
     getFolderByPath(path:string){const f=objects.get(path==='/'?'':path);return f instanceof TFolder?f:null;}
     async read(file:TFile){checkFile(file);return request('read',[file.path]) as Promise<string>;}
     async cachedRead(file:TFile){checkFile(file);const note=snapshot.notes.find(n=>n.path===file.path);return note?note.content:this.read(file);}
-    async create(path:string,data:string,options?:unknown){checkOptions(options,'Vault.create options');await mutate('create',[path,data]);return this.getFileByPath(path)!;}
+    async create(path:string,data:string,options?:unknown){checkOptions(options,'Vault.create options');await mutate('create',[path,data]);if(!snapshot.entries.some(entry=>entry.path===path))pendingCreatedPaths.add(path);return ensureAbstract(path,false) as TFile;}
     async modify(file:TFile,data:string,options?:unknown){checkFile(file);checkOptions(options,'Vault.modify options');await mutate('modify',[file.path,data]);}
     async append(file:TFile,data:string,options?:unknown){checkFile(file);checkOptions(options,'Vault.append options');await mutate('append',[file.path,data]);}
-    async createFolder(path:string){await mutate('mkdir',[path]);return this.getFolderByPath(path)!;}
+    async createFolder(path:string){await mutate('mkdir',[path]);if(!snapshot.entries.some(entry=>entry.path===path))pendingCreatedPaths.add(path);return ensureAbstract(path,true) as TFolder;}
     /** Return a collision-free path with a normalized extension; no file is created. */
     getAvailablePath(path:string,extension:string){
       if(typeof path!=='string'||typeof extension!=='string')throw new Error('Invalid available path arguments');
@@ -323,6 +346,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
       await mutate('rename',[from,to]);
       for(const item of subtree){
         const previous=item.path, next=to+previous.slice(from.length);
+        if(pendingCreatedPaths.delete(previous))pendingCreatedPaths.add(next);
         if(objects.get(previous)===item)objects.delete(previous);
         item.path=next;
         item.name=next.split('/').pop()||'';
@@ -347,11 +371,13 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
       const parent=file.parent as TFolder|null;
       await mutate('trash',[file.path]);
       if(parent)parent.children=parent.children.filter(child=>child!==file);
-      for(const item of subtree)if(objects.get(item.path)===item)objects.delete(item.path);
+      for(const item of subtree){pendingCreatedPaths.delete(item.path);if(objects.get(item.path)===item)objects.delete(item.path);}
     }
     delete(){return unsupported('Vault.delete');}process(){return unsupported('Vault.process atomic callback');}
-    readBinary(){return unsupported('Vault.readBinary');}createBinary(){return unsupported('Vault.createBinary');}
-    modifyBinary(){return unsupported('Vault.modifyBinary');}appendBinary(){return unsupported('Vault.appendBinary');}
+    async readBinary(file:TFile){checkFile(file);return request('readBinary',[file.path]) as Promise<ArrayBuffer>;}
+    async createBinary(path:string,data:ArrayBuffer|ArrayBufferView,options?:unknown){checkOptions(options,'Vault.createBinary options');await mutate('createBinary',[path,data]);if(!snapshot.entries.some(entry=>entry.path===path))pendingCreatedPaths.add(path);return ensureAbstract(path,false) as TFile;}
+    async modifyBinary(file:TFile,data:ArrayBuffer|ArrayBufferView,options?:unknown){checkOptions(options,'Vault.modifyBinary options');checkFile(file);await mutate('modifyBinary',[file.path,data]);}
+    appendBinary(){return unsupported('Vault.appendBinary');}
     /** Return the host asset URL (a data URL) through the storage service. */
     async getResourcePath(file:TAbstractFile):Promise<string>{
       checkAbstract(file);
@@ -365,12 +391,26 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   function checkAbstract(file:TAbstractFile){if(!(file instanceof TAbstractFile)||file.vault!==vault||objects.get(file.path)!==file)throw new Error('File does not belong to this vault');}
   function checkFile(file:TFile){checkAbstract(file);if(!(file instanceof TFile))throw new Error('Expected TFile');}
   const vault=guard(new Vault(),'Vault');
-  class MarkdownView {file:TFile|null;editor:Editor|null;constructor(){this.file=vault.getFileByPath(snapshot.active);this.editor=editor;return guard(this,'MarkdownView');}getViewType(){return 'markdown';}getViewData(){return snapshot.notes.find(n=>n.path===snapshot.active)?.content||'';}async save(){await mutationQueue;await request('save',[snapshot.active]);}}
+  class MarkdownView extends Component {
+    constructor(){super();return guard(this,'MarkdownView');}
+    get file(){return vault.getFileByPath(snapshot.active);}
+    get editor(){return editor??(host.ui?new Editor({text:this.getViewData(),from:0,to:0},()=>unsupported('Markdown preview editing')):null);}
+    get leaf():any{if(!host.ui)return unsupported('MarkdownView.leaf');return host.ui.workspace.activeLeaf??null;}
+    get scope(){return host.ui?.scope??unsupported('MarkdownView.scope');}
+    get containerEl(){return host.ui?.workspace.containerEl??this.leaf?.containerEl;}
+    get contentEl(){return (this.containerEl as HTMLElement|undefined)?.querySelector('[data-testid="note-editor"]')??this.containerEl;}
+    getViewType(){return 'markdown';}
+    getMode(){return snapshot.editor?'source':'preview';}
+    getState(){return {file:snapshot.active,mode:this.getMode()};}
+    getViewData(){return snapshot.notes.find(n=>n.path===snapshot.active)?.content||'';}
+    async onClose(){await this.save();}
+    async save(){await mutationQueue;await request('save',[snapshot.active]);}
+  }
   class Workspace extends Events {
     layoutReady=true;
-    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){const custom=name.includes(':')||['parse-style-settings','settings-search-loaded'].includes(name);if(name!=='file-open'&&(!host.ui||(!['layout-change','editor-change','hover-link','file-menu','css-change'].includes(name)&&!custom)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
+    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){const custom=name.includes(':')||['parse-style-settings','settings-search-loaded'].includes(name);if(name!=='file-open'&&(!host.ui||(!['layout-change','active-leaf-change','editor-change','editor-paste','editor-drop','editor-menu','resize','window-open','window-close','quit','hover-link','file-menu','css-change'].includes(name)&&!custom)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
     getActiveFile(){return vault.getFileByPath(snapshot.active);}
-    getActiveViewOfType(type:unknown){return type===MarkdownView&&(editor||host.ui&&snapshot.active.endsWith('.md'))?new MarkdownView():null;}
+    getActiveViewOfType(type:unknown):any{if(host.ui){if(typeof type!=='function')return unsupported('Workspace.getActiveViewOfType invalid type');const view=(host.ui.workspace.activeLeaf as any)?.view;return view instanceof type?view:null;}return type===MarkdownView&&editor?new MarkdownView():null;}
     iterateAllLeaves(_callback:(leaf:unknown)=>void){return unsupported('Workspace.iterateAllLeaves');}
     get activeEditor(){return editor?{file:this.getActiveFile(),editor}:null;}
     onLayoutReady(callback:()=>void){callback();}
@@ -389,10 +429,10 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   let resolvedLinks:Record<string,Record<string,number>>={},unresolvedLinks:Record<string,Record<string,number>>={};
   Object.defineProperty(metadataCache,'resolvedLinks',{get:()=>resolvedLinks});
   Object.defineProperty(metadataCache,'unresolvedLinks',{get:()=>unresolvedLinks});
-  if(host.ui)Object.assign(workspace,host.ui.workspace,{updateOptions:()=>host.ui!.updateOptions()});
+  if(host.ui){Object.defineProperties(workspace,Object.getOwnPropertyDescriptors(host.ui.workspace));Object.assign(workspace,{updateOptions:()=>host.ui!.updateOptions()});}
   const metadataOn=Events.prototype.on.bind(metadataCache);
   metadataCache.on=(name:string,callback:(...args:any[])=>void,ctx?:unknown)=>{
-    if(!['changed','deleted','resolved','resolve'].includes(name))return unsupported('MetadataCache event '+name);
+    if(!['changed','deleted','resolved','resolve'].includes(name)&&!name.includes(':'))return unsupported('MetadataCache event '+name);
     return metadataOn(name,callback,ctx);
   };
   const readCache=(file:unknown)=>{
@@ -406,6 +446,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   };
   metadataCache.getFileCache=readCache;
   metadataCache.getCache=readCacheByPath;
+  metadataCache.getCachedFiles=()=>snapshot.notes.filter(note=>host.native?.metadata?.(note.path)).map(note=>note.path);
   metadataCache.getFirstLinkpathDest=(link:string,path:string)=>{
     const normalized=link.split('|')[0].split('#')[0].replace(/^\.\//,'');
     const parent=path.includes('/')?path.slice(0,path.lastIndexOf('/')+1):'';
@@ -456,6 +497,9 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     writeStorage(key as string,raw);
   }
   const fileManager=guard({
+    async createNewMarkdownFile(parent:TFolder,name='Untitled',content='',options?:unknown){checkAbstract(parent);if(!(parent instanceof TFolder))throw new Error('Expected TFolder');checkOptions(options,'FileManager.createNewMarkdownFile options');if(typeof name!=='string'||/[\\/]/.test(name)||typeof content!=='string')throw new Error('Invalid Markdown filename or content');const base=name.replace(/\.md$/i,'')||'Untitled',path=parent.path?parent.path+'/'+base:base;return vault.create(vault.getAvailablePath(path,'md'),content);},
+    /** Engine's new-note placement is the vault root, independent of source document. */
+    getNewFileParent(sourcePath?:string){if(sourcePath!==undefined&&typeof sourcePath!=='string')throw new Error('Invalid source path');return vault.getRoot();},
     /** Rename a vault file through the existing host rename primitive. */
     async renameFile(file:TAbstractFile,newPath:string){
       checkAbstract(file);
@@ -464,10 +508,45 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     }
   },'FileManager');
   const dailyPlugin={_id:'daily-notes',enabled:true,get instance(){return {options:{...dailyNotes()}};}};
-  const internalPlugins={plugins:{'daily-notes':dailyPlugin},getPluginById:(id:string)=>id==='daily-notes'?dailyPlugin:null};
-  const plugins={plugins:{},getPlugin:(id:string)=>id===manifest.id?plugin??null:null};
+  // Engine's own canvas provider is not the private Obsidian Canvas core plugin.
+  const canvasPlugin={enabled:false,_loaded:false,instance:null,load:()=>unsupported('Obsidian core Canvas plugin')};
+  const internalPluginInstances={'daily-notes':dailyPlugin,canvas:canvasPlugin};
+  const internalPlugins={plugins:host.trace?new Proxy(internalPluginInstances,{get(target,key,receiver){if(typeof key==='string')host.trace?.('InternalPlugins.plugins.'+key);return Reflect.get(target,key,receiver);}}):internalPluginInstances,getPluginById:(id:string)=>id==='daily-notes'?dailyPlugin:id==='canvas'?canvasPlugin:null};
+  const plugins={plugins:{} as Record<string,Plugin>,getPlugin:(id:string)=>id===manifest.id?plugin??null:null};
   const foldManager={load:(_file:TFile)=>({folds:[]}),save:async(_file:TFile,_info:unknown)=>{}};
-  const app=guard({appId:'crafactory-engine',isMobile:false,vault,workspace,metadataCache,fileManager,plugins,internalPlugins,foldManager,loadLocalStorage,saveLocalStorage,...(host.ui?.scope?{scope:host.ui.scope}:{})},'App');
+  type Hotkey={modifiers:string[];key:string};
+  const savedHotkeys=host.ui?loadLocalStorage('engine.hotkeys.'+manifest.id):null;
+  const customKeys:Record<string,Hotkey[]>=Object.assign(Object.create(null),savedHotkeys&&typeof savedHotkeys==='object'?savedHotkeys:{});
+  const hotkeyBindings=new Map<string,unknown[]>();
+  const defaultHotkeys=new Map<string,unknown>();
+  const commandId=(id:string)=>id.startsWith(manifest.id+':')?id.slice(manifest.id.length+1):id;
+  function removeHotkeys(id:string){const scope=host.ui?.scope as any;for(const handler of hotkeyBindings.get(id)??[])scope?.unregister(handler);hotkeyBindings.delete(id);}
+  function bindHotkeys(id:string){
+    removeHotkeys(id);const scope=host.ui?.scope as any,command=commands.get(id);if(!scope||!command)return;
+    const values=customKeys[manifest.id+':'+id]??defaultHotkeys.get(id)??command.hotkeys??[];
+    if(!Array.isArray(values))throw new Error('Invalid hotkeys');
+    for(const hotkey of values)if(!hotkey||typeof hotkey.key!=='string'||!Array.isArray(hotkey.modifiers)||hotkey.modifiers.some((m:unknown)=>!['Mod','Meta','Ctrl','Alt','Shift'].includes(String(m))))throw new Error('Invalid hotkey');
+    const bindings=[];for(const hotkey of values){
+      bindings.push(scope.register(hotkey.modifiers,hotkey.key,()=>{initEditor();if(!available(command,true))return;void Promise.resolve(available(command,false)).then(settle).catch(error=>host.ui?.reportError?host.ui.reportError(error):host.notice(String(error)));return false;}));
+    }hotkeyBindings.set(id,bindings);
+  }
+  const hotkeyManager=guard({
+    customKeys,
+    getDefaultHotkeys(id:string){return defaultHotkeys.get(commandId(id))??commands.get(commandId(id))?.hotkeys??[];},
+    addDefaultHotkeys(command:string|CompatCommand,values?:Hotkey[]){const id=typeof command==='string'?command:command.id;defaultHotkeys.set(commandId(id),values??(typeof command==='object'?command.hotkeys:undefined)??[]);bindHotkeys(commandId(id));},
+    removeDefaultHotkeys(id:string){defaultHotkeys.set(commandId(id),[]);bindHotkeys(commandId(id));},
+    getHotkeys(id:string){return customKeys[id]??this.getDefaultHotkeys(id);},
+    setHotkeys(id:string,hotkeys:Hotkey[]){if(typeof id!=='string'||!Array.isArray(hotkeys))throw new Error('Invalid hotkeys');customKeys[id]=hotkeys;bindHotkeys(commandId(id));saveLocalStorage('engine.hotkeys.'+manifest.id,customKeys);},
+    async save(){for(const id of commands.keys())bindHotkeys(id);saveLocalStorage('engine.hotkeys.'+manifest.id,customKeys);}
+  },'HotkeyManager');
+  const commandManager=guard({
+    get commands():Record<string,CompatCommand>{return Object.fromEntries(this.listCommands().map(command=>[command.id,command]));},
+    listCommands(){return [...commands.values()].map(command=>({...command,id:manifest.id+':'+command.id,name:manifest.name+': '+command.name}));},
+    findCommand(id:string){return this.commands[id]??null;},
+    executeCommand(command:CompatCommand){const owned=typeof command?.id==='string'?commands.get(commandId(command.id)):undefined;if(!owned)return false;initEditor();if(!available(owned,true))return false;void Promise.resolve(available(owned,false)).then(settle).catch(error=>host.ui?.reportError?host.ui.reportError(error):host.notice(String(error)));return true;},
+    executeCommandById(id:string){const command=commands.get(commandId(id));return command?this.executeCommand(command):false;}
+  },'CommandManager');
+  const app=guard({appId:'crafactory-engine',isMobile:false,vault,workspace,metadataCache,fileManager,plugins,internalPlugins,foldManager,loadLocalStorage,saveLocalStorage,...(host.ui?{hotkeyManager,commands:commandManager,getAccentColor:()=>{const color=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();return color||unsupported('App.getAccentColor without theme');}}:{}),...(host.ui?.scope?{scope:host.ui.scope}:{}),...(host.ui?.keymap?{keymap:host.ui.keymap}:{}),...(host.ui?.embedRegistry?{embedRegistry:host.ui.embedRegistry}:{})},'App');
   // Some plugins use Obsidian's untyped global instead of the plugin context.
   exposeApp(app);
   function refresh(next:PluginSnapshot,events=false){
@@ -476,7 +555,9 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     const removedNotes=events?previous.notes.filter(note=>!nextNotePaths.has(note.path)).map(note=>({note,file:objects.get(note.path)})):[];
     const removedEntries=events?previous.entries.filter(entry=>!snapshot.entries.some(next=>next.path===entry.path)).map(entry=>({entry,file:objects.get(entry.path)})):[];
     const createdEntries=events?snapshot.entries.filter(entry=>!previous.entries.some(prev=>prev.path===entry.path)):[];
-    const paths=new Set(['',...snapshot.entries.map(e=>e.path)]);
+    for(const entry of snapshot.entries)pendingCreatedPaths.delete(entry.path);
+    const paths=new Set(['',...snapshot.entries.map(e=>e.path),...snapshot.notes.map(note=>note.path),...pendingCreatedPaths]);
+    for(const path of [...paths]){const parts=path.split('/');while(parts.length>1){parts.pop();paths.add(parts.join('/'));}}
     for(const path of [...objects.keys()])if(!paths.has(path))objects.delete(path);
     if(!objects.has(''))objects.set('',new TFolder('',vault));
     for(const entry of snapshot.entries){
@@ -485,6 +566,10 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
       file.name=entry.name;file.path=entry.path;
       if(file instanceof TFile)file.stat={ctime:entry.ctime,mtime:entry.mtime,size:entry.size};
     }
+    // React/native watchers may publish note content before the matching directory
+    // listing. Metadata and workspace events must never receive a null file.
+    for(const note of snapshot.notes)ensureAbstract(note.path,false);
+    for(const path of paths)if(!objects.has(path))ensureAbstract(path,true);
     for(const f of objects.values())if(f instanceof TFolder)f.children=[];
     for(const f of objects.values())if(f.path){f.parent=objects.get(f.path.split('/').slice(0,-1).join('/')) as TFolder||null;f.parent?.children.push(f);}
     rebuildLinks();
@@ -492,7 +577,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
       initEditor();
       for(const {entry,file} of removedEntries)if(file)vault.trigger('delete',file);
       for(const entry of createdEntries){const file=objects.get(entry.path);if(file)vault.trigger('create',file);}
-      if(previous.active!==snapshot.active)workspace.trigger('file-open',workspace.getActiveFile());
+      if(previous.active!==snapshot.active){workspace.trigger('file-open',workspace.getActiveFile());if(host.ui)workspace.trigger('active-leaf-change',host.ui.workspace.activeLeaf);}
       if(host.ui&&(previous.active!==snapshot.active||!!previous.editor!==!!snapshot.editor))workspace.trigger('layout-change');
       for(const note of snapshot.notes){
         const before=previous.notes.find(n=>n.path===note.path);
@@ -507,6 +592,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     }
   }
   refresh(initial);
+  if(host.ui){const leaf=host.ui.workspace.activeLeaf as any;if(leaf&&!leaf.view)leaf.view=new MarkdownView();}
   function initEditor(){
     const path=snapshot.active;
     editor=snapshot.editor?new Editor(snapshot.editor,(base,text,from,to)=>{void mutate('editor',[path,base,text,from,to]);}):null;
@@ -529,9 +615,9 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     addCommand(command:CompatCommand){
       if(typeof command.id!=='string'||typeof command.name!=='string'||!command.id)throw new Error('Invalid plugin command');
       if(command.repeatable||command.mobileOnly)return unsupported('Command repeatable/mobileOnly');
-      commands.set(command.id,command);publish();this.register(()=>{commands.delete(command.id);});return {...command,id:manifest.id+':'+command.id,name:manifest.name+': '+command.name};
+      commands.set(command.id,command);bindHotkeys(command.id);publish();this.register(()=>{removeHotkeys(command.id);commands.delete(command.id);});return {...command,id:manifest.id+':'+command.id,name:manifest.name+': '+command.name};
     }
-    removeCommand(id:string){commands.delete(id.startsWith(manifest.id+':')?id.slice(manifest.id.length+1):id);publish();}
+    removeCommand(id:string){id=commandId(id);removeHotkeys(id);commands.delete(id);publish();}
     loadData(){return request('loadData');}saveData(data:unknown){return mutate('saveData',[data]);}
     onExternalSettingsChange(){return unsupported('Plugin.onExternalSettingsChange');}
     onUserEnable():unknown{return undefined;}
@@ -595,15 +681,21 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     // Engine's current application UI is English; this is not the OS/browser locale.
     getLanguage:()=> 'en'};
   Object.assign(exports,host.ui?.exports);
-  const api=new Proxy(exports,{get(target,key){if(typeof key==='symbol')return Reflect.get(target,key);if(key==='__esModule')return false;if(Object.hasOwn(target,key))return target[key];return unsupported('export '+key);}});
+  if(host.trace)for(const [name,constructor] of [['Plugin',Plugin],['WorkspaceLeaf',exports.WorkspaceLeaf]] as const)if(typeof constructor==='function')for(const key of Object.getOwnPropertyNames(constructor.prototype)){
+    const descriptor=Object.getOwnPropertyDescriptor(constructor.prototype,key);
+    if(key==='constructor'||typeof descriptor?.value!=='function')continue;
+    const method=descriptor.value;Object.defineProperty(constructor.prototype,key,{...descriptor,value:function(this:unknown,...args:unknown[]){host.trace?.(name+'.'+key);return method.apply(this,args);}});
+  }
+  if(host.ui)for(const name of ['Keymap','Platform']){const value=exports[name];if(value&&typeof value==='object')exports[name]=guard(value,name);}
+  const api=new Proxy(exports,{get(target,key){if(typeof key==='symbol')return Reflect.get(target,key);if(key==='__esModule')return false;host.trace?.('export.'+key);if(Object.hasOwn(target,key))return target[key];return unsupported('export '+key);}});
   return {
     app,api,settle,
     sync(next:PluginSnapshot){refresh(next,true);publish();},
     /** Await actual initialization even when public repeated load calls return immediately. */
-    async boot(constructor:any){if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');plugin=new constructor(app,manifest);await Promise.all([plugin!.load(),componentLifecycle(plugin!,'startup')]);await plugin!.onUserEnable();await settle();publish();metadataCache.trigger('resolved');if(host.ui)workspace.trigger('layout-change');},
+    async boot(constructor:any){if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');plugin=new constructor(app,manifest);plugins.plugins[manifest.id]=plugin!;await Promise.all([plugin!.load(),componentLifecycle(plugin!,'startup')]);await plugin!.onUserEnable();await settle();publish();metadataCache.trigger('resolved');if(host.ui)workspace.trigger('layout-change');},
     async run(id:string){if(unloaded)throw new Error('Plugin is unloaded');initEditor();const command=commands.get(id);if(!command)throw new Error('Command not found');if(!available(command,true))throw new Error('Command unavailable');await available(command,false);await settle();},
     /** Keep the request fence open until actual hook/cleanup work and data operations settle. */
-    async stop(){if(unloaded)return;try{if(plugin)await Promise.all([plugin.unload(),componentLifecycle(plugin,'shutdown')]);await settle();}finally{commands.clear();host.commands([]);unloaded=true;releaseApp(app);}},
+    async stop(){if(unloaded)return;try{if(plugin)await Promise.all([plugin.unload(),componentLifecycle(plugin,'shutdown')]);await settle();}finally{for(const id of hotkeyBindings.keys())removeHotkeys(id);delete plugins.plugins[manifest.id];commands.clear();host.commands([]);unloaded=true;releaseApp(app);}},
     /** Deliver a hover-link event to renderer plugins with a minimal hover parent. */
     hoverLink(payload:{event:MouseEvent;source:string;targetEl:HTMLElement;linktext:string;sourcePath:string}){
       workspace.trigger('hover-link',{...payload,hoverParent:{hoverPopover:null}});

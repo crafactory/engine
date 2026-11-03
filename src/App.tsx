@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import {bridge,defaults} from './bridge';
 import {renameDestination} from './file-path';
+import {readWorkspaceLayout} from './workspace-layout';
 import {title,isNote,frontmatter,setProperties,resolveLink,headings,applyTemplate,rewriteLinks} from './knowledge';
 import type {EditorHandle} from './Editor';
 import {Markdown,renderMarkdown} from './Markdown';
@@ -57,6 +58,8 @@ export function App(){
   const [tabs,setTabs]=useState<string[]>([]),[active,setActive]=useState(''),[split,setSplit]=useState<string|null>(null);
   const [uiRevision,setUiRevision]=useState(0);
   const [pluginFormats,setPluginFormats]=useState<Record<string,{viewType:string;pluginId:string}>>({});
+  const pluginDocumentViews=useRef(new Map<string,{viewType:string;pluginId:string;leafId:string}>());
+  const [,refreshPluginDocumentViews]=useState(0);
   const [left,setLeft]=useState(()=>window.innerWidth>650),[right,setRight]=useState(true),[sideTab,setSideTab]=useState('files'),[rightTab,setRightTab]=useState('outline');
   const [expanded,setExpanded]=useState<Set<string>>(new Set(['Guides','Ideas','Projects']));
   const [bookmarks,setBookmarks]=useState<string[]>([]),[recent,setRecent]=useState<string[]>([]);
@@ -100,6 +103,8 @@ export function App(){
   const uiSettings=uiRuntime.current?.ui.settings()??[];
   const uiBlocks=useMemo(()=>uiRuntime.current?.ui.blocks()??[],[uiRevision]);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
+  const vaultState=useRef<VaultState>({settings,bookmarks,workspaces,recent,propertyTypes});
+  vaultState.current={settings,bookmarks,workspaces,recent,propertyTypes,layout:{tabs,active,split,left,right,mode}};
   const pluginManifests=useRef(new Map<string,PluginManifest>());
   const pluginFormatStacks=useRef(new Map<string,{pluginId:string;viewType:string;dispose:()=>void}[]>());
   const pluginViewCleanups=useRef(new Map<string,()=>void>());
@@ -126,7 +131,8 @@ export function App(){
   /** Keep the App editor handle pointing at the registered editor view. */
   const setEditorHandle=useCallback((handle:EditorHandle|null)=>{editor.current=handle;},[]);
   /** Resolve a file path to a compatibility plugin view registered for its extension. */
-  function pluginViewFor(path:string){
+  function pluginViewFor(path:string):{viewType:string;pluginId:string;leafId?:string}|undefined{
+    const documentView=pluginDocumentViews.current.get(path);if(documentView)return documentView;
     const extension=path.split('.').pop()?.toLowerCase()??'';
     return Object.prototype.hasOwnProperty.call(pluginFormats,extension)?pluginFormats[extension]:undefined;
   }
@@ -160,6 +166,8 @@ export function App(){
   /** Remove all view/format registrations owned by a plugin. */
   function clearPluginExtensions(id:string){
     removePluginExtensions(id);
+    for(const [path,view]of pluginDocumentViews.current)if(view.pluginId===id)pluginDocumentViews.current.delete(path);
+    refreshPluginDocumentViews(value=>value+1);
     for(const [key,dispose] of [...pluginViewCleanups.current])if(key.startsWith(id+':')){dispose();pluginViewCleanups.current.delete(key);}
   }
   async function stopPlugins(){
@@ -167,7 +175,7 @@ export function App(){
     finally{
       for(const stack of pluginFormatStacks.current.values())for(const entry of stack)entry.dispose();
       for(const dispose of pluginViewCleanups.current.values())dispose();
-      pluginFormatStacks.current.clear();pluginViewCleanups.current.clear();setPluginFormats({});
+      pluginFormatStacks.current.clear();pluginViewCleanups.current.clear();setPluginFormats({});pluginDocumentViews.current.clear();refreshPluginDocumentViews(value=>value+1);
       pluginStops.current.clear();pluginManifests.current.clear();setEnabledPlugins([]);setPluginCommands([]);
     }
   }
@@ -224,7 +232,10 @@ export function App(){
       const pref={...defaults,...state.settings};setSettings(pref);setMode(bridge.desktop?pref.mode:'reading');
       setBookmarksFromService(state.bookmarks||[]);setWorkspacesFromService(state.workspaces||{});setRecent(state.recent||[]);setPropertyTypes(readPropertyTypes(state.propertyTypes));
       const path=all.find(n=>n.path==='Welcome.md')?.path||all.find(n=>isNote(n.path))?.path||all[0]?.path||'';
-      setTabs(path?[path]:[]);setActive(path);setSplit(null);history.current=path?[path]:[];historyIndex.current=path?0:-1;
+      const layout=readWorkspaceLayout(state.layout,vault.entries.filter(entry=>!entry.folder).map(entry=>entry.path)),initialPath=layout?.active??path;
+      setTabs(layout?.tabs??(path?[path]:[]));setActive(initialPath);setSplit(layout?.split??null);
+      if(layout){setLeft(layout.left);setRight(layout.right);setMode(bridge.desktop?layout.mode:'reading');}
+      history.current=initialPath?[initialPath]:[];historyIndex.current=initialPath?0:-1;
       loaded.current=true;await loadPluginPackages(pref.disabledPlugins);
     }catch(e){report(e);}finally{setLoading(false);}
   }
@@ -246,9 +257,9 @@ export function App(){
 
   useEffect(()=>{
     if(!loaded.current)return;
-    const timer=setTimeout(()=>{bridge.state({settings,bookmarks,workspaces,recent,propertyTypes}).catch(report);},700);
+    const timer=setTimeout(()=>{bridge.state(vaultState.current).catch(report);},700);
     return()=>clearTimeout(timer);
-  },[settings,bookmarks,workspaces,recent,propertyTypes]);
+  },[settings,bookmarks,workspaces,recent,propertyTypes,tabs,active,split,left,right,mode]);
   useEffect(()=>{
     document.documentElement.dataset.theme=settings.theme;
     for(const controller of pluginStops.current.values())controller.triggerWorkspaceEvent?.('css-change',[]);
@@ -300,7 +311,7 @@ export function App(){
     await Promise.all(notesRef.current.filter(n=>savedContent.current.get(n.path)!==n.content).map(n=>persist(n.path)));
   }
   const closeHandler=useRef<()=>void>(()=>{}),closing=useRef(false);
-  closeHandler.current=()=>{if(closing.current)return;closing.current=true;stopPlugins().then(async()=>{if(loaded.current){await flush();await bridge.state({settings,bookmarks,workspaces,recent,propertyTypes});}}).then(()=>bridge.closeReady?.()).catch(error=>{closing.current=false;report(error);});};
+  closeHandler.current=()=>{if(closing.current)return;closing.current=true;stopPlugins().then(async()=>{if(loaded.current){await flush();await bridge.state(vaultState.current);}}).then(()=>bridge.closeReady?.()).catch(error=>{closing.current=false;report(error);});};
   useEffect(()=>{if(!loading)return bridge.onBeforeClose?.(()=>closeHandler.current());},[loading]);
   useEffect(()=>{
     const unload=(event:BeforeUnloadEvent)=>{if(notesRef.current.some(n=>savedContent.current.get(n.path)!==n.content)){event.preventDefault();event.returnValue='There are unsaved changes.';}};
@@ -403,7 +414,7 @@ export function App(){
     try{await trashPath(path);}catch(e){report(e);}
   }
   async function chooseVault(create=false){
-    try{await stopPlugins();await flush();await bridge.state({settings,bookmarks,workspaces,recent,propertyTypes});if(await bridge.choose(create))await initialize();}catch(e){report(e);}
+    try{await stopPlugins();await flush();await bridge.state(vaultState.current);if(await bridge.choose(create))await initialize();}catch(e){report(e);}
   }
   async function dailyNote(){
     const template=notes.find(n=>n.path===settings.dailyTemplate)?.content||'# {{date}}\n\n';
@@ -520,7 +531,7 @@ export function App(){
     const plugin=pluginList.find(p=>p.manifest.id===id);if(!plugin)return;
     const renderer=pluginModes[id]==='renderer';
     if(!await dialog.confirm('Enable '+plugin.manifest.name+'?',renderer?
-      'Trusted renderer mode is NOT sandboxed. This code can access the entire UI and vault bridge, including notes and workspace metadata, during startup, commands and unload. It can freeze the application and cannot be forcibly stopped. Only enable code you trust. Back up your vault first.':
+      'Trusted renderer mode is NOT sandboxed. This code can access the entire UI and vault bridge, including notes and workspace metadata, during startup, commands and unload. If native Node.js access is enabled for this profile, it also has full filesystem, command execution, credential and network access. It can freeze the application and cannot be forcibly stopped. Only enable code you trust. Back up your vault first.':
       'This local Worker plugin can read and modify vault notes and save plugin data during startup, commands and unload. Only enable code you trust.'))return;
     const generation=vaultGeneration.current;
     const ensureOpen=()=>{if(generation!==vaultGeneration.current)throw new Error('Plugin belongs to a closed vault');};
@@ -543,11 +554,23 @@ export function App(){
       await refreshEntries();
       return result;
     };
+    const mutateBinary=async(name:'writeBinary'|'createBinary'|'modifyBinary',path:string,data:ArrayBuffer|ArrayBufferView)=>{
+      ensureOpen();checkPath(path);await flush();
+      const write=bridge[name];if(!write)throw new Error('Binary vault writes are unavailable on this host');
+      const before=notesRef.current.find(note=>note.path===path);
+      const result=await write.call(bridge,path,data);
+      if(before||isNote(path)){const note=await storage().read(path);savedContent.current.set(path,note.content);versions.current.set(path,note.version);updateNotes(before?notesRef.current.map(current=>current.path===path&&current.content===before.content?note:current):[...notesRef.current,note]);}
+      await refreshEntries();return result;
+    };
     const host:CompatHost={
       loadData:async pluginId=>{ensureOpen();return storage().pluginData(pluginId);},
       saveData:async(pluginId,data)=>{ensureOpen();return storage().pluginData(pluginId,data,true);},
       read:async path=>{ensureOpen();checkPath(path);return (await storage().read(path)).content;},
       readVersioned:async path=>{ensureOpen();checkPath(path);return storage().read(path);},
+      readBinary:async path=>{ensureOpen();checkPath(path);if(!bridge.readBinary)throw new Error('Binary vault reads are unavailable on this host');return bridge.readBinary(path);},
+      writeBinary:(path,data)=>mutateBinary('writeBinary',path,data),
+      createBinary:(path,data)=>mutateBinary('createBinary',path,data),
+      modifyBinary:(path,data)=>mutateBinary('modifyBinary',path,data),
       create:(path,text)=>mutateText('create',path,text),
       modify:(path,text,expectedVersion)=>mutateText('modify',path,text,expectedVersion),
       append:(path,text)=>mutateText('append',path,text),
@@ -576,11 +599,12 @@ export function App(){
       const onTabs=(tabs:PluginTab[])=>setPluginTabs(t=>({...t,[id]:tabs}));
       const onExtensions=(extensions:unknown[])=>setPluginExtensions(e=>({...e,[id]:extensions}));
       const onFileExtensions=(nextExtensions:string[],viewType?:string)=>{if(viewType)addPluginExtensions(id,nextExtensions,viewType);else removePluginExtensions(id,nextExtensions);};
+      const onOpenView=(viewType:string|null,path:string,leafId:string)=>{if(generation!==vaultGeneration.current)return;checkPath(path);if(viewType)pluginDocumentViews.current.set(path,{viewType,pluginId:id,leafId});else if(pluginDocumentViews.current.get(path)?.leafId===leafId)pluginDocumentViews.current.delete(path);refreshPluginDocumentViews(value=>value+1);};
       const service=compatRuntime.current?.service;
       if(!service)throw new Error('Obsidian plugin support is unavailable');
       const controller=service.start({package:plugin,mode:renderer?'renderer':'worker',callbacks:{
         snapshot:()=>pluginSnapshot(plugin.manifest),commands:onCommands,host,activity:request=>{pluginRequests.current.add(request);request.then(()=>pluginRequests.current.delete(request),()=>pluginRequests.current.delete(request));},notice:toast,failure:onFailure,
-        tabs:onTabs,extensions:onExtensions,fileExtensions:onFileExtensions,native
+        tabs:onTabs,extensions:onExtensions,fileExtensions:onFileExtensions,openView:onOpenView,saveLayout:()=>{if(generation!==vaultGeneration.current)throw new Error('Vault changed');return bridge.state(vaultState.current);},native
       }});
       pluginManifests.current.set(id,plugin.manifest);pluginStops.current.set(id,controller);await controller.ready;
       if(generation!==vaultGeneration.current){clearPluginExtensions(id);await controller.stop();}else setEnabledPlugins(e=>[...e.filter(p=>p!==id),id]);
@@ -746,7 +770,7 @@ export function App(){
     }
     if(path.startsWith('web:'))return <section className="web-view"><header><Globe size={16}/><span>{path.slice(4)}</span><a href={path.slice(4)} target="_blank" rel="noreferrer">Open in browser<ExternalLink size={13}/></a></header><p className="web-notice">This site may block embedding. Use “Open in browser” if the page is blank.</p><iframe title="Web viewer" src={path.slice(4)} sandbox="allow-scripts allow-forms allow-same-origin" referrerPolicy="no-referrer"/></section>;
     const customView=pluginViewFor(path);
-    if(customView)return <PluginViewHost path={path} viewType={customView.viewType} controller={pluginStops.current.get(customView.pluginId)}/>;
+    if(customView)return secondary?<PluginViewHost path={path} viewType={customView.viewType} controller={pluginStops.current.get(customView.pluginId)} leafId={customView.leafId}/>:null;
     if(!note){
       if(path&&entries.some(e=>e.path===path&&!e.folder))return <Attachment path={path}/>;
       return <div className="empty workspace-empty"><Logo/><h1>A place to think</h1><p>Create a note, open a vault, or follow an idea.<br/>Your files stay yours.</p><button className="primary" onClick={()=>createNote()}><Plus size={15}/>Create a note</button><button onClick={()=>chooseVault()}><Folder size={15}/>Open local vault</button><small>{bridge.desktop?'Local-first · Markdown · MIT':'Temporary preview · Install desktop for local files'}</small></div>;
@@ -840,7 +864,7 @@ export function App(){
           <div className="note-actions">{activeNote&&<div className="view-modes" aria-label="Note mode"><IconButton label="Source mode" onClick={()=>setMode('source')} active={mode==='source'} testid="mode-source"><Code2 size={16}/></IconButton><IconButton label="Live editing" onClick={()=>setMode('live')} active={mode==='live'} testid="mode-live"><Pencil size={15}/></IconButton><IconButton label="Reading view" onClick={()=>setMode('reading')} active={mode==='reading'} testid="mode-reading"><BookOpen size={16}/></IconButton></div>}<IconButton label="More actions" onClick={()=>setPalette('commands')}><MoreHorizontal size={19}/></IconButton></div>
         </div>
         {error&&<div className="error-banner" role="alert"><span>{error}</span><button onClick={()=>setError('')} aria-label="Dismiss error"><X size={16}/></button></div>}
-        {loading?<div className="workspace-loading"><div className="skeleton-list"><i/><i/><i/></div><p>Opening vault…</p></div>:<Suspense fallback={<div className="workspace-loading"><p>Opening view…</p></div>}><div className={'panes '+(split?'split':'')}><section className="workspace-pane">{showNote(active)}</section>{split&&<section className="workspace-pane secondary-pane"><header><span>{title(split)}</span><button aria-label="Close split pane" onClick={()=>setSplit(null)}><X size={15}/></button></header>{showNote(split,true)}</section>}</div></Suspense>}
+        {loading?<div className="workspace-loading"><div className="skeleton-list"><i/><i/><i/></div><p>Opening vault…</p></div>:<Suspense fallback={<div className="workspace-loading"><p>Opening view…</p></div>}><div className={'panes '+(split?'split':'')}><section className="workspace-pane">{tabs.map(path=>{const view=pluginViewFor(path);return view?<div key={path} className="retained-plugin-view" hidden={path!==active}><PluginViewHost path={path} viewType={view.viewType} controller={pluginStops.current.get(view.pluginId)} leafId={view.leafId}/></div>:null;})}{showNote(active)}</section>{split&&<section className="workspace-pane secondary-pane"><header><span>{title(split)}</span><button aria-label="Close split pane" onClick={()=>setSplit(null)}><X size={15}/></button></header>{showNote(split,true)}</section>}</div></Suspense>}
       </main>
       {right&&<aside className="right-sidebar" aria-label="Note context">
         <div className="sidebar-tabs"><IconButton label="Outline tab" onClick={()=>setRightTab('outline')} active={rightTab==='outline'}><List size={17}/></IconButton><IconButton label="Backlinks tab" onClick={()=>setRightTab('backlinks')} active={rightTab==='backlinks'}><Link2 size={17}/></IconButton><IconButton label="Outgoing links tab" onClick={()=>setRightTab('outgoing')} active={rightTab==='outgoing'}><ArrowRight size={17}/></IconButton></div>

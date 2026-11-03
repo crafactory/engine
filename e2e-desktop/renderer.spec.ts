@@ -8,12 +8,39 @@ test.beforeEach(async()=>{
   await fs.writeFile(path.join(root,'Test.md'),'Original text');await fs.writeFile(path.join(root,'ZTarget.md'),'Target');await fs.writeFile(path.join(root,'Zeta.md'),'[[ZTarget]]');await fs.writeFile(path.join(root,'Z#.md'),'Sharp target');await fs.writeFile(path.join(root,'Test.fixture'),'fixture body');await fs.writeFile(path.join(root,'Test.base'),'views:\n  - type: fixture-bases\n    name: Fixture\n');
   await fs.writeFile(path.join(root,'Test.txt'),'original text');
   const dir=path.join(root,'.crafactory/plugins/renderer-fixture');await fs.mkdir(dir,{recursive:true});
-  for(const file of ['manifest.json','main.js'])await fs.copyFile('examples/plugins/renderer-fixture/'+file,path.join(dir,file));
+  for(const file of ['manifest.json','main.js','styles.css'])await fs.copyFile('examples/plugins/renderer-fixture/'+file,path.join(dir,file));
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
   app=await electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:{...process.env,ENGINE_DEV:'0'}});
   page=await app.firstWindow();await expect(page.locator('.note-title h1')).toHaveText('Test');
 });
 test.afterEach(async()=>{await app?.close();await fs.rm(root,{recursive:true,force:true});await fs.rm(profile,{recursive:true,force:true});});
+test('renderer view actions, SVG helpers and package CSS retain owned cleanup',async()=>{
+  await enable();await page.getByTestId('settings-close').click();await command('Open view');
+  const action=page.getByRole('button',{name:'Fixture view action',exact:true});
+  expect(await action.evaluate(element=>getComputedStyle(element).getPropertyValue('--fixture-owned-style').trim())).toBe('active');
+  await action.evaluate(element=>{(window as any).__fixtureClosedAction=element;});await action.click();
+  await expect(page.locator('.plugin-view-content')).toHaveText('View action invoked');
+  await page.getByRole('button',{name:'Close Fixture view',exact:true}).click();
+  await page.evaluate(()=>(window as any).__fixtureClosedAction.click());expect(await page.evaluate(()=>(window as any).__fixtureViewActions)).toBe(1);
+  await settings();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();
+  await expect(page.locator('style[data-plugin="renderer-fixture"]')).toHaveCount(0);
+});
+test('renderer DOM compatibility helpers delegate, unsubscribe and observe real window migration',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  const result=await page.evaluate(async()=>{
+    const root=document.createElement('div') as any,button=document.createElement('button'),child=document.createElement('span');
+    button.className='fixture-delegate';button.append(child);root.append(button);document.body.append(root);
+    let calls=0,context=false,delegate=false;const listener=function(this:unknown,_event:Event,target:HTMLElement){calls++;context=this===root;delegate=target===button;};
+    root.on('click','.fixture-delegate',listener);child.click();root.off('click','.fixture-delegate',listener);child.click();
+    const values=['a','b','a'] as any;values.remove('a');
+    const node=document.createElement('div') as any;let inserted=0;const stopInserted=node.onNodeInserted(()=>inserted++,true);root.append(node);await Promise.resolve();node.remove();root.append(node);await Promise.resolve();stopInserted();
+    const frame=document.createElement('iframe');root.append(frame);let migrated=0,correctWindow=false;
+    const moved=new Promise<void>(resolve=>{const stop=node.onWindowMigrated((win:Window)=>{migrated++;correctWindow=win===frame.contentWindow;stop();resolve();});});
+    frame.contentDocument!.body.append(node);await moved;root.append(node);await Promise.resolve();root.remove();
+    return {calls,context,delegate,values:[...values],inserted,migrated,correctWindow};
+  });
+  expect(result).toEqual({calls:1,context:true,delegate:true,values:['b'],inserted:1,migrated:1,correctWindow:true});
+});
 /** Minimal valid empty WebAssembly module: magic header plus version 1. */
 const wasm=[0,97,115,109,1,0,0,0];
 /** Compile WebAssembly from page context so the entry's real CSP decides. */
@@ -60,12 +87,58 @@ test('renderer registerExtensions mounts a custom view in the main document area
   await settings();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();await page.getByTestId('settings-close').click();
   await expect(page.locator('.plugin-view-host')).toHaveCount(0);
 });
+test('renderer array endpoints and DOM instance checks handle adopted nodes across windows',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  expect(await page.evaluate(()=>{
+    const iframe=document.createElement('iframe');document.body.append(iframe);
+    const node=document.createElement('p');iframe.contentDocument!.adoptNode(node);
+    const realm=iframe.contentWindow as any;
+    const checks=[(node as any).instanceOf(realm.HTMLParagraphElement),(node as any).instanceOf(realm.HTMLElement),(node as any).instanceOf(realm.HTMLSpanElement)];
+    iframe.remove();
+    return {checks,first:([1,2] as any).first(),last:([1,2] as any).last(),emptyFirst:([] as any).first(),emptyLast:([] as any).last()};
+  })).toEqual({checks:[true,true,false],first:1,last:2,emptyFirst:undefined,emptyLast:undefined});
+});
+test('renderer embedded Markdown editor subclasses handle real input and dispose with their view',async()=>{
+  await enable();await page.getByTestId('settings-close').click();await command('Open embedded editor');
+  const input=page.getByRole('textbox',{name:'Embedded Markdown editor',exact:true});
+  await expect(input).toHaveText('embedded initial');await input.fill('edited embedded text');
+  await expect(page.getByTestId('embedded-editor-status')).toHaveText('edited embedded text');
+  expect(await page.evaluate(()=>(window as any).__fixtureEmbeddedEditor.get())).toBe('edited embedded text');
+  await input.press('ControlOrMeta+z');await expect(input).toHaveText('embedded initial');
+  await input.press('ControlOrMeta+Shift+z');await expect(input).toHaveText('edited embedded text');
+  await input.press('Enter');expect(await page.evaluate(()=>(window as any).__fixtureSourceSubmit)).toBe('edited embedded text');
+  expect(await page.evaluate(()=>(window as any).__fixtureSourceUpdates)).toBeGreaterThan(0);
+  await page.getByRole('button',{name:'Close Embedded fixture',exact:true}).click();await expect(input).toHaveCount(0);
+  await command('Open embedded editor');await expect(input).toHaveText('embedded initial');
+});
+test('legacy mode factories receive separate configuration/specification and do not share instances',async()=>{
+  await enable();
+  const actual=await page.evaluate(()=>{
+    const cm=(window as any).CodeMirror;
+    cm.defineMode('fixture-mode',(config:any,spec:any)=>({config,spec}));
+    cm.defineMIME('text/x-fixture',{name:'fixture-mode',statementIndent:7});
+    const first=cm.getMode({indentUnit:3},'text/x-fixture'),second=cm.getMode({indentUnit:5},{name:'fixture-mode',statementIndent:9});
+    const original={stack:[1],nested:{}},copy=cm.copyState({},original);copy.stack.push(2);
+    const custom=cm.copyState({copyState:(state:any)=>({value:state.value+1})},{value:4});
+    return {first:first.config.indentUnit,statement:first.spec.statementIndent,second:second.config.indentUnit,other:second.spec.statementIndent,same:first===second,copied:copy!==original&&copy.stack!==original.stack&&original.stack.length===1&&copy.nested===original.nested,custom:custom.value};
+  });
+  expect(actual).toEqual({first:3,statement:7,second:5,other:9,same:false,copied:true,custom:5});
+});
 test('renderer text-file view loads, autosaves, flushes on close and reopens persisted text',async()=>{
   await enable();await page.getByTestId('settings-close').click();
   await page.getByTestId('file-Test.txt').click();
   const editor=page.getByRole('textbox',{name:'Fixture document'});await expect(editor).toHaveValue('original text');
-  await editor.fill('autosaved text');await expect.poll(()=>fs.readFile(path.join(root,'Test.txt'),'utf8')).toBe('autosaved text');
-  await editor.fill('close-flushed text');await page.getByTestId('file-Test.md').click();
+  await editor.fill('autosaved text');
+  await page.evaluate(()=>{(window as any).__fixtureTextView.data='subclass-owned pending state';});
+  await expect.poll(()=>fs.readFile(path.join(root,'Test.txt'),'utf8')).toBe('autosaved text');
+  expect(await page.evaluate(()=>(window as any).__fixtureTextView.data)).toBe('subclass-owned pending state');
+  await editor.evaluate(element=>element.setAttribute('data-retention-probe','same-view'));
+  await command('Update current view state');await expect(page.locator('.plugin-status-item')).toHaveText('View reused: true');
+  expect(await page.evaluate(()=>(window as any).__fixtureEphemeral)).toEqual({probe:true});
+  await expect(editor).toHaveAttribute('data-retention-probe','same-view');
+  await page.getByTestId('file-Test.md').click();await expect(editor).toBeHidden();
+  await page.getByTestId('file-Test.txt').click();await expect(editor).toHaveAttribute('data-retention-probe','same-view');
+  await editor.fill('close-flushed text');await page.getByRole('button',{name:'Close Test.txt',exact:true}).click();
   await expect.poll(()=>fs.readFile(path.join(root,'Test.txt'),'utf8')).toBe('close-flushed text');
   await page.getByTestId('file-Test.txt').click();await expect(editor).toHaveValue('close-flushed text');
 });
@@ -77,7 +150,7 @@ test('renderer text-file autosave rejects stale versions and retains the live dr
   expect(await fs.readFile(path.join(root,'Test.txt'),'utf8')).toBe('external edit wins');
   await expect(editor).toHaveValue('unsaved local draft');
   // Restore the expected disk version so normal close can flush the retained local draft.
-  await fs.writeFile(path.join(root,'Test.txt'),'original text');await page.getByTestId('file-Test.md').click();
+  await fs.writeFile(path.join(root,'Test.txt'),'original text');await page.getByRole('button',{name:'Close Test.txt',exact:true}).click();
   await expect.poll(()=>fs.readFile(path.join(root,'Test.txt'),'utf8')).toBe('unsaved local draft');
 });
 test('renderer file transitions serialize queued loads and close, then recover from failed loads',async()=>{

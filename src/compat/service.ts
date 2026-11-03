@@ -24,6 +24,15 @@ function operationFor(manifest: PluginManifest, host: CompatHost) {
         if(!host.readVersioned)throw new Error('Versioned text reads are unavailable');
         return host.readVersioned(path(args[0]));
       }
+      case 'readBinary':{if(!host.readBinary)throw new Error('Binary vault access is unavailable on this host');return host.readBinary(path(args[0]));}
+      case 'writeBinary':
+      case 'createBinary':
+      case 'modifyBinary':{
+        const data=args[1];if(!(data instanceof ArrayBuffer)&&!ArrayBuffer.isView(data))throw new Error('Invalid binary data');
+        if(data.byteLength>64*1024*1024||ArrayBuffer.isView(data)&&!(data.buffer instanceof ArrayBuffer))throw new Error('Unsupported binary buffer');
+        const operation=host[name];if(!operation)throw new Error('Binary vault access is unavailable on this host');
+        return operation.call(host,path(args[0]),data);
+      }
       case 'create': return host.create(path(args[0]), text(args[1]));
       case 'modify': {
         if(args[2]!==undefined&&typeof args[2]!=='string')throw new Error('Invalid expected file version');
@@ -74,7 +83,7 @@ export function createCompatService(deps: {
       if (mode === 'renderer') {
         return renderer(pkg.manifest, pkg.code, callbacks.snapshot, callbacks.commands, operation,
           callbacks.notice, callbacks.failure, callbacks.tabs ?? (() => {}), callbacks.extensions ?? (() => {}),
-          callbacks.native, callbacks.fileExtensions);
+          callbacks.native, callbacks.fileExtensions,pkg.styles,callbacks.openView,callbacks.saveLayout?()=>{const promise=callbacks.saveLayout!();callbacks.activity?.(promise);return promise;}:undefined);
       }
       return worker(pkg.manifest, pkg.code, callbacks.snapshot, callbacks.commands, operation,
         callbacks.notice, callbacks.failure);

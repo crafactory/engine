@@ -3,6 +3,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {nativeTestEnv} from './native-env';
 const corpus=JSON.parse(await fs.readFile(new URL('../docs/compatibility/community-corpus.json',import.meta.url),'utf8'));
 for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.name} ${plugin.tag}`,async({},testInfo)=>{
   test.skip(!process.env.ENGINE_PLUGIN_CORPUS,'Optional corpus requires verified upstream inputs');
@@ -37,14 +39,28 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
     await fs.writeFile(path.join(root,'Tasks.md'),'# Tasks\n\n- [ ] Engine compatibility task\n- [x] Completed sentinel\n');
   }
   const needsEval=['Dataview','Templater','Kanban','Excalidraw'].includes(plugin.name);
-  if(needsEval)await fs.writeFile(path.join(profile,'trusted-renderer.json'),JSON.stringify({unsafeEval:true}));
+  const needsNative=['Git','Kanban','Excalidraw','Copilot'].includes(plugin.name);
+  const gitEnvironment={...nativeTestEnv(profile),GIT_CONFIG_GLOBAL:os.platform()==='win32'?'NUL':'/dev/null',GIT_CONFIG_NOSYSTEM:'1'};
+  const gitAt=(cwd:string,...args:string[])=>execFileSync('git',['-C',cwd,...args],{encoding:'utf8',env:gitEnvironment});
+  const git=(...args:string[])=>gitAt(root,...args);
+  const gitRemote=path.join(profile,'remote.git');
+  if(plugin.name==='Git'){
+    git('init','-b','main');git('config','user.name','Engine Compatibility Fixture');git('config','user.email','fixture@example.invalid');git('config','commit.gpgSign','false');git('config','core.hooksPath',os.platform()==='win32'?'NUL':'/dev/null');
+    await fs.writeFile(path.join(root,'.gitignore'),'.crafactory/\n');git('add','Test.md','.gitignore');git('commit','-m','Fixture initial commit');
+    git('init','--bare',gitRemote);git('remote','add','origin',gitRemote);git('push','-u','origin','main');
+  }
+  if(needsEval||needsNative)await fs.writeFile(path.join(profile,'trusted-renderer.json'),JSON.stringify({unsafeEval:needsEval,nativePlugins:needsNative}));
   for(const file of ['main.js','manifest.json'])await fs.copyFile(path.join(source,file),path.join(dir,file));
+  if(plugin.styles_sha256){const bytes=await fs.readFile(path.join(source,'styles.css'));expect(crypto.createHash('sha256').update(bytes).digest('hex')).toBe(plugin.styles_sha256);await fs.writeFile(path.join(dir,'styles.css'),bytes);}
+  if(plugin.name==='Excalidraw')await fs.writeFile(path.join(dir,'data.json'),'{}');
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
-  const launch=()=>electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:{...process.env,ENGINE_DEV:'0'}});
+  const launch=()=>electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:nativeTestEnv(profile)});
   let app=await launch();
   try{
     const pageErrors:string[]=[],consoleErrors:string[]=[],orderedErrors:string[]=[];
     let page=await app.firstWindow();const trackPage=()=>{
+      page.on('console',message=>{if(message.text().startsWith('[compat:'))console.log(message.text());});
+      page.on('console',message=>{if(message.type()==='error'&&message.text().startsWith('Plugin '))void message.args()[1]?.evaluate(error=>(error as Error)?.stack).then(stack=>console.log('PLUGIN STACK '+plugin.name+': '+stack));});
       page.on('pageerror',error=>{pageErrors.push(error.message);orderedErrors.push(error.message);console.error(plugin.name+' runtime: '+error.stack);});
       page.on('console',message=>{if(message.type()==='error'){consoleErrors.push(message.text());orderedErrors.push(message.text());console.error(plugin.name+' console: '+message.text());}});
     };trackPage();await page.getByTestId('file-Test.md').click();await expect(page.locator('.note-title h1')).toHaveText('Test');
@@ -206,13 +222,125 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       outcome='BOUNDED_WORKFLOWS_PASS';workflows=['400-word document at 200 wpm','reading speed setting saves 100 wpm','reading/source transition retains 4 min','editor-change: 800 words -> 8 min','10-word selection modal at 100 wpm','Escape closes modal','disable removes status and settings','re-enable restores setting and 8 min'];
     }
     if(plugin.name==='Reading Time'||plugin.name==='Dataview'||plugin.name==='Templater'||plugin.name==='Advanced Tables'||plugin.name==='Calendar (Beta)'||plugin.name==='Tasks')expect(outcome).toBe('BOUNDED_WORKFLOWS_PASS');
+    if(outcome==='STARTUP_ONLY'&&plugin.name==='Excalidraw'){
+      await page.waitForTimeout(750);for(const button of await page.getByRole('button',{name:'Close plugin modal',exact:true}).all())await button.click();
+      await page.getByTestId('settings-close').click();
+      await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Excalidraw: Create new drawing - IN A NEW TAB');
+      await page.locator('.palette-list button').filter({hasText:/^Excalidraw: Create new drawing - IN A NEW TAB$/}).click();
+      await page.waitForTimeout(1000);
+      await expect(page.locator('.plugin-view-pane canvas').first()).toBeVisible({timeout:10000});
+      const drawingPath=await page.evaluate(()=>(window as any).app.workspace.getActiveFile().path as string);
+      const initialDrawing=await fs.readFile(path.join(root,drawingPath),'utf8'),canvas=page.locator('.plugin-view-pane canvas').last(),bounds=await canvas.boundingBox();expect(bounds).not.toBeNull();
+      const rectangleTool=page.getByRole('button',{name:'Rectangle',exact:true});await rectangleTool.click();
+      await expect.poll(()=>page.evaluate(()=>{const ea=(window as any).ExcalidrawAutomate;ea.setView('active');return ea.getExcalidrawAPI()?.getAppState().activeTool.type;})).toBe('rectangle');
+      await page.mouse.move(bounds!.x+350,bounds!.y+350);await page.mouse.down();
+      // Real frame-paced movement avoids collapsing every drag event into one render frame.
+      for(let step=1;step<=8;step++){
+        await page.mouse.move(bounds!.x+350+25*step,bounds!.y+350+17.5*step);
+        await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>resolve())));
+      }
+      await page.mouse.up();
+      await expect.poll(()=>page.evaluate(()=>{const ea=(window as any).ExcalidrawAutomate;ea.setView('active');return ea.getExcalidrawAPI()?.getSceneElements().some((el:any)=>el.type==='rectangle'&&el.width>100&&el.height>50);})).toBe(true);
+      // Public plugin scripting API, not bundle inspection: https://zsviczian.github.io/obsidian-excalidraw-plugin/API/utility.html
+      const rectangles=()=>page.evaluate(()=>{const ea=(window as any).ExcalidrawAutomate;ea.setView('active');return ea.getViewElements().filter((element:any)=>element.type==='rectangle'&&!element.isDeleted).map((element:any)=>({id:element.id,width:element.width,height:element.height}));});
+      await expect.poll(async()=>(await rectangles()).length).toBe(1);const originalRectangles=await rectangles();expect(originalRectangles[0].width).toBeGreaterThan(100);
+      await page.keyboard.press('ControlOrMeta+s');await expect.poll(()=>fs.readFile(path.join(root,drawingPath),'utf8'),{timeout:15000}).not.toBe(initialDrawing);
+      await page.getByTestId('file-Test.md').click();await expect(page.locator('.retained-plugin-view:not([hidden]) canvas')).toHaveCount(0);
+      await page.getByRole('tablist',{name:'Open files'}).getByRole('button',{name:drawingPath.split('/').pop()!.replace(/\.md$/,''),exact:true}).click();
+      await expect(page.locator('.plugin-view-pane canvas').first()).toBeVisible({timeout:10000});
+      await expect.poll(rectangles).toEqual(originalRectangles);
+      await app.close();app=await launch();page=await app.firstWindow();trackPage();
+      await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
+      await page.getByRole('switch',{name:'Enable '+manifest.name,exact:true}).click();await page.getByTestId('dialog-submit').click();await page.getByTestId('settings-close').click();
+      await page.waitForFunction(()=>Boolean((window as any).ExcalidrawAutomate));
+      await page.evaluate(async drawingPath=>{await (window as any).app.workspace.openLinkText(drawingPath,'',false);},drawingPath);
+      await page.waitForFunction(()=>Boolean(document.querySelector('.plugin-view-pane canvas')),{},{timeout:3000}).catch(()=>{});
+      if(!await page.locator('.plugin-view-pane canvas').count()){
+        await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Toggle between Excalidraw and Markdown mode');
+        await page.locator('.palette-list button').filter({hasText:/Toggle between Excalidraw and Markdown mode$/}).click();
+      }
+      await expect(page.locator('.plugin-view-pane canvas').first()).toBeVisible();await expect.poll(rectangles).toEqual(originalRectangles);
+      outcome=pageErrors.length?'BOUNDED_WORKFLOWS_WITH_ERRORS':'BOUNDED_WORKFLOWS_PASS';blocker=pageErrors[0]??'';
+      workflows=['create drawing Markdown','draw rectangle via real canvas pointer input','save changes to actual vault file','switch documents without destroying the view','restart application, reopen saved drawing and verify exact rectangle identity and dimensions'];
+    }
+    if(outcome==='STARTUP_ONLY'&&plugin.name==='Git'){
+      await page.getByTestId('settings-close').click();
+      await fs.appendFile(path.join(root,'Test.md'),'\nNative Git fixture edit\n');
+      await expect(page.locator('.cm-content')).toContainText('Native Git fixture edit');
+      await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Git: Stage current file');
+      await page.locator('.palette-list button').filter({hasText:'Git: Stage current file'}).click();
+      await expect.poll(()=>git('diff','--cached','--name-only')).toContain('Test.md');
+      await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Git: Commit staged with specific message');
+      await page.locator('.palette-list button').filter({hasText:'Git: Commit staged with specific message'}).click();
+      await expect(page.locator('.modal')).toBeVisible();
+      console.log('GIT COMMIT DIALOG '+await page.locator('.modal').innerText());
+      await page.locator('.modal input').fill('Native Git fixture commit');
+      await page.locator('.modal input').press('Enter');
+      await expect.poll(()=>git('log','-1','--format=%s')).toContain('Native Git fixture commit');
+      expect(git('show','HEAD:Test.md')).toContain('Native Git fixture edit');
+      const committed=git('rev-parse','HEAD').trim();
+      await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Git: Push');
+      await page.locator('.palette-list button').filter({hasText:/^Git: Push$/}).click();
+      await expect.poll(()=>git('ls-remote','origin','refs/heads/main')).toContain(committed);
+      const peer=path.join(profile,'peer');
+      git('clone','--branch','main',gitRemote,peer);
+      gitAt(peer,'config','user.name','Engine Compatibility Fixture');gitAt(peer,'config','user.email','fixture@example.invalid');gitAt(peer,'config','commit.gpgSign','false');gitAt(peer,'config','core.hooksPath',os.platform()==='win32'?'NUL':'/dev/null');
+      await fs.appendFile(path.join(peer,'Test.md'),'\nIncoming local-remote fixture edit\n');gitAt(peer,'add','Test.md');gitAt(peer,'commit','-m','Incoming fixture commit');gitAt(peer,'push','origin','main');
+      await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Git: Pull');
+      await page.locator('.palette-list button').filter({hasText:/^Git: Pull$/}).click();
+      await expect.poll(()=>fs.readFile(path.join(root,'Test.md'),'utf8')).toContain('Incoming local-remote fixture edit');
+      await expect(page.locator('.cm-content')).toContainText('Incoming local-remote fixture edit');
+      workflows=['explicit native profile uses real Node modules','stage current file updates the real index','commit staged with specific message creates a local commit containing the edit','push updates a disposable local bare remote','pull imports a peer commit and refreshes the real editor; no credentials or Internet remote used'];
+      outcome='BOUNDED_WORKFLOWS_PASS';
+    }
+    if(outcome==='STARTUP_ONLY'&&plugin.name==='Kanban'){
+      await page.getByTestId('settings-close').click();
+      await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Kanban: Create new board');
+      await page.locator('.palette-list button').filter({hasText:/^Kanban: Create new board$/}).click();
+      await expect.poll(async()=>({views:await page.locator('.plugin-view-pane').count(),dialogs:await page.locator('.plugin-modal').count(),errors:orderedErrors.length})).not.toEqual({views:0,dialogs:0,errors:0});
+      const boardPath=await page.evaluate(()=>(window as any).app.workspace.activeLeaf.view.file.path as string);
+      const listTitle=page.locator('.plugin-view-pane input[type="text"],.plugin-view-pane textarea,.plugin-view-pane [contenteditable="true"]').first();await listTitle.fill('Tasks');
+      await page.locator('.plugin-view-pane button').filter({hasText:/^Add list$/}).click();
+      await expect.poll(()=>fs.readFile(path.join(root,boardPath),'utf8')).toContain('## Tasks');
+      await page.locator('.plugin-view-pane button').filter({hasText:/^Done$/}).click();
+      await page.locator('.plugin-view-pane').getByText('Add a card').click();
+      await page.getByRole('textbox',{name:'Embedded Markdown editor',exact:true}).fill('Compatibility card');
+      await page.getByRole('textbox',{name:'Embedded Markdown editor',exact:true}).press('Enter');
+      // Negative acceptance preserves the actual failure; lists alone are not full board support.
+      await expect.poll(()=>consoleErrors.some(error=>error.includes("Cannot read properties of undefined (reading 'has')"))).toBe(true);
+      expect(await fs.readFile(path.join(root,boardPath),'utf8')).not.toContain('Compatibility card');
+      await page.getByTestId('file-Test.md').click();await page.getByTestId('file-'+boardPath).click();
+      await expect(page.locator('.plugin-view-pane').getByText('Tasks',{exact:true})).toBeVisible();
+      await app.close();app=await launch();page=await app.firstWindow();trackPage();
+      await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
+      await page.getByRole('switch',{name:'Enable '+manifest.name,exact:true}).click();await page.getByTestId('dialog-submit').click();await page.getByTestId('settings-close').click();
+      await page.getByTestId('file-'+boardPath).click();
+      await page.waitForFunction(()=>Boolean(document.querySelector('.kanban-plugin')),{},{timeout:3000}).catch(()=>{});
+      if(!await page.locator('.kanban-plugin').count()){
+        await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Toggle between Kanban and markdown mode');
+        await page.locator('.palette-list button').filter({hasText:/Toggle between Kanban and markdown mode$/}).click();
+      }
+      await expect(page.locator('.plugin-view-pane').getByText('Tasks',{exact:true})).toBeVisible();
+      outcome='BOUNDED_WORKFLOWS_WITH_ERRORS';blocker="Card creation remains blocked: Cannot read properties of undefined (reading 'has'); embedded focus also reports missing setTimeout";
+      workflows=['create board Markdown via plugin command','create real list using embedded Markdown input and verify Markdown save','negative acceptance: card Enter reports parser failure and does not persist a card','switch documents and retain the board','restart application, re-enable plugin and reopen the saved list; cards/completion/moves remain unsupported'];
+    }
     if(outcome==='STARTUP_ONLY'){
-      await page.waitForTimeout(500);
+      if(plugin.name==='Excalidraw'){await page.waitForTimeout(750);for(const button of await page.getByRole('button',{name:'Close plugin modal',exact:true}).all())await button.click();}
+      if(await page.getByTestId('settings-close').isVisible())await page.getByTestId('settings-close').click();
+      await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill(manifest.name+':');
+      await page.waitForTimeout(2500);
+      console.log('COMMANDS '+plugin.name+': '+await page.locator('.palette-list').innerText());
+      await page.keyboard.press('Escape');
       if(orderedErrors.length){outcome='STARTUP_WITH_ERRORS';blocker=orderedErrors[0];}
     }
+    if(plugin.name==='Tasks'&&outcome==='BOUNDED_WORKFLOWS_PASS'&&consoleErrors.some(error=>error.startsWith('setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager.'))){outcome='BOUNDED_WORKFLOWS_WITH_ERRORS';blocker='App.metadataTypeManager remains unsupported; task query/completion workflows passed with the recorded property-type error';}
     if(outcome==='BOUNDED_WORKFLOWS_PASS')expect(pageErrors).toEqual([]);
+    if(outcome==='BOUNDED_WORKFLOWS_WITH_ERRORS')expect(pageErrors.filter(error=>error!=='Unsupported Obsidian capability: Obsidian core Canvas plugin. See docs/PLUGIN-COMPATIBILITY.md.')).toEqual([]);
+    if(outcome.startsWith('BOUNDED_WORKFLOWS_'))expect(consoleErrors.filter(error=>/\b(?:CompatibilityError|TypeError|ReferenceError|Error):/.test(error)&&!(plugin.name==='Kanban'&&/^TypeError: Cannot read properties of undefined \(reading '(?:has|setTimeout)'\)/.test(error))&&!(plugin.name==='Tasks'&&error.startsWith('setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager.')))).toEqual([]);
     const platform=process.platform==='linux'?'Linux x64 Electron':process.platform==='darwin'?'macOS '+process.arch+' Electron':process.platform+' '+process.arch+' Electron';
-    const result={name:plugin.name,repo:plugin.repo,tag:plugin.tag,manifest_version:manifest.version,main_sha256:plugin.main_sha256,manifest_sha256:plugin.manifest_sha256,platform,mode:'trusted renderer (explicit opt-in, not sandboxed)',outcome,first_blocker:blocker,functional_workflows:workflows.length?workflows:'NOT_RUN',runtime_errors:pageErrors,console_errors:consoleErrors,checked_at:new Date().toISOString()};
+    const nativeEnabled=await page.evaluate(()=>typeof (window as any).require==='function');expect(nativeEnabled).toBe(needsNative);
+    const unsafeEvalEnabled=await page.evaluate(()=>window.engine!.unsafeEval!());expect(unsafeEvalEnabled).toBe(needsEval);
+    const result={name:plugin.name,repo:plugin.repo,tag:plugin.tag,manifest_version:manifest.version,main_sha256:plugin.main_sha256,manifest_sha256:plugin.manifest_sha256,styles_sha256:plugin.styles_sha256??null,native_enabled:nativeEnabled,unsafe_eval_enabled:unsafeEvalEnabled,platform,mode:'trusted renderer (explicit opt-in, not sandboxed)',outcome,first_blocker:blocker,functional_workflows:workflows.length?workflows:'NOT_RUN',runtime_errors:pageErrors,console_errors:consoleErrors,checked_at:new Date().toISOString()};
     testInfo.annotations.push({type:'compatibility',description:JSON.stringify(result)});
     if(process.env.ENGINE_RENDERER_CORPUS_REPORT){await fs.mkdir(process.env.ENGINE_RENDERER_CORPUS_REPORT,{recursive:true});await fs.writeFile(path.join(process.env.ENGINE_RENDERER_CORPUS_REPORT,plugin.directory+'.json'),JSON.stringify(result,null,2)+'\n');}
   }finally{await app.close();await fs.rm(root,{recursive:true,force:true});await fs.rm(profile,{recursive:true,force:true});}

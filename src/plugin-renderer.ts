@@ -21,7 +21,7 @@ const modules:Record<string,unknown>={'@codemirror/state':state,'@codemirror/vie
 export function startRendererPlugin(manifest:PluginManifest,code:string,getSnapshot:()=>PluginSnapshot,
   onCommands:(commands:PluginCommand[])=>void,operation:(name:string,args:unknown[])=>Promise<unknown>,
   onNotice:(message:string)=>void,onFailure:()=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,
-  native?:CompatNativeServices,onFileExtensions?:(extensions:string[],viewType?:string)=>void):PluginController {
+  native?:CompatNativeServices,onFileExtensions?:(extensions:string[],viewType?:string)=>void,styles='',onOpenView?:(viewType:string|null,path:string,leafId:string)=>void,onSaveLayout?:()=>Promise<void>):PluginController {
   let alive=true,stopping=false,fileAccess=true,stopPromise:Promise<void>|undefined,booting:Promise<void>|undefined;
   const applyEditorEdit=(base:string,text:string,from:number,to:number)=>operation('editor',[getSnapshot().active,base,text,from,to]);
   const versioned=(value:unknown):VersionedText=>{
@@ -31,32 +31,48 @@ export function startRendererPlugin(manifest:PluginManifest,code:string,getSnaps
   const dom=createDomAdapters(manifest.id,manifest.name,fail,onTabs,onExtensions,onFileExtensions,applyEditorEdit,{
     read:async path=>{if(stopping||!fileAccess)throw new Error('Plugin file-view admission is closed');return versioned(await operation('readVersioned',[path]));},
     write:async(path,data,version)=>{if(!fileAccess)throw new Error('Plugin file-view storage is closed');return versioned(await operation('modify',[path,data,version]));}
-  },error=>onNotice(error instanceof Error?error.message:String(error)));
+  },error=>onNotice(error instanceof Error?error.message:String(error)),onOpenView,onSaveLayout);
+  const tracedMembers=new Set<string>();
   const runtime=createCompatibilityRuntime(manifest,getSnapshot(),{
+    trace:(window as unknown as {__ENGINE_TRACE_COMPAT?:string}).__ENGINE_TRACE_COMPAT===manifest.id?member=>{if(!tracedMembers.has(member)){tracedMembers.add(member);console.debug('[compat:'+manifest.id+'] '+member);}}:undefined,
     ui:dom,notice:onNotice,native,
     async request(name,args){const result=await operation(name,args);if(alive)runtime.sync(getSnapshot());return result;},
     commands(list){if(stopping)return;onCommands(list.map(command=>({id:`plugin:${manifest.id}:${command.id}`,label:command.name,plugin:manifest.id,
       run(){if(alive&&!stopping){try{runtime.sync(getSnapshot());void runtime.run(command.id).catch(fail);}catch(error){fail(error);}}}})));}
   });
   dom.setApp(runtime.app);
+  const stylesheet=styles?document.createElement('style'):undefined;
+  if(stylesheet){stylesheet.dataset.plugin=manifest.id;stylesheet.textContent=styles;document.head.append(stylesheet);}
   /** Revoke processor admission immediately, even while startup awaits arbitrary trusted code. */
   async function stop(){
-    return stopPromise??=(async()=>{stopping=true;onCommands([]);try{await dom.stopProcessors();await booting?.catch(()=>{});await runtime.stop();}finally{alive=false;try{await dom.dispose();}finally{fileAccess=false;}}})();
+    return stopPromise??=(async()=>{stopping=true;stylesheet?.remove();onCommands([]);try{await dom.stopProcessors();await booting?.catch(()=>{});await dom.dispose();}finally{try{await runtime.stop();}finally{alive=false;fileAccess=false;}}})();
   }
   /** Report a first owner failure, revoke admission, and notify the host after cooperative cleanup. */
-  function fail(reason:unknown){if(!alive||stopping)return;onNotice(manifest.name+': '+(reason instanceof Error?reason.message:String(reason)));void stop().catch(error=>onNotice(String(error))).finally(onFailure);}
+  function fail(reason:unknown){if(!alive||stopping)return;console.error('Plugin '+manifest.id+' failed',reason);onNotice(manifest.name+': '+(reason instanceof Error?reason.message:String(reason)));void stop().catch(error=>onNotice(String(error))).finally(onFailure);}
   const slot='__engine_plugin_'+crypto.randomUUID().replaceAll('-','');
   const global=window as unknown as Record<string,unknown>;
-  let execute:((require:(name:string)=>unknown,module:{exports:any},exports:any)=>void)|undefined;
+  let execute:((require:(name:string)=>unknown,module:{exports:any},exports:any,__filename:string,__dirname:string)=>void)|undefined;
   global[slot]=(callback:typeof execute)=>{execute=callback;};
-  const url=URL.createObjectURL(new Blob([`window[${JSON.stringify(slot)}](function(require,module,exports){\n${code}\n});\nexport {};\n`],{type:'text/javascript'}));
+  const url=URL.createObjectURL(new Blob([`window[${JSON.stringify(slot)}](function(require,module,exports,__filename,__dirname){\n${code}\n});\nexport {};\n`],{type:'text/javascript'}));
   const ready=(async()=>{
     try{
       await import(/* @vite-ignore */ url);
       if(stopping)throw new Error('Plugin stopped before startup');
       if(!execute)throw new Error('CommonJS source did not load');
-      const module={exports:{} as any};
-      execute(name=>{if(name==='obsidian')return runtime.api;if(Object.hasOwn(modules,name))return modules[name];throw new CompatibilityError('require '+name);},module,module.exports);
+      const nativeRequire=(window as unknown as {require?:(name:string)=>any}).require;
+      const filename=nativeRequire?nativeRequire('node:path').join(native?.basePath??nativeRequire('node:process').cwd(),'.crafactory','plugins',manifest.id,'main.js'):'crafactory-plugin://'+manifest.id+'/main.js';
+      const dirname=nativeRequire?nativeRequire('node:path').dirname(filename):'crafactory-plugin://'+manifest.id;
+      const nodeRequire=nativeRequire?nativeRequire('node:module').createRequire(filename):undefined;
+      const module={exports:{} as any,id:filename,filename,loaded:false,require:undefined as unknown};
+      const localRequire=Object.assign((name:string)=>{
+        if(name==='obsidian')return runtime.api;
+        // Electron supplies the real CommonJS loader only in the separately confirmed
+        // native profile. Never emulate fs/process modules or claim per-plugin isolation.
+        if(nodeRequire&&!name.startsWith('@codemirror/')&&!name.startsWith('@lezer/')&&name!=='moment')return nodeRequire(name);
+        if(Object.hasOwn(modules,name))return modules[name];
+        throw new CompatibilityError('require '+name);
+      },nodeRequire?{resolve:nodeRequire.resolve,cache:nodeRequire.cache,main:nodeRequire.main}:{});
+      module.require=localRequire;execute.call(module.exports,localRequire,module,module.exports,filename,dirname);module.loaded=true;
       const constructor=typeof module.exports==='function'?module.exports:module.exports.default;
       booting=runtime.boot(constructor);await booting;
       if(stopping)throw new Error('Plugin stopped during startup');

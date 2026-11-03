@@ -1,37 +1,30 @@
-# Popular-plugin compatibility increment
+# Native drawing, board and Git increment
 
-## Scope and evidence
+## Scope and authorization
 
-User authorized implementation, documentation alignment, PR submission, CodeRabbit feedback fixes, and merge after checks. Base is merged PR #70. Follow AGENTS.md and the replication playbook; do not inspect third-party implementation source or copy it into Engine.
+The user requested appropriate permission broadening and maximum practical Excalidraw, Kanban and Git functionality after [PR #71](https://github.com/crafactory/engine/pull/71) merged at `e1dbd49`. Work is on `compat/native-drawing-board-git`. No agents were delegated. Third-party bundles/styles remain unchanged, hash-pinned external black-box inputs; their implementation is neither inspected nor incorporated.
 
-Popularity target: all-time top ten from https://www.obsidianstats.com/most-downloaded, fetched 2026-11-03. Excalidraw, Templater, Dataview, Tasks, Git, Advanced Tables, Calendar, Copilot, Style Settings, Kanban. The provider's cached snapshot is dated 2026-10-09, not a live November count. Reading Time remains an additional regression sentinel, not a top-ten claim.
+Native access is explicit, warned, profile-wide full trust, not per-plugin isolation. Least-capability defaults remain unchanged. Grant/revocation needs restart; development HTTP cannot enable native access. The native test environment excludes service credentials and uses a temporary home, but is not OS filesystem containment.
 
-## Current increment
+## Candidate verification
 
-Expand the SHA-pinned corpus from five to eleven targets. Add original documented keyboard scope, suggestion modal, English UI language, text-file view persistence, CSS-change notifications, and missing Lezer module adapters. Preserve Worker boundaries and explicit trusted-renderer opt-in. No Node filesystem/process broadening.
+Changes are not yet committed and no new PR exists. The complete candidate run finished successfully: inventory, 838 units across 47 files, production build, 79 desktop cases including all eleven Worker and all eleven renderer inputs, and 64 browser cases. Logs are `/tmp/engine-next-final2-check.log`, `/tmp/engine-next-final2-desktop.log` and `/tmp/engine-next-final2-browser.log`.
 
-## Verification and remaining work
+Both corpus reports were regenerated only from the complete candidate directories `/tmp/engine-next-final2-renderer` and `/tmp/engine-next-final2-worker`; no earlier probes were combined. Node 22 is at `/tmp/engine-node/node_modules/node/bin`, and immutable corpus inputs are at `/tmp/engine-plugin-corpus`.
 
-Use Node 22 at `/tmp/engine-node/node_modules/node/bin`; the sandbox default Node 18 is too old for existing Vite/Vitest dependencies. Corpus lives outside the checkout at `/tmp/engine-plugin-corpus`.
+Earlier failed candidates exposed a CM5 factory/specification mismatch, null-mode stream non-advancement, missing state copying and a rectangle-tool click/drag race in the harness. Original host repairs and tool-state synchronization are present and passed the complete run. The chronological verification note preserves the failed candidate.
 
-Baseline from PR #70: Dataview, Reading Time, Templater, Advanced Tables, and Calendar all have bounded workflows. Templater includes declarative/dangerous-confirmation settings, startup templates, user scripts, insertion/create-note and disable/re-enable; Advanced Tables verifies live formatting; Calendar verifies today's daily note. These existing results must not be downgraded to startup-only. Copilot has startup-only evidence; all six new targets now have observed startup outcomes. Additional runtime gaps must be reported, not hidden or called full compatibility. The full top-ten compatibility goal remains unfinished until actual workflows pass.
+## Workflow boundaries
 
-Prior application increments included persisted property types, inline properties, live list markers, reading-mode undo, callout folds, code copy, `engine.compat/v1`, native support plugin and bounded metadata. Recent reviews fixed active-note save, case-insensitive available paths, save ordering, storage fallback, exact-path reusable leaves and App local storage. Preserve these contracts.
+- Excalidraw acceptance requires actual pointer drawing, file save, document switching and full application restart/re-enable/reopen with identical element identity/dimensions. The private Obsidian core Canvas dependency still rejects; preserve `BOUNDED_WORKFLOWS_WITH_ERRORS`.
+- Git acceptance stages the actual index, commits a specific message, pushes to a disposable local bare remote, pulls a peer commit and verifies editor refresh. No credentials or Internet remote; authentication, signing, hooks, diff, backup and conflicts remain unverified.
+- Kanban acceptance creates a board/list, persists Markdown and recovers after document switching/restart. Card Enter reproducibly fails on undefined `has`; embedded focus reports undefined `setTimeout`. The negative card test retains the error and checks that no card was saved. Do not claim card editing/completion/move or full support.
+- Tasks retains its property-type error despite a passing query/completion workflow. Copilot advances through native module startup to the unsupported secret-storage boundary; authenticated inference remains untested.
 
-Before commit: run build, unit/browser/desktop suites, both corpus modes; regenerate reports and inventory; align support/member docs. Submit PR, wait for CodeRabbit, address actionable comments, rerun checks, then merge only when clean.
+The canonical current tracker is [PLUGIN-SUPPORT-MATRIX.md](../docs/PLUGIN-SUPPORT-MATRIX.md). Generated reports must preserve observed errors and grants. Original fixtures additionally cover binary permissions/bytes, retained views/mount leases, CM5 contracts, embedded CM6, newer subclass-owned data during save, and validated host layout restoration. Arbitrary plugin leaf state is not restored.
 
-## Verified increment outcome
+## Remaining delivery gate
 
-The native suite passed 70/70 including both eleven-input corpus modes. Unit tests passed 834/834. Browser run passed 63/64; the sole failure was an existing fake-clock pause target only one second after installation, which became past during a cold reload. Its target now has a five-minute margin, and the isolated corrected daily-note test passed. Final CI must run the complete browser suite on the final commit.
+Reports, verification and current tracker are aligned. Finish diff/security/clean-room and inventory checks and verify git author/committer. Commit and push the feature branch, then open a PR. Follow CONTRIBUTING exactly: completed latest-head CodeRabbit review, all issues addressed, completed re-review after fixes, no unresolved threads, and green latest-head CI before merge. If review is unavailable or blocked, leave the PR open and report the blocker. Do not repeat the quota-limited earlier merge shortcut.
 
-Renderer evidence: six bounded workflow passes including Reading Time (five top-ten targets), two clean startup-only targets (Excalidraw and Style Settings), two startup refusals (Git and Kanban), one startup with background errors (Copilot). Tasks preserves its recoverable property-type warning. Worker refuses all eleven inputs without making compatibility claims.
-
-Late hardening awaiting final targeted rerun: icon ID acronym round trips, accessible icon-button tooltip, idempotent native close and property-type close flush. The early-close handshake already fixed the formerly hanging unsafe-eval restart teardown.
-
-## PR #71 review and final-source verification
-
-First CodeRabbit review completed with seven actionable inline comments and a modifier-alias nit. Repairs add serialized file transitions with load-failure recovery, loaded-version compare-and-swap text writes, conflict-safe autosave retaining drafts, a hidden hotkey invocation counter checked after unload, an explicit Tasks bounded-workflow gate, chronological first-error selection, corrected eleven-input prose and deduplicated Mod aliases. Native close readiness now also tracks subscriber cleanup with idempotent ref-counted registration.
-
-Repair verification: 837 unit tests and 31 renderer/corpus native cases pass. The earlier full native suite passed 70 cases; the added two native cases are included in the repaired targeted run. All 64 browser tests passed. The manually dispatched cloud corpus workflow passed all 22 mode/input cases on the initial PR head. Generated evidence and inventory were refreshed.
-
-Initial CI verify jobs and Linux/Windows package builds passed. macOS never acquired a hosted runner and was cancelled after 15 minutes with zero steps executed; this is an infrastructure block, not a macOS runtime/build success. Do not claim macOS QA or silently bypass the check. Push repairs, reply to/resolve addressed threads, request another CodeRabbit review and rerun final-head checks.
+No results email has been sent for this request. Deliver an honest Chinese summary privately to the owner, with PR/review/merge state, native full-trust risk and bounded compatibility gaps. No issue creation is authorized.

@@ -14,6 +14,8 @@ function harness(failRename=false){
     commands(next){commands=next;},notice(message){notices.push(message);},
     async request(operation,args){
       calls.push({operation,args});
+      if(operation==='readBinary')return new Uint8Array([0,255]).buffer;
+      if(['createBinary','modifyBinary','writeBinary'].includes(operation))return;
       const path=args[0] as string;
       if(operation==='read'){const n=snapshot.notes.find(n=>n.path===path);if(!n)throw new Error('Missing');return n.content;}
       if(operation==='loadData')return data;
@@ -272,7 +274,16 @@ describe('unsupported methods fail, not no-op',()=>{
   for(const method of pluginMethods)it(`Plugin.${method} is explicitly rejected`,()=>{const h=harness();expect(()=>new h.api.Plugin()[method]()).toThrow(CompatibilityError);});
   const rendererOnly=['addRibbonIcon','addSettingTab','addStatusBarItem','registerView','registerExtensions','registerEditorExtension','registerEditorSuggest','registerObsidianProtocolHandler','registerHoverLinkSource','registerBasesView','registerMarkdownPostProcessor','registerMarkdownCodeBlockProcessor'];
   for(const method of rendererOnly)it(`Plugin.${method} requires a renderer UI host`,()=>{const h=harness();expect(()=>new h.api.Plugin()[method]()).toThrow(CompatibilityError);});
-  for(const method of ['delete','process','readBinary','createBinary','modifyBinary','appendBinary'])it(`Vault.${method} is explicitly rejected`,()=>{const h=harness();expect(()=>h.runtime.app.vault[method]()).toThrow(CompatibilityError);});
+  for(const method of ['delete','process','appendBinary'])it(`Vault.${method} is explicitly rejected`,()=>{const h=harness();expect(()=>h.runtime.app.vault[method]()).toThrow(CompatibilityError);});
+  it('binary methods dispatch through the serialized host boundary and preserve TFile identity',async()=>{
+    const h=harness(),vault=h.runtime.app.vault,bytes=new Uint8Array([0,255]),file=vault.getFileByPath('Folder/One.md');
+    await vault.readBinary(file);await vault.modifyBinary(file,bytes);
+    const created=await vault.createBinary('image.bin',bytes);expect(created).toBe(vault.getFileByPath('image.bin'));
+    await vault.adapter.readBinary('image.bin');await vault.adapter.writeBinary('image.bin',bytes);
+    for(const operation of ['readBinary','modifyBinary','createBinary','writeBinary'])expect(h.calls.some(call=>call.operation===operation)).toBe(true);
+    await expect(vault.modifyBinary(file,bytes,{mtime:0})).rejects.toThrow('options');
+    await expect(vault.readBinary({path:file.path})).rejects.toThrow('does not belong');
+  });
   for(const method of ['setSelections','transaction','exec','focus','blur','hasFocus','getScrollInfo','scrollTo','scrollIntoView','undo','redo','refresh','wordAt','processLines'])it(`Editor.${method} is explicitly rejected`,()=>expect(()=>(new Editor({text:'',from:0,to:0},()=>{}) as any)[method]()).toThrow(CompatibilityError));
   it('Editor.getDoc returns a bounded CodeMirror document adapter',()=>{
     const editor=new Editor({text:'one\ntwo',from:0,to:0},()=>{}),doc=editor.getDoc();

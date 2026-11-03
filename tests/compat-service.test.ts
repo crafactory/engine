@@ -14,6 +14,23 @@ const callbacks={snapshot:()=>({name:'V',entries:[],notes:[],active:'',editor:nu
 const controller={ready:Promise.resolve(),sync:()=>{},stop:async()=>{}};
 
 describe('engine.compat/v1',()=>{
+  it('gates binary operations, validates buffers and preserves the host receiver',async()=>{
+    const worker=vi.fn((..._args:any[])=>controller),bytes=new Uint8Array([0,255]);
+    const binaryHost={...host,readBinary:vi.fn(async()=>bytes.buffer),createBinary:vi.fn(async function(this:CompatHost){expect(this).toBe(binaryHost);return null;})};
+    const service=createCompatService({worker});
+    service.start({package:{manifest:{...manifest,permissions:['vault:read','vault:write']},code:''},mode:'worker',callbacks:{...callbacks,host:binaryHost}});
+    const operation=worker.mock.calls[0][4] as (name:string,args:unknown[])=>Promise<unknown>;
+    await expect(operation('readBinary',['image.bin'])).resolves.toEqual(bytes.buffer);
+    await operation('createBinary',['image.bin',bytes]);
+    expect(binaryHost.createBinary).toHaveBeenCalledWith('image.bin',bytes);
+    await expect(operation('createBinary',['image.bin','text'])).rejects.toThrow('Invalid binary data');
+    await expect(operation('modifyBinary',['image.bin',bytes])).rejects.toThrow('unavailable');
+    service.start({package:{manifest:{...manifest,permissions:[]},code:''},mode:'worker',callbacks:{...callbacks,host:binaryHost}});
+    const denied=worker.mock.calls[1][4] as typeof operation;
+    await expect(denied('readBinary',['image.bin'])).rejects.toThrow('vault:read');
+    await expect(denied('createBinary',['image.bin',bytes])).rejects.toThrow('vault:write');
+    expect(binaryHost.createBinary).toHaveBeenCalledOnce();
+  });
   it('permission-gates versioned reads and preserves the loaded version on modify',async()=>{
     const worker=vi.fn((..._args:any[])=>controller),readVersioned=vi.fn(async()=>({content:'text',version:'loaded-version'})),modify=vi.fn(async()=>({content:'changed',version:'saved-version'}));
     const service=createCompatService({worker});
@@ -47,7 +64,18 @@ describe('engine.compat/v1',()=>{
     service.start({package:{manifest,code:'worker'},mode:'worker',callbacks});
     expect(worker).toHaveBeenCalledWith(manifest,'worker',callbacks.snapshot,callbacks.commands,expect.any(Function),callbacks.notice,callbacks.failure);
     service.start({package:{manifest,code:'renderer'},mode:'renderer',callbacks});
-    expect(renderer).toHaveBeenCalledWith(manifest,'renderer',callbacks.snapshot,callbacks.commands,expect.any(Function),callbacks.notice,callbacks.failure,expect.any(Function),expect.any(Function),undefined,undefined);
+    expect(renderer).toHaveBeenCalledWith(manifest,'renderer',callbacks.snapshot,callbacks.commands,expect.any(Function),callbacks.notice,callbacks.failure,expect.any(Function),expect.any(Function),undefined,undefined,undefined,undefined,undefined);
+    service.start({package:{manifest,code:'styled',styles:'.fixture { color: red; }'},mode:'renderer',callbacks});
+    expect(renderer.mock.calls.at(-1)?.at(-3)).toBe('.fixture { color: red; }');
+  });
+  it('tracks actual layout persistence only through the renderer callback',async()=>{
+    const worker=vi.fn(()=>controller),renderer=vi.fn((..._args:any[])=>controller),saveLayout=vi.fn(async()=>{}),activity=vi.fn();
+    const service=createCompatService({worker,renderer});
+    service.start({package:{manifest,code:''},mode:'renderer',callbacks:{...callbacks,saveLayout,activity}});
+    const save=renderer.mock.calls[0].at(-1) as ()=>Promise<void>,pending=save();
+    expect(activity).toHaveBeenCalledWith(pending);await pending;expect(saveLayout).toHaveBeenCalledOnce();
+    service.start({package:{manifest,code:''},mode:'worker',callbacks:{...callbacks,saveLayout,activity}});
+    expect(worker.mock.calls[0]).toHaveLength(7);
   });
 
   it('maps bounded operations to host primitives and enforces permissions',async()=>{

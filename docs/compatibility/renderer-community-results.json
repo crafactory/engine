@@ -8,6 +8,9 @@
       "manifest_version": "0.5.68",
       "main_sha256": "6bb1cf7010afad830e73575fca0e2bfbd3279c562e3d9d24f2d2f45161eb7d00",
       "manifest_sha256": "9235db47112da81b85591c79ecb9ae2574e5e72207056e976472f90616286185",
+      "styles_sha256": null,
+      "native_enabled": false,
+      "unsafe_eval_enabled": true,
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
       "outcome": "BOUNDED_WORKFLOWS_PASS",
@@ -26,7 +29,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T11:20:42.322Z"
+      "checked_at": "2026-11-03T17:10:07.286Z"
     },
     {
       "name": "Templater",
@@ -35,6 +38,9 @@
       "manifest_version": "2.26.0",
       "main_sha256": "0acd45cfdb3a7337e2bef511699bc1f819dc64645ad3480df33579d42d2dcbaa",
       "manifest_sha256": "91c9fa8510082fffa0b3d022aac4986e3b392295b1126e847ead7ed7289169b8",
+      "styles_sha256": null,
+      "native_enabled": false,
+      "unsafe_eval_enabled": true,
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
       "outcome": "BOUNDED_WORKFLOWS_PASS",
@@ -52,7 +58,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T11:20:49.194Z"
+      "checked_at": "2026-11-03T17:10:19.514Z"
     },
     {
       "name": "Calendar (Beta)",
@@ -61,6 +67,9 @@
       "manifest_version": "2.0.0",
       "main_sha256": "64d1c6c620803246724bc922c5c2e0a17c406ffc23f6bbcfbfb14c643958fbb7",
       "manifest_sha256": "314fc17929a2270b17ea392538ee2d93330714800e244b2975b6c19f9b8dc689",
+      "styles_sha256": null,
+      "native_enabled": false,
+      "unsafe_eval_enabled": false,
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
       "outcome": "BOUNDED_WORKFLOWS_PASS",
@@ -72,7 +81,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T11:20:51.127Z"
+      "checked_at": "2026-11-03T17:10:22.976Z"
     },
     {
       "name": "Advanced Tables",
@@ -81,6 +90,9 @@
       "manifest_version": "0.23.2",
       "main_sha256": "cf5dd4ddbddebef68cc99cd93a883e33895c7f123d04bc5d1106ea6e338ba791",
       "manifest_sha256": "698b4f77445e07d887f33450eaf533a28e099b7b483f642fa883362ffbd8ffe9",
+      "styles_sha256": null,
+      "native_enabled": false,
+      "unsafe_eval_enabled": false,
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
       "outcome": "BOUNDED_WORKFLOWS_PASS",
@@ -91,7 +103,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T11:20:53.612Z"
+      "checked_at": "2026-11-03T17:10:27.164Z"
     },
     {
       "name": "Reading Time",
@@ -100,6 +112,9 @@
       "manifest_version": "1.1.2",
       "main_sha256": "8bcde705fc34f9f8601de1ee87cdf6db5bb473b99216887f0123ec3dcdd35576",
       "manifest_sha256": "a530b33b9c35b9f5b43c32b2216c60401ea7e5af98a07d28d293b1227da34037",
+      "styles_sha256": null,
+      "native_enabled": false,
+      "unsafe_eval_enabled": false,
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
       "outcome": "BOUNDED_WORKFLOWS_PASS",
@@ -116,7 +131,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T11:20:57.392Z"
+      "checked_at": "2026-11-03T17:10:34.377Z"
     },
     {
       "name": "Excalidraw",
@@ -125,14 +140,26 @@
       "manifest_version": "2.29.1",
       "main_sha256": "75b073229f43a81745537832ddf54f7ba62c4b1654d2e69011e1c96e86cdb149",
       "manifest_sha256": "65ff25a29d920e10a90722d2f5886a2ab1b83233cae6424caa750ecfaacad42f",
+      "styles_sha256": "c743d64af1d517ce9c4bf0562ecd5c151c21c4d5431dd995b3f07f9ccc71c67c",
+      "native_enabled": true,
+      "unsafe_eval_enabled": true,
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
-      "outcome": "STARTUP_ONLY",
-      "first_blocker": "",
-      "functional_workflows": "NOT_RUN",
-      "runtime_errors": [],
+      "outcome": "BOUNDED_WORKFLOWS_WITH_ERRORS",
+      "first_blocker": "Unsupported Obsidian capability: Obsidian core Canvas plugin. See docs/PLUGIN-COMPATIBILITY.md.",
+      "functional_workflows": [
+        "create drawing Markdown",
+        "draw rectangle via real canvas pointer input",
+        "save changes to actual vault file",
+        "switch documents without destroying the view",
+        "restart application, reopen saved drawing and verify exact rectangle identity and dimensions"
+      ],
+      "runtime_errors": [
+        "Unsupported Obsidian capability: Obsidian core Canvas plugin. See docs/PLUGIN-COMPATIBILITY.md.",
+        "Unsupported Obsidian capability: Obsidian core Canvas plugin. See docs/PLUGIN-COMPATIBILITY.md."
+      ],
       "console_errors": [],
-      "checked_at": "2026-11-03T11:20:59.659Z"
+      "checked_at": "2026-11-03T17:10:51.845Z"
     },
     {
       "name": "Tasks",
@@ -141,19 +168,22 @@
       "manifest_version": "8.6.0",
       "main_sha256": "500f8106d05ddb483bbfec135cac7948022bf6ba7386d1851b28f4d087866e8f",
       "manifest_sha256": "2efc88df9e973247360d486b420791c266c8824516919303b948d0192e159127",
+      "styles_sha256": null,
+      "native_enabled": false,
+      "unsafe_eval_enabled": false,
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
-      "outcome": "BOUNDED_WORKFLOWS_PASS",
-      "first_blocker": "",
+      "outcome": "BOUNDED_WORKFLOWS_WITH_ERRORS",
+      "first_blocker": "App.metadataTypeManager remains unsupported; task query/completion workflows passed with the recorded property-type error",
       "functional_workflows": [
         "not-done query renders a task from another note and excludes completed tasks",
         "checking a rendered task persists completion to the original note and refreshes the query"
       ],
       "runtime_errors": [],
       "console_errors": [
-        "setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager. See docs/PLUGIN-COMPATIBILITY.md.\n    at Z (engine://app/assets/main-kG-UBp5q.js:667:1319)\n    at Object.get (engine://app/assets/main-kG-UBp5q.js:667:1455)\n    at my.setObsidianPropertiesTypes (blob:engine://app/5a4ff893-c088-419c-8d05-1a4f09e4745f:610:2396)\n    at my.<anonymous> (blob:engine://app/5a4ff893-c088-419c-8d05-1a4f09e4745f:610:1473)\n    at Generator.next (<anonymous>)\n    at s (blob:engine://app/5a4ff893-c088-419c-8d05-1a4f09e4745f:173:1694)"
+        "setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager. See docs/PLUGIN-COMPATIBILITY.md.\n    at W (engine://app/assets/main-BWPv2eAV.js:667:3093)\n    at Object.get (engine://app/assets/main-BWPv2eAV.js:667:3264)\n    at my.setObsidianPropertiesTypes (blob:engine://app/8b10ea41-996e-40a0-ab50-16a1fa6703e9:610:2396)\n    at my.<anonymous> (blob:engine://app/8b10ea41-996e-40a0-ab50-16a1fa6703e9:610:1473)\n    at Generator.next (<anonymous>)\n    at s (blob:engine://app/8b10ea41-996e-40a0-ab50-16a1fa6703e9:173:1694)"
       ],
-      "checked_at": "2026-11-03T11:21:01.727Z"
+      "checked_at": "2026-11-03T17:10:55.582Z"
     },
     {
       "name": "Git",
@@ -162,14 +192,23 @@
       "manifest_version": "2.42.0",
       "main_sha256": "496db148bcea4169f455e234bb02f08f8c50c317c0ad5afde3b27c0904daf133",
       "manifest_sha256": "7ad98e8cce157e9846b47941c6a7cb9b022bc9d5c6d11782290e7a7a164b470d",
+      "styles_sha256": "f30ad2ca42fefe3b704c548f7747d285c2038fa4ce90601e68fe6fd660494052",
+      "native_enabled": true,
+      "unsafe_eval_enabled": false,
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
-      "outcome": "UNSUPPORTED_STARTUP",
-      "first_blocker": "Unsupported Obsidian capability: require path. See docs/PLUGIN-COMPATIBILITY.md.",
-      "functional_workflows": "NOT_RUN",
+      "outcome": "BOUNDED_WORKFLOWS_PASS",
+      "first_blocker": "",
+      "functional_workflows": [
+        "explicit native profile uses real Node modules",
+        "stage current file updates the real index",
+        "commit staged with specific message creates a local commit containing the edit",
+        "push updates a disposable local bare remote",
+        "pull imports a peer commit and refreshes the real editor; no credentials or Internet remote used"
+      ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T11:21:03.054Z"
+      "checked_at": "2026-11-03T17:11:07.708Z"
     },
     {
       "name": "Copilot",
@@ -178,16 +217,19 @@
       "manifest_version": "4.0.17",
       "main_sha256": "55976bd3a577ffcc6f604bfdbfbacaf59d44d770bb876457ccc1129a4e967b34",
       "manifest_sha256": "e0d8782e8aa072c731999cc1ebe441126e2b9c5bc0939067780624e33f6586da",
+      "styles_sha256": null,
+      "native_enabled": true,
+      "unsafe_eval_enabled": false,
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
       "outcome": "STARTUP_WITH_ERRORS",
-      "first_blocker": "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at Z (engine://app/assets/main-kG-UBp5q.js:667:1319)\n    at Object.get (engine://app/assets/main-kG-UBp5q.js:667:1455)\n    at UA.isAvailable (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:1189:4232)\n    at m5r (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:2428:18714)\n    at f8t (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:2428:19014)\n    at qRe.loadSettings (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:4279:17601)\n    at async qRe.initialize (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:4279:1834)",
+      "first_blocker": "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at W (engine://app/assets/main-BWPv2eAV.js:667:3093)\n    at Object.get (engine://app/assets/main-BWPv2eAV.js:667:3264)\n    at UA.isAvailable (blob:engine://app/a1b35de4-3d23-4b75-aeaf-e87a9fa89825:1189:4232)\n    at m5r (blob:engine://app/a1b35de4-3d23-4b75-aeaf-e87a9fa89825:2428:18714)\n    at f8t (blob:engine://app/a1b35de4-3d23-4b75-aeaf-e87a9fa89825:2428:19014)\n    at qRe.loadSettings (blob:engine://app/a1b35de4-3d23-4b75-aeaf-e87a9fa89825:4279:17601)\n    at async qRe.initialize (blob:engine://app/a1b35de4-3d23-4b75-aeaf-e87a9fa89825:4279:1834)",
       "functional_workflows": "NOT_RUN",
       "runtime_errors": [],
       "console_errors": [
-        "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at Z (engine://app/assets/main-kG-UBp5q.js:667:1319)\n    at Object.get (engine://app/assets/main-kG-UBp5q.js:667:1455)\n    at UA.isAvailable (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:1189:4232)\n    at m5r (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:2428:18714)\n    at f8t (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:2428:19014)\n    at qRe.loadSettings (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:4279:17601)\n    at async qRe.initialize (blob:engine://app/2301db3d-255a-49a8-964c-b8aeacdb12f4:4279:1834)"
+        "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at W (engine://app/assets/main-BWPv2eAV.js:667:3093)\n    at Object.get (engine://app/assets/main-BWPv2eAV.js:667:3264)\n    at UA.isAvailable (blob:engine://app/a1b35de4-3d23-4b75-aeaf-e87a9fa89825:1189:4232)\n    at m5r (blob:engine://app/a1b35de4-3d23-4b75-aeaf-e87a9fa89825:2428:18714)\n    at f8t (blob:engine://app/a1b35de4-3d23-4b75-aeaf-e87a9fa89825:2428:19014)\n    at qRe.loadSettings (blob:engine://app/a1b35de4-3d23-4b75-aeaf-e87a9fa89825:4279:17601)\n    at async qRe.initialize (blob:engine://app/a1b35de4-3d23-4b75-aeaf-e87a9fa89825:4279:1834)"
       ],
-      "checked_at": "2026-11-03T11:21:05.839Z"
+      "checked_at": "2026-11-03T17:11:14.475Z"
     },
     {
       "name": "Style Settings",
@@ -196,6 +238,9 @@
       "manifest_version": "1.0.9",
       "main_sha256": "1828abaacdab4c5578b705a625c585b30512f8efad4c7cfc5a18e70cc3557468",
       "manifest_sha256": "9cffdc20cf2aa1354820e0050b694b0f9b576446e3d5d44a36ae8b0187e5bfb8",
+      "styles_sha256": null,
+      "native_enabled": false,
+      "unsafe_eval_enabled": false,
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
       "outcome": "STARTUP_ONLY",
@@ -203,7 +248,7 @@
       "functional_workflows": "NOT_RUN",
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-03T11:21:07.713Z"
+      "checked_at": "2026-11-03T17:11:19.819Z"
     },
     {
       "name": "Kanban",
@@ -212,16 +257,27 @@
       "manifest_version": "2.0.51",
       "main_sha256": "a7e3bd4cf25f9b7f53a841c44ce990db0ef5f7954ebcab17ae6dca80310c39ac",
       "manifest_sha256": "24976787097ead467969e014a35654e7a80e4db49a977689a48afadfa15e1854",
+      "styles_sha256": "ecf6dd31f1727c441cce6f54794b0d3916dcfffc87fa17b855c79ba04a85d9a7",
+      "native_enabled": true,
+      "unsafe_eval_enabled": true,
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
-      "outcome": "UNSUPPORTED_STARTUP",
-      "first_blocker": "Unsupported Obsidian capability: App.embedRegistry. See docs/PLUGIN-COMPATIBILITY.md.",
-      "functional_workflows": "NOT_RUN",
-      "runtime_errors": [
-        "Unsupported Obsidian capability: Workspace.unregisterHoverLinkSource. See docs/PLUGIN-COMPATIBILITY.md."
+      "outcome": "BOUNDED_WORKFLOWS_WITH_ERRORS",
+      "first_blocker": "Card creation remains blocked: Cannot read properties of undefined (reading 'has'); embedded focus also reports missing setTimeout",
+      "functional_workflows": [
+        "create board Markdown via plugin command",
+        "create real list using embedded Markdown input and verify Markdown save",
+        "negative acceptance: card Enter reports parser failure and does not persist a card",
+        "switch documents and retain the board",
+        "restart application, re-enable plugin and reopen the saved list; cards/completion/moves remain unsupported"
       ],
-      "console_errors": [],
-      "checked_at": "2026-11-03T11:21:09.054Z"
+      "runtime_errors": [],
+      "console_errors": [
+        "TypeError: Cannot read properties of undefined (reading 'setTimeout')\n    at Object.focus (blob:engine://app/8579bf6b-5028-4cea-9b3a-18b6365aab58:45:30031)\n    at engine://app/assets/editor-CvGrdymP.js:9:7301\n    at Qp.runHandlers (engine://app/assets/editor-CvGrdymP.js:9:4968)\n    at engine://app/assets/editor-CvGrdymP.js:9:4775",
+        "TypeError: Cannot read properties of undefined (reading 'setTimeout')\n    at Object.focus (blob:engine://app/8579bf6b-5028-4cea-9b3a-18b6365aab58:45:30031)\n    at engine://app/assets/editor-CvGrdymP.js:9:7301\n    at Qp.runHandlers (engine://app/assets/editor-CvGrdymP.js:9:4968)\n    at engine://app/assets/editor-CvGrdymP.js:9:4775",
+        "TypeError: Cannot read properties of undefined (reading 'has')\n    at il (blob:engine://app/8579bf6b-5028-4cea-9b3a-18b6365aab58:41:2036)\n    at gb (blob:engine://app/8579bf6b-5028-4cea-9b3a-18b6365aab58:41:1665)\n    at gf (blob:engine://app/8579bf6b-5028-4cea-9b3a-18b6365aab58:65:6)\n    at V_ (blob:engine://app/8579bf6b-5028-4cea-9b3a-18b6365aab58:65:1555)\n    at yf.newItem (blob:engine://app/8579bf6b-5028-4cea-9b3a-18b6365aab58:68:163)\n    at vf.getNewItem (blob:engine://app/8579bf6b-5028-4cea-9b3a-18b6365aab58:68:6996)\n    at u (blob:engine://app/8579bf6b-5028-4cea-9b3a-18b6365aab58:53:17124)\n    at onEnter (blob:engine://app/8579bf6b-5028-4cea-9b3a-18b6365aab58:53:17475)\n    at blob:engine://app/8579bf6b-5028-4cea-9b3a-18b6365aab58:45:30386\n    at u (engine://app/assets/editor-CvGrdymP.js:10:21589)"
+      ],
+      "checked_at": "2026-11-03T17:11:29.763Z"
     }
   ]
 }
