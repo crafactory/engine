@@ -22,6 +22,11 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
     await fs.mkdir(path.join(root,'Scripts'),{recursive:true});
     await fs.writeFile(path.join(root,'Scripts/hello.js'),'module.exports = async () => "User script output";\n');
   }
+  if(plugin.name==='Calendar (Beta)'){
+    await fs.mkdir(path.join(root,'Daily notes'),{recursive:true});
+    await fs.mkdir(path.join(root,'Templates'),{recursive:true});
+    await fs.writeFile(path.join(root,'Templates/Daily.md'),'# {{date}}\n\n');
+  }
   if(plugin.name==='Dataview'){
     await fs.writeFile(path.join(root,'Second.md'),'# Second\n\n#alpha\n');
     await fs.mkdir(path.join(root,'Folder'),{recursive:true});await fs.writeFile(path.join(root,'Folder/Third.md'),'# Third\n\n#alpha\n\n- [ ] Third task\n');
@@ -152,13 +157,28 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await expect.poll(async()=>fs.readFile(path.join(root,'Test.md'),'utf8')).toBe(formatted);
       expect(pageErrors).toEqual([]);
       outcome='BOUNDED_WORKFLOWS_PASS';workflows=['format table at cursor','exact editor/disk persistence'];
+    }else if(plugin.name==='Calendar (Beta)'){
+      await page.getByTestId('settings-close').click();
+      await page.getByRole('button',{name:'Command palette',exact:true}).click();
+      await page.getByTestId('palette-input').fill(manifest.name+': Open view');
+      await page.keyboard.press('Enter');await page.keyboard.press('Escape');
+      const calendar=page.locator('.plugin-view-content');await expect(calendar).toContainText('Sun');
+      const now=new Date(),date=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+      await calendar.locator('.day.today').click();
+      const create=page.getByRole('dialog').last();await expect(create).toContainText('New Daily Note');
+      await create.getByRole('button',{name:'Create',exact:true}).click();
+      await expect(page.locator('.note-title h1')).toHaveText(date);
+      await expect(page.getByTestId('note-editor')).toContainText(date);
+      await expect.poll(async()=>fs.readFile(path.join(root,'Daily notes',date+'.md'),'utf8')).toBe('# '+date+'\n\n');
+      expect(pageErrors).toEqual([]);
+      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['open calendar view','create today daily note from template','exact daily note content and open'];
     }else if(plugin.name==='Reading Time'){
       const status=page.locator('.plugin-status-item');await expect(status).toHaveText('2 min read');
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await page.getByLabel('Reading speed',{exact:true}).fill('100');await expect(status).toHaveText('4 min read');
       await expect.poll(async()=>JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8')).readingSpeed).toBe(100);
       await page.getByTestId('settings-close').click();await page.getByTestId('mode-reading').click();await expect(status).toHaveText('4 min read');await page.getByTestId('mode-source').click();
-      await page.getByTestId('note-editor').click();await page.keyboard.press('Control+a');await page.keyboard.insertText(Array(800).fill('word').join(' '));await expect(status).toHaveText('8 min read',{timeout:6000});
-      await page.keyboard.press('Control+Home');for(let i=0;i<10;i++)await page.keyboard.press('Control+Shift+ArrowRight');
+      await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+a');await page.keyboard.insertText(Array(800).fill('word').join(' '));await expect(status).toHaveText('8 min read',{timeout:6000});
+      const wordModifier=process.platform==='darwin'?'Alt':'Control';await page.keyboard.press(process.platform==='darwin'?'Meta+ArrowUp':'Control+Home');for(let i=0;i<10;i++)await page.keyboard.press(wordModifier+'+Shift+ArrowRight');
       await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill(manifest.name+': Selected Text');await page.keyboard.press('Enter');
       const modal=page.getByRole('dialog',{name:'Reading Time of Selected Text',exact:true});await expect(modal).toContainText('1 min read');await expect(modal).toContainText('(at 100 wpm)');await page.keyboard.press('Escape');await expect(modal).toHaveCount(0);
       await settings();await control.click();await expect(control).not.toBeChecked();await expect(status).toHaveCount(0);await expect(page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true})).toHaveCount(0);
@@ -166,7 +186,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();await expect(page.getByLabel('Reading speed',{exact:true})).toHaveValue('100');
       outcome='BOUNDED_WORKFLOWS_PASS';workflows=['400-word document at 200 wpm','reading speed setting saves 100 wpm','reading/source transition retains 4 min','editor-change: 800 words -> 8 min','10-word selection modal at 100 wpm','Escape closes modal','disable removes status and settings','re-enable restores setting and 8 min'];
     }
-    if(plugin.name==='Reading Time'||plugin.name==='Dataview'||plugin.name==='Templater'||plugin.name==='Advanced Tables')expect(outcome).toBe('BOUNDED_WORKFLOWS_PASS');
+    if(plugin.name==='Reading Time'||plugin.name==='Dataview'||plugin.name==='Templater'||plugin.name==='Advanced Tables'||plugin.name==='Calendar (Beta)')expect(outcome).toBe('BOUNDED_WORKFLOWS_PASS');
     const platform=process.platform==='linux'?'Linux x64 Electron':process.platform==='darwin'?'macOS '+process.arch+' Electron':process.platform+' '+process.arch+' Electron';
     const result={name:plugin.name,repo:plugin.repo,tag:plugin.tag,manifest_version:manifest.version,main_sha256:plugin.main_sha256,manifest_sha256:plugin.manifest_sha256,platform,mode:'trusted renderer (explicit opt-in, not sandboxed)',outcome,first_blocker:blocker,functional_workflows:workflows.length?workflows:'NOT_RUN',checked_at:new Date().toISOString()};
     testInfo.annotations.push({type:'compatibility',description:JSON.stringify(result)});

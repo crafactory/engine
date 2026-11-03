@@ -12,7 +12,7 @@ function harness(native?:CompatNativeServices){
   return {runtime,api:runtime.api as any,ui,iterateAllLeaves,request,settingCleanup,extensionCleanup,viewCleanup,extensionsCleanup,suggestCleanup,protocolCleanup,hoverCleanup,basesCleanup,updateOptions,ribbonCleanup,ribbonElement};
 }
 it('renderer export registry is documented, unique and disjoint from Worker exports',()=>{
-  expect(rendererExports).toHaveLength(29);expect(new Set(rendererExports).size).toBe(29);
+  expect(rendererExports).toHaveLength(30);expect(new Set(rendererExports).size).toBe(30);
   for(const name of rendererExports){expect(inventory.symbols.some(s=>s.name===name&&s.runtime)).toBe(true);expect(supportedExports).not.toContain(name);}
 });
 it('renderer MarkdownView exposes actual active document in reading mode',()=>{
@@ -43,7 +43,12 @@ it('renderer hook registrations dispose once and updateOptions reaches actual ho
 it('exposes bounded App bootstrap fields and forwards workspace leaf iteration',()=>{
   const h=harness();
   expect(h.runtime.app.appId).toBe('crafactory-engine');
-  expect(h.runtime.app.internalPlugins).toEqual({plugins:{}});
+  expect(h.runtime.app.isMobile).toBe(false);
+  expect(h.runtime.app.internalPlugins.plugins['daily-notes'].instance.options).toEqual({folder:'Daily notes',format:'YYYY-MM-DD',template:''});
+  expect(h.runtime.app.internalPlugins.getPluginById('daily-notes')).toBe(h.runtime.app.internalPlugins.plugins['daily-notes']);
+  expect(h.runtime.app.plugins.getPlugin('periodic-notes')).toBeNull();
+  expect(h.runtime.app.vault.getConfig('dailyNotes')).toEqual({folder:'Daily notes',format:'YYYY-MM-DD',template:''});
+  expect(h.runtime.app.foldManager.load({} as any)).toEqual({folds:[]});
   h.runtime.app.workspace.iterateAllLeaves(()=>{});
   expect(h.iterateAllLeaves).toHaveBeenCalledOnce();
 });
@@ -62,6 +67,29 @@ it('Editor.getDoc exposes a bounded CodeMirror 5 document adapter',async()=>{
   const operations=h.request.mock.calls.map(call=>call[0]);
   expect(operations.indexOf('editor')).toBeGreaterThanOrEqual(0);
   expect(operations.indexOf('editor')).toBeLessThan(operations.indexOf('save'));
+});
+it('reads daily-note settings at call time',()=>{
+  let daily={folder:'A',format:'YYYY-MM-DD',template:''};
+  const h=harness({get dailyNotes(){return daily;}} as unknown as CompatNativeServices);
+  expect(h.runtime.app.vault.getConfig('dailyNotes')).toEqual(daily);
+  daily={folder:'B',format:'YYYY-MM-DD',template:''};
+  expect((h.runtime.app.vault.getConfig('dailyNotes') as {folder:string}).folder).toBe('B');
+  expect(h.runtime.app.internalPlugins.getPluginById('daily-notes')!.instance.options.folder).toBe('B');
+});
+it('releases window.app to the previous runtime and clears it',async()=>{
+  const descriptor=Object.getOwnPropertyDescriptor(globalThis,'window');
+  Object.defineProperty(globalThis,'window',{configurable:true,value:{}});
+  try{
+    const first=harness(),second=harness();
+    expect((window as any).app).toBe(second.runtime.app);
+    await second.runtime.stop();
+    expect((window as any).app).toBe(first.runtime.app);
+    await first.runtime.stop();
+    expect((window as any).app).toBeUndefined();
+  }finally{
+    if(descriptor)Object.defineProperty(globalThis,'window',descriptor);
+    else delete (globalThis as any).window;
+  }
 });
 it('App local storage round-trips JSON and rejects non-string keys',()=>{
   const h=harness(),key='renderer-contracts-'+Math.random().toString(36).slice(2);
@@ -91,12 +119,21 @@ it('fires bounded Vault create/delete and MetadataCache resolve events',async()=
   h.runtime.sync(base);expect(deleted).toHaveBeenCalledOnce();expect(deleted.mock.calls[0][0].path).toBe('Two.md');
   await h.runtime.stop();
 });
+it('serves bounded resolved and unresolved link maps',()=>{
+  const h=harness({
+    resolveLink:(link:string)=>link==='Two'?'Two.md':undefined,
+    metadata:(path:string)=>({links:path==='One.md'?[{link:'Two'},{link:'Missing'}]:[]})
+  } as unknown as CompatNativeServices);
+  expect(h.runtime.app.metadataCache.resolvedLinks['One.md']).toEqual({'Two.md':1});
+  expect(h.runtime.app.metadataCache.unresolvedLinks['One.md']).toEqual({'Missing':1});
+});
 it('serves bounded CachedMetadata through getFileCache and getCache',()=>{
   const h=harness({metadata:path=>({frontmatter:{path},headings:[{heading:'One',level:1,position:{start:{line:0,col:0,offset:0},end:{line:0,col:3,offset:3}}}]})});
   const file=h.runtime.app.vault.getFileByPath('One.md')!;
   expect(h.runtime.app.metadataCache.getFileCache(file).frontmatter).toEqual({path:'One.md'});
-  expect(h.runtime.app.metadataCache.getCache(file).headings[0].heading).toBe('One');
+  expect(h.runtime.app.metadataCache.getCache('One.md').headings[0].heading).toBe('One');
   expect(()=>h.runtime.app.metadataCache.getFileCache({path:'One.md'} as any)).toThrow('File does not belong to this vault');
+  expect(h.runtime.app.metadataCache.getCache('Missing.md')).toBeNull();
 });
 it('renderer keeps unsupported events and unrelated runtime exports explicit',()=>{
   const h=harness();expect(()=>h.runtime.app.workspace.on('active-leaf-change',()=>{})).toThrow('Workspace event active-leaf-change');expect(()=>h.api.MarkdownPreviewView).toThrow('export MarkdownPreviewView');

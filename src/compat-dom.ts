@@ -1,8 +1,9 @@
 /* Original public-contract adapters. No proprietary SDK or plugin implementation. */
 import {StateField} from '@codemirror/state';
+import moment from 'moment';
 import {Component,Editor,EditorSuggest,unsupported} from './compat-core';
 import {MarkdownRenderChild,createMarkdownRenderer,registerPostProcessor,registerCodeProcessor,stopProcessors} from './markdown-plugins';
-export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','FuzzySuggestModal','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','Menu','MenuItem','editorLivePreviewField','editorInfoField','Platform','prepareFuzzySearch'] as const;
+export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','FileView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','FuzzySuggestModal','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','Menu','MenuItem','editorLivePreviewField','editorInfoField','Platform','prepareFuzzySearch'] as const;
 /** Bounded editor fields: live preview is always active and no file is exposed. */
 export const editorLivePreviewField=StateField.define<boolean>({create:()=>true,update:value=>value});
 export const editorInfoField=StateField.define<{file:null}>({create:()=>({file:null}),update:value=>value});
@@ -56,6 +57,8 @@ export function installDomHelpers(){
   if(typeof globalWindow.createEl!=='function')globalWindow.createEl=createDetached;
   if(typeof globalWindow.createDiv!=='function')globalWindow.createDiv=(options?:any,callback?:any)=>createDetached('div',options,callback);
   if(typeof globalWindow.createSpan!=='function')globalWindow.createSpan=(options?:any,callback?:any)=>createDetached('span',options,callback);
+  if(typeof globalWindow.moment!=='function')globalWindow.moment=moment;
+  if(typeof globalWindow.process==='undefined')globalWindow.process={env:{NODE_ENV:'production'}};
   // Bounded CodeMirror 5 surface for legacy highlighting-mode registration.
   const codeMirror=(globalWindow.CodeMirror??={}) as Record<string,any>;
   const genericMode={name:'null',startState:()=>({}),copyState:(state:unknown)=>state,blankLine:()=>null,token:()=>null};
@@ -333,6 +336,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     get scope(){return unsupported('View.scope');}async onOpen(){}async onClose(){}
   }
   class ItemView extends View {contentEl:HTMLElement;constructor(leaf:any){super(leaf);this.contentEl=element('div',this.containerEl,'plugin-view-content');}addAction(){return unsupported('ItemView.addAction');}}
+  class FileView extends ItemView {file:any=null;onLoadFile(_file:any){}onUnloadFile(_file:any){}}
   class WorkspaceLeaf {
     containerEl=element('section',undefined,'plugin-view-pane');view:any=null;private ephemeralState:unknown=null;
     async setViewState(state:any,parent?:HTMLElement){if(!state||typeof state.type!=='string')throw new Error('Invalid view state');const factory=factories.get(state.type);if(!factory)return unsupported('View type '+state.type);
@@ -356,7 +360,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   const reusableLeaf=new WorkspaceLeaf();
   return {
     setApp(value:any){app=value;},
-    exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,WorkspaceLeaf,EditorSuggest,AbstractInputSuggest,FuzzySuggestModal,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,Menu,MenuItem,addIcon:(_name:string,_svg:string)=>{}},
+    exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,FileView,WorkspaceLeaf,EditorSuggest,AbstractInputSuggest,FuzzySuggestModal,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,Menu,MenuItem,addIcon:(_name:string,_svg:string)=>{}},
     /** Bind reading post-processors to this plugin's error and lifecycle ownership. */
     postProcessor(callback:any,sortOrder?:number){if(processorsStopped)throw new Error('Plugin Markdown processors are stopped');return ownProcessor(registerPostProcessor(callback,sortOrder,onError));},
     /** Bind named code-block handlers to the same reading registry. */
@@ -364,8 +368,9 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     /** Atomically deactivate this plugin's processors before runtime resource cleanup. */
     async stopProcessors(){processorsStopped=true;await stopProcessors(processors);processors.clear();},
     workspace:{
+      get activeLeaf(){leaves.add(reusableLeaf);return reusableLeaf;},
       getRightLeaf(split?:boolean){if(split)return unsupported('Workspace.getRightLeaf split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeaf(newLeaf?:boolean|string){if(newLeaf===false){leaves.add(reusableLeaf);return reusableLeaf;}if(newLeaf!==undefined&&newLeaf!==true)return unsupported('Workspace.getLeaf reuse/split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},
-      getLeavesOfType(type:string){return [...leaves].filter(l=>l.view?.getViewType()===type);},iterateAllLeaves(callback:(leaf:any)=>void){for(const leaf of [...leaves])callback(leaf);},
+      getUnpinnedLeaf(){const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeavesOfType(type:string){return [...leaves].filter(l=>l.view?.getViewType()===type);},iterateAllLeaves(callback:(leaf:any)=>void){for(const leaf of [...leaves])callback(leaf);},
       async detachLeavesOfType(type:string){await Promise.all([...leaves].filter(l=>l.view?.getViewType()===type).map(l=>l.detach()));},
       async revealLeaf(leaf:any){if(!leaves.has(leaf))throw new Error('Foreign leaf');host('plugin-views').append(leaf.containerEl);leaf.containerEl.scrollIntoView({block:'nearest'});}
     },

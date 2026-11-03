@@ -295,6 +295,11 @@ describe('unsupported methods fail, not no-op',()=>{
     expect(h.calls).toContainEqual({operation:'rename',args:['Two.md','Renamed.md']});
     expect(h.runtime.app.vault.getFileByPath('Renamed.md')).toBe(file);
   });
+  it('exports a bounded moment compatibility variable',()=>{
+    const h=harness();
+    expect(typeof h.api.moment).toBe('function');
+    expect(h.api.moment('2026-11-03','YYYY-MM-DD').format('YYYY-MM-DD')).toBe('2026-11-03');
+  });
   it('accepts the bounded vault lifecycle events',()=>{const h=harness();for(const name of ['create','delete','rename','modify'])expect(()=>h.runtime.app.vault.on(name,()=>{})).not.toThrow();});
   it('renderer-only workspace leaf methods require host.ui',()=>{const h=harness();for(const method of ['getLeaf','getRightLeaf','getLeavesOfType','revealLeaf'])expect(()=>{const value=(h.runtime.app.workspace as any)[method];if(typeof value==='function')value.call(h.runtime.app.workspace);}).toThrow(CompatibilityError);});
   it('rejects undocumented app/workspace/cache access and unsupported events',()=>{

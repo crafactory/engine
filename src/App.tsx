@@ -565,6 +565,7 @@ export function App(){
     try{
       const native={basePath:root,resolveLink:(link:string,from:string)=>indexRuntime.current?.index.resolve(link,from),
         metadata:(path:string)=>indexRuntime.current?.index.metadata(path),
+        get dailyNotes(){return {folder:settingsRef.current.dailyFolder,format:'YYYY-MM-DD',template:settingsRef.current.dailyTemplate};},
         editor:{providerId:editorRuntime.current?.provider.id??'unknown',codeMirrorExtensions:editorRuntime.current?.provider.capabilities().codeMirrorExtensions??false}};
       const onCommands=(commands:PluginCommand[])=>setPluginCommands(c=>[...c.filter(p=>p.plugin!==id),...commands]);
       const onFailure=()=>{clearPluginExtensions(id);pluginStops.current.delete(id);pluginManifests.current.delete(id);setEnabledPlugins(e=>e.filter(p=>p!==id));};
@@ -787,7 +788,7 @@ export function App(){
   const filesProps=FilesView?{...panelBase,sideTab:'files' as const,entries,activePath:active,fileSort,expanded,loading,childrenFor:treeChildren,onToggleFolder:(path:string)=>setExpanded(current=>{const next=new Set(current);next.has(path)?next.delete(path):next.add(path);return next;}),onOpenFile:open,onFileContextMenu:(path:string,x:number,y:number)=>{const menu=new ContextMenu();for(const controller of pluginStops.current.values())controller.triggerWorkspaceEvent?.('file-menu',[menu,path,'file-explorer']);setContext({path,x:Math.min(x,window.innerWidth-225),y:Math.min(y,window.innerHeight-260),menu});},onDropFile:(from:string,folder:string)=>renamePath(from,folder+'/'+from.split('/').pop()),onCollapseAll:()=>setExpanded(new Set()),onFileSortChange:setFileSort,onCreateNote:()=>createNote()}:undefined;
   const OutgoingView=rightTab==='outgoing'?panelComponent('outgoing','right'):undefined;
   const outgoingProps=OutgoingView?{sideTab:'outgoing' as const,...panelBase}:undefined;
-  return <div className="app" onClick={()=>context&&setContext(null)}>
+  return <div className="app app-container" onClick={()=>context&&setContext(null)}>
     <style>{settings.css}</style>
     <input ref={importInput} type="file" multiple accept=".md,.markdown,.txt,image/*,audio/*,video/*,.pdf,.canvas,.base" className="hidden" aria-label="Import files" onChange={e=>{importFiles(e.target.files);e.target.value='';}}/>
     <input ref={attachmentInput} type="file" multiple className="hidden" aria-label="Add attachment" onChange={e=>{importFiles(e.target.files);e.target.value='';}}/>

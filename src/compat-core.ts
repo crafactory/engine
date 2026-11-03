@@ -1,10 +1,27 @@
 /* Original compatibility implementation, derived from public behavior descriptions.
  * No Obsidian SDK, declaration files or application implementation is included. */
+import moment from 'moment';
 import {parse as parseYaml,stringify as stringifyYaml} from 'yaml';
 import {frontmatter,resolveLink} from './knowledge';
 import type {Entry,Note,PluginManifest} from './types';
 import type {CachedMetadata} from './metadata';
 
+const exposedApps:any[]=[];
+/** Expose the latest trusted renderer App globally, matching Obsidian's untyped window.app. */
+function exposeApp(app:any){
+  if(typeof window==='undefined')return;
+  exposedApps.push(app);(window as any).app=app;
+}
+/** Release the global only when this runtime still owns it. */
+function releaseApp(app:any){
+  const index=exposedApps.indexOf(app);if(index>=0)exposedApps.splice(index,1);
+  if(typeof window==='undefined')return;
+  if((window as any).app===app){
+    const next=exposedApps[exposedApps.length-1];
+    if(next)(window as any).app=next;
+    else delete (window as any).app;
+  }
+}
 export interface PluginSnapshot {
   name:string;entries:Entry[];notes:Note[];active:string;
   editor:{text:string;from:number;to:number}|null;
@@ -18,6 +35,8 @@ export interface CompatNativeServices {
   metadata?(path: string): CachedMetadata | undefined;
   /** Desktop base path for the bounded FileSystemAdapter. */
   basePath?: string;
+  /** Bounded daily-note settings exposed through the synthetic Daily Notes internal plugin. */
+  dailyNotes?: {folder:string;format:string;template:string};
 }
 export interface CompatHost {
   request(operation:string,args:unknown[]):Promise<unknown>;
@@ -57,7 +76,7 @@ export const supportedExports=[
   'Plugin','Component','Events','Notice','TAbstractFile','TFile','TFolder','Vault','Workspace','Editor','MarkdownView','FileSystemAdapter',
   'normalizePath','parseYaml','stringifyYaml','parseLinktext','getLinkpath','getAllTags',
   'parseFrontMatterAliases','parseFrontMatterTags','parseFrontMatterEntry','parseFrontMatterStringArray',
-  'getFrontMatterInfo','iterateRefs','iterateCacheRefs','debounce','apiVersion','requireApiVersion'
+  'getFrontMatterInfo','iterateRefs','iterateCacheRefs','debounce','apiVersion','requireApiVersion','moment'
 ] as const;
 
 export class Events {
@@ -258,10 +277,11 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   }
   async function settle(){while(pending.size){const results=await Promise.allSettled([...pending]);const failed=results.find(r=>r.status==='rejected');if(failed?.status==='rejected')throw failed.reason;}}
   const adapter=new FileSystemAdapter(host.native?.basePath);
+  const dailyNotes=()=>host.native?.dailyNotes??{folder:'Daily notes',format:'YYYY-MM-DD',template:''};
   class Vault extends Events {
     configDir='.crafactory';
     get adapter(){return adapter;}
-    getConfig(key:string){return key==='vimMode'?false:null;}
+    getConfig(key:string){return key==='vimMode'?false:key==='dailyNotes'||key==='daily-notes'?dailyNotes():null;}
     on(name:string,callback:(...args:any[])=>void,ctx?:unknown){if(!['modify','create','delete','rename'].includes(name))return unsupported('Vault event '+name);return super.on(name,callback,ctx);}
     getName(){return snapshot.name;}getRoot(){return objects.get('') as TFolder;}
     getFiles(){return [...objects.values()].filter((f):f is TFile=>f instanceof TFile);}
@@ -365,6 +385,9 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     }
   }
   const workspace=guard(new Workspace(),'Workspace'),metadataCache=guard(new Events(),'MetadataCache') as Events&Record<string,any>;
+  let resolvedLinks:Record<string,Record<string,number>>={},unresolvedLinks:Record<string,Record<string,number>>={};
+  Object.defineProperty(metadataCache,'resolvedLinks',{get:()=>resolvedLinks});
+  Object.defineProperty(metadataCache,'unresolvedLinks',{get:()=>unresolvedLinks});
   if(host.ui)Object.assign(workspace,host.ui.workspace,{updateOptions:()=>host.ui!.updateOptions()});
   const metadataOn=Events.prototype.on.bind(metadataCache);
   metadataCache.on=(name:string,callback:(...args:any[])=>void,ctx?:unknown)=>{
@@ -375,8 +398,13 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     if(!(file instanceof TFile)||objects.get(file.path)!==file)throw new Error('File does not belong to this vault');
     return host.native?.metadata?.(file.path)??null;
   };
+  const readCacheByPath=(path:unknown)=>{
+    if(typeof path!=='string')throw new Error('Invalid cache path');
+    const file=objects.get(path);if(!(file instanceof TFile))return null;
+    return host.native?.metadata?.(path)??null;
+  };
   metadataCache.getFileCache=readCache;
-  metadataCache.getCache=readCache;
+  metadataCache.getCache=readCacheByPath;
   metadataCache.getFirstLinkpathDest=(link:string,path:string)=>{
     const normalized=link.split('|')[0].split('#')[0].replace(/^\.\//,'');
     const parent=path.includes('/')?path.slice(0,path.lastIndexOf('/')+1):'';
@@ -386,6 +414,18 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     const resolver=host.native?.resolveLink;const target=resolver?resolver(link,path):resolveLink(link,path,snapshot.notes)?.path;
     return target?vault.getFileByPath(target):null;
   };
+  function rebuildLinks(){
+    const resolved:Record<string,Record<string,number>>={},unresolved:Record<string,Record<string,number>>={};
+    for(const note of snapshot.notes){
+      const cache=host.native?.metadata?.(note.path);
+      for(const link of cache?.links||[]){
+        const target=host.native?.resolveLink?.(link.link,note.path)??resolveLink(link.link,note.path,snapshot.notes)?.path;
+        const bucket=target?resolved:unresolved,key=target??link.link;
+        const entry=bucket[note.path]??={};entry[key]=(entry[key]||0)+1;
+      }
+    }
+    resolvedLinks=resolved;unresolvedLinks=unresolved;
+  }
   const memoryStorage=new Map<string,string>();
   function localStore(){try{return typeof localStorage==='undefined'?null:localStorage;}catch{return null;}}
   function checkStorageKey(key:unknown){if(typeof key!=='string')throw new TypeError('Local storage key must be a string');}
@@ -422,7 +462,13 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
       await vault.rename(file,newPath);
     }
   },'FileManager');
-  const app=guard({appId:'crafactory-engine',vault,workspace,metadataCache,fileManager,internalPlugins:{plugins:{}},loadLocalStorage,saveLocalStorage},'App');
+  const dailyPlugin={_id:'daily-notes',enabled:true,get instance(){return {options:{...dailyNotes()}};}};
+  const internalPlugins={plugins:{'daily-notes':dailyPlugin},getPluginById:(id:string)=>id==='daily-notes'?dailyPlugin:null};
+  const plugins={plugins:{},getPlugin:(id:string)=>id===manifest.id?plugin??null:null};
+  const foldManager={load:(_file:TFile)=>({folds:[]}),save:async(_file:TFile,_info:unknown)=>{}};
+  const app=guard({appId:'crafactory-engine',isMobile:false,vault,workspace,metadataCache,fileManager,plugins,internalPlugins,foldManager,loadLocalStorage,saveLocalStorage},'App');
+  // Some plugins use Obsidian's untyped global instead of the plugin context.
+  exposeApp(app);
   function refresh(next:PluginSnapshot,events=false){
     const previous=snapshot;snapshot=next;
     const nextNotePaths=new Set(snapshot.notes.map(note=>note.path));
@@ -440,6 +486,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     }
     for(const f of objects.values())if(f instanceof TFolder)f.children=[];
     for(const f of objects.values())if(f.path){f.parent=objects.get(f.path.split('/').slice(0,-1).join('/')) as TFolder||null;f.parent?.children.push(f);}
+    rebuildLinks();
     if(events){
       initEditor();
       for(const {entry,file} of removedEntries)if(file)vault.trigger('delete',file);
@@ -543,7 +590,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     },
     iterateRefs:(refs:any[],callback:(r:any)=>boolean|void)=>{for(const r of refs)if(callback(r)===true)return true;return false;},
     iterateCacheRefs:(cache:any,callback:(r:any)=>boolean|void)=>{for(const r of [...(cache.links||[]),...(cache.embeds||[])])if(callback(r)===true)return true;return false;},
-    debounce,apiVersion:'0.0.0',requireApiVersion:(version:string)=>version==='0.0.0'};
+    debounce,apiVersion:'0.0.0',requireApiVersion:(version:string)=>version==='0.0.0',moment};
   Object.assign(exports,host.ui?.exports);
   const api=new Proxy(exports,{get(target,key){if(typeof key==='symbol')return Reflect.get(target,key);if(key==='__esModule')return false;if(Object.hasOwn(target,key))return target[key];return unsupported('export '+key);}});
   return {
@@ -553,7 +600,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     async boot(constructor:any){if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');plugin=new constructor(app,manifest);await Promise.all([plugin!.load(),componentLifecycle(plugin!,'startup')]);await plugin!.onUserEnable();await settle();publish();metadataCache.trigger('resolved');if(host.ui)workspace.trigger('layout-change');},
     async run(id:string){if(unloaded)throw new Error('Plugin is unloaded');initEditor();const command=commands.get(id);if(!command)throw new Error('Command not found');if(!available(command,true))throw new Error('Command unavailable');await available(command,false);await settle();},
     /** Keep the request fence open until actual hook/cleanup work and data operations settle. */
-    async stop(){if(unloaded)return;try{if(plugin)await Promise.all([plugin.unload(),componentLifecycle(plugin,'shutdown')]);await settle();}finally{commands.clear();host.commands([]);unloaded=true;}},
+    async stop(){if(unloaded)return;try{if(plugin)await Promise.all([plugin.unload(),componentLifecycle(plugin,'shutdown')]);await settle();}finally{commands.clear();host.commands([]);unloaded=true;releaseApp(app);}},
     /** Deliver a hover-link event to renderer plugins with a minimal hover parent. */
     hoverLink(payload:{event:MouseEvent;source:string;targetEl:HTMLElement;linktext:string;sourcePath:string}){
       workspace.trigger('hover-link',{...payload,hoverParent:{hoverPopover:null}});
