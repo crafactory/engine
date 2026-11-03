@@ -89,7 +89,8 @@ with the exact content.
 
 The first blocker was `App.fileManager`. A bounded `renameFile` now routes through
 `Vault.rename`; the startup template itself uses `tp.file.create_new`, which exercises the
-existing `getAvailablePath`, `create` and open paths. This does not establish arbitrary startup
+existing `getAvailablePath` and `create` paths. It passes `open_new=false`, so the new note is
+created but not opened. This does not establish arbitrary startup
 hooks, user scripts or shell/system functions.
 
 ## Templater declarative settings persistence

@@ -75,6 +75,8 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await expect.poll(async()=>JSON.parse(await page.evaluate(()=>localStorage.getItem('templater-local-settings')||'{}')).trigger_on_file_creation).toBe(true);
       const startup=page.getByRole('switch',{name:'Enable startup templates',exact:true});
       await startup.click();const startupWarning=page.getByRole('dialog',{name:'Enable startup templates',exact:true});
+      await expect(startupWarning.getByRole('button',{name:'Enable',exact:true})).toBeDisabled();
+      await expect(startup).not.toBeChecked();
       await startupWarning.getByRole('checkbox').check();await startupWarning.getByRole('button',{name:'Enable',exact:true}).click();await expect(startup).toBeChecked();
       await expect.poll(async()=>JSON.parse(await page.evaluate(()=>localStorage.getItem('templater-local-settings')||'{}')).enable_startup_templates).toBe(true);
       await page.getByRole('button',{name:'Add new startup template',exact:true}).click();

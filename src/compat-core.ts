@@ -415,6 +415,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     writeStorage(key as string,raw);
   }
   const fileManager=guard({
+    /** Rename a vault file through the existing host rename primitive. */
     async renameFile(file:TAbstractFile,newPath:string){
       checkAbstract(file);
       if(typeof newPath!=='string'||!newPath.trim())throw new Error('Invalid rename target');
