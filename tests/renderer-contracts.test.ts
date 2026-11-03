@@ -12,8 +12,16 @@ function harness(native?:CompatNativeServices){
   return {runtime,api:runtime.api as any,ui,iterateAllLeaves,request,settingCleanup,extensionCleanup,viewCleanup,extensionsCleanup,suggestCleanup,protocolCleanup,hoverCleanup,basesCleanup,updateOptions,ribbonCleanup,ribbonElement};
 }
 it('renderer export registry is documented, unique and disjoint from Worker exports',()=>{
-  expect(rendererExports).toHaveLength(30);expect(new Set(rendererExports).size).toBe(30);
+  expect(new Set(rendererExports).size).toBe(rendererExports.length);expect(rendererExports).toContain('TextFileView');
   for(const name of rendererExports){expect(inventory.symbols.some(s=>s.name===name&&s.runtime)).toBe(true);expect(supportedExports).not.toContain(name);}
+});
+it('renderer custom style events dispatch through Events and are revocable',async()=>{
+  const h=harness(),calls:string[]=[];
+  for(const name of ['css-change','parse-style-settings','settings-search-loaded']){
+    const ref=h.runtime.app.workspace.on(name,()=>calls.push(name));
+    h.runtime.triggerWorkspaceEvent(name,[]);h.runtime.app.workspace.offref(ref);h.runtime.triggerWorkspaceEvent(name,[]);
+  }
+  expect(calls).toEqual(['css-change','parse-style-settings','settings-search-loaded']);
 });
 it('renderer MarkdownView exposes actual active document in reading mode',()=>{
   const h=harness(),view=h.runtime.app.workspace.getActiveViewOfType(h.api.MarkdownView);

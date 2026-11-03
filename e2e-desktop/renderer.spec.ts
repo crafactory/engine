@@ -6,6 +6,7 @@ let root:string,profile:string,app:ElectronApplication,page:Page;
 test.beforeEach(async()=>{
   root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-'));profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-renderer-profile-'));
   await fs.writeFile(path.join(root,'Test.md'),'Original text');await fs.writeFile(path.join(root,'ZTarget.md'),'Target');await fs.writeFile(path.join(root,'Zeta.md'),'[[ZTarget]]');await fs.writeFile(path.join(root,'Z#.md'),'Sharp target');await fs.writeFile(path.join(root,'Test.fixture'),'fixture body');await fs.writeFile(path.join(root,'Test.base'),'views:\n  - type: fixture-bases\n    name: Fixture\n');
+  await fs.writeFile(path.join(root,'Test.txt'),'original text');
   const dir=path.join(root,'.crafactory/plugins/renderer-fixture');await fs.mkdir(dir,{recursive:true});
   for(const file of ['manifest.json','main.js'])await fs.copyFile('examples/plugins/renderer-fixture/'+file,path.join(dir,file));
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
@@ -58,6 +59,39 @@ test('renderer registerExtensions mounts a custom view in the main document area
   await expect(page.locator('.plugin-view-host .plugin-view-content')).toHaveText('Fixture file: Test.fixture');
   await settings();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();await page.getByTestId('settings-close').click();
   await expect(page.locator('.plugin-view-host')).toHaveCount(0);
+});
+test('renderer text-file view loads, autosaves, flushes on close and reopens persisted text',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  await page.getByTestId('file-Test.txt').click();
+  const editor=page.getByRole('textbox',{name:'Fixture document'});await expect(editor).toHaveValue('original text');
+  await editor.fill('autosaved text');await expect.poll(()=>fs.readFile(path.join(root,'Test.txt'),'utf8')).toBe('autosaved text');
+  await editor.fill('close-flushed text');await page.getByTestId('file-Test.md').click();
+  await expect.poll(()=>fs.readFile(path.join(root,'Test.txt'),'utf8')).toBe('close-flushed text');
+  await page.getByTestId('file-Test.txt').click();await expect(editor).toHaveValue('close-flushed text');
+});
+test('renderer suggestion picker ignores stale results and supports keyboard choice',async()=>{
+  await enable();await page.getByTestId('settings-close').click();await command('Show fixture suggestions');
+  const dialog=page.getByRole('dialog',{name:'Fixture suggestions'}),input=dialog.getByPlaceholder('Find fixture choice');
+  await input.fill('slow');await input.fill('current');
+  await expect(dialog.locator('.prompt-result')).toHaveText(['current first','current second']);
+  await page.waitForTimeout(250);await expect(dialog.locator('.prompt-result')).toHaveText(['current first','current second']);
+  await input.press('ArrowDown');await input.press('Enter');await expect(dialog).toHaveCount(0);
+  await expect(page.locator('.plugin-status-item')).toHaveText('Picked current second');
+});
+test('renderer icon lookup clones sanitized SVG and supplies native tooltips',async()=>{
+  await enable();await page.getByTestId('settings-close').click();await command('Show fixture icons');
+  const modal=page.getByRole('dialog',{name:'Fixture icons'});
+  await expect(modal.locator('svg')).toHaveCount(5);await expect(modal.locator('script')).toHaveCount(0);
+  await expect(modal).toContainText('Registered icon');
+  await expect(modal).toContainText('Icon ID roundtrip');
+  await expect(modal.getByRole('button',{name:'Fixture icon button'})).toHaveAttribute('title','Fixture icon button');
+  expect(await page.evaluate(()=>(window as any).badIcon)).toBeUndefined();
+});
+test('renderer App.scope dispatches hotkeys and revokes them on plugin unload',async()=>{
+  await enable();await page.getByTestId('settings-close').click();await page.keyboard.press('Control+Shift+u');
+  await expect(page.locator('.plugin-status-item')).toHaveText('Scoped en');
+  await settings();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();await page.getByTestId('settings-close').click();
+  await page.keyboard.press('Control+Shift+u');await expect(page.locator('.plugin-status-item')).toHaveCount(0);
 });
 test('renderer reusable leaf opens an exact path and can be revealed',async()=>{
   await enable();await page.getByTestId('settings-close').click();

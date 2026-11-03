@@ -44,6 +44,7 @@ export interface CompatHost {
   notice(message:string):void;
   native?:CompatNativeServices;
   ui?:{
+    scope?:unknown;
     exports:Record<string,unknown>;workspace:Record<string,unknown>;
     statusBar():HTMLElement;settingTab(tab:any):()=>void;
     editorExtension(extension:unknown):()=>void;updateOptions():void;
@@ -76,7 +77,7 @@ export const supportedExports=[
   'Plugin','Component','Events','Notice','TAbstractFile','TFile','TFolder','Vault','Workspace','Editor','MarkdownView','FileSystemAdapter',
   'normalizePath','parseYaml','stringifyYaml','parseLinktext','getLinkpath','getAllTags',
   'parseFrontMatterAliases','parseFrontMatterTags','parseFrontMatterEntry','parseFrontMatterStringArray',
-  'getFrontMatterInfo','iterateRefs','iterateCacheRefs','debounce','apiVersion','requireApiVersion','moment'
+  'getFrontMatterInfo','iterateRefs','iterateCacheRefs','debounce','apiVersion','requireApiVersion','moment','getLanguage'
 ] as const;
 
 export class Events {
@@ -367,7 +368,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   class MarkdownView {file:TFile|null;editor:Editor|null;constructor(){this.file=vault.getFileByPath(snapshot.active);this.editor=editor;return guard(this,'MarkdownView');}getViewType(){return 'markdown';}getViewData(){return snapshot.notes.find(n=>n.path===snapshot.active)?.content||'';}async save(){await mutationQueue;await request('save',[snapshot.active]);}}
   class Workspace extends Events {
     layoutReady=true;
-    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){const custom=name.includes(':');if(name!=='file-open'&&(!host.ui||(!['layout-change','editor-change','hover-link','file-menu'].includes(name)&&!custom)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
+    on(name:string,callback:(...args:any[])=>void,ctx?:unknown){const custom=name.includes(':')||['parse-style-settings','settings-search-loaded'].includes(name);if(name!=='file-open'&&(!host.ui||(!['layout-change','editor-change','hover-link','file-menu','css-change'].includes(name)&&!custom)))return unsupported('Workspace event '+name);return super.on(name,callback,ctx);}
     getActiveFile(){return vault.getFileByPath(snapshot.active);}
     getActiveViewOfType(type:unknown){return type===MarkdownView&&(editor||host.ui&&snapshot.active.endsWith('.md'))?new MarkdownView():null;}
     iterateAllLeaves(_callback:(leaf:unknown)=>void){return unsupported('Workspace.iterateAllLeaves');}
@@ -466,7 +467,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   const internalPlugins={plugins:{'daily-notes':dailyPlugin},getPluginById:(id:string)=>id==='daily-notes'?dailyPlugin:null};
   const plugins={plugins:{},getPlugin:(id:string)=>id===manifest.id?plugin??null:null};
   const foldManager={load:(_file:TFile)=>({folds:[]}),save:async(_file:TFile,_info:unknown)=>{}};
-  const app=guard({appId:'crafactory-engine',isMobile:false,vault,workspace,metadataCache,fileManager,plugins,internalPlugins,foldManager,loadLocalStorage,saveLocalStorage},'App');
+  const app=guard({appId:'crafactory-engine',isMobile:false,vault,workspace,metadataCache,fileManager,plugins,internalPlugins,foldManager,loadLocalStorage,saveLocalStorage,...(host.ui?.scope?{scope:host.ui.scope}:{})},'App');
   // Some plugins use Obsidian's untyped global instead of the plugin context.
   exposeApp(app);
   function refresh(next:PluginSnapshot,events=false){
@@ -590,7 +591,9 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     },
     iterateRefs:(refs:any[],callback:(r:any)=>boolean|void)=>{for(const r of refs)if(callback(r)===true)return true;return false;},
     iterateCacheRefs:(cache:any,callback:(r:any)=>boolean|void)=>{for(const r of [...(cache.links||[]),...(cache.embeds||[])])if(callback(r)===true)return true;return false;},
-    debounce,apiVersion:'0.0.0',requireApiVersion:(version:string)=>version==='0.0.0',moment};
+    debounce,apiVersion:'0.0.0',requireApiVersion:(version:string)=>version==='0.0.0',moment,
+    // Engine's current application UI is English; this is not the OS/browser locale.
+    getLanguage:()=> 'en'};
   Object.assign(exports,host.ui?.exports);
   const api=new Proxy(exports,{get(target,key){if(typeof key==='symbol')return Reflect.get(target,key);if(key==='__esModule')return false;if(Object.hasOwn(target,key))return target[key];return unsupported('export '+key);}});
   return {

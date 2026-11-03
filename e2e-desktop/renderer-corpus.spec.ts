@@ -32,15 +32,23 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
     await fs.mkdir(path.join(root,'Folder'),{recursive:true});await fs.writeFile(path.join(root,'Folder/Third.md'),'# Third\n\n#alpha\n\n- [ ] Third task\n');
     await fs.writeFile(path.join(root,'View.js'),'dv.paragraph("VIEW " + input.name);');
   }
-  if(plugin.name==='Dataview'||plugin.name==='Templater')await fs.writeFile(path.join(profile,'trusted-renderer.json'),JSON.stringify({unsafeEval:true}));
+  if(plugin.name==='Tasks'){
+    await fs.writeFile(path.join(root,'Test.md'),'# Test\n\n```tasks\nnot done\n```\n');
+    await fs.writeFile(path.join(root,'Tasks.md'),'# Tasks\n\n- [ ] Engine compatibility task\n- [x] Completed sentinel\n');
+  }
+  const needsEval=['Dataview','Templater','Kanban','Excalidraw'].includes(plugin.name);
+  if(needsEval)await fs.writeFile(path.join(profile,'trusted-renderer.json'),JSON.stringify({unsafeEval:true}));
   for(const file of ['main.js','manifest.json'])await fs.copyFile(path.join(source,file),path.join(dir,file));
   const executablePath=process.env.E2E_EXECUTABLE_PATH;
   const launch=()=>electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:{...process.env,ENGINE_DEV:'0'}});
   let app=await launch();
   try{
-    const pageErrors:string[]=[];
-    let page=await app.firstWindow();const trackPage=()=>page.on('pageerror',error=>pageErrors.push(error.message));trackPage();await page.getByTestId('file-Test.md').click();await expect(page.locator('.note-title h1')).toHaveText('Test');
-    if(plugin.name==='Dataview'||plugin.name==='Templater')await expect(page).toHaveURL('engine://app/trusted.html');
+    const pageErrors:string[]=[],consoleErrors:string[]=[];
+    let page=await app.firstWindow();const trackPage=()=>{
+      page.on('pageerror',error=>{pageErrors.push(error.message);console.error(plugin.name+' runtime: '+error.stack);});
+      page.on('console',message=>{if(message.type()==='error'){consoleErrors.push(message.text());console.error(plugin.name+' console: '+message.text());}});
+    };trackPage();await page.getByTestId('file-Test.md').click();await expect(page.locator('.note-title h1')).toHaveText('Test');
+    if(needsEval)await expect(page).toHaveURL('engine://app/trusted.html');
     const settings=async()=>{await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();};
     await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
     let control=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});
@@ -50,6 +58,17 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
     if(await page.locator('.error-banner').count()){
       blocker=await page.locator('.error-banner span').innerText();outcome=blocker.includes('Unsupported Obsidian capability:')?'UNSUPPORTED_STARTUP':'LOAD_ERROR';
       await expect(control).not.toBeChecked();await expect(page.locator('.plugin-status-item')).toHaveCount(0);
+    }else if(plugin.name==='Tasks'){
+      await page.getByTestId('settings-close').click();await page.getByTestId('mode-reading').click();
+      const block=page.locator('.reading-surface .plugin-code-block');
+      await expect(block).toContainText('Engine compatibility task',{timeout:15000});
+      await expect(block).not.toContainText('Completed sentinel');
+      // Completing a filtered task removes its checkbox; assert persisted state, not the removed control.
+      await block.locator('input[type=checkbox]').first().click();
+      await expect.poll(()=>fs.readFile(path.join(root,'Tasks.md'),'utf8')).toContain('- [x] Engine compatibility task');
+      await expect(block).not.toContainText('Engine compatibility task');
+      workflows=['not-done query renders a task from another note and excludes completed tasks','checking a rendered task persists completion to the original note and refreshes the query'];
+      outcome='BOUNDED_WORKFLOWS_PASS';
     }else if(plugin.name==='Dataview'){
       await page.getByRole('button',{name:'Plugin settings Dataview',exact:true}).click();await page.getByRole('switch',{name:'Enable JavaScript queries',exact:true}).check();await page.getByTestId('settings-close').click();await page.getByTestId('mode-reading').click();
       const blocks=page.locator('.reading-surface .plugin-code-block');
@@ -187,8 +206,13 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       outcome='BOUNDED_WORKFLOWS_PASS';workflows=['400-word document at 200 wpm','reading speed setting saves 100 wpm','reading/source transition retains 4 min','editor-change: 800 words -> 8 min','10-word selection modal at 100 wpm','Escape closes modal','disable removes status and settings','re-enable restores setting and 8 min'];
     }
     if(plugin.name==='Reading Time'||plugin.name==='Dataview'||plugin.name==='Templater'||plugin.name==='Advanced Tables'||plugin.name==='Calendar (Beta)')expect(outcome).toBe('BOUNDED_WORKFLOWS_PASS');
+    if(outcome==='STARTUP_ONLY'){
+      await page.waitForTimeout(500);
+      if(pageErrors.length||consoleErrors.length){outcome='STARTUP_WITH_ERRORS';blocker=pageErrors[0]||consoleErrors[0];}
+    }
+    if(outcome==='BOUNDED_WORKFLOWS_PASS')expect(pageErrors).toEqual([]);
     const platform=process.platform==='linux'?'Linux x64 Electron':process.platform==='darwin'?'macOS '+process.arch+' Electron':process.platform+' '+process.arch+' Electron';
-    const result={name:plugin.name,repo:plugin.repo,tag:plugin.tag,manifest_version:manifest.version,main_sha256:plugin.main_sha256,manifest_sha256:plugin.manifest_sha256,platform,mode:'trusted renderer (explicit opt-in, not sandboxed)',outcome,first_blocker:blocker,functional_workflows:workflows.length?workflows:'NOT_RUN',checked_at:new Date().toISOString()};
+    const result={name:plugin.name,repo:plugin.repo,tag:plugin.tag,manifest_version:manifest.version,main_sha256:plugin.main_sha256,manifest_sha256:plugin.manifest_sha256,platform,mode:'trusted renderer (explicit opt-in, not sandboxed)',outcome,first_blocker:blocker,functional_workflows:workflows.length?workflows:'NOT_RUN',runtime_errors:pageErrors,console_errors:consoleErrors,checked_at:new Date().toISOString()};
     testInfo.annotations.push({type:'compatibility',description:JSON.stringify(result)});
     if(process.env.ENGINE_RENDERER_CORPUS_REPORT){await fs.mkdir(process.env.ENGINE_RENDERER_CORPUS_REPORT,{recursive:true});await fs.writeFile(path.join(process.env.ENGINE_RENDERER_CORPUS_REPORT,plugin.directory+'.json'),JSON.stringify(result,null,2)+'\n');}
   }finally{await app.close();await fs.rm(root,{recursive:true,force:true});await fs.rm(profile,{recursive:true,force:true});}

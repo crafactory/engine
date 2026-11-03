@@ -2,7 +2,7 @@ const {app,BrowserWindow,ipcMain,dialog,Menu,shell,protocol,net} = require('elec
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const {pathToFileURL} = require('node:url');
-let win, vault, watcher, Vault, currentRoot, closeAllowed=false;
+let win, vault, watcher, Vault, currentRoot, closeAllowed=false,closePending=false,closeListenerReady=false;
 let unsafeEvalEnabled=false, activeUnsafeEval=false;
 protocol.registerSchemesAsPrivileged([{scheme:'engine', privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
 app.setName('Crafactory Engine');
@@ -54,9 +54,12 @@ async function start() {
     event.preventDefault(); if(/^https?:\/\//.test(url))shell.openExternal(url);
   });
   win.webContents.session.setPermissionRequestHandler((contents,permission,callback)=>callback(contents===win.webContents && permission==='media'));
+  win.webContents.on('did-start-navigation',(_event,_url,isInPlace,isMainFrame)=>{if(isMainFrame&&!isInPlace)closeListenerReady=false;});
   win.on('close',event=>{
-    if(!closeAllowed){event.preventDefault();win.webContents.send('engine:before-close');}
+    if(!closeAllowed){event.preventDefault();if(closeListenerReady)win.webContents.send('engine:before-close');else closePending=true;}
   });
+  // Early close requests must survive until the renderer has installed its save/unload handler.
+  ipc('close-listener-ready',()=>{closeListenerReady=true;if(closePending){closePending=false;win.webContents.send('engine:before-close');}});
   ipc('close-ready',()=>{closeAllowed=true;win.close();});
   ipc('unsafeEval',()=>unsafeEvalEnabled);
   ipc('setUnsafeEval',async enabled=>{

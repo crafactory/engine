@@ -1,51 +1,29 @@
-# Workstate
+# Popular-plugin compatibility increment
 
-## Current focus
+## Scope and evidence
 
-External Obsidian-plugin compatibility, with `docs/PLUGIN-SUPPORT-MATRIX.md` as the current
-status tracker.
+User authorized implementation, documentation alignment, PR submission, CodeRabbit feedback fixes, and merge after checks. Base is merged PR #70. Follow AGENTS.md and the replication playbook; do not inspect third-party implementation source or copy it into Engine.
 
-## Current status
+Popularity target: all-time top ten from https://www.obsidianstats.com/most-downloaded, fetched 2026-11-03. Excalidraw, Templater, Dataview, Tasks, Git, Advanced Tables, Calendar, Copilot, Style Settings, Kanban. The provider's cached snapshot is dated 2026-10-09, not a live November count. Reading Time remains an additional regression sentinel, not a top-ten claim.
 
-- Dataview: bounded query/inline/DataviewJS/`dv.view` workflows pass under the desktop
-  unsafe-eval opt-in.
-- Templater: `BOUNDED_WORKFLOWS_PASS` for text/toggle/dropdown/list settings persistence,
-  dangerous trigger-on-creation/startup confirmations, startup-template execution, user-script
-  invocation, template insertion, create-note and disable/re-enable; other dangerous settings,
-  other lists and other user-script exports remain unverified.
-- Advanced Tables: `BOUNDED_WORKFLOWS_PASS` for live-mode table formatting.
-- Calendar: `BOUNDED_WORKFLOWS_PASS` for the calendar view and today's daily note.
-- Reading Time: bounded workflows pass.
-- Default CSP is strict (`script-src 'self' blob:`); `unsafe-eval` and `wasm-unsafe-eval` are
-  desktop trusted-entry opt-ins only.
+## Current increment
 
-## Recent changes
+Expand the SHA-pinned corpus from five to eleven targets. Add original documented keyboard scope, suggestion modal, English UI language, text-file view persistence, CSS-change notifications, and missing Lezer module adapters. Preserve Worker boundaries and explicit trusted-renderer opt-in. No Node filesystem/process broadening.
 
-- Inline properties and persisted property types.
-- Live list markers, reading-mode undo, callout folds and code copy.
-- `engine.compat/v1`, native support plugin, MetadataCache and Dataview corpus.
-- Desktop unsafe-eval opt-in, Dataview `dv.view`, Templater startup surface.
-- Templater template insertion, App local storage, `Editor.getDoc`, `MarkdownView.save`.
-- Templater create-note, `Vault.getAvailablePath`, reusable leaf `openFile`/ephemeral state.
-- Templater declarative settings persistence (text/toggle/dropdown/list), dangerous-setting
-  cancel/confirm and local persistence, global DOM helpers and `Array.prototype.contains`.
-- CodeRabbit fixes: active-note save, case-insensitive available paths, save ordering, storage
-  fallback, exact-path leaf open and reusable-leaf registration.
-- Templater startup-template execution; `App.fileManager.renameFile`.
-- Templater user-script invocation (`tp.user.hello()` in a template).
-- Advanced Tables live-mode table formatting.
-- Calendar view + today's daily note; `moment`/`window.app`/Daily Notes globals.
+## Verification and remaining work
 
-## Next
+Use Node 22 at `/tmp/engine-node/node_modules/node/bin`; the sandbox default Node 18 is too old for existing Vite/Vitest dependencies. Corpus lives outside the checkout at `/tmp/engine-plugin-corpus`.
 
-- Calendar navigation/menus/settings and other Advanced Tables commands; candidate plugins.
-- Advanced Tables editor commands; Calendar workspace/daily-note behavior.
-- Candidate plugins: Tasks, QuickAdd, Kanban, Excalidraw, Style Settings, Omnisearch.
+Baseline from PR #70: Dataview, Reading Time, Templater, Advanced Tables, and Calendar all have bounded workflows. Templater includes declarative/dangerous-confirmation settings, startup templates, user scripts, insertion/create-note and disable/re-enable; Advanced Tables verifies live formatting; Calendar verifies today's daily note. These existing results must not be downgraded to startup-only. Copilot has startup-only evidence; all six new targets now have observed startup outcomes. Additional runtime gaps must be reported, not hidden or called full compatibility. The full top-ten compatibility goal remains unfinished until actual workflows pass.
 
-## References
+Prior application increments included persisted property types, inline properties, live list markers, reading-mode undo, callout folds, code copy, `engine.compat/v1`, native support plugin and bounded metadata. Recent reviews fixed active-note save, case-insensitive available paths, save ordering, storage fallback, exact-path reusable leaves and App local storage. Preserve these contracts.
 
-- `docs/REPLICATION-PLAYBOOK.md`
-- `docs/PLUGIN-SUPPORT-MATRIX.md`
-- `docs/PLUGIN-COMPATIBILITY.md`
-- `docs/TRUSTED-RENDERER-PLUGIN-TESTS.md`
-- `docs/compatibility/renderer-community-results.json`
+Before commit: run build, unit/browser/desktop suites, both corpus modes; regenerate reports and inventory; align support/member docs. Submit PR, wait for CodeRabbit, address actionable comments, rerun checks, then merge only when clean.
+
+## Verified increment outcome
+
+The native suite passed 70/70 including both eleven-input corpus modes. Unit tests passed 834/834. Browser run passed 63/64; the sole failure was an existing fake-clock pause target only one second after installation, which became past during a cold reload. Its target now has a five-minute margin, and the isolated corrected daily-note test passed. Final CI must run the complete browser suite on the final commit.
+
+Renderer evidence: six bounded workflow passes including Reading Time (five top-ten targets), two clean startup-only targets (Excalidraw and Style Settings), two startup refusals (Git and Kanban), one startup with background errors (Copilot). Tasks preserves its recoverable property-type warning. Worker refuses all eleven inputs without making compatibility claims.
+
+Late hardening awaiting final targeted rerun: icon ID acronym round trips, accessible icon-button tooltip, idempotent native close and property-type close flush. The early-close handshake already fixed the formerly hanging unsafe-eval restart teardown.

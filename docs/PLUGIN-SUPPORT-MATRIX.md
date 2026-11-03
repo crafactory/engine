@@ -7,6 +7,9 @@ Detailed API boundaries remain in
 [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md), and per-run evidence remains in
 [TRUSTED-RENDERER-PLUGIN-TESTS.md](TRUSTED-RENDERER-PLUGIN-TESTS.md) and
 [compatibility/renderer-community-results.json](compatibility/renderer-community-results.json).
+The [popular-plugin scope and gap analysis](POPULAR-PLUGIN-COMPATIBILITY.md) explains the
+all-time-download target set, added host capabilities, and remaining work before any
+top-ten-wide compatibility claim.
 
 **Last matrix update:** 2026-11-03. **Runtime:** explicit trusted renderer (not sandboxed) for
 the functional rows unless stated otherwise; pinned default-Worker runs still fail.
@@ -27,6 +30,12 @@ It does **not** certify commands, views, rendering, menus, settings behavior or 
 
 | Plugin | Pinned release | Outcome | Verified workflows | Main boundary / next step |
 |---|---|---|---|---|
+| Tasks | `8.6.0` | `BOUNDED_WORKFLOWS_PASS` | Cross-note `not done` query excludes completed tasks; completion writes the original note and removes it from the query | Recoverable `metadataTypeManager` warning; other queries, recurrence, dialogs and property-type integration unverified |
+| Excalidraw | `2.29.1` | `STARTUP_ONLY` | Clean bounded startup observation | Drawing/edit/reopen not certified |
+| Git | `2.42.0` | `UNSUPPORTED_STARTUP` | None | Requires reviewed native capabilities; `require path` rejects |
+| Copilot | `4.0.17` | `STARTUP_WITH_ERRORS` | None | Background initialization fails at `App.secretStorage`; inference/indexing/chat unverified |
+| Style Settings | `1.0.9` | Startup observation only | None | Theme/snippet/CSS round-trip acceptance unfinished |
+| Kanban | `2.0.51` | `UNSUPPORTED_STARTUP` | None | Private `App.embedRegistry` unavailable; text-file views alone do not certify boards |
 | **Dataview** | `0.5.70` / manifest `0.5.68` | ✅ `BOUNDED_WORKFLOWS_PASS` | `TABLE`, `TASK`, `LIST FROM`, `WHERE`, `SORT`/`LIMIT`, `GROUP BY`, `FLATTEN`, inline query, DataviewJS, `dv.view` | Not full query/frontmatter/view semantics; DataviewJS and `dv.view` need 🔒 desktop `unsafe-eval` |
 | **Reading Time** | `1.1.2` | ✅ `BOUNDED_WORKFLOWS_PASS` | 400-word test at 200 wpm; speed setting persists; reading/source transition; editor change 8 min; selected-text modal; disable/re-enable | Format variants, invalid input, timing and multiple leaves remain unverified |
 | **Templater** | `2.26.0` | ✅ `BOUNDED_WORKFLOWS_PASS` | Template folder, toggle and dropdown settings persist across restart; dangerous trigger-on-creation cancel/confirm and startup acknowledgement persist locally; template hotkey list add/delete persists; startup template runs after restart and creates an exact note; user script function inserts exact output; insert template into the active note; exact inserted content persists; disable/re-enable re-registers the command; create a new note from a template and open its exact content | Other dangerous settings (system commands), other startup/user-script functions, other lists, number validation and shell/system functions remain unverified |

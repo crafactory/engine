@@ -1,6 +1,6 @@
 # Public API export coverage
 
-Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 29 bounded runtime symbols. Explicit opt-in trusted renderer: 59 bounded runtime symbols (30 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
+Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 30 bounded runtime symbols. Explicit opt-in trusted renderer: 68 bounded runtime symbols (38 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
 
 | Symbol | Kind | Default Worker | Trusted renderer | Public documentation |
 |---|---|---|---|---|
@@ -50,7 +50,7 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | RegExpValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [RegExpValue](https://docs.obsidian.md/Reference/TypeScript+API/RegExpValue) |
 | RelativeDateValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [RelativeDateValue](https://docs.obsidian.md/Reference/TypeScript+API/RelativeDateValue) |
 | RenderContext | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [RenderContext](https://docs.obsidian.md/Reference/TypeScript+API/RenderContext) |
-| Scope | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [Scope](https://docs.obsidian.md/Reference/TypeScript+API/Scope) |
+| Scope | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [Scope](https://docs.obsidian.md/Reference/TypeScript+API/Scope) |
 | SearchComponent | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [SearchComponent](https://docs.obsidian.md/Reference/TypeScript+API/SearchComponent) |
 | SecretComponent | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [SecretComponent](https://docs.obsidian.md/Reference/TypeScript+API/SecretComponent) |
 | SecretStorage | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [SecretStorage](https://docs.obsidian.md/Reference/TypeScript+API/SecretStorage) |
@@ -93,9 +93,9 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | PopoverSuggest | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [PopoverSuggest](https://docs.obsidian.md/Reference/TypeScript+API/PopoverSuggest) |
 | PrimitiveValue | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [PrimitiveValue](https://docs.obsidian.md/Reference/TypeScript+API/PrimitiveValue) |
 | SettingTab | Abstract Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [SettingTab](https://docs.obsidian.md/Reference/TypeScript+API/SettingTab) |
-| SuggestModal | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [SuggestModal](https://docs.obsidian.md/Reference/TypeScript+API/SuggestModal) |
+| SuggestModal | Abstract Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [SuggestModal](https://docs.obsidian.md/Reference/TypeScript+API/SuggestModal) |
 | TAbstractFile | Abstract Classes | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [TAbstractFile](https://docs.obsidian.md/Reference/TypeScript+API/TAbstractFile) |
-| TextFileView | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [TextFileView](https://docs.obsidian.md/Reference/TypeScript+API/TextFileView) |
+| TextFileView | Abstract Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [TextFileView](https://docs.obsidian.md/Reference/TypeScript+API/TextFileView) |
 | Value | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [Value](https://docs.obsidian.md/Reference/TypeScript+API/Value) |
 | ValueComponent | Abstract Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [ValueComponent](https://docs.obsidian.md/Reference/TypeScript+API/ValueComponent) |
 | View | Abstract Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [View](https://docs.obsidian.md/Reference/TypeScript+API/View) |
@@ -103,7 +103,7 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | WorkspaceItem | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [WorkspaceItem](https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceItem) |
 | WorkspaceParent | Abstract Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [WorkspaceParent](https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceParent) |
 | PopoverState | Enumerations | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [PopoverState](https://docs.obsidian.md/Reference/TypeScript+API/PopoverState) |
-| addIcon | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [addIcon](https://docs.obsidian.md/Reference/TypeScript+API/addIcon) |
+| addIcon | Functions | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [addIcon](https://docs.obsidian.md/Reference/TypeScript+API/addIcon) |
 | arrayBufferToBase64 | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [arrayBufferToBase64](https://docs.obsidian.md/Reference/TypeScript+API/arrayBufferToBase64) |
 | arrayBufferToHex | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [arrayBufferToHex](https://docs.obsidian.md/Reference/TypeScript+API/arrayBufferToHex) |
 | base64ToArrayBuffer | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [base64ToArrayBuffer](https://docs.obsidian.md/Reference/TypeScript+API/base64ToArrayBuffer) |
@@ -113,9 +113,9 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | getAllTags | Functions | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [getAllTags](https://docs.obsidian.md/Reference/TypeScript+API/getAllTags) |
 | getBlobArrayBuffer | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [getBlobArrayBuffer](https://docs.obsidian.md/Reference/TypeScript+API/getBlobArrayBuffer) |
 | getFrontMatterInfo | Functions | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [getFrontMatterInfo](https://docs.obsidian.md/Reference/TypeScript+API/getFrontMatterInfo) |
-| getIcon | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [getIcon](https://docs.obsidian.md/Reference/TypeScript+API/getIcon) |
-| getIconIds | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [getIconIds](https://docs.obsidian.md/Reference/TypeScript+API/getIconIds) |
-| getLanguage | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [getLanguage](https://docs.obsidian.md/Reference/TypeScript+API/getLanguage) |
+| getIcon | Functions | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [getIcon](https://docs.obsidian.md/Reference/TypeScript+API/getIcon) |
+| getIconIds | Functions | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [getIconIds](https://docs.obsidian.md/Reference/TypeScript+API/getIconIds) |
+| getLanguage | Functions | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [getLanguage](https://docs.obsidian.md/Reference/TypeScript+API/getLanguage) |
 | getLinkpath | Functions | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [getLinkpath](https://docs.obsidian.md/Reference/TypeScript+API/getLinkpath) |
 | hexToArrayBuffer | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [hexToArrayBuffer](https://docs.obsidian.md/Reference/TypeScript+API/hexToArrayBuffer) |
 | htmlToMarkdown | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [htmlToMarkdown](https://docs.obsidian.md/Reference/TypeScript+API/htmlToMarkdown) |
@@ -144,8 +144,8 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | requireApiVersion | Functions | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [requireApiVersion](https://docs.obsidian.md/Reference/TypeScript+API/requireApiVersion) |
 | resolveSubpath | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [resolveSubpath](https://docs.obsidian.md/Reference/TypeScript+API/resolveSubpath) |
 | sanitizeHTMLToDom | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [sanitizeHTMLToDom](https://docs.obsidian.md/Reference/TypeScript+API/sanitizeHTMLToDom) |
-| setIcon | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [setIcon](https://docs.obsidian.md/Reference/TypeScript+API/setIcon) |
-| setTooltip | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [setTooltip](https://docs.obsidian.md/Reference/TypeScript+API/setTooltip) |
+| setIcon | Functions | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [setIcon](https://docs.obsidian.md/Reference/TypeScript+API/setIcon) |
+| setTooltip | Functions | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [setTooltip](https://docs.obsidian.md/Reference/TypeScript+API/setTooltip) |
 | sortSearchResults | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [sortSearchResults](https://docs.obsidian.md/Reference/TypeScript+API/sortSearchResults) |
 | stringifyYaml | Functions | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [stringifyYaml](https://docs.obsidian.md/Reference/TypeScript+API/stringifyYaml) |
 | stripHeading | Functions | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [stripHeading](https://docs.obsidian.md/Reference/TypeScript+API/stripHeading) |

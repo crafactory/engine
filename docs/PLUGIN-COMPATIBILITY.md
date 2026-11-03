@@ -1,5 +1,10 @@
 # Plugin compatibility report
 
+For the expanded all-time-download top-ten target set, evidence tiers, added
+`SuggestModal`/`Scope`/`TextFileView` behavior and remaining native/private-API gaps,
+see [Popular-plugin compatibility](POPULAR-PLUGIN-COMPATIBILITY.md). The increment
+does not claim full compatibility with all ten plugins.
+
 Crafactory Engine v0.6.0 provides an experimental independent compatibility subset, not comprehensive Obsidian plugin support. Current per-plugin and per-capability status is tracked in [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md). Original code is MIT; dependency licenses remain intact. No proprietary application implementation, SDK package, declaration files or sample-plugin source is used. Public behavioral references and unchanged, external community-plugin release bytes serve different roles: documentation informs original adapters; real plugins are black-box test inputs only. Development and builds now go through a PR; publication waits for completed CodeRabbit review, repaired findings and merge.
 
 ## Two explicit runtimes

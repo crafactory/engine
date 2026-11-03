@@ -249,7 +249,10 @@ export function App(){
     const timer=setTimeout(()=>{bridge.state({settings,bookmarks,workspaces,recent,propertyTypes}).catch(report);},700);
     return()=>clearTimeout(timer);
   },[settings,bookmarks,workspaces,recent,propertyTypes]);
-  useEffect(()=>{document.documentElement.dataset.theme=settings.theme;},[settings.theme]);
+  useEffect(()=>{
+    document.documentElement.dataset.theme=settings.theme;
+    for(const controller of pluginStops.current.values())controller.triggerWorkspaceEvent?.('css-change',[]);
+  },[settings.theme,settings.css]);
   const refresh=useCallback(async()=>{
     try{
       const nextEntries=await bridge.list();
@@ -296,9 +299,9 @@ export function App(){
     for(const timer of timers.current.values())clearTimeout(timer);timers.current.clear();
     await Promise.all(notesRef.current.filter(n=>savedContent.current.get(n.path)!==n.content).map(n=>persist(n.path)));
   }
-  const closeHandler=useRef<()=>void>(()=>{});
-  closeHandler.current=()=>{stopPlugins().then(flush).then(()=>bridge.state({settings,bookmarks,workspaces,recent})).then(()=>bridge.closeReady?.()).catch(report);};
-  useEffect(()=>bridge.onBeforeClose?.(()=>closeHandler.current()),[]);
+  const closeHandler=useRef<()=>void>(()=>{}),closing=useRef(false);
+  closeHandler.current=()=>{if(closing.current)return;closing.current=true;stopPlugins().then(async()=>{if(loaded.current){await flush();await bridge.state({settings,bookmarks,workspaces,recent,propertyTypes});}}).then(()=>bridge.closeReady?.()).catch(error=>{closing.current=false;report(error);});};
+  useEffect(()=>{if(!loading)return bridge.onBeforeClose?.(()=>closeHandler.current());},[loading]);
   useEffect(()=>{
     const unload=(event:BeforeUnloadEvent)=>{if(notesRef.current.some(n=>savedContent.current.get(n.path)!==n.content)){event.preventDefault();event.returnValue='There are unsaved changes.';}};
     window.addEventListener('beforeunload',unload);return()=>window.removeEventListener('beforeunload',unload);
