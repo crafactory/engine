@@ -8,11 +8,19 @@ it('dispatches the active pushed scope and restores its predecessor on pop',()=>
   manager.pushScope(first);manager.pushScope(second);manager.dispatch(key('k'));manager.popScope(second);manager.dispatch(key('k'));manager.popScope(first);manager.dispatch(key('k'));expect(calls).toEqual(['second','first','root']);
 });
 it('translates real key modifiers and middle clicks to the documented pane types',()=>{
-  expect(Keymap.isModEvent()).toBe(false);expect(Keymap.isModEvent(key('x'))).toBe(false);
-  expect(Keymap.isModEvent(key('x',{ctrlKey:true}))).toBe('tab');
-  expect(Keymap.isModEvent(key('x',{ctrlKey:true,altKey:true}))).toBe('split');
-  expect(Keymap.isModEvent(key('x',{ctrlKey:true,altKey:true,shiftKey:true}))).toBe('window');
-  expect(Keymap.isModEvent({...key('x'),button:1})).toBe('tab');expect(Keymap.isModifier(key('x',{shiftKey:true}),'Shift')).toBe(true);
+  for(const platform of ['MacIntel','Win32','Linux x86_64']){
+    vi.stubGlobal('navigator',{platform});
+    try{
+      const mod=platform==='MacIntel'?{metaKey:true}:{ctrlKey:true};
+      const other=platform==='MacIntel'?{ctrlKey:true}:{metaKey:true};
+      expect(Keymap.isModEvent()).toBe(false);expect(Keymap.isModEvent(key('x'))).toBe(false);
+      expect(Keymap.isModEvent(key('x',mod))).toBe('tab');
+      expect(Keymap.isModEvent(key('x',{...mod,altKey:true}))).toBe('split');
+      expect(Keymap.isModEvent(key('x',{...mod,altKey:true,shiftKey:true}))).toBe('window');
+      expect(Keymap.isModEvent(key('x',other))).toBe(false);
+      expect(Keymap.isModEvent({...key('x'),button:1})).toBe('tab');expect(Keymap.isModifier(key('x',{shiftKey:true}),'Shift')).toBe(true);
+    }finally{vi.unstubAllGlobals();}
+  }
 });
 it('returns a public handler with its actual scope and string modifiers',()=>{
   const scope=new Scope(),handler=scope.register(['Ctrl','Shift'],'K',()=>false);

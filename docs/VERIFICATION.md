@@ -54,6 +54,11 @@ by these local results. Authentication/signing/hooks/conflicts, additional drawi
 embedding, Kanban cards/completion/moves, arbitrary plugin leaf-state restoration, installed
 reference differential testing and native Windows/macOS/mobile remain unverified or unsupported.
 
+The initial PR head's [macOS package job](https://github.com/crafactory/engine/actions/runs/41682345882/job/126078993105)
+failed before packaging: a new Keymap unit assertion hard-coded Control as Mod. The fixture now
+explicitly exercises Mac/Meta, Windows/Control and Linux/Control, including refusal of the other
+modifier, without changing product behavior. That failed cloud job is not a macOS build pass.
+
 ## Narrowed default CSP
 
 This section records removing the default-entry `wasm-unsafe-eval` relaxation left over from
