@@ -1,6 +1,7 @@
 import workerScript from './plugin-worker.ts?worker&url';
 import type {PluginManifest} from './types';
 import type {PluginSnapshot} from './compat-core';
+import type {PluginFileViewChange} from './plugin-document-views';
 export interface PluginCommand {id:string;label:string;run:()=>void;plugin:string}
 export interface HoverLinkPayload {event:MouseEvent;source:string;targetEl:HTMLElement;linktext:string;sourcePath:string}
 
@@ -13,8 +14,8 @@ export interface PluginController {
   stop():Promise<void>;
   /** Renderer-only: mount a registered custom view into a host element. */
   mountView?(viewType:string,path:string,parent:HTMLElement,leafId?:string):Promise<{element:HTMLElement;dispose():void}>;
-  /** Host-only: flush and retire file-backed views before a filesystem move/delete. */
-  closeFileViews?(path:string):Promise<void>;
+  /** Host-only: save/freeze all owners before committing any file-view retirement. */
+  prepareFileViews?(path:string):Promise<PluginFileViewChange>;
   /** Renderer-only: query registered editor suggests at a document position. */
   editorSuggest?(text:string,pos:number):EditorSuggestResult|null|Promise<EditorSuggestResult|null>;
   /** Renderer-only: dispatch an obsidian:// protocol URL to this plugin's handlers. */

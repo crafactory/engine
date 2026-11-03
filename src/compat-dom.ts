@@ -484,18 +484,20 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     onClose(){return this.transition(async()=>{if(this.file){await this.onUnloadFile(this.file);this.file=null;}});}
     onLoadFile(_file:any):any{}onUnloadFile(_file:any):any{}
   }
+  const retiringTextViews=new WeakSet<TextFileView>();
   class TextFileView extends FileView {
     data='';private storedData='';private version='';private timer:ReturnType<typeof setTimeout>|undefined;
     private writes:Promise<void>=Promise.resolve();
     getViewData():string{return unsupported('TextFileView.getViewData abstract');}
     setViewData(_data:string,_clear:boolean):void{return unsupported('TextFileView.setViewData abstract');}
     clear():void{return unsupported('TextFileView.clear abstract');}
-    requestSave=()=>{clearTimeout(this.timer);this.timer=setTimeout(()=>{this.timer=undefined;void this.save().catch(onSaveError);},2000);};
+    requestSave=()=>{if(retiringTextViews.has(this))return;clearTimeout(this.timer);this.timer=setTimeout(()=>{this.timer=undefined;void this.save().catch(onSaveError);},2000);};
     async onLoadFile(file:any){
       if(!fileIO)return unsupported('TextFileView versioned storage');
       const note=await fileIO.read(file.path);this.data=note.content;this.storedData=note.content;this.version=note.version;this.setViewData(this.data,true);
     }
     async save(){
+      if(retiringTextViews.has(this))return;
       clearTimeout(this.timer);this.timer=undefined;
       const file=this.file;if(!file)return;
       const data=this.getViewData();
@@ -509,7 +511,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       });
       this.writes=write.catch(()=>{});await write;
     }
-    async onUnloadFile(_file:any){await this.save();this.clear();this.data='';}
+    async onUnloadFile(_file:any){if(!retiringTextViews.has(this))await this.save();this.clear();this.data='';}
   }
   class WorkspaceLeaf extends Events {
     id:string=crypto.randomUUID();
@@ -546,12 +548,12 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       this.placement='tab';leaves.add(this);
       await this.setViewState({type:extensionViews.get(file.extension?.toLowerCase())??'markdown',state:{...openState?.state,file:file.path},active:openState?.active??true});
     }
-    async detachView(){if(this.view){const view=this.view;if(view instanceof View){if(view instanceof TextFileView)await view.save();try{await view.unload();}finally{await view.onClose();}}if(this.view===view)this.view=null;}this.containerEl.replaceChildren();}
+    async detachView(){if(this.view){const view=this.view;if(view instanceof View){if(view instanceof TextFileView&&!retiringTextViews.has(view))await view.save();try{await view.unload();}finally{await view.onClose();}}if(this.view===view)this.view=null;}this.containerEl.replaceChildren();}
     async detach(notify=true){const path=viewFilePath(this);await this.detachView();this.containerEl.remove();leaves.delete(this);if(notify&&this.placement==='tab'&&path)onOpenView?.(null,path,this.id);}
   }
-  const reusableLeaf=new WorkspaceLeaf();
+  const reusableLeaf=new WorkspaceLeaf();let activatedLeaf:WorkspaceLeaf|null=null;
   function viewFilePath(leaf:WorkspaceLeaf):string|undefined{return typeof leaf.view?.file==='string'?leaf.view.file:leaf.view?.file?.path;}
-  function currentLeaf():WorkspaceLeaf{const path=app?.workspace.getActiveFile()?.path;return (path?[...leaves].reverse().find(leaf=>viewFilePath(leaf)===path):null)??reusableLeaf;}
+  function currentLeaf():WorkspaceLeaf{const path=app?.workspace.getActiveFile()?.path;if(path&&activatedLeaf&&leaves.has(activatedLeaf)&&viewFilePath(activatedLeaf)===path)return activatedLeaf;return (path?[...leaves].reverse().find(leaf=>viewFilePath(leaf)===path):null)??reusableLeaf;}
   const traceEmbed=(member:string)=>{if((window as unknown as {__ENGINE_TRACE_COMPAT?:string}).__ENGINE_TRACE_COMPAT===id)console.debug('[compat:'+id+'] '+member);};
   /** Original embed factory registry; factories own Component lifecycles, not raw HTML. */
   class EmbeddedSourceBase extends Component {
@@ -641,7 +643,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       getUnpinnedLeaf(){const leaf=new WorkspaceLeaf('tab');leaves.add(leaf);return leaf;},getLeavesOfType(type:string){return [...leaves].filter(l=>l.view?.getViewType()===type);},iterateAllLeaves(callback:(leaf:any)=>void){for(const leaf of [...leaves])callback(leaf);},
       async detachLeavesOfType(type:string){await Promise.all([...leaves].filter(l=>l.view?.getViewType()===type).map(l=>l.detach()));},
       async setActiveLeaf(leaf:WorkspaceLeaf,options?:{focus?:boolean}){if(!leaves.has(leaf))throw new Error('Foreign leaf');const path=viewFilePath(leaf),previous=app.workspace.getActiveFile()?.path;
-        if(path){if(leaf.placement==='tab')onOpenView?.(factories.has(leaf.view.getViewType())?leaf.view.getViewType():null,path,leaf.id);await app.workspace.openPath(path);if(previous===path)app.workspace.trigger('active-leaf-change',leaf);}
+        if(path){const before=activatedLeaf;activatedLeaf=leaf;try{await app.workspace.openPath(path);}catch(error){activatedLeaf=before;throw error;}if(leaf.placement==='tab')onOpenView?.(factories.has(leaf.view.getViewType())?leaf.view.getViewType():null,path,leaf.id);if(previous===path)app.workspace.trigger('active-leaf-change',leaf);}
         if(options?.focus!==false){const target=leaf.view?.contentEl??leaf.containerEl;target.setAttribute('tabindex','-1');target.focus();}},
       async revealLeaf(leaf:WorkspaceLeaf){if(!leaves.has(leaf))throw new Error('Foreign leaf');if(leaf.placement==='tab'&&leaf.view?.file)await this.setActiveLeaf(leaf);else{host('plugin-views').append(leaf.containerEl);leaf.containerEl.scrollIntoView({block:'nearest'});}}
     },
@@ -720,12 +722,18 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       onFileExtensions?.(normalized,viewType);
       return()=>{for(const extension of normalized)if(extensionViews.get(extension)===viewType)extensionViews.delete(extension);onFileExtensions?.(normalized);};
     },
-    /** Mount a registered view into a host element without going through the global plugin view pane. */
-    async closeFileViews(path:string){
+    /** Freeze input, flush every draft, then expose a no-further-save retirement lease. */
+    async prepareFileViews(path:string){
       const affected=[...leaves].filter(leaf=>{const file=viewFilePath(leaf);return file===path||file?.startsWith(path+'/');});
-      // All saves must succeed before any view is retired. Never move/delete beneath a dirty view.
-      for(const leaf of affected)if(leaf.view instanceof TextFileView)await leaf.view.save();
-      for(const leaf of affected)await leaf.detach(false);
+      const inert=new Map(affected.map(leaf=>[leaf,leaf.containerEl.inert])),textViews=affected.map(leaf=>leaf.view).filter((view):view is TextFileView=>view instanceof TextFileView);
+      const values=new Map(textViews.map(view=>[view,view.getViewData()]));let committed=false;
+      const rollback=()=>{if(committed)return;for(const [leaf,value]of inert)leaf.containerEl.inert=value;for(const view of textViews)retiringTextViews.delete(view);};
+      try{
+        for(const leaf of affected)leaf.containerEl.inert=true;
+        for(const view of textViews)await view.save();
+        return {seal(){for(const [view,value]of values)if(view.getViewData()!==value)throw new Error('Plugin draft changed during file preparation; retry');for(const view of textViews)retiringTextViews.add(view);},
+          async commit(){for(const leaf of affected)await leaf.detach(false);committed=true;},rollback};
+      }catch(error){rollback();throw error;}
     },
     async mountView(viewType:string,path:string,parent:HTMLElement,leafId?:string){
       if(!factories.has(viewType))throw new Error('View type not registered: '+viewType);

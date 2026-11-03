@@ -23,7 +23,7 @@ Earlier failed candidates exposed a CM5 factory/specification mismatch, null-mod
 
 The canonical current tracker is [PLUGIN-SUPPORT-MATRIX.md](../docs/PLUGIN-SUPPORT-MATRIX.md). Generated reports must preserve observed errors and grants. Original fixtures additionally cover binary permissions/bytes, retained views/mount leases, CM5 contracts, embedded CM6, newer subclass-owned data during save, and validated host layout restoration. Arbitrary plugin leaf state is not restored.
 
-## Remaining delivery gate
+## Earlier review checkpoints
 
 CodeRabbit completed review of `0a472a4` with sixteen inline findings and two review-body follow-ups. The corrected repair source passed inventory, 841 units across 47 files, build, 64 browser cases and all 83 desktop cases, including all 22 pinned corpus cases without skips. Rename/trash additionally passed three targeted repetitions. Logs use `/tmp/engine-pr72-{repairs-final-check,final-browser,final-desktop,rename-repeat}.log`. Reports were regenerated exclusively from `/tmp/engine-pr72-final-renderer` and `/tmp/engine-pr72-final-worker`.
 
@@ -41,10 +41,38 @@ now await the checked control, and three targeted Excalidraw repetitions passed.
 verification log for separate failed-candidate evidence and exact paths.
 
 All initial sixteen review threads have individual replies and were resolved after fixes;
-both review-body follow-ups were answered in the re-review request. CodeRabbit returned a
-temporary review quota limit until approximately 18:18 UTC. No completed re-review of repairs
-exists yet; empty chat-reply reviews and the skipped check do not count. Request a real new
-review after this checkpoint is pushed, verify its exact head, and require clean latest checks
-and no unresolved findings before merging. No latest-request results email has been sent.
+both review-body follow-ups were answered in the re-review request. The subsequent completed
+[review of `64b89c2`](https://github.com/crafactory/engine/pull/72#pullrequestreview-5757536733)
+reported seven inline findings and two review-body follow-ups. The previous temporary quota
+block is historical, not evidence of the current quota state.
+
+## Current second-review repairs and delivery gate
+
+The repair source bounds stylesheet reads through an open handle; remembers explicit leaf
+activation; publishes activation overrides only after a successful host open; prepares and
+seals all owners' file views before retiring any; skips host-owned repeat saves after sealing;
+flushes plugin drafts before constructing merge content; derives both restart notices from
+saved versus startup-active privileges; and marks asynchronously rejected Editor instances
+stale while preserving rejected writes until settle observes them.
+
+Six new desktop regressions passed together. Full source checks passed with 850 units across
+48 files and the existing build-size warning. Complete validation also passed all 64 browser
+and 89 desktop cases, including all 22 pinned corpus cases with none skipped. Reports were
+regenerated only from `/tmp/engine-pr72-round2-complete-{renderer,worker}`. The six desktop
+regressions on unchanged `64b89c2` produced five expected failures and one already-passing
+retention case; the baseline worktree was removed. Use the current logs under
+`/tmp/engine-pr72-round2-*`, not the earlier 843-unit reports, for this repair candidate.
+
+Binary finding `4458871645` is NOT resolved. A post-staging file-identity check catches deletion
+during staging, but cannot atomically require existence at rename publication. The explicit
+probe `/tmp/engine-pr72-binary-final-race.mjs` reproduced target recreation when unlink occurs
+after the final stat and immediately before rename. Do not describe that recheck as atomic or
+resolve its thread without a real repair or reviewer-accepted contract change. Reverting to
+truncate-in-place would reintroduce the earlier data-loss finding.
+
+Do not merge while this finding or any other issue remains unresolved. Request and inspect
+review of the latest repair head after pushing, but even a green check does not close the
+known race. Latest-head review and CI must be separately verified. No latest-request results
+email has been sent at this checkpoint.
 
 Delivery must distinguish PR/review/merge state, native full-trust risk and bounded compatibility gaps. No issue creation is authorized.

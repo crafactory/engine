@@ -10,7 +10,7 @@ import {
 import {bridge,defaults} from './bridge';
 import {renameDestination} from './file-path';
 import {readWorkspaceLayout} from './workspace-layout';
-import {recordPluginDocumentView,type PluginDocumentView} from './plugin-document-views';
+import {recordPluginDocumentView,retirePluginFileViews,type PluginDocumentView} from './plugin-document-views';
 import {title,isNote,frontmatter,setProperties,resolveLink,headings,applyTemplate,rewriteLinks} from './knowledge';
 import type {EditorHandle} from './Editor';
 import {Markdown,renderMarkdown} from './Markdown';
@@ -375,13 +375,14 @@ export function App(){
     for(const file of new Set([...tabs,...pluginDocumentViews.current.keys(),...(split?[split]:[])])){
       const view=pluginViewFor(file);if(affected(file)&&view)views.set(file,view);
     }
-    for(const controller of pluginStops.current.values())await controller.closeFileViews?.(path);
     // Recreate, rather than retarget, leaves so no save retains an obsolete file object.
-    return (remap:(file:string)=>string|null)=>{
+    const restore=(remap:(file:string)=>string|null)=>{
       for(const file of [...pluginDocumentViews.current.keys()])if(affected(file))pluginDocumentViews.current.delete(file);
       for(const [file,view]of views){const next=remap(file);if(next)pluginDocumentViews.current.set(next,{...view,leafId:crypto.randomUUID()});}
       refreshPluginDocumentViews(value=>value+1);
     };
+    await retirePluginFileViews(pluginStops.current.values(),path,()=>restore(file=>file));
+    return restore;
   }
   async function renamePath(from:string,requested?:string,strict=false):Promise<string|undefined>{
     const input=requested || await dialog.ask('Rename or move',from,'The original file extension is preserved. Internal links will be updated where their targets can be resolved.');
@@ -483,13 +484,18 @@ export function App(){
     const destination=notes.find(n=>n.path===target);if(!destination)return;
     if(!await dialog.confirm('Merge notes?',`Append ${active} to ${target} and move the original to trash.`))return;
     try{
-      await flush();
-      editNote(target,composerRuntime.current?.service.merge(destination.content,activeNote.content)??destination.content+'\n\n'+frontmatter(activeNote.content).body);
-      for(const n of notesRef.current.filter(n=>n.path!==active)) {
-        const updated=rewriteLinks(n.content,active,target,n.path,notesRef.current);
-        if(updated!==n.content)editNote(n.path,updated);
-      }
-      await flush();await bridge.trash(active);updateNotes(notesRef.current.filter(n=>n.path!==active));setTabs(t=>t.filter(p=>p!==active));setEntries(await bridge.list());open(target);
+      const source=active;await flush();const restoreViews=await preparePluginFileChange(source);let trashed=false;
+      try{
+        const currentSource=notesRef.current.find(note=>note.path===source),currentTarget=notesRef.current.find(note=>note.path===target);
+        if(!currentSource||!currentTarget)throw new Error('Merge file no longer exists');
+        editNote(target,composerRuntime.current?.service.merge(currentTarget.content,currentSource.content)??currentTarget.content+'\n\n'+frontmatter(currentSource.content).body);
+        for(const n of notesRef.current.filter(n=>n.path!==source)) {
+          const updated=rewriteLinks(n.content,source,target,n.path,notesRef.current);
+          if(updated!==n.content)editNote(n.path,updated);
+        }
+        await flush();await bridge.trash(source);trashed=true;restoreViews(()=>null);
+        updateNotes(notesRef.current.filter(n=>n.path!==source));setTabs(t=>t.filter(p=>p!==source));setSplit(p=>p===source?null:p);editorSessions.current.delete(source);setEntries(await bridge.list());open(target);
+      }catch(error){restoreViews(trashed?()=>null:file=>file);throw error;}
     }catch(e){report(e);}
   }
   async function showRecovery(){

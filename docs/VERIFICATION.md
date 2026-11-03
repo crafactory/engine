@@ -127,6 +127,48 @@ Final reports use only `/tmp/engine-pr72-reviewed-renderer` and
 `/tmp/engine-pr72-restart-repeat.log`. This supersedes the earlier 841-unit repair checkpoint,
 not the retained historical failures, and still does not replace completed latest-head review.
 
+## Second native-increment review repairs
+
+The [completed review of `64b89c2`](https://github.com/crafactory/engine/pull/72#pullrequestreview-5757536733)
+reported seven inline findings and two body follow-ups. The next candidate bounds stylesheet
+reads through a handle before allocating; honors explicit same-file leaf activation; publishes
+activation overrides only after successful host open; prepares and seals every owner's drafts
+before retiring any file view; suppresses host-owned repeat saves after sealing; includes the
+latest plugin draft when constructing merge content; derives both trust restart notices from
+saved versus startup-active values; and makes asynchronously rejected Editor instances stale
+while preserving the rejection for settle.
+
+The repaired source passed inventory, 850 units across 48 files and TypeScript/production build
+(`/tmp/engine-pr72-round2-final-check.log`), with the existing large-chunk warning. All 64 browser
+cases passed (`/tmp/engine-pr72-round2-complete-browser.log`). Six new desktop regressions passed
+together (`/tmp/engine-pr72-round2-targeted2.log`). The complete desktop suite passed all 89 cases
+(`/tmp/engine-pr72-round2-complete-desktop.log`), including all 22 pinned corpus cases with none
+skipped. Both reports were regenerated exclusively from the new complete pair
+`/tmp/engine-pr72-round2-complete-renderer` and `/tmp/engine-pr72-round2-complete-worker`:
+11 renderer outcomes plus 11 default-Worker refusals. Plugin classifications remain bounded,
+including the same Kanban card/focus errors and Excalidraw core-Canvas refusal.
+Those same six tests on unchanged `64b89c2`
+produced five expected failures and one pass: both restart-reversion cases, exact earlier-leaf
+identity, pending merge content and repeated retirement saves detected the old behavior; the
+initial-save failure retention case already passed and is retained as coverage, not proof of
+that repair. Baseline logs are `/tmp/engine-pr72-round2-baseline{,-build}.log`; its disposable
+worktree was removed.
+
+An initial repair unit fixture incorrectly supplied a plugin-prefixed command ID to the raw-ID
+runtime harness (849 passes, one failure). Its corrected invocation passes. The first six-case
+desktop probe had five passes and one harness failure because link resolution ran immediately
+after create, before the next host metadata snapshot. The fixture now waits for the actual
+explorer entry and opens through that UI. Neither failed probe supplies corpus-report rows.
+
+Binary finding [4458871645](https://github.com/crafactory/engine/pull/72#discussion_r4458871645)
+is still unresolved. A second regular-file/device/inode check catches deletion during staging,
+and its regression passes, but cannot make rename atomically require an existing target.
+The explicit local injection `/tmp/engine-pr72-binary-final-race.mjs` deleted the target after
+the final stat and immediately before rename; modify returned success and recreated it with
+the replacement bytes. This is a reproduced limitation, not hypothetical race coverage or a
+resolved review finding. Reverting to truncate-in-place would reintroduce the earlier binary
+data-loss issue. Passing finite plugin workflows does not make this candidate merge-ready.
+
 ## Narrowed default CSP
 
 This section records removing the default-entry `wasm-unsafe-eval` relaxation left over from

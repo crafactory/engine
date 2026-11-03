@@ -14,7 +14,7 @@ function onBeforeClose(fn){
 const api={
   desktop:true,
   ...Object.fromEntries(['readBinary','writeBinary','createBinary','modifyBinary'].map(name=>[name,invoke(name)])),
-  ...Object.fromEntries(['vault','choose','list','read','write','create','append','pluginData','mkdir','rename','trash','state','asset','attach','snapshots','restore','plugins','print','unsafeEval','setUnsafeEval','nativePlugins','setNativePlugins'].map(name=>[name,invoke(name)])),
+  ...Object.fromEntries(['vault','choose','list','read','write','create','append','pluginData','mkdir','rename','trash','state','asset','attach','snapshots','restore','plugins','print','unsafeEval','setUnsafeEval','nativePlugins','setNativePlugins','trustProfile'].map(name=>[name,invoke(name)])),
   onChange:fn=>{const listener=()=>fn();ipcRenderer.on('vault:changed',listener);return()=>ipcRenderer.removeListener('vault:changed',listener);},
   onBeforeClose,
   closeReady:invoke('close-ready')

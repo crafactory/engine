@@ -87,6 +87,63 @@ test('file-specific text views flush pending data and recreate safely across ren
   const trash=path.join(root,'.crafactory/trash'),files=(await fs.readdir(trash)).filter(name=>!name.endsWith('.json'));
   expect(await fs.readFile(path.join(trash,files[0]),'utf8')).toBe('pending before trash');
 });
+test('same-file activation prefers the requested earlier leaf and failed activation does not leak an override',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  const result=await page.evaluate(async()=>{
+    const app=(window as any).app,a=app.workspace.getRightLeaf(),b=app.workspace.getRightLeaf();
+    await a.setViewState({type:'fixture-view',state:{file:'Test.md'}});await b.setViewState({type:'fixture-view',state:{file:'Test.md'}});
+    const identities=[];
+    for(const leaf of [a,b,a]){await app.workspace.setActiveLeaf(leaf,{focus:false});identities.push(app.workspace.activeLeaf===leaf&&app.workspace.getMostRecentLeaf()===leaf);}
+    // Use a tab placement without opening it, so failure exercises host registration.
+    const failed=app.workspace.getLeaf(true);failed.view={file:'Missing.md',getViewType:()=> 'fixture-view'};
+    let error='';try{await app.workspace.setActiveLeaf(failed,{focus:false});}catch(e){error=String(e);}
+    const restored=app.workspace.activeLeaf===a;failed.view=null;await failed.detach();
+    await app.vault.create('Missing.md','created after failed activation');
+    return {identities,restored,error};
+  });
+  expect(result.identities).toEqual([true,true,true]);expect(result.restored).toBe(true);expect(result.error).not.toBe('');
+  await page.getByTestId('file-Missing.md').click();
+  await expect(page.locator('.note-title h1')).toHaveText('Missing');
+  await expect(page.locator('.retained-plugin-view')).toHaveCount(0);
+});
+test('merge flushes the plugin draft into both destination and trash before retiring its view',async()=>{
+  await enable();await page.getByTestId('settings-close').click();await command('Open Markdown as text view');
+  await page.getByRole('textbox',{name:'Fixture document',exact:true}).fill('latest pending merge draft');
+  await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Merge into');await page.keyboard.press('Enter');
+  await expect(page.getByTestId('palette-input')).toHaveAttribute('aria-label','Merge into note');
+  await page.getByTestId('palette-item-Test.md').click();await page.getByTestId('dialog-submit').click();
+  await expect(page.getByTestId('file-Zeta.md')).toHaveCount(0);
+  expect(await fs.readFile(path.join(root,'Test.md'),'utf8')).toContain('latest pending merge draft');
+  const trash=path.join(root,'.crafactory/trash'),files=(await fs.readdir(trash)).filter(name=>!name.endsWith('.json'));
+  expect(await fs.readFile(path.join(trash,files[0]),'utf8')).toBe('latest pending merge draft');
+  await expect.poll(()=>page.evaluate(()=>(window as any).app.workspace.getLeavesOfType('fixture-text').length)).toBe(0);
+  await expect(fs.stat(path.join(root,'Zeta.md'))).rejects.toThrow();
+});
+for(const fail of [true,false])test(`file-view retirement ${fail?'keeps all views after a later save fails':'does not repeat fallible saves after sealing'}`,async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  const result=await page.evaluate(async fail=>{
+    const app=(window as any).app;await app.vault.createFolder('Batch');
+    const leaves=[],calls=[0,0],originals=[];
+    for(const [i,name]of ['First','Second'].entries()){
+      const file=await app.vault.create('Batch/'+name+'.md','original '+name),leaf=app.workspace.getRightLeaf();
+      await leaf.setViewState({type:'fixture-text',state:{file:file.path}});leaf.view.input.value='pending '+name;
+      const save=leaf.view.save.bind(leaf.view);originals.push(save);leaf.view.save=async()=>{calls[i]++;if(fail&&i===1||calls[i]>1)throw new Error('fixture final save failed');await save();};leaves.push(leaf);
+    }
+    let error='';try{await app.vault.rename(app.vault.getAbstractFileByPath('Batch'),'MovedBatch');}catch(e){error=String(e);}
+    const retained=leaves.map(leaf=>({connected:leaf.containerEl.isConnected,inert:leaf.containerEl.inert,type:leaf.view?.getViewType(),data:leaf.view?.getViewData()}));
+    for(const [i,leaf]of leaves.entries())if(leaf.view)leaf.view.save=originals[i];
+    return {error,calls,retained};
+  },fail);
+  expect(result.calls).toEqual([1,1]);
+  if(fail){
+    expect(result.error).toContain('fixture final save failed');
+    expect(result.retained).toEqual(['First','Second'].map(name=>({connected:true,inert:false,type:'fixture-text',data:'pending '+name})));
+    await expect(fs.stat(path.join(root,'MovedBatch'))).rejects.toThrow();expect((await fs.stat(path.join(root,'Batch'))).isDirectory()).toBe(true);
+  }else{
+    expect(result.error).toBe('');expect(result.retained.every(view=>!view.connected&&!view.type)).toBe(true);
+    for(const name of ['First','Second'])expect(await fs.readFile(path.join(root,'MovedBatch',name+'.md'),'utf8')).toBe('pending '+name);
+  }
+});
 /** Minimal valid empty WebAssembly module: magic header plus version 1. */
 const wasm=[0,97,115,109,1,0,0,0];
 /** Compile WebAssembly from page context so the entry's real CSP decides. */

@@ -75,6 +75,7 @@ async function start() {
   ipc('close-listener-unready',()=>{closeListenerReady=false;});
   ipc('close-ready',()=>{closeAllowed=true;win.close();});
   ipc('unsafeEval',()=>unsafeEvalEnabled);
+  ipc('trustProfile',()=>({saved:{unsafeEval:unsafeEvalEnabled,nativePlugins:nativePluginsEnabled},active:{unsafeEval:activeUnsafeEval,nativePlugins:activeNativePlugins}}));
   let trustSettingsQueue=Promise.resolve();
   const withTrustLock=action=>{const result=trustSettingsQueue.then(action);trustSettingsQueue=result.catch(()=>{});return result;};
   const saveTrustSettings=async()=>{const target=path.join(app.getPath('userData'),'trusted-renderer.json');await fs.writeFile(target+'.tmp',JSON.stringify({unsafeEval:unsafeEvalEnabled,nativePlugins:nativePluginsEnabled}),{mode:0o600});await fs.rename(target+'.tmp',target);};

@@ -1,5 +1,5 @@
 import {it,expect,vi} from 'vitest';
-import {EditorSuggest,createCompatibilityRuntime,supportedExports,type CompatNativeServices,type PluginSnapshot} from '../src/compat-core';
+import {Editor,EditorSuggest,createCompatibilityRuntime,supportedExports,type CompatNativeServices,type PluginSnapshot} from '../src/compat-core';
 import {rendererExports} from '../src/compat-dom';
 import inventory from '../docs/compatibility/obsidian-exports.json';
 const manifest={id:'renderer-test',name:'Renderer test',version:'1'};
@@ -11,6 +11,17 @@ function harness(native?:CompatNativeServices){
   const runtime=createCompatibilityRuntime(manifest,initial(),{ui,request,commands:()=>{},notice:()=>{},native});
   return {runtime,api:runtime.api as any,ui,iterateAllLeaves,request,settingCleanup,extensionCleanup,viewCleanup,extensionsCleanup,suggestCleanup,protocolCleanup,hoverCleanup,basesCleanup,updateOptions,ribbonCleanup,ribbonElement};
 }
+it('refuses reads and further writes after an asynchronous editor send rejects',async()=>{
+  let reject!:(error:Error)=>void;const result=new Promise<void>((_resolve,no)=>{reject=no;}),send=vi.fn(()=>result),editor=new Editor({text:'one',from:0,to:1},send);
+  editor.setValue('rejected');reject(new Error('host rejected'));await result.catch(()=>{});
+  for(const action of [()=>editor.getValue(),()=>editor.getSelection(),()=>editor.listSelections(),()=>editor.getLine(0),()=>editor.setValue('again'),()=>editor.setCursor(0)])expect(action).toThrow('stale');
+  expect(send).toHaveBeenCalledOnce();
+});
+it('reports an editor rejection through settle even after its promise has already settled',async()=>{
+  const h=harness();h.runtime.sync({...initial(),editor:{text:'one',from:0,to:0}});h.request.mockImplementation(async operation=>{if(operation==='editor')throw new Error('CONFLICT fixture');return null;});
+  class P extends h.api.Plugin{onload(){this.addCommand({id:'async-rejection',name:'Async rejection',editorCallback:async(editor:Editor)=>{editor.setValue('rejected');await vi.waitFor(()=>expect(()=>editor.getValue()).toThrow('stale'));}});}}
+  await h.runtime.boot(P);await expect(h.runtime.run('async-rejection')).rejects.toThrow('CONFLICT fixture');await h.runtime.stop();
+});
 it('renderer export registry is documented, unique and disjoint from Worker exports',()=>{
   expect(new Set(rendererExports).size).toBe(rendererExports.length);expect(rendererExports).toContain('TextFileView');
   for(const name of rendererExports){expect(inventory.symbols.some(s=>s.name===name&&s.runtime)).toBe(true);expect(supportedExports).not.toContain(name);}

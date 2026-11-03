@@ -42,6 +42,8 @@ export interface Bridge {
   /** Profile-wide full Node access, never enabled by default. Restart grants/revokes it. */
   nativePlugins?(): Promise<boolean>;
   setNativePlugins?(enabled: boolean): Promise<boolean>;
+  /** Saved preferences and immutable privileges active in this process. */
+  trustProfile?(): Promise<{saved:{unsafeEval:boolean;nativePlugins:boolean};active:{unsafeEval:boolean;nativePlugins:boolean}}>;
   onChange(fn: () => void): () => void;
   onBeforeClose?(fn: () => void): () => void;
   closeReady?(): Promise<void>;

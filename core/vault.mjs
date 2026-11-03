@@ -83,9 +83,12 @@ export class Vault {
     const bytes=Buffer.from(ArrayBuffer.isView(data)?new Uint8Array(data.buffer,data.byteOffset,data.byteLength):new Uint8Array(data));
     return this.serialize(async()=>{
       const full=await this.safe(relative);await fs.mkdir(path.dirname(full),{recursive:true});
-      if(mode==='modify'&&!(await fs.stat(full)).isFile())throw new Error('Not a file');
+      const original=mode==='modify'?await fs.stat(full):null;
+      if(original&&!original.isFile())throw new Error('Not a file');
       const temporary=full+'.engine-'+crypto.randomUUID();
-      try{await fs.writeFile(temporary,bytes,{flag:'wx'});if(mode==='create')await fs.link(temporary,full);else await fs.rename(temporary,full);}
+      // This catches changes during staging, not a deletion between the final stat and rename.
+      // Portable Node rename is not an atomic replace-only-if-existing operation.
+      try{await fs.writeFile(temporary,bytes,{flag:'wx'});if(original){const current=await fs.stat(full);if(!current.isFile()||current.dev!==original.dev||current.ino!==original.ino)throw new Error('CONFLICT: Binary target changed before publication');}if(mode==='create')await fs.link(temporary,full);else await fs.rename(temporary,full);}
       finally{await fs.rm(temporary,{force:true});}
       return {path:relative,version:hash(bytes)};
     });
@@ -194,7 +197,15 @@ export class Vault {
         const manifest=JSON.parse(await fs.readFile(manifestPath,'utf8'));
         if(manifest.id!==entry.name || typeof manifest.name!=='string' || typeof manifest.version!=='string') continue;
         let styles='';
-        try{const stylePath=await this.safe(`.crafactory/plugins/${entry.name}/styles.css`,true);const bytes=await fs.readFile(stylePath);if(bytes.byteLength>4*1024*1024)throw new Error('Plugin stylesheet too large');styles=bytes.toString('utf8');}catch(error){if(error.code!=='ENOENT')throw error;}
+        try{
+          const stylePath=await this.safe(`.crafactory/plugins/${entry.name}/styles.css`,true),handle=await fs.open(stylePath,'r'),limit=4*1024*1024;
+          try{
+            const stat=await handle.stat();if(!stat.isFile()||stat.size>limit)throw new Error('Plugin stylesheet too large');
+            const bytes=Buffer.alloc(limit+1);let used=0;
+            while(used<bytes.length){const {bytesRead}=await handle.read(bytes,used,bytes.length-used,null);if(!bytesRead)break;used+=bytesRead;}
+            if(used>limit)throw new Error('Plugin stylesheet too large');styles=bytes.subarray(0,used).toString('utf8');
+          }finally{await handle.close();}
+        }catch(error){if(error.code!=='ENOENT')throw error;}
         result.push({manifest,code:await fs.readFile(codePath,'utf8'),...(styles?{styles}:{})});
       } catch {}
     }

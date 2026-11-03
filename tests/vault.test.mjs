@@ -28,8 +28,21 @@ describe('local vault storage',()=>{
     const dir=path.join(root,'.crafactory/plugins/growing');await fs.mkdir(dir,{recursive:true});
     await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id:'growing',name:'Growing',version:'1'}));
     await fs.writeFile(path.join(dir,'main.js'),'module.exports={};');await fs.writeFile(path.join(dir,'styles.css'),'small');
-    const original=fs.readFile,read=vi.spyOn(fs,'readFile').mockImplementation((file,...args)=>String(file).endsWith('styles.css')?Promise.resolve(Buffer.alloc(4*1024*1024+1)):original(file,...args));
-    try{expect(await vault.plugins()).toEqual([]);}finally{read.mockRestore();}
+    const original=fs.open,reads=[],open=vi.spyOn(fs,'open').mockImplementation(async(file,...args)=>{
+      const handle=await original(file,...args);if(String(file).endsWith('styles.css')){const stat=handle.stat.bind(handle);vi.spyOn(handle,'stat').mockImplementationOnce(async()=>{const before=await stat();await fs.appendFile(file,Buffer.alloc(4*1024*1024+20));return before;});reads.push(vi.spyOn(handle,'read'));}return handle;
+    });
+    try{expect(await vault.plugins()).toEqual([]);expect(reads).toHaveLength(1);expect(reads[0].mock.calls.every(call=>call[2]<=4*1024*1024+1)).toBe(true);}finally{open.mockRestore();}
+  });
+  it('rejects an oversized stylesheet through the handle before reading its bytes',async()=>{
+    const dir=path.join(root,'.crafactory/plugins/oversized');await fs.mkdir(dir,{recursive:true});
+    await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id:'oversized',name:'Oversized',version:'1'}));await fs.writeFile(path.join(dir,'main.js'),'module.exports={};');await fs.writeFile(path.join(dir,'styles.css'),Buffer.alloc(4*1024*1024+1));
+    const original=fs.open,reads=[],open=vi.spyOn(fs,'open').mockImplementation(async(file,...args)=>{const handle=await original(file,...args);if(String(file).endsWith('styles.css'))reads.push(vi.spyOn(handle,'read'));return handle;});
+    try{expect(await vault.plugins()).toEqual([]);expect(reads).toHaveLength(1);expect(reads[0]).not.toHaveBeenCalled();}finally{open.mockRestore();}
+  });
+  it('does not recreate a modify target deleted while its replacement was staged',async()=>{
+    const full=path.join(root,'removed.bin');await fs.writeFile(full,new Uint8Array([1]));
+    const original=fs.writeFile,write=vi.spyOn(fs,'writeFile').mockImplementation(async(file,...args)=>{const result=await original(file,...args);if(String(file).startsWith(full+'.engine-'))await fs.unlink(full);return result;});
+    try{await expect(vault.writeBinary('removed.bin',new Uint8Array([2]),'modify')).rejects.toThrow();await expect(fs.stat(full)).rejects.toThrow();expect((await fs.readdir(root)).filter(name=>name.includes('.engine-'))).toEqual([]);}finally{write.mockRestore();}
   });
   it('round-trips exact binary view slices with create-only and modify-existing semantics',async()=>{
     const buffer=new Uint8Array([99,0,255,128,99]),slice=buffer.subarray(1,4);

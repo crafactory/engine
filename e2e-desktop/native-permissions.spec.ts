@@ -5,6 +5,30 @@ import os from 'node:os';
 import {spawn} from 'node:child_process';
 import {nativeTestEnv} from './native-env';
 
+for(const active of [false,true])test(`restart notices clear when both saved trust switches return to startup ${active}`,async()=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-trust-revert-')),profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-trust-profile-'));
+  await fs.writeFile(path.join(root,'Test.md'),'Trust reversion fixture');
+  await fs.writeFile(path.join(profile,'trusted-renderer.json'),JSON.stringify({unsafeEval:active,nativePlugins:active}));
+  const app=await electron.launch({executablePath:process.env.E2E_EXECUTABLE_PATH,args:['--no-sandbox',...(process.env.E2E_EXECUTABLE_PATH?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:nativeTestEnv(profile)});
+  try{
+    const page=await app.firstWindow();await expect(page.locator('.note-title h1')).toHaveText('Test');
+    await app.evaluate(({dialog})=>{dialog.showMessageBox=async()=>({response:1,checkboxChecked:false});});
+    await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();
+    for(const [label,confirm,notice]of [
+      ['Allow unsafe-eval in trusted renderer','Enable unsafe-eval','Restart Crafactory Engine to apply the unsafe-eval change.'],
+      ['Allow native Node.js plugins','Enable native plugins','Restart Crafactory Engine to apply the native plugin permission change, including revocation.']
+    ]){
+      const toggle=page.getByRole('switch',{name:label,exact:true}),status=page.getByRole('status').filter({hasText:notice});
+      await expect(toggle).toBeEnabled();await expect(toggle).toBeChecked({checked:active});
+      await toggle.click();if(!active)await page.getByRole('button',{name:confirm,exact:true}).click();
+      await expect(toggle).toBeChecked({checked:!active});await expect(status).toBeVisible();
+      await toggle.click();if(active)await page.getByRole('button',{name:confirm,exact:true}).click();
+      await expect(toggle).toBeChecked({checked:active});await expect(status).toHaveCount(0);
+    }
+    expect(await page.evaluate(()=>window.engine!.trustProfile!())).toEqual({saved:{unsafeEval:active,nativePlugins:active},active:{unsafeEval:active,nativePlugins:active}});
+  }finally{await app.close();await fs.rm(root,{recursive:true,force:true});await fs.rm(profile,{recursive:true,force:true});}
+});
+
 test('pending layout writes cannot leak the departing workspace into another vault',async()=>{
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-layout-first-')),next=await fs.mkdtemp(path.join(os.tmpdir(),'engine-layout-second-')),profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-layout-profile-'));
   await fs.writeFile(path.join(root,'Test.md'),'first');await fs.writeFile(path.join(next,'Other.md'),'second');await fs.mkdir(path.join(next,'.crafactory'));

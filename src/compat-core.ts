@@ -215,18 +215,19 @@ export interface CodeMirrorDocument {
   posFromIndex(index:number):EditorPosition;indexFromPos(pos:EditorPosition):number;
 }
 export class Editor {
-  private value:string;private from:number;private to:number;private doc:CodeMirrorDocument|null=null;
-  constructor(snapshot:{text:string;from:number;to:number},private send:(base:string,text:string,from:number,to:number)=>void){this.value=snapshot.text;this.from=snapshot.from;this.to=snapshot.to;}
-  getValue(){return this.value;}getSelection(){return this.value.slice(Math.min(this.from,this.to),Math.max(this.from,this.to));}
-  lineCount(){return this.value.split('\n').length;}lastLine(){return this.lineCount()-1;}
-  getLine(line:number){return this.value.split('\n')[line]??'';}
-  offsetToPos(offset:number){offset=Math.max(0,Math.min(this.value.length,offset));const before=this.value.slice(0,offset).split('\n');return {line:before.length-1,ch:before[before.length-1].length};}
-  posToOffset(pos:{line:number;ch:number}){const lines=this.value.split('\n'),line=Math.max(0,Math.min(lines.length-1,pos.line));return lines.slice(0,line).reduce((n,s)=>n+s.length+1,0)+Math.max(0,Math.min(lines[line].length,pos.ch));}
+  private value:string;private from:number;private to:number;private doc:CodeMirrorDocument|null=null;private stale=false;
+  constructor(snapshot:{text:string;from:number;to:number},private send:(base:string,text:string,from:number,to:number)=>void|Promise<unknown>){this.value=snapshot.text;this.from=snapshot.from;this.to=snapshot.to;}
+  private fresh(){if(this.stale)throw new Error('Editor is stale after a rejected host edit; acquire a fresh editor');}
+  getValue(){this.fresh();return this.value;}getSelection(){this.fresh();return this.value.slice(Math.min(this.from,this.to),Math.max(this.from,this.to));}
+  lineCount(){this.fresh();return this.value.split('\n').length;}lastLine(){return this.lineCount()-1;}
+  getLine(line:number){this.fresh();return this.value.split('\n')[line]??'';}
+  offsetToPos(offset:number){this.fresh();offset=Math.max(0,Math.min(this.value.length,offset));const before=this.value.slice(0,offset).split('\n');return {line:before.length-1,ch:before[before.length-1].length};}
+  posToOffset(pos:{line:number;ch:number}){this.fresh();const lines=this.value.split('\n'),line=Math.max(0,Math.min(lines.length-1,pos.line));return lines.slice(0,line).reduce((n,s)=>n+s.length+1,0)+Math.max(0,Math.min(lines[line].length,pos.ch));}
   getCursor(side:'from'|'to'|'head'|'anchor'='head'){return this.offsetToPos(side==='anchor'?this.from:side==='from'?Math.min(this.from,this.to):side==='to'?Math.max(this.from,this.to):this.to);}
   getRange(from:{line:number;ch:number},to:{line:number;ch:number}){return this.value.slice(this.posToOffset(from),this.posToOffset(to));}
   listSelections(){return [{anchor:this.offsetToPos(this.from),head:this.offsetToPos(this.to)}];}
-  somethingSelected(){return this.from!==this.to;}
-  private apply(value:string,from:number,to:number){const previous={value:this.value,from:this.from,to:this.to};this.value=value;this.from=from;this.to=to;try{this.send(previous.value,value,from,to);}catch(error){this.value=previous.value;this.from=previous.from;this.to=previous.to;throw error;}}
+  somethingSelected(){this.fresh();return this.from!==this.to;}
+  private apply(value:string,from:number,to:number){this.fresh();const previous={value:this.value,from:this.from,to:this.to};this.value=value;this.from=from;this.to=to;try{const result=this.send(previous.value,value,from,to);if(result)void Promise.resolve(result).catch(()=>{this.stale=true;});}catch(error){this.value=previous.value;this.from=previous.from;this.to=previous.to;throw error;}}
   setSelection(anchor:{line:number;ch:number},head=anchor){this.apply(this.value,this.posToOffset(anchor),this.posToOffset(head));}
   setCursor(pos:{line:number;ch:number}|number,ch=0){this.setSelection(typeof pos==='number'?{line:pos,ch}:pos);}
   setValue(value:string){this.apply(value,0,0);}
@@ -284,6 +285,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   let snapshot=initial,plugin:InstanceType<typeof Plugin>|undefined,unloaded=false,editor:Editor|null=null;
   const pending=new Set<Promise<unknown>>(),commands=new Map<string,CompatCommand>(),objects=new Map<string,TAbstractFile>();
   const pendingCreatedPaths=new Set<string>();
+  const editorWrites=new Set<Promise<unknown>>();
   let mutationQueue=Promise.resolve<unknown>(undefined);
   function request(operation:string,args:unknown[]=[]){
     if(unloaded)return Promise.reject(new Error('Plugin is unloaded'));
@@ -293,7 +295,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     const result=mutationQueue.then(()=>request(operation,args));mutationQueue=result.catch(()=>undefined);pending.add(result);
     result.then(()=>pending.delete(result),()=>pending.delete(result));return result;
   }
-  async function settle(){while(pending.size){const results=await Promise.allSettled([...pending]);const failed=results.find(r=>r.status==='rejected');if(failed?.status==='rejected')throw failed.reason;}}
+  async function settle(){while(pending.size||editorWrites.size){const writes=[...editorWrites],results=await Promise.allSettled([...new Set([...pending,...writes])]);for(const write of writes)editorWrites.delete(write);const failed=results.find(r=>r.status==='rejected');if(failed?.status==='rejected')throw failed.reason;}}
   const adapter=new FileSystemAdapter(host.native?.basePath,{read:path=>request('readBinary',[path]) as Promise<ArrayBuffer>,write:(path,data)=>mutate('writeBinary',[path,data])});
   function ensureAbstract(path:string,folder:boolean):TAbstractFile{
     const current=objects.get(path);if(current)return current;
@@ -596,7 +598,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   if(host.ui){const leaf=host.ui.workspace.activeLeaf as any;if(leaf&&!leaf.view)leaf.view=new MarkdownView();}
   function initEditor(){
     const path=snapshot.active;
-    editor=snapshot.editor?new Editor(snapshot.editor,(base,text,from,to)=>{void mutate('editor',[path,base,text,from,to]);}):null;
+    editor=snapshot.editor?new Editor(snapshot.editor,(base,text,from,to)=>{const result=mutate('editor',[path,base,text,from,to]);editorWrites.add(result);result.then(()=>editorWrites.delete(result),()=>{});return result;}):null;
   }
   initEditor();
   function available(command:CompatCommand,checking:boolean){

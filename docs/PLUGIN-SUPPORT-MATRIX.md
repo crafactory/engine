@@ -16,6 +16,11 @@ the functional rows unless stated otherwise; pinned default-Worker runs still fa
 
 ## Status legend
 
+Delivery remains gated by the live [PR #72 review](https://github.com/crafactory/engine/pull/72).
+The binary modify path still has a reproduced external-deletion race between its final identity
+check and rename publication; it is not atomic replace-only-if-existing. Successful finite
+plugin workflows below do not resolve that finding or establish release/merge readiness.
+
 | Mark | Meaning |
 |---|---|
 | ✅ | Named bounded workflow(s) pass with real UI/input and persisted effects |
