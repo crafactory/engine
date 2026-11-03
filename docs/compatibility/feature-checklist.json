@@ -1038,6 +1038,96 @@
       ]
     },
     {
+      "id": "ACCEPT-renderer-textfile",
+      "section": "Bounded acceptance checks",
+      "title": "Plugin text view disk persistence and close-time flush",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Plugin text view disk persistence and close-time flush",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/renderer.spec.ts",
+          "test": "renderer text-file view loads, autosaves, flushes on close and reopens persisted text"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-renderer-textfile-conflict",
+      "section": "Bounded acceptance checks",
+      "title": "Plugin text view loaded-version conflict and draft retention",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Plugin text view loaded-version conflict and draft retention",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/renderer.spec.ts",
+          "test": "renderer text-file autosave rejects stale versions and retains the live draft"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-renderer-file-transitions",
+      "section": "Bounded acceptance checks",
+      "title": "Serialized file view loads, close and failed-load recovery",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Serialized file view loads, close and failed-load recovery",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/renderer.spec.ts",
+          "test": "renderer file transitions serialize queued loads and close, then recover from failed loads"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-renderer-suggestions",
+      "section": "Bounded acceptance checks",
+      "title": "Async suggestion isolation and keyboard choice",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Async suggestion isolation and keyboard choice",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/renderer.spec.ts",
+          "test": "renderer suggestion picker ignores stale results and supports keyboard choice"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-renderer-scope",
+      "section": "Bounded acceptance checks",
+      "title": "Keyboard scope ownership and unload",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Keyboard scope ownership and unload",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/renderer.spec.ts",
+          "test": "renderer App.scope dispatches hotkeys and revokes them on plugin unload"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-renderer-icons",
+      "section": "Bounded acceptance checks",
+      "title": "Cloned sanitized icons and native tooltip",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Cloned sanitized icons and native tooltip",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/renderer.spec.ts",
+          "test": "renderer icon lookup clones sanitized SVG and supplies native tooltips"
+        }
+      ]
+    },
+    {
       "id": "ACCEPT-renderer-cm",
       "section": "Bounded acceptance checks",
       "title": "Host CodeMirror extensions, replacement, view and unload",

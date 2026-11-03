@@ -270,6 +270,24 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [x] **ACCEPT-renderer-settings Real renderer settings controls and Modal focus/close**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
   - Acceptance: Real renderer settings controls and Modal focus/close
   - Evidence: `e2e-desktop/renderer.spec.ts` / `renderer settings controls persist and modal traps focus and closes`.
+- [x] **ACCEPT-renderer-textfile Plugin text view disk persistence and close-time flush**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Plugin text view disk persistence and close-time flush
+  - Evidence: `e2e-desktop/renderer.spec.ts` / `renderer text-file view loads, autosaves, flushes on close and reopens persisted text`.
+- [x] **ACCEPT-renderer-textfile-conflict Plugin text view loaded-version conflict and draft retention**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Plugin text view loaded-version conflict and draft retention
+  - Evidence: `e2e-desktop/renderer.spec.ts` / `renderer text-file autosave rejects stale versions and retains the live draft`.
+- [x] **ACCEPT-renderer-file-transitions Serialized file view loads, close and failed-load recovery**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Serialized file view loads, close and failed-load recovery
+  - Evidence: `e2e-desktop/renderer.spec.ts` / `renderer file transitions serialize queued loads and close, then recover from failed loads`.
+- [x] **ACCEPT-renderer-suggestions Async suggestion isolation and keyboard choice**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Async suggestion isolation and keyboard choice
+  - Evidence: `e2e-desktop/renderer.spec.ts` / `renderer suggestion picker ignores stale results and supports keyboard choice`.
+- [x] **ACCEPT-renderer-scope Keyboard scope ownership and unload**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Keyboard scope ownership and unload
+  - Evidence: `e2e-desktop/renderer.spec.ts` / `renderer App.scope dispatches hotkeys and revokes them on plugin unload`.
+- [x] **ACCEPT-renderer-icons Cloned sanitized icons and native tooltip**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Cloned sanitized icons and native tooltip
+  - Evidence: `e2e-desktop/renderer.spec.ts` / `renderer icon lookup clones sanitized SVG and supplies native tooltips`.
 - [x] **ACCEPT-renderer-cm Host CodeMirror extensions, replacement, view and unload**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
   - Acceptance: Host CodeMirror extensions, replacement, view and unload
   - Evidence: `e2e-desktop/renderer.spec.ts` / `renderer CodeMirror extensions update real editor and unload all UI`.

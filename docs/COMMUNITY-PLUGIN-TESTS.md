@@ -1,8 +1,8 @@
 # Real community-plugin startup tests
 
-Scope: **default Worker mode only**. Separate opt-in renderer results and bounded Reading Time workflows are in [trusted-renderer tests](https://github.com/crafactory/engine/blob/main/docs/TRUSTED-RENDERER-PLUGIN-TESTS.md). Statements below about untested workflows refer only to this Worker run, not renderer coverage.
+Scope: **default Worker mode only**. Separate opt-in renderer results and listed bounded workflows are in [trusted-renderer tests](https://github.com/crafactory/engine/blob/main/docs/TRUSTED-RENDERER-PLUGIN-TESTS.md). Statements below about untested workflows refer only to this Worker run, not renderer coverage.
 
-These are **actual upstream release artifacts**, loaded unchanged into disposable Engine vaults on Linux x64 Electron. They are not a synthetic replacement for community plugins. All five currently fail at startup; no plugin is counted as functionally compatible. Tests passing means the recorded unsupported boundary was observed, not that the plugin works. Actual plugin workflows, additional blockers beyond the first, Windows/macOS/mobile and an installed-reference differential comparison remain untested.
+These are **actual upstream release artifacts**, loaded unchanged into disposable Engine vaults on Linux x64 Electron. They are not a synthetic replacement for community plugins. All pinned plugins currently fail at startup; no plugin is counted as functionally compatible. Tests passing means the recorded unsupported boundary was observed, not that the plugin works. Actual plugin workflows, additional blockers beyond the first, Windows/macOS/mobile and an installed-reference differential comparison remain untested.
 
 ## Pinned inputs and observed results
 
@@ -13,6 +13,12 @@ These are **actual upstream release artifacts**, loaded unchanged into disposabl
 | Calendar (Beta) / calendar/daily notes | `2.0.0-beta.2` / `2.0.0` | UNSUPPORTED_STARTUP; `export Modal` | [Calendar (Beta)](https://github.com/liamcain/obsidian-calendar-plugin) |
 | Advanced Tables / editor/tables | `0.23.2` / `0.23.2` | UNSUPPORTED_STARTUP; `export Modal` | [Advanced Tables](https://github.com/tgrosinger/advanced-tables-obsidian) |
 | Reading Time / status bar/statistics | `1.1.2` / `1.1.2` | UNSUPPORTED_STARTUP; `export PluginSettingTab` | [Reading Time](https://github.com/avr/obsidian-reading-time) |
+| Excalidraw / drawing | `2.29.1` / `2.29.1` | UNSUPPORTED_STARTUP; `require @codemirror/view` | [Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) |
+| Tasks / task management | `8.6.0` / `8.6.0` | UNSUPPORTED_STARTUP; `export Modal` | [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) |
+| Git / version control | `2.42.0` / `2.42.0` | UNSUPPORTED_STARTUP; `export Platform` | [Git](https://github.com/vinzent03/obsidian-git) |
+| Copilot / AI assistant | `4.0.17` / `4.0.17` | UNSUPPORTED_STARTUP; `export Modal` | [Copilot](https://github.com/logancyang/obsidian-copilot) |
+| Style Settings / appearance | `1.0.9` / `1.0.9` | UNSUPPORTED_STARTUP; `export Modal` | [Style Settings](https://github.com/obsidian-community/obsidian-style-settings) |
+| Kanban / boards | `2.0.51` / `2.0.51` | LOAD_ERROR; `activeWindow is not defined` | [Kanban](https://github.com/obsidian-community/obsidian-kanban) |
 
 Dataview release tag and manifest version differ in the downloaded artifacts; Calendar has a beta tag with manifest 2.0.0. Both values are preserved. SHA-256 for main.js and manifest.json is pinned in `compatibility/community-corpus.json` and verified before loading; observed results/times are in `compatibility/community-results.json`. A LOAD_ERROR is a generic failed load, not a confirmed API diagnosis: CommonJS namespace-copy helpers can lose the export Proxy and yield an undefined class rather than a named CompatibilityError. Broader interop remains unfinished.
 
@@ -26,7 +32,7 @@ xvfb-run -a npm run test:desktop -- e2e-desktop/corpus.spec.ts
 ENGINE_CORPUS_REPORT=/tmp/engine-corpus-results node scripts/corpus-report.mjs
 ```
 
-The `plugin-corpus.yml` manual workflow downloads pinned files, checks hashes and runs startup tests. Set `E2E_EXECUTABLE_PATH` for a packaged executable. Ordinary desktop runs skip these five optional cases without `ENGINE_PLUGIN_CORPUS`; skipped is not passed.
+The `plugin-corpus.yml` manual workflow downloads pinned files, checks hashes and runs startup tests. Set `E2E_EXECUTABLE_PATH` for a packaged executable. Ordinary desktop runs skip these optional pinned cases without `ENGINE_PLUGIN_CORPUS`; skipped is not passed.
 
 ## License and safety boundary
 
@@ -34,7 +40,7 @@ Only original harnesses, metadata/hashes and results are committed. Third-party 
 
 ## Unfinished validation
 
-- [ ] Successful startup and actual workflows for these five plugins.
+- [ ] Successful startup and actual workflows for these pinned plugins.
 - [ ] Every API requirement beyond the first observed failure.
 - [ ] Reference-equivalent editor/render/settings/data behavior and module-wrapper semantics.
 - [ ] More community plugins/versions and Windows/macOS/mobile.

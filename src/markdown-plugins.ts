@@ -225,14 +225,15 @@ export function createMarkdownRenderer(getApp:()=>unknown) {
       if(app!==getApp())throw new Error('Foreign application');
       if(!(element instanceof HTMLElement)||!(component instanceof Component)||typeof markdown!=='string'||typeof sourcePath!=='string')throw new TypeError('Invalid Markdown render arguments');
       // Nested static rendering is sanitized; automatic recursive processors are deliberately unsupported.
-      let disposed=false,container:HTMLElement|undefined;
-      component.register(()=>{disposed=true;container?.remove();});
+      let disposed=false,nodes:Node[]=[];
+      component.register(()=>{disposed=true;for(const node of nodes)node.parentNode?.removeChild(node);nodes=[];});
       const {renderMarkdown}=await import('./Markdown');
       if(disposed)return;
-      container=document.createElement('div');
-      container.className='markdown';
+      const container=document.createElement('div');
       container.innerHTML=renderMarkdown(markdown);
-      element.append(container);
+      // Callers rely on rendered paragraphs being direct children (e.g. task adornments).
+      // A private wrapper changes that public DOM shape and breaks insertBefore callers.
+      nodes=[...container.childNodes];element.append(...nodes);
     }
     /** Support the legacy static signature through the same bounded safe renderer. */
     static async renderMarkdown(markdown:string,element:HTMLElement,sourcePath:string,component:Component) {

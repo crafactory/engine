@@ -41,7 +41,7 @@ test('reading processors render source bytes in order with real context and chil
 });
 test('static Markdown rendering uses the sanitized renderer without recursive processors',async()=>{
   await enable();await command('Static Markdown');
-  const modal=page.getByRole('dialog',{name:'Static Markdown',exact:true});await expect(modal.locator('strong')).toHaveText('Rendered safely');await expect(modal.locator('script')).toHaveCount(0);await expect(modal.locator('.processor-order')).toHaveCount(0);
+  const modal=page.getByRole('dialog',{name:'Static Markdown',exact:true});await expect(modal.locator('strong')).toHaveText('Rendered safely');await expect(modal.locator('.direct-child-badge + p')).toContainText('Rendered safely');await expect(modal.locator('script')).toHaveCount(0);await expect(modal.locator('.processor-order')).toHaveCount(0);
   await page.keyboard.press('Escape');await expect(modal).toHaveCount(0);
 });
 test('canceling a slow render leaves the next document unmodified and children unloaded',async()=>{

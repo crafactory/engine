@@ -14,7 +14,7 @@ class Child extends MarkdownRenderChild {
 }
 class RenderModal extends Modal {
   /** Exercise sanitized, nonrecursive static rendering inside a real dialog. */
-  async onOpen(){this.setTitle('Static Markdown');await MarkdownRenderer.render(this.app,'**Rendered safely** <script>danger</script>',this.contentEl,'Test.md',this.plugin);}
+  async onOpen(){this.setTitle('Static Markdown');await MarkdownRenderer.render(this.app,'**Rendered safely** <script>danger</script>',this.contentEl,'Test.md',this.plugin);const badge=document.createElement('span');badge.className='direct-child-badge';badge.textContent='Direct child';this.contentEl.insertBefore(badge,this.contentEl.querySelector('p'));}
 }
 module.exports=class extends Plugin {
   /** Expose diagnostic lifecycle and click counts in a visible native status item. */

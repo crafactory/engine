@@ -2,8 +2,10 @@
 import {StateField} from '@codemirror/state';
 import moment from 'moment';
 import {Component,Editor,EditorSuggest,unsupported} from './compat-core';
+import {Scope} from './compat-keymap';
+import {addIcon,getIcon,getIconIds,setIcon} from './compat-icons';
 import {MarkdownRenderChild,createMarkdownRenderer,registerPostProcessor,registerCodeProcessor,stopProcessors} from './markdown-plugins';
-export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','FileView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','FuzzySuggestModal','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','Menu','MenuItem','editorLivePreviewField','editorInfoField','Platform','prepareFuzzySearch'] as const;
+export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','FileView','TextFileView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','SuggestModal','FuzzySuggestModal','Scope','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','Menu','MenuItem','editorLivePreviewField','editorInfoField','Platform','prepareFuzzySearch','addIcon','getIcon','getIconIds','setIcon','setTooltip'] as const;
 /** Bounded editor fields: live preview is always active and no file is exposed. */
 export const editorLivePreviewField=StateField.define<boolean>({create:()=>true,update:value=>value});
 export const editorInfoField=StateField.define<{file:null}>({create:()=>({file:null}),update:value=>value});
@@ -41,6 +43,10 @@ export function installDomHelpers(){
   if(!(String.prototype as any).contains)Object.defineProperty(String.prototype,'contains',{value:function(this:string,needle:string){return this.includes(needle);},configurable:true,writable:true});
   if(!(Array.prototype as any).contains)Object.defineProperty(Array.prototype,'contains',{value:function(this:any[],value:unknown,fromIndex?:number){return this.includes(value,fromIndex);},configurable:true,writable:true});
   const globalWindow=window as unknown as Record<string,unknown>;
+  if(typeof globalWindow.activeWindow==='undefined')globalWindow.activeWindow=window;
+  if(typeof globalWindow.activeDocument==='undefined')globalWindow.activeDocument=document;
+  if(typeof globalWindow.global==='undefined')globalWindow.global=window;
+  if(typeof globalWindow.sleep==='undefined')globalWindow.sleep=(milliseconds:number)=>new Promise(resolve=>setTimeout(resolve,milliseconds));
   if(typeof globalWindow.createFragment!=='function')globalWindow.createFragment=(callback?:(element:HTMLElement)=>void)=>{const fragment=document.createDocumentFragment();if(typeof callback==='function'){const element=document.createElement('div');callback(element);fragment.append(...element.childNodes);}return fragment;};
   /** Detached element helper exposed globally by the reference API. */
   const createDetached=(tag:string,options:any={},callback?:(element:HTMLElement)=>void)=>{
@@ -78,6 +84,8 @@ export function installDomHelpers(){
     setText(this:HTMLElement,text:unknown){this.textContent=String(text);},
     getText(this:HTMLElement){return this.textContent||'';},
     setAttr(this:HTMLElement,key:string,value:string){this.setAttribute(key,value);},
+    hasClass(this:HTMLElement,name:string){return this.classList.contains(name);},
+    getCssPropertyValue(this:HTMLElement,name:string){return getComputedStyle(this).getPropertyValue(name);},
     addClass(this:HTMLElement,...names:unknown[]){this.classList.add(...classNames(names));},
     addClasses(this:HTMLElement,...names:unknown[]){this.classList.add(...classNames(names));},
     removeClasses(this:HTMLElement,...names:unknown[]){this.classList.remove(...classNames(names));},
@@ -111,7 +119,8 @@ export function installDomHelpers(){
   for(const [name,value]of Object.entries(fragmentMethods))if(!(name in DocumentFragment.prototype))Object.defineProperty(DocumentFragment.prototype,name,{value,configurable:true,writable:true});
 }
 /** Create plugin-owned trusted-renderer UI hooks; this adapter is not an isolation boundary. */
-export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,onFileExtensions?:(extensions:string[],viewType?:string)=>void,applyEditorEdit?:(base:string,text:string,from:number,to:number)=>Promise<unknown>){
+export interface VersionedText {content:string;version:string}
+export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,onFileExtensions?:(extensions:string[],viewType?:string)=>void,applyEditorEdit?:(base:string,text:string,from:number,to:number)=>Promise<unknown>,fileIO?:{read(path:string):Promise<VersionedText>;write(path:string,data:string,version:string):Promise<VersionedText>},onSaveError:(error:unknown)=>void=onError){
   installDomHelpers();
   const resources=new Set<HTMLElement>(),modals=new Set<any>(),tabs=new Set<any>(),extensions:unknown[]=[],factories=new Map<string,(leaf:any)=>any>(),leaves=new Set<any>(),extensionViews=new Map<string,string>(),suggests=new Set<EditorSuggest<any>>(),protocolHandlers=new Map<string,(params:Record<string,string>)=>unknown>(),hoverSources=new Map<string,{display:string;defaultMod:boolean}>(),basesFactories=new Map<string,(controller:QueryController)=>unknown>();
   const processors=new Set<ReturnType<typeof registerPostProcessor>>();
@@ -149,11 +158,11 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   class ButtonComponent extends BaseComponent {
     buttonEl:HTMLButtonElement;constructor(parent:HTMLElement){super();this.buttonEl=element('button',parent) as HTMLButtonElement;}
-    setButtonText(text:string){this.buttonEl.textContent=text;return this;}setTooltip(text:string){this.buttonEl.title=text;return this;}
+    setButtonText(text:string){this.buttonEl.textContent=text;return this;}setTooltip(text:string){this.buttonEl.title=text;this.buttonEl.setAttribute('aria-label',text);return this;}
     setCta(){this.buttonEl.classList.add('primary');return this;}setWarning(){this.buttonEl.classList.add('danger-text');return this;}
     onClick(callback:(event:MouseEvent)=>unknown){this.buttonEl.addEventListener('click',safe(callback));return this;}
     setDisabled(disabled:boolean){super.setDisabled(disabled);this.buttonEl.disabled=disabled;return this;}
-    setIcon(){return unsupported('ButtonComponent.setIcon');}
+    setIcon(icon:string){setIcon(this.buttonEl,icon);return this;}
   }
   class SliderComponent extends ValueComponent {
     sliderEl:HTMLInputElement;constructor(parent:HTMLElement){super();this.sliderEl=element('input',parent) as HTMLInputElement;this.sliderEl.type='range';}
@@ -295,13 +304,13 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     private previous:Element|null=null;private callback:(()=>void)|undefined;
     constructor(app:any){this.app=app;this.modalEl.setAttribute('role','dialog');this.modalEl.setAttribute('aria-modal','true');const close=element('button',this.modalEl,'plugin-modal-close');close.textContent='×';close.setAttribute('aria-label','Close plugin modal');close.addEventListener('click',()=>this.close());this.containerEl.addEventListener('click',event=>{if(event.target===this.containerEl)this.close();});
       this.containerEl.addEventListener('keydown',event=>{if(event.key==='Escape'){event.stopPropagation();this.close();}if(event.key==='Tab'){const list=[...this.modalEl.querySelectorAll<HTMLElement>('button,input,select,textarea,[tabindex="0"]')].filter(el=>!el.hasAttribute('disabled'));if(list.length){const i=list.indexOf(document.activeElement as HTMLElement),next=(i+(event.shiftKey?-1:1)+list.length)%list.length;event.preventDefault();list[next].focus();}}});}
-    get scope(){return unsupported('Modal.scope');}
+    scope=new Scope(scope);
     setTitle(text:string){this.titleEl.textContent=text;this.modalEl.setAttribute('aria-label',text);return this;}
     setContent(content:string|DocumentFragment){this.contentEl.replaceChildren(typeof content==='string'?document.createTextNode(content):content);return this;}
     setCloseCallback(callback:()=>void){this.callback=callback;}
     onOpen(){}onClose(){}
-    open(){if(this.containerEl.isConnected)return;this.previous=document.activeElement;document.body.append(this.containerEl);modals.add(this);safe(()=>this.onOpen())();this.modalEl.setAttribute('aria-label',this.titleEl.textContent||'Plugin modal');this.modalEl.querySelector<HTMLElement>('button,input')?.focus();}
-    close(){if(!modals.delete(this))return;this.containerEl.remove();safe(()=>this.onClose())();safe(()=>this.callback?.())();if(this.shouldRestoreSelection&&(this.previous as HTMLElement)?.isConnected)(this.previous as HTMLElement).focus();}
+    open(){if(this.containerEl.isConnected)return;this.previous=document.activeElement;document.body.append(this.containerEl);modals.add(this);modalScopes.push(this.scope);safe(()=>this.onOpen())();this.modalEl.setAttribute('aria-label',this.titleEl.textContent||'Plugin modal');this.modalEl.querySelector<HTMLElement>('button,input')?.focus();}
+    close(){if(!modals.delete(this))return;const index=modalScopes.lastIndexOf(this.scope);if(index>=0)modalScopes.splice(index,1);this.containerEl.remove();safe(()=>this.onClose())();safe(()=>this.callback?.())();if(this.shouldRestoreSelection&&(this.previous as HTMLElement)?.isConnected)(this.previous as HTMLElement).focus();}
   }
   class ConfirmationModal extends Modal {
     /** Add a footer action button; confirmation actions close the dialog. */
@@ -324,19 +333,110 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     getItemText(item:unknown){return String(item);}
     onChooseItem(_item:unknown,_event?:MouseEvent){}
     setPlaceholder(text:string){this.inputEl.placeholder=text;return this;}
+    setInstructions(instructions:{command:string;purpose:string}[]){this.inputEl.title=instructions.map(item=>item.command+': '+item.purpose).join('\n');return this;}
     renderResults(query:string){this.resultContainerEl.replaceChildren();const fuzzy=prepareFuzzySearch(query);const items=this.getItems().filter(item=>!query||fuzzy(this.getItemText(item))).slice(0,this.limit);for(const item of items){const button=element('button',this.resultContainerEl,'prompt-result');button.textContent=this.getItemText(item);button.addEventListener('click',event=>{this.onChooseItem(item,event);this.close();});}}
     open(){this.inputEl.value='';this.renderResults('');return super.open();}
   }
+  /** Bounded async suggestion picker with keyboard navigation and stale-result isolation. */
+  class SuggestModal extends Modal {
+    inputEl=element('input',this.modalEl,'prompt-input') as HTMLInputElement;
+    resultContainerEl=element('div',this.modalEl,'prompt-results');
+    limit=100;
+    emptyStateText='No suggestions found.';
+    private generation=0;private selected=0;private values:unknown[]=[];
+    constructor(app:unknown){
+      super(app);
+      this.inputEl.addEventListener('input',()=>safe(()=>this.renderResults())());
+      this.inputEl.addEventListener('keydown',event=>{
+        const buttons=[...this.resultContainerEl.querySelectorAll<HTMLButtonElement>('button')];
+        if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+          event.preventDefault();if(buttons.length)this.selected=(this.selected+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;
+          this.markSelection();
+        }else if(event.key==='Enter'){event.preventDefault();if(buttons[this.selected])safe(()=>this.selectSuggestion(this.values[this.selected],event))();}
+      });
+    }
+    getSuggestions(_query:string):unknown[]|Promise<unknown[]>{return [];}
+    renderSuggestion(value:unknown,el:HTMLElement){el.textContent=String(value);}
+    onChooseSuggestion(_value:unknown,_event:MouseEvent|KeyboardEvent){}
+    selectSuggestion(value:unknown,event:MouseEvent|KeyboardEvent){this.onChooseSuggestion(value,event);this.close();}
+    onNoSuggestion(){this.resultContainerEl.textContent=this.emptyStateText;}
+    setPlaceholder(text:string){this.inputEl.placeholder=text;return this;}
+    setInstructions(instructions:{command:string;purpose:string}[]){this.inputEl.title=instructions.map(item=>item.command+': '+item.purpose).join('\n');return this;}
+    private markSelection(){[...this.resultContainerEl.children].forEach((el,index)=>el.classList.toggle('is-selected',index===this.selected));}
+    async renderResults(){
+      const generation=++this.generation;this.values=[];this.resultContainerEl.replaceChildren();
+      const values=await this.getSuggestions(this.inputEl.value);
+      if(generation!==this.generation||!this.containerEl.isConnected)return;
+      this.selected=0;this.values=values.slice(0,this.limit);
+      if(!values.length){this.onNoSuggestion();return;}
+      for(const value of this.values){
+        const button=element('button',this.resultContainerEl,'prompt-result');
+        this.renderSuggestion(value,button);
+        button.addEventListener('click',safe(event=>this.selectSuggestion(value,event)));
+      }
+      this.markSelection();
+    }
+    open(){super.open();this.inputEl.value='';safe(()=>this.renderResults())();this.inputEl.focus();}
+    close(){this.generation++;super.close();}
+  }
   let app:any;
+  const scope=new Scope(),modalScopes:Scope[]=[];
+  const dispatchKey=(event:KeyboardEvent)=>{if(!event.defaultPrevented)try{(modalScopes.at(-1)??scope).dispatch(event);}catch(error){onError(error);}};
+  document.addEventListener('keydown',dispatchKey);
   class View extends Component {
     leaf:any;app:any;containerEl:HTMLElement;icon='file';navigation=false;
     constructor(leaf:any){super();this.leaf=leaf;this.app=app;this.containerEl=leaf.containerEl;}
-    getViewType(){return unsupported('View.getViewType abstract');}getDisplayText(){return unsupported('View.getDisplayText abstract');}
+    getViewType():string{return unsupported('View.getViewType abstract');}getDisplayText():string{return unsupported('View.getDisplayText abstract');}
     getIcon(){return this.icon;}getState(){return {};}async setState(_state:any,_result?:any){}getEphemeralState(){return {};}setEphemeralState(){return unsupported('View.setEphemeralState');}
     get scope(){return unsupported('View.scope');}async onOpen(){}async onClose(){}
   }
   class ItemView extends View {contentEl:HTMLElement;constructor(leaf:any){super(leaf);this.contentEl=element('div',this.containerEl,'plugin-view-content');}addAction(){return unsupported('ItemView.addAction');}}
-  class FileView extends ItemView {file:any=null;onLoadFile(_file:any){}onUnloadFile(_file:any){}}
+  class FileView extends ItemView {
+    file:any=null;navigation=true;allowNoFile=false;
+    private transitions:Promise<void>=Promise.resolve();
+    private transition(action:()=>Promise<void>){const result=this.transitions.then(action);this.transitions=result.catch(()=>{});return result;}
+    getState(){return {file:this.file?.path};}
+    getDisplayText(){return this.file?.basename??'No file';}
+    setState(state:any){
+      const path=state.file;
+      return this.transition(async()=>{
+        if(!path)return;
+        const next=app.vault.getFileByPath(path);if(!next)throw new Error('File not found: '+path);
+        if(this.file===next)return;
+        if(this.file)await this.onUnloadFile(this.file);
+        this.file=next;try{await this.onLoadFile(next);}catch(error){this.file=null;throw error;}
+      });
+    }
+    onClose(){return this.transition(async()=>{if(this.file){await this.onUnloadFile(this.file);this.file=null;}});}
+    onLoadFile(_file:any):any{}onUnloadFile(_file:any):any{}
+  }
+  class TextFileView extends FileView {
+    data='';private version='';private timer:ReturnType<typeof setTimeout>|undefined;
+    private writes:Promise<void>=Promise.resolve();
+    getViewData():string{return unsupported('TextFileView.getViewData abstract');}
+    setViewData(_data:string,_clear:boolean):void{return unsupported('TextFileView.setViewData abstract');}
+    clear():void{return unsupported('TextFileView.clear abstract');}
+    requestSave=()=>{clearTimeout(this.timer);this.timer=setTimeout(()=>{this.timer=undefined;void this.save().catch(onSaveError);},2000);};
+    async onLoadFile(file:any){
+      if(!fileIO)return unsupported('TextFileView versioned storage');
+      const note=await fileIO.read(file.path);this.data=note.content;this.version=note.version;this.setViewData(this.data,true);
+    }
+    async save(){
+      clearTimeout(this.timer);this.timer=undefined;
+      const file=this.file;if(!file)return;
+      const data=this.getViewData();
+      const write=this.writes.then(async()=>{
+        if(this.file!==file)throw new Error('Text file changed before save');
+        if(data!==this.data){
+          if(!fileIO||!this.version)return unsupported('TextFileView versioned storage');
+          const saved=await fileIO.write(file.path,data,this.version);
+          if(this.file===file){this.data=data;this.version=saved.version;}
+        }
+      });
+      this.writes=write.catch(()=>{});await write;
+    }
+    async onUnloadFile(_file:any){await this.save();this.clear();this.data='';}
+  }
   class WorkspaceLeaf {
     containerEl=element('section',undefined,'plugin-view-pane');view:any=null;private ephemeralState:unknown=null;
     async setViewState(state:any,parent?:HTMLElement){if(!state||typeof state.type!=='string')throw new Error('Invalid view state');const factory=factories.get(state.type);if(!factory)return unsupported('View type '+state.type);
@@ -360,7 +460,9 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   const reusableLeaf=new WorkspaceLeaf();
   return {
     setApp(value:any){app=value;},
-    exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,FileView,WorkspaceLeaf,EditorSuggest,AbstractInputSuggest,FuzzySuggestModal,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,Menu,MenuItem,addIcon:(_name:string,_svg:string)=>{}},
+    scope,
+    exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,FileView,TextFileView,WorkspaceLeaf,EditorSuggest,AbstractInputSuggest,SuggestModal,FuzzySuggestModal,Scope,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,Menu,MenuItem,addIcon,getIcon,getIconIds,setIcon,
+      setTooltip:(el:HTMLElement,text:string)=>{el.title=text;el.setAttribute('aria-label',text);}},
     /** Bind reading post-processors to this plugin's error and lifecycle ownership. */
     postProcessor(callback:any,sortOrder?:number){if(processorsStopped)throw new Error('Plugin Markdown processors are stopped');return ownProcessor(registerPostProcessor(callback,sortOrder,onError));},
     /** Bind named code-block handlers to the same reading registry. */
@@ -460,6 +562,6 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       return {element:leaf.containerEl,dispose:()=>{void leaf.detach();}};
     },
     /** Dispose processor children, visible UI and editor registrations after owner stop. */
-    async dispose(){processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach();for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();for(const suggest of suggests)suggest.close();suggests.clear();protocolHandlers.clear();hoverSources.clear();basesFactories.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
+    async dispose(){document.removeEventListener('keydown',dispatchKey);processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach();for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();for(const suggest of suggests)suggest.close();suggests.clear();protocolHandlers.clear();hoverSources.clear();basesFactories.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
   };
 }

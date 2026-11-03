@@ -2,6 +2,7 @@ import {test,expect,type Page} from '@playwright/test';
 const redoShortcut=process.platform==='darwin'?'Meta+Shift+z':'Control+y';
 test('embedded task controls cannot acquire host task source ownership',async({page})=>{
   await page.goto('/');
+  await expect(page.locator('.note-title h1')).toHaveText('Welcome');
   const canvas=JSON.stringify({nodes:[{id:'task',type:'text',x:0,y:0,width:260,height:160,text:'- [ ] Canvas task'}],edges:[]});
   await page.locator('input[aria-label="Import files"]').setInputFiles([
     {name:'Task board.canvas',mimeType:'application/json',buffer:Buffer.from(canvas)},

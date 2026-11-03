@@ -1,5 +1,5 @@
 // Original MIT test fixture, not copied from a community plugin or SDK.
-const {Plugin,PluginSettingTab,Setting,Modal,ItemView,EditorSuggest,BasesView}=require('obsidian');
+const {Plugin,PluginSettingTab,Setting,Modal,SuggestModal,FileView,TextFileView,ItemView,EditorSuggest,BasesView,getLanguage,addIcon,getIcon,getIconIds,setIcon,setTooltip}=require('obsidian');
 const {EditorView}=require('@codemirror/view');
 const {StateField}=require('@codemirror/state');
 class FixtureModal extends Modal {
@@ -40,6 +40,19 @@ class FixtureSettings extends PluginSettingTab {
     new Setting(this.containerEl).setName('Fixture button').addButton(c=>c.setButtonText('Open fixture modal').onClick(()=>new FixtureModal(this.app).open()));
   }
 }
+class FixturePicker extends SuggestModal {
+  constructor(app,status){super(app);this.status=status;this.setTitle('Fixture suggestions');this.setPlaceholder('Find fixture choice');}
+  async getSuggestions(query){if(query==='slow')await new Promise(resolve=>setTimeout(resolve,200));return [query+' first',query+' second'];}
+  renderSuggestion(value,el){el.textContent=value;}
+  onChooseSuggestion(value){this.status.setText('Picked '+value);}
+}
+class FixtureTextView extends TextFileView {
+  getViewType(){return 'fixture-text';}
+  onOpen(){this.input=this.contentEl.createEl('textarea',{attr:{'aria-label':'Fixture document'}});this.input.addEventListener('input',()=>this.requestSave());}
+  getViewData(){return this.input.value;}
+  setViewData(data){this.input.value=data;}
+  clear(){this.input.value='';}
+}
 module.exports=class extends Plugin {
   async onload(){
     this.data=(await this.loadData())||{};
@@ -50,6 +63,7 @@ module.exports=class extends Plugin {
     this.addSettingTab(new FixtureSettings(this.app,this));
     this.registerView('fixture-view',leaf=>new FixtureView(leaf));
     this.registerExtensions(['fixture'],'fixture-view');
+    this.registerView('fixture-text',leaf=>new FixtureTextView(leaf));this.registerExtensions(['txt'],'fixture-text');
     this.registerEditorSuggest(new FixtureSuggest(this.app));
     this.registerObsidianProtocolHandler('fixture-protocol',params=>this.status.setText('Protocol '+(params.value||'')));
     this.registerHoverLinkSource('fixture-hover',{display:'Fixture hover',defaultMod:true});
@@ -59,6 +73,33 @@ module.exports=class extends Plugin {
     this.addCommand({id:'view',name:'Open view',callback:async()=>{const leaf=this.app.workspace.getRightLeaf(false);await leaf.setViewState({type:'fixture-view'});await this.app.workspace.revealLeaf(leaf);}});
     this.addCommand({id:'reuse-open',name:'Reuse and open',callback:async()=>{const leaf=this.app.workspace.getLeaf(false);await leaf.openFile(this.app.vault.getFileByPath('Z#.md'));await this.app.workspace.revealLeaf(leaf);this.status.setText('Reused leaf');}});
     this.addCommand({id:'modal',name:'Open modal',callback:()=>new FixtureModal(this.app).open()});
+    this.addCommand({id:'picker',name:'Show fixture suggestions',callback:()=>new FixturePicker(this.app,this.status).open()});
+    this.addCommand({id:'transitions',name:'Race fixture file transitions',callback:async()=>{
+      const events=[];let release;const gate=new Promise(resolve=>release=resolve);
+      class TransitionView extends FileView {
+        async onLoadFile(file){events.push('load '+file.path);if(file.path==='Test.txt')await gate;events.push('loaded '+file.path);}
+        async onUnloadFile(file){events.push('unload '+file.path);}
+      }
+      const view=new TransitionView(this.app.workspace.getLeaf());
+      const pending=[view.setState({file:'Test.txt'}),view.setState({file:'Test.md'}),view.setState({file:'Zeta.md'}),view.onClose()];
+      setTimeout(release,25);await Promise.all(pending);
+      window.__fileTransitions={events,file:view.file};
+      let reject=true;
+      class RetryView extends FileView {async onLoadFile(){if(reject){reject=false;throw new Error('expected fixture load failure');}}}
+      const retry=new RetryView(this.app.workspace.getLeaf());
+      await retry.setState({file:'Test.md'}).catch(()=>{});await retry.setState({file:'Test.md'});
+      window.__fileTransitions.retry=retry.file.path;await retry.onClose();this.status.setText('Transitions complete');
+    }});
+    this.addCommand({id:'icons',name:'Show fixture icons',callback:()=>{
+      addIcon('fixture-custom','<path d="M0 0L10 10"/><script>window.badIcon=true</script>');
+      const modal=new Modal(this.app);modal.setTitle('Fixture icons');
+      modal.contentEl.append(getIcon('plus'),getIcon('lucide-plus'),getIcon('fixture-custom'),getIcon('fixture-custom'));
+      const button=modal.contentEl.createEl('button');setIcon(button,'check');setTooltip(button,'Fixture icon button');
+      modal.contentEl.createSpan({text:getIconIds().includes('fixture-custom')?'Registered icon':'Missing icon'});modal.open();
+      modal.contentEl.createSpan({text:getIconIds().every(id=>getIcon(id))?'Icon ID roundtrip':'Broken icon ID'});
+    }});
+    const handler=this.app.scope.register(['Ctrl','Shift'],'u',()=>{window.__scopeCalls=(window.__scopeCalls||0)+1;this.status.setText('Scoped '+getLanguage());return false;});
+    this.register(()=>this.app.scope.unregister(handler));
     this.addCommand({id:'extensions',name:'Replace extension',callback:()=>{this.extensions.splice(0,1,EditorView.updateListener.of(update=>{if(update.docChanged)this.status.setText('CM replacement');}));this.app.workspace.updateOptions();}});
     this.registerDomEvent(document,'fixture-dom-test',()=>this.status.setText('DOM event'));
     this.addCommand({id:'dom-event',name:'DOM event',callback:()=>document.dispatchEvent(new Event('fixture-dom-test'))});

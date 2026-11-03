@@ -89,7 +89,8 @@ test('file recovery restores a saved version',async({page})=>{
 test('daily notes and templates generate real text',async({page})=>{
   // Always exercise creation rather than whichever demo date happens to match the runner clock.
   await page.clock.install({time:new Date('2030-02-03T12:00:00Z')});await page.reload();
-  await expect(page.locator('.note-title h1')).toHaveText('Welcome');await page.clock.pauseAt(new Date('2030-02-03T12:00:01Z'));
+  // Reload can take longer than one second on a cold runner; keep the pause target in the future.
+  await expect(page.locator('.note-title h1')).toHaveText('Welcome');await page.clock.pauseAt(new Date('2030-02-03T12:05:00Z'));
   await page.getByRole('button',{name:'Daily note',exact:true}).click();await expect(page.locator('.note-title h1')).toHaveText(/\d{4}-\d{2}-\d{2}/);
   await command(page,'Insert template');await expect(page.getByRole('dialog',{name:'Insert template',exact:true})).toBeVisible();
   const input=page.getByTestId('palette-input');await input.fill('Meeting');await expect(page.getByTestId('palette-item-Templates/Meeting.md')).toBeVisible();

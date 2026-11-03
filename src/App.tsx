@@ -249,7 +249,10 @@ export function App(){
     const timer=setTimeout(()=>{bridge.state({settings,bookmarks,workspaces,recent,propertyTypes}).catch(report);},700);
     return()=>clearTimeout(timer);
   },[settings,bookmarks,workspaces,recent,propertyTypes]);
-  useEffect(()=>{document.documentElement.dataset.theme=settings.theme;},[settings.theme]);
+  useEffect(()=>{
+    document.documentElement.dataset.theme=settings.theme;
+    for(const controller of pluginStops.current.values())controller.triggerWorkspaceEvent?.('css-change',[]);
+  },[settings.theme,settings.css]);
   const refresh=useCallback(async()=>{
     try{
       const nextEntries=await bridge.list();
@@ -296,9 +299,9 @@ export function App(){
     for(const timer of timers.current.values())clearTimeout(timer);timers.current.clear();
     await Promise.all(notesRef.current.filter(n=>savedContent.current.get(n.path)!==n.content).map(n=>persist(n.path)));
   }
-  const closeHandler=useRef<()=>void>(()=>{});
-  closeHandler.current=()=>{stopPlugins().then(flush).then(()=>bridge.state({settings,bookmarks,workspaces,recent})).then(()=>bridge.closeReady?.()).catch(report);};
-  useEffect(()=>bridge.onBeforeClose?.(()=>closeHandler.current()),[]);
+  const closeHandler=useRef<()=>void>(()=>{}),closing=useRef(false);
+  closeHandler.current=()=>{if(closing.current)return;closing.current=true;stopPlugins().then(async()=>{if(loaded.current){await flush();await bridge.state({settings,bookmarks,workspaces,recent,propertyTypes});}}).then(()=>bridge.closeReady?.()).catch(error=>{closing.current=false;report(error);});};
+  useEffect(()=>{if(!loading)return bridge.onBeforeClose?.(()=>closeHandler.current());},[loading]);
   useEffect(()=>{
     const unload=(event:BeforeUnloadEvent)=>{if(notesRef.current.some(n=>savedContent.current.get(n.path)!==n.content)){event.preventDefault();event.returnValue='There are unsaved changes.';}};
     window.addEventListener('beforeunload',unload);return()=>window.removeEventListener('beforeunload',unload);
@@ -524,7 +527,7 @@ export function App(){
     const storage=()=>storageRuntime.current?.storage??(bridgeStorageFallback.current??=new BridgeStorage(bridge));
     const checkPath=(path:string)=>{if(!validPath(path))throw new Error('Invalid plugin vault path');};
     const refreshEntries=async()=>{const next=await storage().list();pluginState.current.entries=next;setEntries(next);};
-    const mutateText=async(name:'create'|'modify'|'append'|'writeLegacy',path:string,text:string)=>{
+    const mutateText=async(name:'create'|'modify'|'append'|'writeLegacy',path:string,text:string,expectedVersion?:string)=>{
       ensureOpen();checkPath(path);
       if(name==='writeLegacy'&&!isNote(path))throw new Error('Invalid plugin text');
       await flush();
@@ -532,7 +535,7 @@ export function App(){
       let result:StoredNote;
       if(name==='create')result=await storage().create(path,text);
       else if(name==='append')result=await storage().append(path,text);
-      else if(name==='modify'){const disk=await storage().read(path);result=await storage().write(path,text,disk.version);}
+      else if(name==='modify'){const version=expectedVersion??(await storage().read(path)).version;result=await storage().write(path,text,version);}
       else result=await storage().write(path,text,versions.current.get(path));
       savedContent.current.set(path,result.content);versions.current.set(path,result.version);
       const existing=notesRef.current.find(n=>n.path===path);
@@ -544,8 +547,9 @@ export function App(){
       loadData:async pluginId=>{ensureOpen();return storage().pluginData(pluginId);},
       saveData:async(pluginId,data)=>{ensureOpen();return storage().pluginData(pluginId,data,true);},
       read:async path=>{ensureOpen();checkPath(path);return (await storage().read(path)).content;},
+      readVersioned:async path=>{ensureOpen();checkPath(path);return storage().read(path);},
       create:(path,text)=>mutateText('create',path,text),
-      modify:(path,text)=>mutateText('modify',path,text),
+      modify:(path,text,expectedVersion)=>mutateText('modify',path,text,expectedVersion),
       append:(path,text)=>mutateText('append',path,text),
       writeLegacy:(path,text)=>mutateText('writeLegacy',path,text),
       rename:async(from,to)=>{ensureOpen();checkPath(from);if(!validPath(to))throw new Error('Invalid rename target');const actual=await renamePath(from,to,true);return actual??to;},

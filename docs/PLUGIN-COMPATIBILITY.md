@@ -1,5 +1,10 @@
 # Plugin compatibility report
 
+For the expanded all-time-download top-ten target set, evidence tiers, added
+`SuggestModal`/`Scope`/`TextFileView` behavior and remaining native/private-API gaps,
+see [Popular-plugin compatibility](POPULAR-PLUGIN-COMPATIBILITY.md). The increment
+does not claim full compatibility with all ten plugins.
+
 Crafactory Engine v0.6.0 provides an experimental independent compatibility subset, not comprehensive Obsidian plugin support. Current per-plugin and per-capability status is tracked in [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md). Original code is MIT; dependency licenses remain intact. No proprietary application implementation, SDK package, declaration files or sample-plugin source is used. Public behavioral references and unchanged, external community-plugin release bytes serve different roles: documentation informs original adapters; real plugins are black-box test inputs only. Development and builds now go through a PR; publication waits for completed CodeRabbit review, repaired findings and merge.
 
 ## Two explicit runtimes
@@ -59,7 +64,7 @@ Current per-plugin outcomes and verified workflows are tracked in
 [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); per-run hashes and timestamps are in
 [TRUSTED-RENDERER-PLUGIN-TESTS.md](TRUSTED-RENDERER-PLUGIN-TESTS.md) and
 [compatibility/renderer-community-results.json](compatibility/renderer-community-results.json).
-Default Worker still fails all five pinned releases. Reading Time and Dataview have bounded
+Default Worker still fails all eleven pinned releases. Reading Time and Dataview have bounded
 functional workflows; Templater has bounded template-insertion, create-note, startup-template
 and user-script workflows; Advanced Tables has a bounded live-mode table-formatting workflow;
 Calendar has a bounded view + today's-daily-note workflow. DataviewJS and `dv.view` require the explicit desktop `unsafe-eval`
