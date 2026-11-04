@@ -13,7 +13,7 @@
       "outcome": "UNSUPPORTED_STARTUP",
       "first_blocker": "Unsupported Obsidian capability: require @codemirror/state. See docs/PLUGIN-COMPATIBILITY.md.",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-11-04T03:31:41.025Z"
+      "checked_at": "2026-11-04T04:11:59.933Z"
     },
     {
       "name": "Templater",
@@ -27,7 +27,7 @@
       "outcome": "LOAD_ERROR",
       "first_blocker": "Class extends value undefined is not a constructor or null",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-11-04T03:31:45.273Z"
+      "checked_at": "2026-11-04T04:12:02.356Z"
     },
     {
       "name": "Calendar (Beta)",
@@ -41,7 +41,7 @@
       "outcome": "UNSUPPORTED_STARTUP",
       "first_blocker": "Unsupported Obsidian capability: export Modal. See docs/PLUGIN-COMPATIBILITY.md.",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-11-04T03:31:49.872Z"
+      "checked_at": "2026-11-04T04:12:04.801Z"
     },
     {
       "name": "Advanced Tables",
@@ -55,7 +55,7 @@
       "outcome": "UNSUPPORTED_STARTUP",
       "first_blocker": "Unsupported Obsidian capability: export Modal. See docs/PLUGIN-COMPATIBILITY.md.",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-11-04T03:31:53.052Z"
+      "checked_at": "2026-11-04T04:12:07.479Z"
     },
     {
       "name": "Reading Time",
@@ -69,7 +69,7 @@
       "outcome": "UNSUPPORTED_STARTUP",
       "first_blocker": "Unsupported Obsidian capability: export PluginSettingTab. See docs/PLUGIN-COMPATIBILITY.md.",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-11-04T03:31:57.023Z"
+      "checked_at": "2026-11-04T04:12:09.967Z"
     },
     {
       "name": "Excalidraw",
@@ -83,7 +83,7 @@
       "outcome": "UNSUPPORTED_STARTUP",
       "first_blocker": "Unsupported Obsidian capability: require @codemirror/view. See docs/PLUGIN-COMPATIBILITY.md.",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-11-04T03:32:01.181Z"
+      "checked_at": "2026-11-04T04:12:13.493Z"
     },
     {
       "name": "Tasks",
@@ -97,7 +97,7 @@
       "outcome": "UNSUPPORTED_STARTUP",
       "first_blocker": "Unsupported Obsidian capability: export Modal. See docs/PLUGIN-COMPATIBILITY.md.",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-11-04T03:32:05.963Z"
+      "checked_at": "2026-11-04T04:12:16.579Z"
     },
     {
       "name": "Git",
@@ -111,7 +111,7 @@
       "outcome": "UNSUPPORTED_STARTUP",
       "first_blocker": "Unsupported Obsidian capability: export Platform. See docs/PLUGIN-COMPATIBILITY.md.",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-11-04T03:32:11.345Z"
+      "checked_at": "2026-11-04T04:12:19.726Z"
     },
     {
       "name": "Copilot",
@@ -125,7 +125,7 @@
       "outcome": "UNSUPPORTED_STARTUP",
       "first_blocker": "Unsupported Obsidian capability: export Modal. See docs/PLUGIN-COMPATIBILITY.md.",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-11-04T03:32:17.866Z"
+      "checked_at": "2026-11-04T04:12:23.177Z"
     },
     {
       "name": "Style Settings",
@@ -139,7 +139,7 @@
       "outcome": "UNSUPPORTED_STARTUP",
       "first_blocker": "Unsupported Obsidian capability: export Modal. See docs/PLUGIN-COMPATIBILITY.md.",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-11-04T03:32:23.304Z"
+      "checked_at": "2026-11-04T04:12:25.965Z"
     },
     {
       "name": "Kanban",
@@ -153,7 +153,7 @@
       "outcome": "LOAD_ERROR",
       "first_blocker": "activeWindow is not defined",
       "functional_workflows": "NOT_RUN",
-      "checked_at": "2026-11-04T03:32:27.430Z"
+      "checked_at": "2026-11-04T04:12:28.836Z"
     }
   ]
 }

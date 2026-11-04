@@ -1,73 +1,49 @@
-# Kanban card and focus workflows
+# Kanban card and focus increment
 
-## Baseline and authorization
+## Authorization and baseline
 
-[PR #72](https://github.com/crafactory/engine/pull/72) merged at `a1c79b7`.
-Its repaired head `d82d9bc` passed inventory/build, 860 units, 64 browser and 93 desktop
-cases, including all 22 pinned corpus cases; exact-head cloud verification, three-platform
-packaging and pinned corpus passed. Completed effective reviews and regression fixes preceded
-merge. Latest-head CodeRabbit review was quota-skipped; merge used the maintainer's explicit
-exception, recorded in the PR. The binary recreation window remains accepted, not repaired.
+[PR #72](https://github.com/crafactory/engine/pull/72) merged at `a1c79b7` after effective
+review/fix rounds, exact-head green checks and a recorded quota exception. Its narrow binary
+final-check-to-rename recreation risk remains accepted, not repaired.
 
-The current branch `compat/kanban-card-workflows` starts the next increment with an early PR.
-Open early, submit frequent reviewable commits, normally use one or two effective Review + Fix
-rounds, and do not let review-service limits alone block green, reviewed-and-fixed work without
-known blocking issues. CONTRIBUTING is authoritative. No issue creation or agents authorized.
+Open PRs early and submit frequent reviewable commits. Normally use one or two effective
+Review + Fix rounds, fix blocking findings with regressions, then allow the maintainer's
+review-service exception only with no known blockers and exact-head green checks.
+CONTRIBUTING is authoritative. No agents or issue creation authorized. Original host code
+only: unchanged pinned plugin bundles/styles are black-box inputs, never inspected/copied.
+Public declarations and runtime DOM/API/exception metadata are allowed.
 
-## First blockers and acceptance
+## Current work and evidence
 
-Unchanged pinned Kanban 2.0.51 currently creates/persists boards and lists and recovers them
-after switching/restart. Card Enter fails with undefined `has`; embedded focus reports
-undefined `setTimeout`. Do not claim card creation/completion/moves work yet.
+Branch `compat/kanban-card-workflows`, [PR #73](https://github.com/crafactory/engine/pull/73),
+is ready for review. `ab431cc` adds lifecycle-owned own-runtime enabledPlugins admission,
+revocation and registry cleanup. `0a84173` adds UIEvent ownership, detached Node fallback and
+owned embedded-editor focus admission/routing, selection snapshots and stale/foreign context
+handling. No Object.prototype workaround or shared plugin registry was introduced.
 
-Observe runtime DOM/API behavior and exception scopes without reading, copying or rewriting
-plugin bundles/styles. Public declarations/docs and original host/fixture source are allowed.
-Native tests keep explicit full trust and an allowlisted environment/temporary home;
-this is not OS filesystem containment.
+Complete Linux source acceptance: inventory/build, 866 units /49 files, 64 browser and 95
+desktop tests. All 22 pinned corpus cases executed without skips. Both reports derive only
+from `/tmp/engine-pr73-complete-{renderer,worker}`. Kanban now passes unchecked-card exact
+save, switch and full restart/re-enable/reopen with no recorded runtime/console errors.
+Two ownership/focus regressions plus real Kanban pass against the actual Linux package
+`/tmp/engine-pr73-package/linux-unpacked/crafactory-engine` (three cases). The ownership
+test fails against unchanged packaged PR #72. Failed implementation/harness candidates and
+the initially incorrect executable filename remain distinct evidence in VERIFICATION.
 
-Find the smallest original host contract fixes, then verify actual card save, no focus
-error, document switch and full restart/reopen. Add completion/list movement and pointer drag
-only when their real workflows can be observed and verified. Preserve exact persisted content
-and current unrelated plugin workflows; never hardcode behavior for one plugin.
+Logs: `/tmp/engine-pr73-complete-{check,browser,desktop}.log`,
+`/tmp/engine-pr73-packaged-acceptance.log`, `/tmp/engine-pr73-focus-baseline.log`.
+Node 22: `/tmp/engine-node/node_modules/node/bin`; corpus: `/tmp/engine-plugin-corpus`.
+No full compatibility claim: completion, later edits, movement, pointer dragging and
+cross-plugin integration/focus sharing remain unverified or unsupported.
 
-## Work and evidence
+## Next delivery steps
 
-The early [PR #73](https://github.com/crafactory/engine/pull/73) records scope and receives
-incremental repairs. Runtime metadata identified a missing plugin-manager enabled Set,
-not a missing keyboard modifier Set (that injected alternative failed). The original
-manager now has stable own-runtime `enabledPlugins` admission/revocation, cleanup on failed
-constructor/load/user-enable, and no stale getPlugin result after failure/stop.
-It remains an own-runtime view, not cross-plugin discovery/API support.
+One initial effective CodeRabbit review was requested and is processing. Address blocking
+findings with original regressions; do not chase optional review loops. Publish aligned
+reports/docs in a small commit, then require exact-head cloud Verify, all three package
+builds and an explicitly dispatched plugin-corpus workflow before merge. Existing cloud
+runs on `0a84173` are not evidence for a later head.
 
-29 targeted contract units and production build pass. The pinned real Kanban desktop case
-now creates and persists an unchecked card, switches documents and restarts/re-enables/reopens
-with the saved card visible. The targeted run passed; focus still logs missing setTimeout.
-Log: `/tmp/engine-pr73-enabled-{units,build,kanban}.log`. No generated report pair has been
-upgraded from this partial run. Full acceptance/review is still pending.
-
-The existing Node helpers lacked the documented detached-window fallback; UIEvent doc/win
-helpers were absent. The initial ownership repair exposed a second real focus failure:
-workspace.activeEditor was getter-only. Current candidate adds owned embedded-editor focus
-admission, context-preserving command routing and selection-only snapshot updates.
-It releases context on competing editors/file changes/disposal, ignores stale owned timers,
-and rejects foreign editor objects. No Object.prototype patch is in product code.
-
-Ownership and focused-command regressions pass, including a palette command that replaces
-the actual selected embedded text without writing the native file. The ownership test fails
-against the unchanged packaged PR #72 binary. The first combined candidate failed on the
-read-only activeEditor error; the next failed TypeScript on optional host delegation; a later
-run completed the real Kanban workflow but failed on a test variable typo, then on its old
-expected-error outcome ratchet. These are separate failed candidates, not acceptance.
-The corrected targeted Kanban case passed with no runtime/console errors, including card
-save/switch/restart. Its outcome ratchet now requires bounded PASS and no longer allows the
-old has/setTimeout errors. Full new source/browser/95-desktop acceptance is in progress;
-verify actual counts/completion before publishing reports or result claims.
-Node 22 is `/tmp/engine-node/node_modules/node/bin`; unchanged corpus is
-`/tmp/engine-plugin-corpus`. Previous accepted logs are `/tmp/engine-pr72-round3-*`.
-Capture new probes separately and do not mix corpus report rows from different runs.
-Keep generated support claims bounded and record failed candidates honestly.
-
-Next: identify receiver/API contracts from runtime observations, commit focused regressions
-and fixes frequently, run complete acceptance, request effective review and handle blocking
-findings without optional review loops. The owner has received progress acknowledgments;
-final results for PR #72 and this next-increment startup have not yet been emailed.
+Merge only the verified exact head, sync main, then privately email the owner in Chinese
+with PR #72/#73 results, accepted risk and remaining boundaries. No final results email
+has been sent yet.

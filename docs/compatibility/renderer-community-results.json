@@ -29,7 +29,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-04T03:33:49.817Z"
+      "checked_at": "2026-11-04T04:13:50.093Z"
     },
     {
       "name": "Templater",
@@ -58,7 +58,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-04T03:34:03.563Z"
+      "checked_at": "2026-11-04T04:14:02.496Z"
     },
     {
       "name": "Calendar (Beta)",
@@ -81,7 +81,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-04T03:34:08.444Z"
+      "checked_at": "2026-11-04T04:14:07.196Z"
     },
     {
       "name": "Advanced Tables",
@@ -103,7 +103,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-04T03:34:13.231Z"
+      "checked_at": "2026-11-04T04:14:12.338Z"
     },
     {
       "name": "Reading Time",
@@ -131,7 +131,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-04T03:34:20.475Z"
+      "checked_at": "2026-11-04T04:14:19.190Z"
     },
     {
       "name": "Excalidraw",
@@ -159,7 +159,7 @@
         "Unsupported Obsidian capability: Obsidian core Canvas plugin. See docs/PLUGIN-COMPATIBILITY.md."
       ],
       "console_errors": [],
-      "checked_at": "2026-11-04T03:34:37.118Z"
+      "checked_at": "2026-11-04T04:14:37.442Z"
     },
     {
       "name": "Tasks",
@@ -181,9 +181,9 @@
       ],
       "runtime_errors": [],
       "console_errors": [
-        "setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager. See docs/PLUGIN-COMPATIBILITY.md.\n    at Y (engine://app/assets/main-DWTXBRJn.js:667:3113)\n    at Object.get (engine://app/assets/main-DWTXBRJn.js:667:3284)\n    at my.setObsidianPropertiesTypes (blob:engine://app/9ba617bf-a1fb-45bb-9252-b5bccab095fa:610:2396)\n    at my.<anonymous> (blob:engine://app/9ba617bf-a1fb-45bb-9252-b5bccab095fa:610:1473)\n    at Generator.next (<anonymous>)\n    at s (blob:engine://app/9ba617bf-a1fb-45bb-9252-b5bccab095fa:173:1694)"
+        "setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager. See docs/PLUGIN-COMPATIBILITY.md.\n    at Y (engine://app/assets/main-BTSzjb9h.js:667:3113)\n    at Object.get (engine://app/assets/main-BTSzjb9h.js:667:3284)\n    at my.setObsidianPropertiesTypes (blob:engine://app/1a7f7b8c-d530-4900-807c-413a2d3337c2:610:2396)\n    at my.<anonymous> (blob:engine://app/1a7f7b8c-d530-4900-807c-413a2d3337c2:610:1473)\n    at Generator.next (<anonymous>)\n    at s (blob:engine://app/1a7f7b8c-d530-4900-807c-413a2d3337c2:173:1694)"
       ],
-      "checked_at": "2026-11-04T03:34:39.154Z"
+      "checked_at": "2026-11-04T04:14:39.399Z"
     },
     {
       "name": "Git",
@@ -208,7 +208,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-04T03:34:46.020Z"
+      "checked_at": "2026-11-04T04:14:46.181Z"
     },
     {
       "name": "Copilot",
@@ -223,13 +223,13 @@
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
       "outcome": "STARTUP_WITH_ERRORS",
-      "first_blocker": "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at Y (engine://app/assets/main-DWTXBRJn.js:667:3113)\n    at Object.get (engine://app/assets/main-DWTXBRJn.js:667:3284)\n    at UA.isAvailable (blob:engine://app/0e8506d9-b91d-4c3a-879b-927aa4261a8d:1189:4232)\n    at m5r (blob:engine://app/0e8506d9-b91d-4c3a-879b-927aa4261a8d:2428:18714)\n    at f8t (blob:engine://app/0e8506d9-b91d-4c3a-879b-927aa4261a8d:2428:19014)\n    at qRe.loadSettings (blob:engine://app/0e8506d9-b91d-4c3a-879b-927aa4261a8d:4279:17601)\n    at async qRe.initialize (blob:engine://app/0e8506d9-b91d-4c3a-879b-927aa4261a8d:4279:1834)",
+      "first_blocker": "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at Y (engine://app/assets/main-BTSzjb9h.js:667:3113)\n    at Object.get (engine://app/assets/main-BTSzjb9h.js:667:3284)\n    at UA.isAvailable (blob:engine://app/781dba20-f3f8-4811-842d-cdb7410ea27f:1189:4232)\n    at m5r (blob:engine://app/781dba20-f3f8-4811-842d-cdb7410ea27f:2428:18714)\n    at f8t (blob:engine://app/781dba20-f3f8-4811-842d-cdb7410ea27f:2428:19014)\n    at qRe.loadSettings (blob:engine://app/781dba20-f3f8-4811-842d-cdb7410ea27f:4279:17601)\n    at async qRe.initialize (blob:engine://app/781dba20-f3f8-4811-842d-cdb7410ea27f:4279:1834)",
       "functional_workflows": "NOT_RUN",
       "runtime_errors": [],
       "console_errors": [
-        "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at Y (engine://app/assets/main-DWTXBRJn.js:667:3113)\n    at Object.get (engine://app/assets/main-DWTXBRJn.js:667:3284)\n    at UA.isAvailable (blob:engine://app/0e8506d9-b91d-4c3a-879b-927aa4261a8d:1189:4232)\n    at m5r (blob:engine://app/0e8506d9-b91d-4c3a-879b-927aa4261a8d:2428:18714)\n    at f8t (blob:engine://app/0e8506d9-b91d-4c3a-879b-927aa4261a8d:2428:19014)\n    at qRe.loadSettings (blob:engine://app/0e8506d9-b91d-4c3a-879b-927aa4261a8d:4279:17601)\n    at async qRe.initialize (blob:engine://app/0e8506d9-b91d-4c3a-879b-927aa4261a8d:4279:1834)"
+        "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at Y (engine://app/assets/main-BTSzjb9h.js:667:3113)\n    at Object.get (engine://app/assets/main-BTSzjb9h.js:667:3284)\n    at UA.isAvailable (blob:engine://app/781dba20-f3f8-4811-842d-cdb7410ea27f:1189:4232)\n    at m5r (blob:engine://app/781dba20-f3f8-4811-842d-cdb7410ea27f:2428:18714)\n    at f8t (blob:engine://app/781dba20-f3f8-4811-842d-cdb7410ea27f:2428:19014)\n    at qRe.loadSettings (blob:engine://app/781dba20-f3f8-4811-842d-cdb7410ea27f:4279:17601)\n    at async qRe.initialize (blob:engine://app/781dba20-f3f8-4811-842d-cdb7410ea27f:4279:1834)"
       ],
-      "checked_at": "2026-11-04T03:34:51.419Z"
+      "checked_at": "2026-11-04T04:14:52.704Z"
     },
     {
       "name": "Style Settings",
@@ -248,7 +248,7 @@
       "functional_workflows": "NOT_RUN",
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-04T03:34:55.873Z"
+      "checked_at": "2026-11-04T04:14:57.098Z"
     },
     {
       "name": "Kanban",
@@ -262,22 +262,18 @@
       "unsafe_eval_enabled": true,
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
-      "outcome": "BOUNDED_WORKFLOWS_WITH_ERRORS",
-      "first_blocker": "Card creation remains blocked: Cannot read properties of undefined (reading 'has'); embedded focus also reports missing setTimeout",
+      "outcome": "BOUNDED_WORKFLOWS_PASS",
+      "first_blocker": "None in the tested board/list/card workflow; completion and moves remain unverified",
       "functional_workflows": [
         "create board Markdown via plugin command",
         "create real list using embedded Markdown input and verify Markdown save",
-        "negative acceptance: card Enter reports parser failure and does not persist a card",
-        "switch documents and retain the board",
-        "restart application, re-enable plugin and reopen the saved list; cards/completion/moves remain unsupported"
+        "submit a real card and verify unchecked Markdown persistence",
+        "switch documents and retain the saved board, list and card",
+        "restart application, re-enable plugin and reopen the saved list and card; completion/moves remain unverified"
       ],
       "runtime_errors": [],
-      "console_errors": [
-        "TypeError: Cannot read properties of undefined (reading 'setTimeout')\n    at Object.focus (blob:engine://app/a6bcdc8d-56aa-4ade-8e80-ba6fe8081c5c:45:30031)\n    at engine://app/assets/editor-CvGrdymP.js:9:7301\n    at Qp.runHandlers (engine://app/assets/editor-CvGrdymP.js:9:4968)\n    at engine://app/assets/editor-CvGrdymP.js:9:4775",
-        "TypeError: Cannot read properties of undefined (reading 'setTimeout')\n    at Object.focus (blob:engine://app/a6bcdc8d-56aa-4ade-8e80-ba6fe8081c5c:45:30031)\n    at engine://app/assets/editor-CvGrdymP.js:9:7301\n    at Qp.runHandlers (engine://app/assets/editor-CvGrdymP.js:9:4968)\n    at engine://app/assets/editor-CvGrdymP.js:9:4775",
-        "TypeError: Cannot read properties of undefined (reading 'has')\n    at il (blob:engine://app/a6bcdc8d-56aa-4ade-8e80-ba6fe8081c5c:41:2036)\n    at gb (blob:engine://app/a6bcdc8d-56aa-4ade-8e80-ba6fe8081c5c:41:1665)\n    at gf (blob:engine://app/a6bcdc8d-56aa-4ade-8e80-ba6fe8081c5c:65:6)\n    at V_ (blob:engine://app/a6bcdc8d-56aa-4ade-8e80-ba6fe8081c5c:65:1555)\n    at yf.newItem (blob:engine://app/a6bcdc8d-56aa-4ade-8e80-ba6fe8081c5c:68:163)\n    at vf.getNewItem (blob:engine://app/a6bcdc8d-56aa-4ade-8e80-ba6fe8081c5c:68:6996)\n    at u (blob:engine://app/a6bcdc8d-56aa-4ade-8e80-ba6fe8081c5c:53:17124)\n    at onEnter (blob:engine://app/a6bcdc8d-56aa-4ade-8e80-ba6fe8081c5c:53:17475)\n    at blob:engine://app/a6bcdc8d-56aa-4ade-8e80-ba6fe8081c5c:45:30386\n    at u (engine://app/assets/editor-CvGrdymP.js:10:21589)"
-      ],
-      "checked_at": "2026-11-04T03:35:06.115Z"
+      "console_errors": [],
+      "checked_at": "2026-11-04T04:15:10.971Z"
     }
   ]
 }
