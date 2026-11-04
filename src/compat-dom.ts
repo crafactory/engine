@@ -1,11 +1,15 @@
 /* Original public-contract adapters. No proprietary SDK or plugin implementation. */
-import {StateField} from '@codemirror/state';
+import {StateField,EditorState,Transaction,Compartment,type Extension} from '@codemirror/state';
+import {EditorView,keymap as cmKeymap,type ViewUpdate} from '@codemirror/view';
+import {history,historyKeymap,defaultKeymap} from '@codemirror/commands';
+import {markdown} from '@codemirror/lang-markdown';
+import {guardCompatibilityObject} from './compat-core';
 import moment from 'moment';
-import {Component,Editor,EditorSuggest,unsupported} from './compat-core';
-import {Scope} from './compat-keymap';
+import {Component,Editor,EditorSuggest,Events,unsupported} from './compat-core';
+import {Keymap,Scope} from './compat-keymap';
 import {addIcon,getIcon,getIconIds,setIcon} from './compat-icons';
 import {MarkdownRenderChild,createMarkdownRenderer,registerPostProcessor,registerCodeProcessor,stopProcessors} from './markdown-plugins';
-export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','FileView','TextFileView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','SuggestModal','FuzzySuggestModal','Scope','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','Menu','MenuItem','editorLivePreviewField','editorInfoField','Platform','prepareFuzzySearch','addIcon','getIcon','getIconIds','setIcon','setTooltip'] as const;
+export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','FileView','TextFileView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','SuggestModal','FuzzySuggestModal','Keymap','Scope','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','Menu','MenuItem','editorLivePreviewField','editorInfoField','Platform','prepareFuzzySearch','addIcon','getIcon','getIconIds','setIcon','setTooltip'] as const;
 /** Bounded editor fields: live preview is always active and no file is exposed. */
 export const editorLivePreviewField=StateField.define<boolean>({create:()=>true,update:value=>value});
 export const editorInfoField=StateField.define<{file:null}>({create:()=>({file:null}),update:value=>value});
@@ -27,6 +31,10 @@ export class BasesView {
 /** Minimal native menu surface used by compatibility plugins. */
 export class MenuItem {
   title='';icon='';callback:((event:MouseEvent)=>void)|undefined;disabled=false;checked=false;separator=false;
+  submenu?:Menu;
+  setSection(_section:string){return this;}
+  setWarning(_warning:boolean){return this;}
+  setSubmenu(){return this.submenu??=new Menu();}
   setTitle(title:string){this.title=title;return this;}setIcon(icon:string){this.icon=icon;return this;}
   setChecked(checked:boolean){this.checked=checked;return this;}setDisabled(disabled:boolean){this.disabled=disabled;return this;}
   onClick(callback:(event:MouseEvent)=>void){this.callback=callback;return this;}
@@ -34,15 +42,57 @@ export class MenuItem {
 }
 export class Menu {
   items:MenuItem[]=[];
-  addItem(callback:(item:MenuItem)=>void){const item=new MenuItem();callback(item);this.items.push(item);return this;}
+  private container?:HTMLElement;
+  private cleanup?:()=>void;
+  private hidden:()=>void=()=>{};
+  protected createItem(){return new MenuItem();}
+  addItem(callback:(item:MenuItem)=>void){const item=this.createItem();callback(item);this.items.push(item);return this;}
   addSeparator(){const item=new MenuItem();item.separator=true;this.items.push(item);return this;}
-  setNoIcon(){return this;}onHide(){return this;}hide(){}showAtMouseEvent(){return this;}showAtPosition(){return this;}
+  setNoIcon(){return this;}
+  onHide(callback:()=>void){this.hidden=callback;return this;}
+  hide(){if(!this.container)return;this.cleanup?.();this.cleanup=undefined;this.container.remove();this.container=undefined;for(const item of this.items)item.submenu?.hide();this.hidden();}
+  showAtMouseEvent(event:MouseEvent){return this.showAtPosition({x:event.clientX,y:event.clientY});}
+  showAtPosition(position:{x:number;y:number}){
+    this.hide();const menu=document.createElement('div');this.container=menu;menu.className='menu';menu.setAttribute('role','menu');
+    Object.assign(menu.style,{position:'fixed',left:Math.max(0,position.x)+'px',top:Math.max(0,position.y)+'px',zIndex:'10000',minWidth:'180px',padding:'5px',background:'var(--background-primary, white)',color:'var(--text-normal, black)',boxShadow:'0 4px 20px #0004',borderRadius:'6px'});
+    for(const item of this.items){
+      if(item.separator){const separator=document.createElement('hr');separator.setAttribute('role','separator');menu.append(separator);continue;}
+      const button=document.createElement('button');button.setAttribute('role',item.checked?'menuitemcheckbox':'menuitem');if(item.checked)button.setAttribute('aria-checked','true');button.textContent=(item.checked?'[x] ':'')+item.title;button.disabled=item.disabled;button.className='menu-item';Object.assign(button.style,{display:'block',width:'100%',textAlign:'left'});menu.append(button);
+      button.addEventListener('click',event=>{if(item.disabled)return;if(item.submenu){const rect=button.getBoundingClientRect();item.submenu.showAtPosition({x:rect.right,y:rect.top});return;}this.hide();item.callback?.(event);});
+    }
+    document.body.append(menu);const rect=menu.getBoundingClientRect();menu.style.left=Math.max(0,Math.min(position.x,innerWidth-rect.width))+'px';menu.style.top=Math.max(0,Math.min(position.y,innerHeight-rect.height))+'px';
+    const outside=(event:PointerEvent)=>{if(event.target instanceof Node&&!menu.contains(event.target)&&!(event.target instanceof Element&&event.target.closest('.menu')))this.hide();};
+    const keyboard=(event:KeyboardEvent)=>{if(!menu.contains(document.activeElement))return;if(event.key==='Escape'){event.preventDefault();this.hide();}else if(['ArrowDown','ArrowUp'].includes(event.key)){event.preventDefault();const buttons=[...menu.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];const current=buttons.indexOf(document.activeElement as HTMLButtonElement);buttons[(current+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length]?.focus();}};
+    document.addEventListener('pointerdown',outside);document.addEventListener('keydown',keyboard);this.cleanup=()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',keyboard);};menu.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();return this;
+  }
 }
 const element=(tag:string,parent?:HTMLElement,cls='')=>{const el=document.createElement(tag);el.className=cls;parent?.append(el);return el;};
+/** Install shared DOM conveniences once without replacing browser-provided implementations. */
 export function installDomHelpers(){
+  for(const [name,value]of Object.entries({first(this:unknown[]){return this[0];},last(this:unknown[]){return this[this.length-1];}}))if(!(name in Array.prototype))Object.defineProperty(Array.prototype,name,{value,configurable:true,writable:true});
+  if(!('instanceOf' in Node.prototype))Object.defineProperty(Node.prototype,'instanceOf',{configurable:true,writable:true,value:function(this:Node,type:new()=>unknown){
+    if(this instanceof type)return true;
+    const local=(this.ownerDocument?.defaultView??window) as unknown as Record<string,any>,equivalent=local[type.name];
+    if(typeof equivalent!=='function'||type.prototype?.[Symbol.toStringTag]!==equivalent.prototype?.[Symbol.toStringTag])return false;
+    for(let prototype=Object.getPrototypeOf(this);prototype;prototype=Object.getPrototypeOf(prototype))if(prototype===equivalent.prototype||prototype.constructor?.name===type.name)return true;
+    return false;
+  }});
   if(!(String.prototype as any).contains)Object.defineProperty(String.prototype,'contains',{value:function(this:string,needle:string){return this.includes(needle);},configurable:true,writable:true});
   if(!(Array.prototype as any).contains)Object.defineProperty(Array.prototype,'contains',{value:function(this:any[],value:unknown,fromIndex?:number){return this.includes(value,fromIndex);},configurable:true,writable:true});
+  if(!(Array.prototype as any).remove)Object.defineProperty(Array.prototype,'remove',{value:function(this:unknown[],value:unknown){for(let index=this.length-1;index>=0;index--)if(index in this&&this[index]===value)this.splice(index,1);},configurable:true,writable:true});
+  type Delegated={type:string;selector:string;listener:Function;wrapper:EventListener;capture:boolean};
+  const delegated=new WeakMap<HTMLElement|Document,Delegated[]>();
+  const capture=(options?:boolean|AddEventListenerOptions)=>typeof options==='boolean'?options:!!options?.capture;
+  const off=function(this:HTMLElement|Document,type:string,selector:string,listener:Function,options?:boolean|AddEventListenerOptions){const records=delegated.get(this)??[];for(const record of [...records])if(record.type===type&&record.selector===selector&&record.listener===listener&&record.capture===capture(options)){this.removeEventListener(type,record.wrapper,record.capture);records.splice(records.indexOf(record),1);}if(!records.length)delegated.delete(this);};
+  const on=function(this:HTMLElement|Document,type:string,selector:string,listener:Function,options?:boolean|AddEventListenerOptions){
+    if(typeof type!=='string'||typeof selector!=='string'||typeof listener!=='function')throw new Error('Invalid delegated DOM event');document.createElement('div').matches(selector);
+    const root=this,record:Delegated={type,selector,listener,capture:capture(options),wrapper:event=>{const target=event.target instanceof Element?event.target:(event.target as Node|null)?.parentElement,match=target?.closest(selector);if(match&&root.contains(match)){if(typeof options==='object'&&options.once)off.call(root,type,selector,listener,options);listener.call(root,event,match);}}};
+    this.addEventListener(type,record.wrapper,typeof options==='object'?{...options,once:false}:options);const records=delegated.get(this)??[];records.push(record);delegated.set(this,records);
+  };
+  for(const prototype of [HTMLElement.prototype,Document.prototype])for(const [name,value]of Object.entries({on,off}))if(!(name in prototype))Object.defineProperty(prototype,name,{value,configurable:true,writable:true});
   const globalWindow=window as unknown as Record<string,unknown>;
+  if(!('doc' in Node.prototype))Object.defineProperty(Node.prototype,'doc',{get(){return this.nodeType===9?this:this.ownerDocument;},configurable:true});
+  if(!('win' in Node.prototype))Object.defineProperty(Node.prototype,'win',{get(){return (this.nodeType===9?this:this.ownerDocument)?.defaultView;},configurable:true});
   if(typeof globalWindow.activeWindow==='undefined')globalWindow.activeWindow=window;
   if(typeof globalWindow.activeDocument==='undefined')globalWindow.activeDocument=document;
   if(typeof globalWindow.global==='undefined')globalWindow.global=window;
@@ -67,19 +117,34 @@ export function installDomHelpers(){
   if(typeof globalWindow.process==='undefined')globalWindow.process={env:{NODE_ENV:'production'}};
   // Bounded CodeMirror 5 surface for legacy highlighting-mode registration.
   const codeMirror=(globalWindow.CodeMirror??={}) as Record<string,any>;
-  const genericMode={name:'null',startState:()=>({}),copyState:(state:unknown)=>state,blankLine:()=>null,token:()=>null};
+  const genericMode={name:'null',startState:()=>({}),copyState:(state:Record<string,unknown>)=>({...state}),blankLine:()=>null,token:(stream:{skipToEnd():void})=>{stream.skipToEnd();return null;}};
   const modes=new Map<string,any>([['javascript',{...genericMode,name:'javascript'}]]);
+  const mimeModes=new Map<string,string|Record<string,any>>();
   codeMirror.defineMode??=(name:string,factory:any)=>modes.set(name,factory);
-  codeMirror.getMode??=((config:unknown,name:string)=>{let mode=modes.get(name);if(typeof mode==='function'){mode=mode({statementIndent:2,indentUnit:2,json:false,jsonld:false,typescript:false,trackScope:true,...(config as Record<string,unknown>||{})});modes.set(name,mode);}return mode??genericMode;}) as any;
+  // CM5 factories receive editor configuration and a distinct mode specification.
+  // Instantiate per call: memoizing an instance incorrectly shares mode-specific options.
+  codeMirror.getMode??=((config:unknown,name:string|Record<string,any>)=>{
+    let spec=typeof name==='string'?{name}:name;const visited=new Set<string>();
+    while(mimeModes.has(spec.name)){if(visited.has(spec.name))throw new Error('Cyclic CodeMirror MIME alias');visited.add(spec.name);const alias=mimeModes.get(spec.name)!;spec=typeof alias==='string'?{...spec,name:alias}:{...alias,...spec,name:alias.name};}
+    const mode=modes.get(spec.name);return typeof mode==='function'?mode({indentUnit:2,tabSize:4,...(config as Record<string,unknown>||{})},spec):mode??genericMode;
+  }) as any;
   codeMirror.startState??=((mode:any)=>mode?.startState?.()??{}) as any;
+  codeMirror.copyState??=((mode:any,state:any)=>{
+    if(typeof mode?.copyState==='function')return mode.copyState(state);
+    if(!state||typeof state!=='object')return state;
+    return Object.fromEntries(Object.entries(state).map(([key,value])=>[key,Array.isArray(value)?value.slice():value]));
+  }) as any;
   codeMirror.registerHelper??=(()=>{}) as any;
-  codeMirror.defineMIME??=((mime:string,name:string)=>{modes.set(mime,modes.get(name)??genericMode);}) as any;
+  codeMirror.defineMIME??=((mime:string,spec:string|Record<string,any>)=>{mimeModes.set(mime,spec);}) as any;
   codeMirror.customOverlayMode??=((base:any,overlay:any)=>({name:overlay.name||'overlay',startState:()=>({...base?.startState?.(),...overlay?.startState?.()}),copyState:(state:any)=>overlay.copyState?overlay.copyState(state):state,blankLine:(state:any)=>overlay.blankLine?.(state)??base?.blankLine?.(state)??null,token:(stream:any,state:any)=>overlay.token?.(stream,state)??base?.token?.(stream,state)??null})) as any;
   codeMirror.overlayMode??=codeMirror.customOverlayMode;
   if(typeof globalWindow.addIcon!=='function')globalWindow.addIcon=()=>{};
 
   const classNames=(values:unknown[]):string[]=>values.flat(Infinity).flatMap(value=>String(value).split(/\s+/)).filter(Boolean);
   const methods:Record<string,Function>={
+    onWindowMigrated(this:HTMLElement,listener:(win:Window)=>unknown){if(typeof listener!=='function')throw new Error('Expected window migration listener');const node=this;let owner=node.ownerDocument,win=owner.defaultView;const observer=new MutationObserver(()=>{const next=node.ownerDocument;if(next!==owner){owner=next;observer.disconnect();observer.observe(owner,{childList:true,subtree:true});if(owner.defaultView&&owner.defaultView!==win){win=owner.defaultView;listener(win);}}});observer.observe(owner,{childList:true,subtree:true});return()=>observer.disconnect();},
+    onNodeInserted(this:HTMLElement,listener:()=>unknown,once=false){if(typeof listener!=='function')throw new Error('Expected insertion listener');const node=this,observer=new MutationObserver(records=>{if(node.isConnected&&records.some(record=>[...record.addedNodes].some(added=>added===node||added.contains(node)))){if(once)observer.disconnect();listener();}});observer.observe(node.ownerDocument,{childList:true,subtree:true});return()=>observer.disconnect();},
+    onClickEvent(this:HTMLElement,callback:(event:MouseEvent)=>unknown,options?:AddEventListenerOptions){this.addEventListener('click',callback,options);return ()=>this.removeEventListener('click',callback,options);},
     empty(this:HTMLElement){this.replaceChildren();},
     setText(this:HTMLElement,text:unknown){this.textContent=String(text);},
     getText(this:HTMLElement){return this.textContent||'';},
@@ -109,20 +174,20 @@ export function installDomHelpers(){
     find(this:HTMLElement,selector:string){return this.querySelector(selector);},
     findAll(this:HTMLElement,selector:string){return [...this.querySelectorAll(selector)];},
     findAllSelf(this:HTMLElement,selector:string){return [...(this.matches(selector)?[this]:[]),...this.querySelectorAll(selector)];},
-    onNodeInserted(this:HTMLElement,callback:()=>void){
-      const observer=new MutationObserver(()=>callback());observer.observe(this,{childList:true,subtree:true});return ()=>observer.disconnect();
-    }
   };
   for(const [name,value]of Object.entries(methods))if(!(name in HTMLElement.prototype))Object.defineProperty(HTMLElement.prototype,name,{value,configurable:true,writable:true});
+  for(const name of ['addClass','addClasses','removeClass','removeClasses','toggleClass','hasClass','setAttr','empty','setText','getText','getCssPropertyValue','find','findAll','findAllSelf'] as const)if(!(name in SVGElement.prototype))Object.defineProperty(SVGElement.prototype,name,{value:methods[name],configurable:true,writable:true});
   // Obsidian's DOM helpers also build children on document fragments and shadow roots.
   const fragmentMethods:Record<string,Function>={empty:methods.empty,createEl:methods.createEl,createDiv:methods.createDiv,createSpan:methods.createSpan,appendText:methods.appendText,setText:methods.setText,getText:methods.getText,find:methods.find,findAll:methods.findAll};
   for(const [name,value]of Object.entries(fragmentMethods))if(!(name in DocumentFragment.prototype))Object.defineProperty(DocumentFragment.prototype,name,{value,configurable:true,writable:true});
 }
 /** Create plugin-owned trusted-renderer UI hooks; this adapter is not an isolation boundary. */
 export interface VersionedText {content:string;version:string}
-export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,onFileExtensions?:(extensions:string[],viewType?:string)=>void,applyEditorEdit?:(base:string,text:string,from:number,to:number)=>Promise<unknown>,fileIO?:{read(path:string):Promise<VersionedText>;write(path:string,data:string,version:string):Promise<VersionedText>},onSaveError:(error:unknown)=>void=onError){
+/** Own one renderer plugin's views, editor contributions, events and retirement lifecycle. */
+export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,onFileExtensions?:(extensions:string[],viewType?:string)=>void,applyEditorEdit?:(base:string,text:string,from:number,to:number)=>Promise<unknown>,fileIO?:{read(path:string):Promise<VersionedText>;write(path:string,data:string,version:string):Promise<VersionedText>},onSaveError:(error:unknown)=>void=onError,onOpenView?:(viewType:string|null,path:string,leafId:string)=>void,onSaveLayout?:()=>Promise<void>){
   installDomHelpers();
   const resources=new Set<HTMLElement>(),modals=new Set<any>(),tabs=new Set<any>(),extensions:unknown[]=[],factories=new Map<string,(leaf:any)=>any>(),leaves=new Set<any>(),extensionViews=new Map<string,string>(),suggests=new Set<EditorSuggest<any>>(),protocolHandlers=new Map<string,(params:Record<string,string>)=>unknown>(),hoverSources=new Map<string,{display:string;defaultMod:boolean}>(),basesFactories=new Map<string,(controller:QueryController)=>unknown>();
+  const viewMounts=new WeakMap<WorkspaceLeaf,symbol>();
   const processors=new Set<ReturnType<typeof registerPostProcessor>>();
   let processorsStopped=false;
   /** Keep registration handles private to this plugin and remove them after disposal. */
@@ -187,7 +252,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   /** Match a fuzzy query against text; the bounded version is a case-insensitive contains check. */
   const prepareFuzzySearch=(query:string)=>(text:string)=>{const needle=query.toLowerCase(),haystack=text.toLowerCase(),start=haystack.indexOf(needle);return start<0?null:{score:1/(start+1),matches:[{start,end:start+needle.length}]};};
-  const Platform={isMobile:false,isDesktop:true,isDesktopApp:false,isMobileApp:false,isMacOS:/Mac/i.test(navigator.platform),isWin:/Win/i.test(navigator.platform),isLinux:/Linux/i.test(navigator.platform),isIos:false,isAndroid:false};
+  const Platform={isMobile:false,isPhone:false,isTablet:false,isDesktop:true,isDesktopApp:!!window.engine?.desktop,isMobileApp:false,isMacOS:/Mac/i.test(navigator.platform),isWin:/Win/i.test(navigator.platform),isLinux:/Linux/i.test(navigator.platform),isIos:false,isAndroid:false};
 
   class Setting {
     settingEl:HTMLElement;infoEl:HTMLElement;nameEl:HTMLElement;descEl:HTMLElement;controlEl:HTMLElement;components:any[]=[];
@@ -379,18 +444,29 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     open(){super.open();this.inputEl.value='';safe(()=>this.renderResults())();this.inputEl.focus();}
     close(){this.generation++;super.close();}
   }
-  let app:any;
-  const scope=new Scope(),modalScopes:Scope[]=[];
-  const dispatchKey=(event:KeyboardEvent)=>{if(!event.defaultPrevented)try{(modalScopes.at(-1)??scope).dispatch(event);}catch(error){onError(error);}};
+  let app:any,nativeMarkdownView:any;
+  class DOMEditorSuggest<T=unknown> extends EditorSuggest<T>{
+    containerEl=element('div',undefined,'suggestion-container');
+    suggestEl=element('div',this.containerEl,'suggestion');
+    open(){if(!this.containerEl.isConnected)document.body.append(this.containerEl);}
+    close(){this.containerEl.remove();this.context=null;}
+  }
+  const scope=new Scope(new Scope()),modalScopes:Scope[]=[];
+  const keymap=new Keymap(scope,modalScopes);
+  const dispatchKey=(event:KeyboardEvent)=>{if(!event.defaultPrevented)try{keymap.dispatch(event);}catch(error){onError(error);}};
   document.addEventListener('keydown',dispatchKey);
   class View extends Component {
     leaf:any;app:any;containerEl:HTMLElement;icon='file';navigation=false;
     constructor(leaf:any){super();this.leaf=leaf;this.app=app;this.containerEl=leaf.containerEl;}
     getViewType():string{return unsupported('View.getViewType abstract');}getDisplayText():string{return unsupported('View.getDisplayText abstract');}
     getIcon(){return this.icon;}getState(){return {};}async setState(_state:any,_result?:any){}getEphemeralState(){return {};}setEphemeralState(){return unsupported('View.setEphemeralState');}
-    get scope(){return unsupported('View.scope');}async onOpen(){}async onClose(){}
+    scope=new Scope(scope);async onOpen(){}async onClose(){}
   }
-  class ItemView extends View {contentEl:HTMLElement;constructor(leaf:any){super(leaf);this.contentEl=element('div',this.containerEl,'plugin-view-content');}addAction(){return unsupported('ItemView.addAction');}}
+  class ItemView extends View {
+    contentEl:HTMLElement;headerEl:HTMLElement;actionsEl:HTMLElement;
+    constructor(leaf:any){super(leaf);this.headerEl=element('div',this.containerEl,'view-header');this.actionsEl=element('div',this.headerEl,'view-actions');this.contentEl=element('div',this.containerEl,'view-content plugin-view-content');}
+    addAction(icon:string,title:string,callback:(event:MouseEvent)=>unknown){const button=element('button',this.actionsEl,'clickable-icon view-action');button.setAttribute('type','button');button.setAttribute('aria-label',title);button.title=title;setIcon(button,icon);this.registerDomEvent(button,'click',safe(callback));return button;}
+  }
   class FileView extends ItemView {
     file:any=null;navigation=true;allowNoFile=false;
     private transitions:Promise<void>=Promise.resolve();
@@ -410,58 +486,147 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     onClose(){return this.transition(async()=>{if(this.file){await this.onUnloadFile(this.file);this.file=null;}});}
     onLoadFile(_file:any):any{}onUnloadFile(_file:any):any{}
   }
+  const retiringTextViews=new WeakSet<TextFileView>();
   class TextFileView extends FileView {
-    data='';private version='';private timer:ReturnType<typeof setTimeout>|undefined;
+    data='';private storedData='';private version='';private timer:ReturnType<typeof setTimeout>|undefined;
     private writes:Promise<void>=Promise.resolve();
     getViewData():string{return unsupported('TextFileView.getViewData abstract');}
     setViewData(_data:string,_clear:boolean):void{return unsupported('TextFileView.setViewData abstract');}
     clear():void{return unsupported('TextFileView.clear abstract');}
-    requestSave=()=>{clearTimeout(this.timer);this.timer=setTimeout(()=>{this.timer=undefined;void this.save().catch(onSaveError);},2000);};
+    requestSave=()=>{if(retiringTextViews.has(this))return;clearTimeout(this.timer);this.timer=setTimeout(()=>{this.timer=undefined;void this.save().catch(onSaveError);},2000);};
     async onLoadFile(file:any){
       if(!fileIO)return unsupported('TextFileView versioned storage');
-      const note=await fileIO.read(file.path);this.data=note.content;this.version=note.version;this.setViewData(this.data,true);
+      const note=await fileIO.read(file.path);this.data=note.content;this.storedData=note.content;this.version=note.version;this.setViewData(this.data,true);
     }
     async save(){
+      if(retiringTextViews.has(this))return;
       clearTimeout(this.timer);this.timer=undefined;
       const file=this.file;if(!file)return;
       const data=this.getViewData();
       const write=this.writes.then(async()=>{
         if(this.file!==file)throw new Error('Text file changed before save');
-        if(data!==this.data){
+        if(data!==this.storedData){
           if(!fileIO||!this.version)return unsupported('TextFileView versioned storage');
           const saved=await fileIO.write(file.path,data,this.version);
-          if(this.file===file){this.data=data;this.version=saved.version;}
+          if(this.file===file){if(this.data===this.storedData)this.data=data;this.storedData=data;this.version=saved.version;}
         }
       });
       this.writes=write.catch(()=>{});await write;
     }
-    async onUnloadFile(_file:any){await this.save();this.clear();this.data='';}
+    async onUnloadFile(_file:any){if(!retiringTextViews.has(this))await this.save();this.clear();this.data='';}
   }
-  class WorkspaceLeaf {
+  class WorkspaceLeaf extends Events {
+    id:string=crypto.randomUUID();
+    constructor(public placement:'overlay'|'tab'='overlay'){super();}
     containerEl=element('section',undefined,'plugin-view-pane');view:any=null;private ephemeralState:unknown=null;
-    async setViewState(state:any,parent?:HTMLElement){if(!state||typeof state.type!=='string')throw new Error('Invalid view state');const factory=factories.get(state.type);if(!factory)return unsupported('View type '+state.type);
-      await this.detachView();this.view=factory(this);if(!(this.view instanceof View)){this.view=null;throw new Error('View factory must return View');}
+    async setViewState(state:any,mount?:unknown){if(!state||typeof state.type!=='string')throw new Error('Invalid view state');const factory=factories.get(state.type),parent=mount instanceof HTMLElement?mount:undefined;
+      if(mount!=null&&!parent)this.setEphemeralState(mount);
+      if(this.view instanceof View&&this.view.getViewType()===state.type){
+        await this.view.setState(state.state||{},{history:false});
+        if(parent)parent.append(this.containerEl);
+        else if(this.placement==='tab'&&typeof state.state?.file==='string'){onOpenView?.(state.type,state.state.file,this.id);await app.workspace.openPath(state.state.file);}
+        return;
+      }
+      if(!factory&&state.type==='markdown'){
+        if(typeof state.state?.file!=='string')throw new Error('Markdown view requires a file');
+        await this.detachView();leaves.add(this);this.placement='tab';
+        if(typeof nativeMarkdownView!=='function')return unsupported('Native Markdown view');
+        this.view=new nativeMarkdownView();onOpenView?.(null,state.state.file,this.id);await app.workspace.openPath(state.state.file);return;
+      }
+      if(!factory)return unsupported('View type '+state.type);
+      await this.detachView();this.containerEl.classList.add('workspace-leaf-content');this.containerEl.dataset.type=state.type;this.view=factory(this);if(!(this.view instanceof View)){this.view=null;throw new Error('View factory must return View');}
       try{await this.view.load();await this.view.onOpen();await this.view.setState(state.state||{},{history:false});
-        const header=element('header',undefined,'plugin-view-header');this.containerEl.prepend(header);const title=element('strong',header);title.textContent=this.view.getDisplayText();if(!parent){const close=element('button',header);close.textContent='×';close.setAttribute('aria-label','Close '+title.textContent);close.addEventListener('click',()=>safe(()=>this.detach())());}(parent??host('plugin-views')).append(this.containerEl);
+        const header=this.view instanceof ItemView?this.view.headerEl:element('header',undefined,'plugin-view-header');header.classList.add('plugin-view-header');if(!header.parentElement)this.containerEl.prepend(header);const title=element('strong',undefined);header.prepend(title);title.textContent=this.view.getDisplayText();if(!parent){const close=element('button',header);close.textContent='×';close.setAttribute('aria-label','Close '+title.textContent);close.addEventListener('click',()=>safe(()=>this.detach())());}
+        if(!parent&&this.placement==='tab'&&onOpenView&&typeof state.state?.file==='string'){onOpenView(state.type,state.state.file,this.id);await app.workspace.openPath(state.state.file);}
+        else (parent??host('plugin-views')).append(this.containerEl);
       }catch(error){await this.detach();throw error;}
     }
-    getViewState(){return {type:this.view?.getViewType(),state:this.view?.getState(),active:this.containerEl.isConnected};}
+    getViewState(){return {type:this.view?.getViewType(),state:this.view?.getState(),active:this.placement==='tab'?currentLeaf()===this:this.containerEl.isConnected};}
     getEphemeralState(){return this.ephemeralState;}
     setEphemeralState(state:unknown){this.ephemeralState=state;}
     /** Open a vault file in the host's main document area without link parsing. */
-    async openFile(file:any){
+    async openFile(file:any,openState?:{active?:boolean;state?:Record<string,unknown>}){
       if(!file||typeof file.path!=='string')throw new Error('Invalid file');
-      if(typeof app.workspace.openPath==='function')await app.workspace.openPath(file.path);
-      else await app.workspace.openLinkText(file.path,'',false);
+      this.placement='tab';leaves.add(this);
+      await this.setViewState({type:extensionViews.get(file.extension?.toLowerCase())??'markdown',state:{...openState?.state,file:file.path},active:openState?.active??true});
     }
-    async detachView(){if(this.view){const view=this.view;this.view=null;try{await view.onClose();}finally{await view.unload();}}this.containerEl.replaceChildren();}
-    async detach(){await this.detachView();this.containerEl.remove();leaves.delete(this);}
+    async detachView(){if(this.view){const view=this.view;if(view instanceof View){if(view instanceof TextFileView&&!retiringTextViews.has(view))await view.save();try{await view.unload();}finally{await view.onClose();}}if(this.view===view)this.view=null;}this.containerEl.replaceChildren();}
+    async detach(notify=true){const path=viewFilePath(this);await this.detachView();this.containerEl.remove();leaves.delete(this);if(notify&&this.placement==='tab'&&path)onOpenView?.(null,path,this.id);}
   }
-  const reusableLeaf=new WorkspaceLeaf();
+  const reusableLeaf=new WorkspaceLeaf();let activatedLeaf:WorkspaceLeaf|null=null;
+  /** Normalize string-backed and SDK file-backed views to their current path. */
+  function viewFilePath(leaf:WorkspaceLeaf):string|undefined{return typeof leaf.view?.file==='string'?leaf.view.file:leaf.view?.file?.path;}
+  /** Prefer an explicitly activated live same-file leaf, then registered and native fallbacks. */
+  function currentLeaf():WorkspaceLeaf{const path=app?.workspace.getActiveFile()?.path;if(path&&activatedLeaf&&leaves.has(activatedLeaf)&&viewFilePath(activatedLeaf)===path)return activatedLeaf;return (path?[...leaves].reverse().find(leaf=>viewFilePath(leaf)===path):null)??reusableLeaf;}
+  const traceEmbed=(member:string)=>{if((window as unknown as {__ENGINE_TRACE_COMPAT?:string}).__ENGINE_TRACE_COMPAT===id)console.debug('[compat:'+id+'] '+member);};
+  /** Original embed factory registry; factories own Component lifecycles, not raw HTML. */
+  class EmbeddedSourceBase extends Component {
+    revision=0;
+    scope=new Scope(scope);
+    editor:Editor&{cm?:EditorView};cm:EditorView;
+    private localExtensions=new Compartment();
+    app:any;containerEl:HTMLElement;owner:any;
+    constructor(owner:any,...args:unknown[]){
+      super();
+      const embedded=owner instanceof MarkdownEmbed;
+      this.app=embedded?app:owner;this.containerEl=embedded?owner.contentEl:args[0] as HTMLElement;
+      this.owner=embedded?owner:args[1];
+      if(!(this.containerEl instanceof HTMLElement))throw new Error('Embedded Markdown editor requires a container');
+      const send=(_base:string,text:string,from:number,to:number)=>{this.cm.dispatch({changes:{from:0,to:this.cm.state.doc.length,insert:text},selection:{anchor:from,head:to}});};
+      this.editor=new Editor({text:'',from:0,to:0},send);
+      this.cm=new EditorView({parent:this.containerEl,state:EditorState.create({extensions:[markdown(),history(),this.localExtensions.of([]),cmKeymap.of([...defaultKeymap,...historyKeymap]),EditorView.contentAttributes.of({'aria-label':'Embedded Markdown editor'}),EditorView.updateListener.of(update=>{if(update.docChanged){this.revision++;this.editor=new Editor({text:update.state.doc.toString(),from:update.state.selection.main.from,to:update.state.selection.main.to},send);this.editor.cm=this.cm;}this.onUpdate(update);})]})});
+      this.editor.cm=this.cm;this.register(()=>this.cm.destroy());
+      return guardCompatibilityObject(this,'EmbeddedSource',traceEmbed);
+    }
+    set(text:string){if(typeof text!=='string')throw new Error('Embedded editor text must be a string');if(text!==this.get())this.cm.dispatch({changes:{from:0,to:this.cm.state.doc.length,insert:text},annotations:Transaction.addToHistory.of(false)});}
+    get(){return this.cm.state.doc.toString();}
+    onload(){this.cm.dispatch({effects:this.localExtensions.reconfigure(this.buildLocalExtensions())});}
+    buildLocalExtensions():Extension[]{return [];}
+    onUpdate(update:ViewUpdate){if(update.docChanged)this.onChange();}
+    onChange(){}
+  }
+  class EmbeddedSource extends EmbeddedSourceBase {}
+  class MarkdownEmbed extends Component {
+    scope=new Scope(scope);
+    containerEl:HTMLElement;contentEl:HTMLElement;
+    editMode:EmbeddedSource|undefined;
+    constructor(public context:{containerEl:HTMLElement},public file:any,public subpath=''){super();this.containerEl=context.containerEl;this.contentEl=element('div',this.containerEl,'markdown-embed-content');return guardCompatibilityObject(this,'MarkdownEmbed',traceEmbed);}
+    async loadFile(file=this.file){this.file=file;if(!file)return;const markdown=await app.vault.read(file);this.contentEl.replaceChildren();await createMarkdownRenderer(()=>app).render(app,markdown,this.contentEl,file.path,this);}
+    showEditor(){if(this.editMode)this.removeChild(this.editMode);this.contentEl.replaceChildren();const editor=this.editMode=this.addChild(new EmbeddedSource(this)),version=editor.revision;if(this.file)void app.vault.read(this.file).then((text:string)=>{if(this.editMode===editor&&editor.revision===version)editor.set(text);}).catch(onError);}
+    showPreview(){if(this.editMode)this.removeChild(this.editMode);this.editMode=undefined;void this.loadFile().catch(onError);}
+    async onload(){await this.loadFile();}
+    onunload(){this.contentEl.remove();}
+  }
+  type EmbedCreator=(context:{containerEl:HTMLElement},file:any,subpath?:string)=>Component;
+  const embedByExtension:Record<string,EmbedCreator>={md:(context,file,subpath)=>new MarkdownEmbed(context,file,subpath)};
+  const embedRegistry={
+    embedByExtension,
+    registerExtension(extension:string,creator:EmbedCreator){if(typeof extension!=='string'||!extension||typeof creator!=='function')throw new Error('Invalid embed registration');embedByExtension[extension.replace(/^\./,'').toLowerCase()]=creator;},
+    unregisterExtension(extension:string){delete embedByExtension[extension.replace(/^\./,'').toLowerCase()];},
+    registerExtensions(extensions:string[],creator:EmbedCreator){for(const extension of extensions)this.registerExtension(extension,creator);},
+    unregisterExtensions(extensions:string[]){for(const extension of extensions)this.unregisterExtension(extension);},
+    isExtensionRegistered(extension:string){return Object.hasOwn(embedByExtension,extension.replace(/^\./,'').toLowerCase());},
+    getEmbedCreator(file:any){return embedByExtension[file.extension?.toLowerCase()]??null;}
+  };
+  const menus=new Set<Menu>();
+  const registerHoverSource=(id:string,source:{display:string;defaultMod:boolean})=>{
+    if(typeof id!=='string'||!id||!source||typeof source.display!=='string'||typeof source.defaultMod!=='boolean')throw new Error('Invalid hover link source');
+    hoverSources.set(id,{...source});return()=>{hoverSources.delete(id);};
+  };
+  class OwnedMenuItem extends MenuItem {setSubmenu():Menu{return this.submenu??=new OwnedMenu();}}
+  class OwnedMenu extends Menu {
+    protected createItem(){return new OwnedMenuItem();}
+    addItem(callback:(item:MenuItem)=>void){return super.addItem(item=>{callback(item);if(item.callback)item.callback=safe(item.callback);});}
+    onHide(callback:()=>void){return super.onHide(safe(callback));}
+    showAtPosition(position:{x:number;y:number}){super.showAtPosition(position);menus.add(this);return this;}
+    hide(){try{super.hide();}finally{menus.delete(this);}}
+  }
   return {
-    setApp(value:any){app=value;},
-    scope,
-    exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,FileView,TextFileView,WorkspaceLeaf,EditorSuggest,AbstractInputSuggest,SuggestModal,FuzzySuggestModal,Scope,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,Menu,MenuItem,addIcon,getIcon,getIconIds,setIcon,
+    setApp(value:any){app=value;nativeMarkdownView=reusableLeaf.view?.constructor;},
+    scope,keymap,
+    reportError:onError,
+    embedRegistry,
+    exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,FileView,TextFileView,WorkspaceLeaf,EditorSuggest:DOMEditorSuggest,AbstractInputSuggest,SuggestModal,FuzzySuggestModal,Keymap,Scope,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,Menu:OwnedMenu,MenuItem,addIcon,getIcon,getIconIds,setIcon,
       setTooltip:(el:HTMLElement,text:string)=>{el.title=text;el.setAttribute('aria-label',text);}},
     /** Bind reading post-processors to this plugin's error and lifecycle ownership. */
     postProcessor(callback:any,sortOrder?:number){if(processorsStopped)throw new Error('Plugin Markdown processors are stopped');return ownProcessor(registerPostProcessor(callback,sortOrder,onError));},
@@ -470,11 +635,21 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     /** Atomically deactivate this plugin's processors before runtime resource cleanup. */
     async stopProcessors(){processorsStopped=true;await stopProcessors(processors);processors.clear();},
     workspace:{
-      get activeLeaf(){leaves.add(reusableLeaf);return reusableLeaf;},
-      getRightLeaf(split?:boolean){if(split)return unsupported('Workspace.getRightLeaf split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeaf(newLeaf?:boolean|string){if(newLeaf===false){leaves.add(reusableLeaf);return reusableLeaf;}if(newLeaf!==undefined&&newLeaf!==true)return unsupported('Workspace.getLeaf reuse/split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},
-      getUnpinnedLeaf(){const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeavesOfType(type:string){return [...leaves].filter(l=>l.view?.getViewType()===type);},iterateAllLeaves(callback:(leaf:any)=>void){for(const leaf of [...leaves])callback(leaf);},
+      requestSaveLayout(){if(!onSaveLayout)unsupported('Workspace.requestSaveLayout');void onSaveLayout!().catch(onSaveError);},
+      floatingSplit:{children:[]},
+      get containerEl(){return document.querySelector('main')??document.body;},
+      getMostRecentLeaf(){return currentLeaf();},
+      unregisterHoverLinkSource(source:string){hoverSources.delete(source);},
+      registerHoverLinkSource:registerHoverSource,
+      get activeLeaf(){leaves.add(reusableLeaf);return currentLeaf();},
+      getLeafById(leafId:string){return [...leaves].find(leaf=>leaf.id===leafId)??null;},
+      getRightLeaf(split?:boolean){if(split)return unsupported('Workspace.getRightLeaf split');const leaf=new WorkspaceLeaf();leaves.add(leaf);return leaf;},getLeaf(newLeaf?:boolean|string){if(newLeaf===false||newLeaf===undefined){leaves.add(reusableLeaf);const leaf=currentLeaf();leaf.placement='tab';return leaf;}if(newLeaf!==true&&newLeaf!=='tab')return unsupported('Workspace.getLeaf split/window');const leaf=new WorkspaceLeaf('tab');leaves.add(leaf);return leaf;},
+      getUnpinnedLeaf(){const leaf=new WorkspaceLeaf('tab');leaves.add(leaf);return leaf;},getLeavesOfType(type:string){return [...leaves].filter(l=>l.view?.getViewType()===type);},iterateAllLeaves(callback:(leaf:any)=>void){for(const leaf of [...leaves])callback(leaf);},
       async detachLeavesOfType(type:string){await Promise.all([...leaves].filter(l=>l.view?.getViewType()===type).map(l=>l.detach()));},
-      async revealLeaf(leaf:any){if(!leaves.has(leaf))throw new Error('Foreign leaf');host('plugin-views').append(leaf.containerEl);leaf.containerEl.scrollIntoView({block:'nearest'});}
+      async setActiveLeaf(leaf:WorkspaceLeaf,options?:{focus?:boolean}){if(!leaves.has(leaf))throw new Error('Foreign leaf');const path=viewFilePath(leaf),previous=app.workspace.getActiveFile()?.path;
+        if(path){const before=activatedLeaf;activatedLeaf=leaf;try{await app.workspace.openPath(path);}catch(error){activatedLeaf=before;throw error;}if(leaf.placement==='tab')onOpenView?.(factories.has(leaf.view.getViewType())?leaf.view.getViewType():null,path,leaf.id);if(previous===path)app.workspace.trigger('active-leaf-change',leaf);}
+        if(options?.focus!==false){const target=leaf.view?.contentEl??leaf.containerEl;target.setAttribute('tabindex','-1');target.focus();}},
+      async revealLeaf(leaf:WorkspaceLeaf){if(!leaves.has(leaf))throw new Error('Foreign leaf');if(leaf.placement==='tab'&&leaf.view?.file)await this.setActiveLeaf(leaf);else{host('plugin-views').append(leaf.containerEl);leaf.containerEl.scrollIntoView({block:'nearest'});}}
     },
     statusBar(){const el=element('span',host('plugin-status'),'plugin-status-item');el.dataset.plugin=id;resources.add(el);return el;},
     ribbonIcon(icon:string,title:string,callback:(event:MouseEvent)=>void){
@@ -498,12 +673,13 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       const file=app?.workspace?.getActiveFile?.()??null;
       for(const suggest of suggests){
         const editor=new Editor({text,from:pos,to:pos},(base,next,from,to)=>applyEditorEdit?applyEditorEdit(base,next,from,to):Promise.reject(new Error('Editor edits unavailable')));
-        const trigger=suggest.onTrigger(editor,editor,file);
+        const trigger=suggest.onTrigger(editor.getCursor(),editor,file);
         if(!trigger)continue;
         const start=editor.posToOffset(trigger.start),end=editor.posToOffset(trigger.end);
-        suggest.context={editor,file,query:editor.getValue().slice(start,end),start:trigger.start,end:trigger.end};
+        suggest.context={editor,file,query:typeof trigger.query==='string'?trigger.query:editor.getValue().slice(start,end),start:trigger.start,end:trigger.end};
         const items=await suggest.getSuggestions(suggest.context);
-        return {from:start,options:(items??[]).slice(0,suggest.limit||50).map((item:any)=>({label:suggest.getSuggestionDisplayText(item),detail:'',apply:()=>{suggest.selectSuggestion(item,new MouseEvent('click'));}}))};
+        if(!suggests.has(suggest)||app?.workspace?.getActiveFile?.()?.path!==file?.path)return null;
+        return {from:start,options:(items??[]).slice(0,suggest.limit||50).map((item:any)=>{const rendered=element('div');suggest.renderSuggestion(item,rendered);return {label:rendered.textContent||suggest.getSuggestionDisplayText(item),detail:'',apply:()=>{suggest.selectSuggestion(item,new MouseEvent('click'));}};})};
       }
       return null;
     },
@@ -523,11 +699,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       await handler(params);return true;
     },
     hoverSources(){return [...hoverSources.keys()];},
-    hoverLinkSource(id:string,source:{display:string;defaultMod:boolean}){
-      if(typeof id!=='string'||!id||!source||typeof source.display!=='string'||typeof source.defaultMod!=='boolean')throw new Error('Invalid hover link source');
-      hoverSources.set(id,{...source});
-      return()=>{hoverSources.delete(id);};
-    },
+    hoverLinkSource:registerHoverSource,
     basesView(id:string,factory:(controller:QueryController)=>unknown){
       if(typeof id!=='string'||!id||typeof factory!=='function')throw new Error('Invalid Bases view');
       if(['table','cards','list'].includes(id))throw new Error('Reserved Bases view id: '+id);
@@ -554,14 +726,33 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       onFileExtensions?.(normalized,viewType);
       return()=>{for(const extension of normalized)if(extensionViews.get(extension)===viewType)extensionViews.delete(extension);onFileExtensions?.(normalized);};
     },
-    /** Mount a registered view into a host element without going through the global plugin view pane. */
-    async mountView(viewType:string,path:string,parent:HTMLElement){
+    /** Freeze input, flush every draft, then expose a no-further-save retirement lease. */
+    async prepareFileViews(path:string){
+      const affected=[...leaves].filter(leaf=>{const file=viewFilePath(leaf);return file===path||file?.startsWith(path+'/');});
+      const inert=new Map(affected.map(leaf=>[leaf,leaf.containerEl.inert])),textViews=affected.map(leaf=>leaf.view).filter((view):view is TextFileView=>view instanceof TextFileView);
+      const values=new Map(textViews.map(view=>[view,view.getViewData()]));
+      const snapshots=affected.map(leaf=>({leaf,state:leaf.getViewState(),parent:leaf.containerEl.parentElement})),attempted=new Set<WorkspaceLeaf>();
+      const rollback=()=>{for(const [leaf,value]of inert)leaf.containerEl.inert=value;for(const view of textViews)retiringTextViews.delete(view);};
+      try{
+        for(const leaf of affected)leaf.containerEl.inert=true;
+        for(const view of textViews)await view.save();
+        return {seal(){for(const [view,value]of values)if(view.getViewData()!==value)throw new Error('Plugin draft changed during file preparation; retry');for(const view of textViews)retiringTextViews.add(view);},
+          async commit(){for(const leaf of affected){if(leaf.view instanceof TextFileView&&leaf.view.getViewData()!==values.get(leaf.view))throw new Error('Plugin draft changed during file retirement; retry');attempted.add(leaf);await leaf.detach(false);}},
+          async restore(){const closed=snapshots.filter(({leaf})=>attempted.has(leaf)),errors:unknown[]=[];for(const {leaf}of closed){leaf.view=null;leaf.containerEl.replaceChildren();leaves.add(leaf);}for(const {leaf,state,parent}of closed)try{await leaf.setViewState(state,leaf.placement==='tab'?(parent??document.createElement('div')):undefined);attempted.delete(leaf);}catch(error){errors.push(error);}if(errors.length)throw new AggregateError(errors,'Some plugin leaves could not be restored');},
+          rollback};
+      }catch(error){rollback();throw error;}
+    },
+    async mountView(viewType:string,path:string,parent:HTMLElement,leafId?:string){
       if(!factories.has(viewType))throw new Error('View type not registered: '+viewType);
-      const leaf=new WorkspaceLeaf();leaves.add(leaf);
-      await leaf.setViewState({type:viewType,state:{file:path}},parent);
-      return {element:leaf.containerEl,dispose:()=>{void leaf.detach();}};
+      let leaf=leafId?[...leaves].find(leaf=>leaf.id===leafId):undefined;
+      leaf??=new WorkspaceLeaf('tab');if(leafId)leaf.id=leafId;
+      const token=Symbol('view mount');viewMounts.set(leaf,token);leaves.add(leaf);
+      if(leaf.view?.getViewType()===viewType&&viewFilePath(leaf)===path)parent.append(leaf.containerEl);
+      else await leaf.setViewState({type:viewType,state:{file:path}},parent);
+      const mounted=leaf;
+      return {element:mounted.containerEl,dispose:()=>{queueMicrotask(()=>{if(viewMounts.get(mounted)!==token)return;viewMounts.delete(mounted);void mounted.detach(false).catch(onSaveError);});}};
     },
     /** Dispose processor children, visible UI and editor registrations after owner stop. */
-    async dispose(){document.removeEventListener('keydown',dispatchKey);processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach();for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();for(const suggest of suggests)suggest.close();suggests.clear();protocolHandlers.clear();hoverSources.clear();basesFactories.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
+    async dispose(){document.removeEventListener('keydown',dispatchKey);for(const menu of [...menus])menu.hide();menus.clear();processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach(false);for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();for(const suggest of suggests)suggest.close();suggests.clear();protocolHandlers.clear();hoverSources.clear();basesFactories.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
   };
 }

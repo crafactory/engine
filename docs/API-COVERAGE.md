@@ -1,6 +1,6 @@
 # Public API export coverage
 
-Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 30 bounded runtime symbols. Explicit opt-in trusted renderer: 68 bounded runtime symbols (38 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
+Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 30 bounded runtime symbols. Explicit opt-in trusted renderer: 69 bounded runtime symbols (39 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
 
 | Symbol | Kind | Default Worker | Trusted renderer | Public documentation |
 |---|---|---|---|---|
@@ -27,7 +27,7 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | HTMLValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [HTMLValue](https://docs.obsidian.md/Reference/TypeScript+API/HTMLValue) |
 | IconValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [IconValue](https://docs.obsidian.md/Reference/TypeScript+API/IconValue) |
 | ImageValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [ImageValue](https://docs.obsidian.md/Reference/TypeScript+API/ImageValue) |
-| Keymap | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [Keymap](https://docs.obsidian.md/Reference/TypeScript+API/Keymap) |
+| Keymap | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [Keymap](https://docs.obsidian.md/Reference/TypeScript+API/Keymap) |
 | LinkValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [LinkValue](https://docs.obsidian.md/Reference/TypeScript+API/LinkValue) |
 | ListValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [ListValue](https://docs.obsidian.md/Reference/TypeScript+API/ListValue) |
 | MarkdownEditView | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [MarkdownEditView](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownEditView) |

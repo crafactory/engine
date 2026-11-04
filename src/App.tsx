@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import {bridge,defaults} from './bridge';
 import {renameDestination} from './file-path';
+import {readWorkspaceLayout} from './workspace-layout';
+import {recordPluginDocumentView,retirePluginFileViews,recoverPluginFileViews,type PluginDocumentView} from './plugin-document-views';
 import {title,isNote,frontmatter,setProperties,resolveLink,headings,applyTemplate,rewriteLinks} from './knowledge';
 import type {EditorHandle} from './Editor';
 import {Markdown,renderMarkdown} from './Markdown';
@@ -57,6 +59,9 @@ export function App(){
   const [tabs,setTabs]=useState<string[]>([]),[active,setActive]=useState(''),[split,setSplit]=useState<string|null>(null);
   const [uiRevision,setUiRevision]=useState(0);
   const [pluginFormats,setPluginFormats]=useState<Record<string,{viewType:string;pluginId:string}>>({});
+  const pluginDocumentViews=useRef(new Map<string,PluginDocumentView>());
+  const [,refreshPluginDocumentViews]=useState(0);
+  const layoutSaveTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined),switchingVault=useRef(false);
   const [left,setLeft]=useState(()=>window.innerWidth>650),[right,setRight]=useState(true),[sideTab,setSideTab]=useState('files'),[rightTab,setRightTab]=useState('outline');
   const [expanded,setExpanded]=useState<Set<string>>(new Set(['Guides','Ideas','Projects']));
   const [bookmarks,setBookmarks]=useState<string[]>([]),[recent,setRecent]=useState<string[]>([]);
@@ -100,6 +105,8 @@ export function App(){
   const uiSettings=uiRuntime.current?.ui.settings()??[];
   const uiBlocks=useMemo(()=>uiRuntime.current?.ui.blocks()??[],[uiRevision]);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
+  const vaultState=useRef<VaultState>({settings,bookmarks,workspaces,recent,propertyTypes});
+  vaultState.current={settings,bookmarks,workspaces,recent,propertyTypes,layout:{tabs,active,split,left,right,mode}};
   const pluginManifests=useRef(new Map<string,PluginManifest>());
   const pluginFormatStacks=useRef(new Map<string,{pluginId:string;viewType:string;dispose:()=>void}[]>());
   const pluginViewCleanups=useRef(new Map<string,()=>void>());
@@ -126,7 +133,8 @@ export function App(){
   /** Keep the App editor handle pointing at the registered editor view. */
   const setEditorHandle=useCallback((handle:EditorHandle|null)=>{editor.current=handle;},[]);
   /** Resolve a file path to a compatibility plugin view registered for its extension. */
-  function pluginViewFor(path:string){
+  function pluginViewFor(path:string):{viewType:string;pluginId:string;leafId?:string}|undefined{
+    const documentView=pluginDocumentViews.current.get(path);if(documentView)return documentView;
     const extension=path.split('.').pop()?.toLowerCase()??'';
     return Object.prototype.hasOwnProperty.call(pluginFormats,extension)?pluginFormats[extension]:undefined;
   }
@@ -160,14 +168,17 @@ export function App(){
   /** Remove all view/format registrations owned by a plugin. */
   function clearPluginExtensions(id:string){
     removePluginExtensions(id);
+    for(const [path,view]of pluginDocumentViews.current)if(view.pluginId===id)pluginDocumentViews.current.delete(path);
+    refreshPluginDocumentViews(value=>value+1);
     for(const [key,dispose] of [...pluginViewCleanups.current])if(key.startsWith(id+':')){dispose();pluginViewCleanups.current.delete(key);}
   }
+  /** Settle owned plugin shutdown and host requests before clearing shell registrations. */
   async function stopPlugins(){
     try{await Promise.allSettled([...pluginStops.current.values()].map(controller=>controller.stop()));await Promise.allSettled([...pluginRequests.current]);}
     finally{
       for(const stack of pluginFormatStacks.current.values())for(const entry of stack)entry.dispose();
       for(const dispose of pluginViewCleanups.current.values())dispose();
-      pluginFormatStacks.current.clear();pluginViewCleanups.current.clear();setPluginFormats({});
+      pluginFormatStacks.current.clear();pluginViewCleanups.current.clear();setPluginFormats({});pluginDocumentViews.current.clear();refreshPluginDocumentViews(value=>value+1);
       pluginStops.current.clear();pluginManifests.current.clear();setEnabledPlugins([]);setPluginCommands([]);
     }
   }
@@ -187,6 +198,7 @@ export function App(){
     if(!service){setPluginList([]);return;}
     setPluginList(await service.list());
   }
+  /** Bind workspace services and restore the selected vault's documents and UI state. */
   async function initialize(){
     setLoading(true);setError('');
     try {
@@ -224,7 +236,10 @@ export function App(){
       const pref={...defaults,...state.settings};setSettings(pref);setMode(bridge.desktop?pref.mode:'reading');
       setBookmarksFromService(state.bookmarks||[]);setWorkspacesFromService(state.workspaces||{});setRecent(state.recent||[]);setPropertyTypes(readPropertyTypes(state.propertyTypes));
       const path=all.find(n=>n.path==='Welcome.md')?.path||all.find(n=>isNote(n.path))?.path||all[0]?.path||'';
-      setTabs(path?[path]:[]);setActive(path);setSplit(null);history.current=path?[path]:[];historyIndex.current=path?0:-1;
+      const layout=readWorkspaceLayout(state.layout,vault.entries.filter(entry=>!entry.folder).map(entry=>entry.path)),initialPath=layout?.active??path;
+      setTabs(layout?.tabs??(path?[path]:[]));setActive(initialPath);setSplit(layout?.split??null);
+      if(layout){setLeft(layout.left);setRight(layout.right);setMode(bridge.desktop?layout.mode:'reading');}
+      history.current=initialPath?[initialPath]:[];historyIndex.current=initialPath?0:-1;
       loaded.current=true;await loadPluginPackages(pref.disabledPlugins);
     }catch(e){report(e);}finally{setLoading(false);}
   }
@@ -245,10 +260,10 @@ export function App(){
   },[compatEnabled]);
 
   useEffect(()=>{
-    if(!loaded.current)return;
-    const timer=setTimeout(()=>{bridge.state({settings,bookmarks,workspaces,recent,propertyTypes}).catch(report);},700);
-    return()=>clearTimeout(timer);
-  },[settings,bookmarks,workspaces,recent,propertyTypes]);
+    if(!loaded.current||switchingVault.current)return;
+    const timer=layoutSaveTimer.current=setTimeout(()=>{if(!switchingVault.current)bridge.state(vaultState.current).catch(report);},700);
+    return()=>{clearTimeout(timer);if(layoutSaveTimer.current===timer)layoutSaveTimer.current=undefined;};
+  },[settings,bookmarks,workspaces,recent,propertyTypes,tabs,active,split,left,right,mode]);
   useEffect(()=>{
     document.documentElement.dataset.theme=settings.theme;
     for(const controller of pluginStops.current.values())controller.triggerWorkspaceEvent?.('css-change',[]);
@@ -300,7 +315,7 @@ export function App(){
     await Promise.all(notesRef.current.filter(n=>savedContent.current.get(n.path)!==n.content).map(n=>persist(n.path)));
   }
   const closeHandler=useRef<()=>void>(()=>{}),closing=useRef(false);
-  closeHandler.current=()=>{if(closing.current)return;closing.current=true;stopPlugins().then(async()=>{if(loaded.current){await flush();await bridge.state({settings,bookmarks,workspaces,recent,propertyTypes});}}).then(()=>bridge.closeReady?.()).catch(error=>{closing.current=false;report(error);});};
+  closeHandler.current=()=>{if(closing.current)return;closing.current=true;stopPlugins().then(async()=>{if(loaded.current){await flush();await bridge.state(vaultState.current);}}).then(()=>bridge.closeReady?.()).catch(error=>{closing.current=false;report(error);});};
   useEffect(()=>{if(!loading)return bridge.onBeforeClose?.(()=>closeHandler.current());},[loading]);
   useEffect(()=>{
     const unload=(event:BeforeUnloadEvent)=>{if(notesRef.current.some(n=>savedContent.current.get(n.path)!==n.content)){event.preventDefault();event.returnValue='There are unsaved changes.';}};
@@ -355,7 +370,24 @@ export function App(){
     const path=await dialog.ask('New folder','New folder');
     if(path)try{if(!validPath(path))throw new Error('Invalid folder path');await bridge.mkdir(path);setEntries(await bridge.list());setExpanded(e=>new Set([...e,path]));}catch(e){report(e);}
   }
-  /** Rename without changing file format; `strict` rethrows and rejects adjusted destinations. */
+  /** Save/seal owned file views, retaining restoration for failed host filesystem changes. */
+  async function preparePluginFileChange(path:string){
+    const affected=(file:string)=>file===path||file.startsWith(path+'/');
+    const views=new Map<string,{viewType:string;pluginId:string;leafId?:string}>();
+    for(const file of new Set([...tabs,...pluginDocumentViews.current.keys(),...(split?[split]:[])])){
+      const view=pluginViewFor(file);if(affected(file)&&view)views.set(file,view);
+    }
+    // Recreate, rather than retarget, leaves so no save retains an obsolete file object.
+    /** Keep original explicit leaf IDs on failure, leaving implicit extension views implicit. */
+    const restore=(remap:(file:string)=>string|null,failed=false)=>{
+      for(const file of [...pluginDocumentViews.current.keys()])if(affected(file))pluginDocumentViews.current.delete(file);
+      for(const [file,view]of views){const next=remap(file);if(next&&(!failed||view.leafId))pluginDocumentViews.current.set(next,{...view,leafId:failed&&view.leafId?view.leafId:crypto.randomUUID()});}
+      refreshPluginDocumentViews(value=>value+1);
+    };
+    const restoreRetired=await retirePluginFileViews(pluginStops.current.values(),path,()=>restore(file=>file,true));
+    return async(remap:(file:string)=>string|null,failed=false)=>{try{if(failed)await restoreRetired();}finally{restore(remap,failed);}};
+  }
+  /** Rename while preserving file format and restoring original views on filesystem failure. */
   async function renamePath(from:string,requested?:string,strict=false):Promise<string|undefined>{
     const input=requested || await dialog.ask('Rename or move',from,'The original file extension is preserved. Internal links will be updated where their targets can be resolved.');
     if(!input)return undefined;
@@ -364,9 +396,13 @@ export function App(){
       if(strict&&to!==input)throw new Error(`Rename destination would be adjusted to ${to}`);
       if(to===from)return to;
       if(!validPath(to))throw new Error('Invalid destination path');await flush();
-      const before=[...notesRef.current];
       const documents=storageRuntime.current?.documents;
-      if(documents)await documents.rename(from,to);else await bridge.rename(from,to);
+      const restoreViews=await preparePluginFileChange(from);
+      const before=[...notesRef.current];
+      try{if(documents)await documents.rename(from,to);else await bridge.rename(from,to);}
+      catch(error){return await recoverPluginFileViews(error,[()=>restoreViews(file=>file,true)]);}
+      const remap=(p:string)=>p===from||p.startsWith(from+'/')?to+p.slice(from.length):p;
+      const nextEntries=await bridge.list().catch(error=>{report(error);return pluginState.current.entries.map(entry=>({...entry,path:remap(entry.path),name:remap(entry.path).split('/').pop()!}));});
       const moved=before.filter(n=>n.path===from||n.path.startsWith(from+'/'));
       const mappings=moved.map(n=>({from:n.path,to:to+n.path.slice(from.length)}));
       for(const pair of mappings){savedContent.current.set(pair.to,savedContent.current.get(pair.from)!);versions.current.set(pair.to,versions.current.get(pair.from));savedContent.current.delete(pair.from);versions.current.delete(pair.from);editorSessions.current.delete(pair.from);}
@@ -378,21 +414,27 @@ export function App(){
         if(isNote(note.path))for(const pair of mappings)content=rewriteLinks(content,pair.from,pair.to,note.path,before);
         if(content!==note.content)editNote(newPath,content);
       }
-      const remap=(p:string)=>mappings.find(pair=>pair.from===p)?.to||p;
-      setTabs(t=>t.map(remap));setActive(remap);setBookmarksFromService(bookmarkPaths().map(remap));setRecent(r=>r.map(remap));
-      setEntries(await bridge.list());await flush();toast('Moved file and updated resolvable note links.');return to;
+      await restoreViews(remap);
+      pluginState.current.entries=nextEntries;pluginState.current.active=remap(pluginState.current.active);
+      for(const [id,controller]of pluginStops.current)controller.sync(pluginSnapshot(pluginManifests.current.get(id)));
+      setTabs(t=>t.map(remap));setActive(remap);setSplit(p=>p?remap(p):null);setBookmarksFromService(bookmarkPaths().map(remap));setRecent(r=>r.map(remap));
+      setEntries(nextEntries);await flush();toast('Moved file and updated resolvable note links.');return to;
     }catch(e){if(strict)throw e;report(e);return undefined;}
   }
   /** Move a path to trash (or the bridge fallback) and remap in-memory workspace state. */
   async function trashPath(path:string){
     await flush();
     const storage=storageRuntime.current?.storage;
-    if(storage)await storage.trash(path);else await bridge.trash(path);
+    const restoreViews=await preparePluginFileChange(path);
+    try{if(storage)await storage.trash(path);else await bridge.trash(path);}
+    catch(error){return recoverPluginFileViews(error,[()=>restoreViews(file=>file,true)]);}
+    await restoreViews(()=>null);
     const removed=(p:string)=>p===path||p.startsWith(path+'/');
     updateNotes(notesRef.current.filter(n=>!removed(n.path)));
     for(const p of [...editorSessions.current.keys()])if(removed(p))editorSessions.current.delete(p);
     setEntries(await (storage?storage.list():bridge.list()));
     setTabs(t=>t.filter(p=>!removed(p)));
+    setSplit(p=>p&&removed(p)?null:p);
     if(removed(active))setActive('');
     setBookmarksFromService(bookmarkPaths().filter(p=>!removed(p)));
     toast('Moved to trash.');
@@ -402,8 +444,11 @@ export function App(){
     if(!await dialog.confirm('Move to trash?',`${path} will be moved out of the vault. Desktop files are retained in .crafactory/trash.`,true))return;
     try{await trashPath(path);}catch(e){report(e);}
   }
+  /** Cancel outgoing layout debounce and save the old workspace before selecting a new root. */
   async function chooseVault(create=false){
-    try{await stopPlugins();await flush();await bridge.state({settings,bookmarks,workspaces,recent,propertyTypes});if(await bridge.choose(create))await initialize();}catch(e){report(e);}
+    switchingVault.current=true;clearTimeout(layoutSaveTimer.current);layoutSaveTimer.current=undefined;
+    try{await stopPlugins();await flush();await bridge.state(vaultState.current);if(await bridge.choose(create))await initialize();}catch(e){report(e);}
+    finally{switchingVault.current=false;}
   }
   async function dailyNote(){
     const template=notes.find(n=>n.path===settings.dailyTemplate)?.content||'# {{date}}\n\n';
@@ -439,18 +484,25 @@ export function App(){
     if(notes.some(n=>n.path===target)){report(new Error('Target note already exists'));return;}
     editor.current?.replaceSelection(composerRuntime.current?.service.extractLink(target)??`[[${target.replace(/\.md$/,'')}]]`);await createNote(target,selection);
   }
+  /** Save both files' plugin drafts before merging, restoring retired views on failure. */
   async function mergeInto(target:string){
     if(!activeNote||target===active)return;
     const destination=notes.find(n=>n.path===target);if(!destination)return;
     if(!await dialog.confirm('Merge notes?',`Append ${active} to ${target} and move the original to trash.`))return;
     try{
-      await flush();
-      editNote(target,composerRuntime.current?.service.merge(destination.content,activeNote.content)??destination.content+'\n\n'+frontmatter(activeNote.content).body);
-      for(const n of notesRef.current.filter(n=>n.path!==active)) {
-        const updated=rewriteLinks(n.content,active,target,n.path,notesRef.current);
-        if(updated!==n.content)editNote(n.path,updated);
-      }
-      await flush();await bridge.trash(active);updateNotes(notesRef.current.filter(n=>n.path!==active));setTabs(t=>t.filter(p=>p!==active));setEntries(await bridge.list());open(target);
+      const source=active;await flush();const restoreViews=await preparePluginFileChange(source);let trashed=false,restoreTarget:Awaited<ReturnType<typeof preparePluginFileChange>>|undefined;
+      try{
+        restoreTarget=await preparePluginFileChange(target);
+        const currentSource=notesRef.current.find(note=>note.path===source),currentTarget=notesRef.current.find(note=>note.path===target);
+        if(!currentSource||!currentTarget)throw new Error('Merge file no longer exists');
+        editNote(target,composerRuntime.current?.service.merge(currentTarget.content,currentSource.content)??currentTarget.content+'\n\n'+frontmatter(currentSource.content).body);
+        for(const n of notesRef.current.filter(n=>n.path!==source)) {
+          const updated=rewriteLinks(n.content,source,target,n.path,notesRef.current);
+          if(updated!==n.content)editNote(n.path,updated);
+        }
+        await flush();await bridge.trash(source);trashed=true;await restoreViews(()=>null);await restoreTarget(file=>file);
+        updateNotes(notesRef.current.filter(n=>n.path!==source));setTabs(t=>t.filter(p=>p!==source));setSplit(p=>p===source?null:p);editorSessions.current.delete(source);setEntries(await bridge.list());open(target);
+      }catch(error){await recoverPluginFileViews(error,[()=>restoreViews(trashed?()=>null:file=>file,!trashed),async()=>{await restoreTarget?.(file=>file,true);}]);}
     }catch(e){report(e);}
   }
   async function showRecovery(){
@@ -508,6 +560,7 @@ export function App(){
     const url=await dialog.ask('Open web viewer','https://example.com','Only HTTPS pages are supported. Some sites block embedded viewing.');
     if(!url)return;try{const viewer=webViewerRuntime.current?.service;const normalized=viewer?viewer.normalize(url):(()=>{const parsed=new URL(url);if(parsed.protocol!=='https:')throw new Error('Use an HTTPS URL');return url;})();open('web:'+normalized);}catch(e){report(e);}
   }
+  /** Confirm capability grants and bind one owned runtime, or fully stop its registrations. */
   async function togglePlugin(id:string){
     await supportTransition.current;
     if(!enabled('compat')){toast('Enable Obsidian plugin support in Core plugins first.');return;}
@@ -520,7 +573,7 @@ export function App(){
     const plugin=pluginList.find(p=>p.manifest.id===id);if(!plugin)return;
     const renderer=pluginModes[id]==='renderer';
     if(!await dialog.confirm('Enable '+plugin.manifest.name+'?',renderer?
-      'Trusted renderer mode is NOT sandboxed. This code can access the entire UI and vault bridge, including notes and workspace metadata, during startup, commands and unload. It can freeze the application and cannot be forcibly stopped. Only enable code you trust. Back up your vault first.':
+      'Trusted renderer mode is NOT sandboxed. This code can access the entire UI and vault bridge, including notes and workspace metadata, during startup, commands and unload. If native Node.js access is enabled for this profile, it also has full filesystem, command execution, credential and network access. It can freeze the application and cannot be forcibly stopped. Only enable code you trust. Back up your vault first.':
       'This local Worker plugin can read and modify vault notes and save plugin data during startup, commands and unload. Only enable code you trust.'))return;
     const generation=vaultGeneration.current;
     const ensureOpen=()=>{if(generation!==vaultGeneration.current)throw new Error('Plugin belongs to a closed vault');};
@@ -543,11 +596,23 @@ export function App(){
       await refreshEntries();
       return result;
     };
+    const mutateBinary=async(name:'writeBinary'|'createBinary'|'modifyBinary',path:string,data:ArrayBuffer|ArrayBufferView)=>{
+      ensureOpen();checkPath(path);await flush();
+      const write=bridge[name];if(!write)throw new Error('Binary vault writes are unavailable on this host');
+      const before=notesRef.current.find(note=>note.path===path);
+      const result=await write.call(bridge,path,data);
+      if(before||isNote(path)){const note=await storage().read(path);savedContent.current.set(path,note.content);versions.current.set(path,note.version);updateNotes(before?notesRef.current.map(current=>current.path===path&&current.content===before.content?note:current):[...notesRef.current,note]);}
+      await refreshEntries();return result;
+    };
     const host:CompatHost={
       loadData:async pluginId=>{ensureOpen();return storage().pluginData(pluginId);},
       saveData:async(pluginId,data)=>{ensureOpen();return storage().pluginData(pluginId,data,true);},
       read:async path=>{ensureOpen();checkPath(path);return (await storage().read(path)).content;},
       readVersioned:async path=>{ensureOpen();checkPath(path);return storage().read(path);},
+      readBinary:async path=>{ensureOpen();checkPath(path);if(!bridge.readBinary)throw new Error('Binary vault reads are unavailable on this host');return bridge.readBinary(path);},
+      writeBinary:(path,data)=>mutateBinary('writeBinary',path,data),
+      createBinary:(path,data)=>mutateBinary('createBinary',path,data),
+      modifyBinary:(path,data)=>mutateBinary('modifyBinary',path,data),
       create:(path,text)=>mutateText('create',path,text),
       modify:(path,text,expectedVersion)=>mutateText('modify',path,text,expectedVersion),
       append:(path,text)=>mutateText('append',path,text),
@@ -563,7 +628,7 @@ export function App(){
         if(!Number.isInteger(from)||!Number.isInteger(to))throw new Error('Invalid editor mutation');
         if(!editor.current.applyPluginEdit(base,text,from,to))throw new Error('CONFLICT: Editor changed before plugin edit');
       },
-      save:async path=>{ensureOpen();checkPath(path);if(path!==pluginState.current.active)throw new Error('Editor no longer active');await persist(path);}
+      save:async path=>{ensureOpen();checkPath(path);if(!notesRef.current.some(note=>note.path===path))throw new Error('File no longer exists');await persist(path);}
     };
     pluginStarting.current.add(id);
     try{
@@ -576,11 +641,12 @@ export function App(){
       const onTabs=(tabs:PluginTab[])=>setPluginTabs(t=>({...t,[id]:tabs}));
       const onExtensions=(extensions:unknown[])=>setPluginExtensions(e=>({...e,[id]:extensions}));
       const onFileExtensions=(nextExtensions:string[],viewType?:string)=>{if(viewType)addPluginExtensions(id,nextExtensions,viewType);else removePluginExtensions(id,nextExtensions);};
+      const onOpenView=(viewType:string|null,path:string,leafId:string)=>{if(generation!==vaultGeneration.current)return;checkPath(path);recordPluginDocumentView(pluginDocumentViews.current,id,viewType,path,leafId);refreshPluginDocumentViews(value=>value+1);};
       const service=compatRuntime.current?.service;
       if(!service)throw new Error('Obsidian plugin support is unavailable');
       const controller=service.start({package:plugin,mode:renderer?'renderer':'worker',callbacks:{
         snapshot:()=>pluginSnapshot(plugin.manifest),commands:onCommands,host,activity:request=>{pluginRequests.current.add(request);request.then(()=>pluginRequests.current.delete(request),()=>pluginRequests.current.delete(request));},notice:toast,failure:onFailure,
-        tabs:onTabs,extensions:onExtensions,fileExtensions:onFileExtensions,native
+        tabs:onTabs,extensions:onExtensions,fileExtensions:onFileExtensions,openView:onOpenView,saveLayout:()=>{if(generation!==vaultGeneration.current)throw new Error('Vault changed');return bridge.state(vaultState.current);},native
       }});
       pluginManifests.current.set(id,plugin.manifest);pluginStops.current.set(id,controller);await controller.ready;
       if(generation!==vaultGeneration.current){clearPluginExtensions(id);await controller.stop();}else setEnabledPlugins(e=>[...e.filter(p=>p!==id),id]);
@@ -746,7 +812,7 @@ export function App(){
     }
     if(path.startsWith('web:'))return <section className="web-view"><header><Globe size={16}/><span>{path.slice(4)}</span><a href={path.slice(4)} target="_blank" rel="noreferrer">Open in browser<ExternalLink size={13}/></a></header><p className="web-notice">This site may block embedding. Use “Open in browser” if the page is blank.</p><iframe title="Web viewer" src={path.slice(4)} sandbox="allow-scripts allow-forms allow-same-origin" referrerPolicy="no-referrer"/></section>;
     const customView=pluginViewFor(path);
-    if(customView)return <PluginViewHost path={path} viewType={customView.viewType} controller={pluginStops.current.get(customView.pluginId)}/>;
+    if(customView)return secondary?<PluginViewHost path={path} viewType={customView.viewType} controller={pluginStops.current.get(customView.pluginId)} leafId={customView.leafId}/>:null;
     if(!note){
       if(path&&entries.some(e=>e.path===path&&!e.folder))return <Attachment path={path}/>;
       return <div className="empty workspace-empty"><Logo/><h1>A place to think</h1><p>Create a note, open a vault, or follow an idea.<br/>Your files stay yours.</p><button className="primary" onClick={()=>createNote()}><Plus size={15}/>Create a note</button><button onClick={()=>chooseVault()}><Folder size={15}/>Open local vault</button><small>{bridge.desktop?'Local-first · Markdown · MIT':'Temporary preview · Install desktop for local files'}</small></div>;
@@ -840,7 +906,7 @@ export function App(){
           <div className="note-actions">{activeNote&&<div className="view-modes" aria-label="Note mode"><IconButton label="Source mode" onClick={()=>setMode('source')} active={mode==='source'} testid="mode-source"><Code2 size={16}/></IconButton><IconButton label="Live editing" onClick={()=>setMode('live')} active={mode==='live'} testid="mode-live"><Pencil size={15}/></IconButton><IconButton label="Reading view" onClick={()=>setMode('reading')} active={mode==='reading'} testid="mode-reading"><BookOpen size={16}/></IconButton></div>}<IconButton label="More actions" onClick={()=>setPalette('commands')}><MoreHorizontal size={19}/></IconButton></div>
         </div>
         {error&&<div className="error-banner" role="alert"><span>{error}</span><button onClick={()=>setError('')} aria-label="Dismiss error"><X size={16}/></button></div>}
-        {loading?<div className="workspace-loading"><div className="skeleton-list"><i/><i/><i/></div><p>Opening vault…</p></div>:<Suspense fallback={<div className="workspace-loading"><p>Opening view…</p></div>}><div className={'panes '+(split?'split':'')}><section className="workspace-pane">{showNote(active)}</section>{split&&<section className="workspace-pane secondary-pane"><header><span>{title(split)}</span><button aria-label="Close split pane" onClick={()=>setSplit(null)}><X size={15}/></button></header>{showNote(split,true)}</section>}</div></Suspense>}
+        {loading?<div className="workspace-loading"><div className="skeleton-list"><i/><i/><i/></div><p>Opening vault…</p></div>:<Suspense fallback={<div className="workspace-loading"><p>Opening view…</p></div>}><div className={'panes '+(split?'split':'')}><section className="workspace-pane">{tabs.map(path=>{const view=pluginViewFor(path);return view?<div key={path} className="retained-plugin-view" hidden={path!==active}><PluginViewHost path={path} viewType={view.viewType} controller={pluginStops.current.get(view.pluginId)} leafId={view.leafId}/></div>:null;})}{showNote(active)}</section>{split&&<section className="workspace-pane secondary-pane"><header><span>{title(split)}</span><button aria-label="Close split pane" onClick={()=>setSplit(null)}><X size={15}/></button></header>{showNote(split,true)}</section>}</div></Suspense>}
       </main>
       {right&&<aside className="right-sidebar" aria-label="Note context">
         <div className="sidebar-tabs"><IconButton label="Outline tab" onClick={()=>setRightTab('outline')} active={rightTab==='outline'}><List size={17}/></IconButton><IconButton label="Backlinks tab" onClick={()=>setRightTab('backlinks')} active={rightTab==='backlinks'}><Link2 size={17}/></IconButton><IconButton label="Outgoing links tab" onClick={()=>setRightTab('outgoing')} active={rightTab==='outgoing'}><ArrowRight size={17}/></IconButton></div>

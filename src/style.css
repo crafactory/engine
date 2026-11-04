@@ -159,3 +159,13 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}h1,
 .unsafe-eval-warning{margin:10px 0;padding:12px 14px;border:1px solid var(--danger);border-radius:var(--radius-sm);background:var(--panel)}
 .unsafe-eval-warning p{margin:0 0 10px;font-size:var(--text-xs);line-height:1.6;color:var(--muted)}
 .unsafe-eval-warning button{margin-right:8px;padding:5px 10px;border:1px solid var(--border);border-radius:4px;font-size:var(--text-xs)}
+.retained-plugin-view{display:flex;flex:1;min-height:0;flex-direction:column}
+.retained-plugin-view[hidden]{display:none}
+/* Public layering tokens, not a replica theme. Undefined z-index variables can
+   put interactive plugin forms behind their scrolling boards.
+   Contract: https://docs.obsidian.md/Reference/CSS+variables/Foundations/Layers */
+:root{
+  --layer-cover:5;--layer-sidedock:10;--layer-status-bar:15;--layer-popover:30;
+  --layer-slides:45;--layer-modal:50;--layer-notice:60;--layer-menu:65;
+  --layer-tooltip:70;--layer-dragged-item:80;
+}

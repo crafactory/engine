@@ -12,6 +12,25 @@ test.beforeEach(async()=>{
   page=await app.firstWindow();await expect(page.locator('.note-title h1')).toHaveText('Persist');
 });
 test.afterEach(async()=>{await app?.close();await fs.rm(root,{recursive:true,force:true});await fs.rm(userData,{recursive:true,force:true});});
+test('binary preload preserves exact bytes and enforces vault mutation boundaries',async()=>{
+  const result=await page.evaluate(async()=>{
+    const bridge=window.engine!,bytes=new Uint8Array([91,0,255,128,92]).subarray(1,4);
+    await bridge.createBinary!('attachments/probe.bin',bytes);
+    const first=Array.from(new Uint8Array(await bridge.readBinary!('attachments/probe.bin')));
+    const fails=async(fn:()=>Promise<unknown>)=>{try{await fn();return false;}catch{return true;}};
+    const noOverwrite=await fails(()=>bridge.createBinary!('attachments/probe.bin',new Uint8Array([9])));
+    const noCreate=await fails(()=>bridge.modifyBinary!('attachments/missing.bin',bytes));
+    const noEscape=await fails(()=>bridge.writeBinary!('../escape.bin',bytes));
+    await bridge.modifyBinary!('attachments/probe.bin',new Uint8Array([7]));
+    const modified=Array.from(new Uint8Array(await bridge.readBinary!('attachments/probe.bin')));
+    await bridge.writeBinary!('attachments/probe.bin',new DataView(new Uint8Array([90,3,4,91]).buffer,1,2));
+    const written=Array.from(new Uint8Array(await bridge.readBinary!('attachments/probe.bin')));
+    return {first,noOverwrite,noCreate,noEscape,modified,written};
+  });
+  expect(result).toEqual({first:[0,255,128],noOverwrite:true,noCreate:true,noEscape:true,modified:[7],written:[3,4]});
+  expect([...await fs.readFile(path.join(root,'attachments/probe.bin'))]).toEqual([3,4]);
+  expect(await fs.stat(path.join(root,'attachments/missing.bin')).catch(()=>null)).toBeNull();
+});
 test('native renderer opens under secure app protocol and writes real Markdown',async()=>{
   expect(page.url()).toBe('engine://app/index.html');
   expect(await page.evaluate(()=>!!window.engine?.desktop)).toBe(true);

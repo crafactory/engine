@@ -12,10 +12,10 @@ import type {PluginManifest} from '../types';
 import {ENGINE_VERSION} from './version';
 
 export const COMPAT_CONTRACT = 'engine.compat/v1';
-export const COMPAT_VERSION = '1.0.0';
+export const COMPAT_VERSION = '1.1.0';
 
 /** A local package discovered by the support plugin. */
-export interface CompatPackage {manifest: PluginManifest; code: string}
+export interface CompatPackage {manifest: PluginManifest; code: string;styles?:string}
 
 /** Host primitives used by the Obsidian adapter; operation names stay inside src/compat. */
 export interface CompatHost {
@@ -23,6 +23,10 @@ export interface CompatHost {
   saveData(id: string, data: unknown): Promise<unknown>;
   read(path: string): Promise<string>;
   readVersioned?(path: string): Promise<{content: string; version: string}>;
+  readBinary?(path:string):Promise<ArrayBuffer>;
+  writeBinary?(path:string,data:ArrayBuffer|ArrayBufferView):Promise<unknown>;
+  createBinary?(path:string,data:ArrayBuffer|ArrayBufferView):Promise<unknown>;
+  modifyBinary?(path:string,data:ArrayBuffer|ArrayBufferView):Promise<unknown>;
   create(path: string, content: string): Promise<unknown>;
   modify(path: string, content: string, expectedVersion?: string): Promise<unknown>;
   append(path: string, content: string): Promise<unknown>;
@@ -49,6 +53,8 @@ export interface CompatStartCallbacks {
   tabs?: (tabs: PluginTab[]) => void;
   extensions?: (extensions: unknown[]) => void;
   fileExtensions?: (extensions: string[], viewType?: string) => void;
+  openView?: (viewType: string|null, path: string, leafId: string) => void;
+  saveLayout?: () => Promise<void>;
   native?: CompatNativeServices;
 }
 

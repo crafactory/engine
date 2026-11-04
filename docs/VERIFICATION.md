@@ -5,6 +5,228 @@
 > plugin status see [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); for API boundaries
 > see [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md).
 
+## Third-review recovery, stylesheet identity and trust-profile repairs
+
+On 2026-11-04 UTC, the completed review of `ead4e7a` identified four further inline
+correctness findings and a stylesheet path-swap follow-up. The repaired Linux source
+passes inventory validation, 860 units across 49 files, production build, 64 browser tests
+and all 93 Electron desktop tests. All eleven pinned Worker and eleven pinned renderer
+inputs executed with no skips. Both reports were regenerated exclusively from
+`/tmp/engine-pr72-round3-complete-{renderer,worker}`; classifications and known plugin errors
+remain bounded, not upgraded to full compatibility. The existing bundle-size warning remains.
+
+Four new actual Electron regressions all fail on unchanged `ead4e7a`: filesystem failure
+loses the overlay registration, an earlier unload discards a later changed draft, merge uses
+old destination content, and an open trust panel does not observe an external confirmed
+profile update. All four pass after repair and against the actual Linux packaged executable.
+A separate packaged CSS loading/ownership/cleanup regression also passes. The existing
+startup-false and startup-true trust tests additionally cover both switches diverging,
+reverting one while retaining the other's notice, then reverting the other. Pure recovery
+tests verify attempts continue across owner/recovery errors and retain the original failure.
+
+Seven isolated child-process stylesheet tests cover ordinary content, oversized rejection
+before content reads, concurrent growth, final symlink replacement, descriptor-identity
+rejection even when final no-follow flags are deliberately bypassed in the harness, a parent
+swap before entering, and an ancestor replacement after entering. The reader compares
+lossless file identities and rejects missing inode identities; symlinked config/package/style
+paths are unsupported. On Windows, an OS refusal to rename an entered cwd is an accepted
+safe outcome with no content read. These tests secure this reader, not the entire vault API
+or trusted native plugins. Windows/macOS packaging is not native runtime/security acceptance.
+
+Logs are `/tmp/engine-pr72-round3-{check-final,browser,desktop-full,baseline-desktop,packaged-desktop,packaged-css}.log`.
+The earlier repair candidate passed 858 units but failed TypeScript on an optional captured
+leaf ID; it was not accepted. The repaired failure path retains explicit IDs and leaves
+implicit extension views implicit. Nine targeted desktop cases passed before the later
+full run and additional recovery-error assertions; those partial results do not replace
+the complete 860/64/93 evidence.
+
+The maintainer's accepted binary final-check-to-rename recreation window remains unchanged,
+not repaired. A subsequent instruction explicitly prioritizes early PRs, frequent commits
+and one or two effective Review + Fix rounds: after effective review, review-service
+unavailability alone need not block merge when no known blocking issue remains and exact-head
+required checks pass. CONTRIBUTING records the revised policy. Use the PR for current cloud
+checks, consolidated re-review and merge state; this local evidence does not claim those
+external steps have completed.
+
+## Native profile, drawing, board and Git increment
+
+On 2026-11-03, the complete Linux x64 candidate passed inventory validation, 838 unit tests
+across 47 files, TypeScript/production build, all 64 browser tests and all 79 Electron desktop
+tests. The desktop run included all eleven unchanged, hash-pinned upstream inputs in each of
+Worker and renderer mode; none of those corpus cases was skipped. Build output retained the
+existing large-chunk warning. This is source-runtime evidence, not installer/release or native
+Windows/macOS acceptance.
+
+The renderer report contains six `BOUNDED_WORKFLOWS_PASS`, three
+`BOUNDED_WORKFLOWS_WITH_ERRORS`, one `STARTUP_WITH_ERRORS` and one `STARTUP_ONLY` outcome.
+All eleven default Worker inputs still refuse startup. Exact inputs, grants, timestamps,
+workflow assertions and runtime/console diagnostics are retained in
+[renderer evidence](compatibility/renderer-community-results.json) and
+[Worker evidence](compatibility/community-results.json), generated from one complete run per
+mode rather than mixed probes. The current tracker is
+[PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md).
+
+The explicit native profile test verifies default refusal, both cancellation layers,
+restart-based grant/revocation, real bytes outside a disposable vault, a Git subprocess,
+package-relative CommonJS loading, concurrent preference updates and rollback on write failure.
+The profile grants every renderer script OS-user filesystem/process/credential/network access;
+it is not per-plugin isolation. Test processes use allowlisted environments and temporary
+homes, not OS filesystem containment. Defaults retain context isolation, sandboxing and no Node
+integration; the Xvfb launcher's `--no-sandbox` means these runs do not certify OS sandbox
+enforcement. See [native permissions](NATIVE-PLUGIN-PERMISSIONS.md).
+
+Excalidraw acceptance draws a real rectangle through pointer input, checks actual file save,
+switches documents, restarts the application, re-enables the plugin and reopens the exact
+element identity/dimensions. Its private Obsidian core Canvas integration still rejects.
+Git acceptance stages the real index, makes a specific-message commit, pushes to a local bare
+remote and pulls a peer commit into the actual editor. Kanban creates and persists a board/list,
+switches/restarts/reopens it, but card submission still reports undefined `has`, and focus
+reports undefined `setTimeout`; negative acceptance checks that no card was saved. Tasks retains
+its property-type error, and Copilot initialization reaches unsupported secret storage.
+These are bounded observations, not full-feature compatibility.
+
+An earlier complete candidate had 75 desktop passes and three failures: Templater exposed
+legacy CM5 configuration/specification, state-copy and stream-advancement gaps; Excalidraw's
+harness dragged before the rectangle tool finished activating; Tasks' retained property-type
+error required an explicit with-errors outcome instead of a clean workflow pass. Original CM5
+repairs, active-tool synchronization and accurate outcome classification preceded the complete
+passing run. The additional CM5 regression fixture is included in the final 79 cases.
+
+The final-source CodeRabbit review and cloud checks are separate merge gates, not established
+by these local results. Authentication/signing/hooks/conflicts, additional drawing tools/export/
+embedding, Kanban cards/completion/moves, arbitrary plugin leaf-state restoration, installed
+reference differential testing and native Windows/macOS/mobile remain unverified or unsupported.
+
+The initial PR head's [macOS package job](https://github.com/crafactory/engine/actions/runs/41682345882/job/126078993105)
+failed before packaging: a new Keymap unit assertion hard-coded Control as Mod. The fixture now
+explicitly exercises Mac/Meta, Windows/Control and Linux/Control, including refusal of the other
+modifier, without changing product behavior. That failed cloud job is not a macOS build pass.
+
+The first full [CodeRabbit review](https://github.com/crafactory/engine/pull/72#pullrequestreview-5756869972)
+completed on `0a472a4` with sixteen inline findings and two follow-up findings in the review body.
+The review-repair candidate stages binary overwrites before rename/link, checks actual stylesheet
+bytes, enforces one profile writer, catches unsafe-eval persistence errors, flushes/recreates
+renamed/trash views, cancels layout saves before vault switching, removes stale same-leaf
+registrations, rejects lifecycle-flag mutations, rolls back synchronous rejected editor
+mutations, matches delegated once handlers before consuming them, resolves string-backed files,
+preserves input against late embed reads, keeps Scope.keys identity, captures the requested
+Markdown save path, isolates native Git configuration, and asserts card absence after restart.
+The report generator now shows positive bounded workflows together with retained blockers, and
+the support matrix distinguishes default versus native Node behavior.
+
+Repair regression coverage includes injected partial temporary-file write failures preserving
+original attachment bytes and cleaning debris; a growing stylesheet; lifecycle bypass attempts;
+reading-mode editor rollback; queued save/navigation; live key-array mutation; unmatched delegated
+once events; late reads after typing and clearing; same-leaf reuse; pending text saved before
+rename/trash; second-process refusal; both preference rollback paths; and a real native vault
+switch with initialization delayed across the old layout debounce. Two initial layout-fixture
+attempts failed because Playwright's main-process VM supplies neither CommonJS require nor a
+dynamic-import callback; the fixture uses Electron's Node builtin-module accessor instead.
+These harness failures are distinct from the product fix and are not counted as passes.
+
+A first complete repair run had 82 desktop passes and one failed rename assertion: the fixture
+read the destination before the asynchronous rename completed, while its value assertion still
+matched the old input. The fixture now waits for the destination file and recreated active
+plugin view before checking bytes. That run also exposed a Kanban startup regression from an
+overly strict `_loaded` setter; its generic diagnostic case passed despite losing the established
+board/list workflow. That candidate is not accepted evidence. Redundant lifecycle assignments
+are now no-ops without writing host state, state-changing assignments still reject, and the
+corpus explicitly prevents previously verified bounded workflows from downgrading to startup
+refusals. Final reports must come from a new complete pair of corpus directories.
+
+The corrected review-repair candidate passed inventory, 841 unit tests across 47 files,
+TypeScript/production build, all 64 browser tests and all 83 desktop tests, including all
+22 pinned corpus cases without skips. The rename/trash regression also passed three consecutive
+targeted repetitions. Logs are `/tmp/engine-pr72-repairs-final-check.log`,
+`/tmp/engine-pr72-final-browser.log`, `/tmp/engine-pr72-final-desktop.log` and
+`/tmp/engine-pr72-rename-repeat.log`. Reports were regenerated exclusively from
+`/tmp/engine-pr72-final-renderer` and `/tmp/engine-pr72-final-worker`; the outcome distribution and
+remaining compatibility boundaries are unchanged from the accepted initial candidate.
+This local result does not establish completion of the separate latest-head review/CI gates.
+
+During the re-review quota wait, the repaired unit fixtures were run against the unchanged
+pre-repair implementation `0a472a4` in a disposable worktree: six expected failures and 54
+passes across the same three unit files. Four current desktop fixtures against that baseline
+gave three expected failures (late embedded reads, pending cross-vault layout writes, and
+file-specific rename/trash) and one pass (same-leaf reuse). The passing same-leaf UI fixture
+therefore is coverage, not a detector of the stale-registration bug. The host's registration
+update was extracted into a pure internal helper with direct tests for moving only the matching
+owner/leaf and ignoring stale/foreign close notifications. Baseline logs are
+`/tmp/engine-pr72-review-baseline.log.gz`, `/tmp/engine-pr72-review-baseline-build.log` and
+`/tmp/engine-pr72-review-baseline-desktop.log`; the disposable worktree was removed afterward.
+
+The next full desktop candidate had 82 passes and one Excalidraw restart failure exposing
+`MarkdownView.currentMode` while the fixture reopened a drawing without awaiting enable
+completion. The Excalidraw and Kanban restart fixtures now wait for the checked enable control,
+which is published only after `controller.ready`, before leaving Settings and reopening.
+Excalidraw then passed three consecutive complete draw/save/restart/reopen repetitions.
+The unsupported private Markdown-mode surface is not implemented or certified by that result.
+
+The final strengthened source passed inventory, 843 units across 48 files, build and all 64
+browser cases (`/tmp/engine-pr72-leaf-{check,browser}.log`); all 83 desktop cases, including all
+22 pinned corpus cases, then passed without skips (`/tmp/engine-pr72-reviewed-desktop.log`).
+Final reports use only `/tmp/engine-pr72-reviewed-renderer` and
+`/tmp/engine-pr72-reviewed-worker`. The repeated Excalidraw log is
+`/tmp/engine-pr72-restart-repeat.log`. This supersedes the earlier 841-unit repair checkpoint,
+not the retained historical failures, and still does not replace completed latest-head review.
+
+## Maintainer acceptance of the binary publication race
+
+On 2026-11-04 the maintainer explicitly accepted the narrow final-check-to-rename deletion
+race from [finding 4458871645](https://github.com/crafactory/engine/pull/72#discussion_r4458871645)
+and requested another completed CodeRabbit review, merge if otherwise clean, then the next
+plugin increment. No complex storage rewrite or truncate-in-place fallback was authorized.
+The existing checks and staged-write protection remain unchanged. A new deterministic unit
+injects deletion immediately before target rename, verifies that modify recreates the target
+with the staged bytes and cleans temporary files. This is characterization of accepted
+behavior, not a fix or cross-process conditional-write guarantee.
+
+The unresolved/blocker language in the earlier checkpoint below records the decision before
+this acceptance. It no longer blocks merge by itself; other findings, completed latest-head
+review and latest-head CI still must satisfy CONTRIBUTING.
+
+## Second native-increment review repairs
+
+The [completed review of `64b89c2`](https://github.com/crafactory/engine/pull/72#pullrequestreview-5757536733)
+reported seven inline findings and two body follow-ups. The next candidate bounds stylesheet
+reads through a handle before allocating; honors explicit same-file leaf activation; publishes
+activation overrides only after successful host open; prepares and seals every owner's drafts
+before retiring any file view; suppresses host-owned repeat saves after sealing; includes the
+latest plugin draft when constructing merge content; derives both trust restart notices from
+saved versus startup-active values; and makes asynchronously rejected Editor instances stale
+while preserving the rejection for settle.
+
+The repaired source passed inventory, 850 units across 48 files and TypeScript/production build
+(`/tmp/engine-pr72-round2-final-check.log`), with the existing large-chunk warning. All 64 browser
+cases passed (`/tmp/engine-pr72-round2-complete-browser.log`). Six new desktop regressions passed
+together (`/tmp/engine-pr72-round2-targeted2.log`). The complete desktop suite passed all 89 cases
+(`/tmp/engine-pr72-round2-complete-desktop.log`), including all 22 pinned corpus cases with none
+skipped. Both reports were regenerated exclusively from the new complete pair
+`/tmp/engine-pr72-round2-complete-renderer` and `/tmp/engine-pr72-round2-complete-worker`:
+11 renderer outcomes plus 11 default-Worker refusals. Plugin classifications remain bounded,
+including the same Kanban card/focus errors and Excalidraw core-Canvas refusal.
+Those same six tests on unchanged `64b89c2`
+produced five expected failures and one pass: both restart-reversion cases, exact earlier-leaf
+identity, pending merge content and repeated retirement saves detected the old behavior; the
+initial-save failure retention case already passed and is retained as coverage, not proof of
+that repair. Baseline logs are `/tmp/engine-pr72-round2-baseline{,-build}.log`; its disposable
+worktree was removed.
+
+An initial repair unit fixture incorrectly supplied a plugin-prefixed command ID to the raw-ID
+runtime harness (849 passes, one failure). Its corrected invocation passes. The first six-case
+desktop probe had five passes and one harness failure because link resolution ran immediately
+after create, before the next host metadata snapshot. The fixture now waits for the actual
+explorer entry and opens through that UI. Neither failed probe supplies corpus-report rows.
+
+Binary finding [4458871645](https://github.com/crafactory/engine/pull/72#discussion_r4458871645)
+is still unresolved. A second regular-file/device/inode check catches deletion during staging,
+and its regression passes, but cannot make rename atomically require an existing target.
+The explicit local injection `/tmp/engine-pr72-binary-final-race.mjs` deleted the target after
+the final stat and immediately before rename; modify returned success and recreated it with
+the replacement bytes. This is a reproduced limitation, not hypothetical race coverage or a
+resolved review finding. Reverting to truncate-in-place would reintroduce the earlier binary
+data-loss issue. Passing finite plugin workflows does not make this candidate merge-ready.
+
 ## Narrowed default CSP
 
 This section records removing the default-entry `wasm-unsafe-eval` relaxation left over from

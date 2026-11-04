@@ -44,16 +44,36 @@ function NativeSetting({contribution,value,onChange}:{contribution:SettingsContr
   return <section className="native-setting"><h3>{contribution.label}</h3><Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={contribution.id}><Component value={value} onChange={onChange}/></ViewBoundary></Suspense></section>;
 }
 
+/** Render owned preference panels and reconcile saved trust flags with startup privileges. */
 export function Settings({value,onChange,onClose,plugins,enabled,onTogglePlugin,pluginTabs=[],modes={},onMode=()=>{},nativeSettings=[]}:{value:Preferences;onChange:(value:Preferences)=>void;onClose:()=>void;plugins:PluginManifest[];enabled:string[];onTogglePlugin:(id:string)=>void;pluginTabs?:PluginTab[];modes?:Record<string,string>;onMode?:(id:string,mode:string)=>void;nativeSettings?:SettingsContribution[]}) {
-  const [tab,setTab]=useState('appearance'),[pluginQuery,setPluginQuery]=useState('') ,[unsafeEval,setUnsafeEval]=useState<boolean|null>(null),[unsafeEvalRestart,setUnsafeEvalRestart]=useState(false),[unsafeEvalConfirm,setUnsafeEvalConfirm]=useState(false);
-  useEffect(()=>{if(tab!=='community')return;let live=true;if(bridge.desktop&&bridge.unsafeEval)void bridge.unsafeEval().then(value=>{if(live)setUnsafeEval(value);}).catch(()=>{});else setUnsafeEval(false);return()=>{live=false};},[tab]);
+  const [tab,setTab]=useState('appearance'),[pluginQuery,setPluginQuery]=useState('') ,[unsafeEval,setUnsafeEval]=useState<boolean|null>(null),[unsafeEvalConfirm,setUnsafeEvalConfirm]=useState(false);
+  const [nativePlugins,setNativePlugins]=useState(false),[nativeConfirm,setNativeConfirm]=useState(false);
+  const [activeTrust,setActiveTrust]=useState<{unsafeEval:boolean;nativePlugins:boolean}|null>(null);
+  const trustProfileSequence=useRef(0);
+  const unsafeEvalRestart=activeTrust!==null&&unsafeEval!==null&&unsafeEval!==activeTrust.unsafeEval,nativeRestart=activeTrust!==null&&nativePlugins!==activeTrust.nativePlugins;
+  const [nativeBusy,setNativeBusy]=useState(false),[nativeError,setNativeError]=useState('');
+  const [unsafeBusy,setUnsafeBusy]=useState(false),[unsafeError,setUnsafeError]=useState('');
+  useEffect(()=>{if(tab!=='community')return;let live=true;setActiveTrust(null);
+    /** Apply a confirmed profile only while this Community panel subscription remains live. */
+    const apply=(profile:{saved:{unsafeEval:boolean;nativePlugins:boolean};active:{unsafeEval:boolean;nativePlugins:boolean}})=>{if(live){setNativePlugins(profile.saved.nativePlugins);setUnsafeEval(profile.saved.unsafeEval);setActiveTrust(profile.active);setNativeError('');}};
+    const offTrust=bridge.onTrustProfileChange?.(profile=>{trustProfileSequence.current++;apply(profile);});
+    const sequence=trustProfileSequence.current;
+    if(bridge.desktop&&bridge.trustProfile)void bridge.trustProfile().then(profile=>{if(sequence===trustProfileSequence.current)apply(profile);}).catch(error=>{if(live&&sequence===trustProfileSequence.current)setNativeError(String(error));});
+    else{setNativePlugins(false);setUnsafeEval(false);}
+    return()=>{live=false;offTrust?.();};
+  },[tab]);
+  /** Persist only native-confirmed profile changes, preserving UI state on failure. */
+  async function changeNativePlugins(enabled:boolean){if(!bridge.desktop||!bridge.setNativePlugins||nativeBusy||!activeTrust)return;setNativeBusy(true);setNativeError('');try{const result=await bridge.setNativePlugins(enabled);setNativePlugins(result);setNativeConfirm(false);}catch(error){setNativeConfirm(false);setNativeError(String(error));}finally{setNativeBusy(false);}}
   const update=(key:keyof Preferences,v:any)=>onChange({...value,[key]:v});
   const row=(name:string,description:string,control:React.ReactNode)=><div className="setting-row"><div><strong>{name}</strong><p>{description}</p></div>{control}</div>;
   const toggle=(key:keyof Preferences)=><input aria-label={String(key)} type="checkbox" role="switch" checked={!!value[key]} onChange={e=>update(key,e.target.checked)}/>;
   /** Persist the desktop-only unsafe-eval opt-in after the inline warning is accepted. */
   async function changeUnsafeEval(enabled:boolean){
-    if(!bridge.desktop||!bridge.setUnsafeEval)return;
-    setUnsafeEval(await bridge.setUnsafeEval(enabled));setUnsafeEvalRestart(true);setUnsafeEvalConfirm(false);
+    if(!bridge.desktop||!bridge.setUnsafeEval||unsafeBusy||!activeTrust)return;
+    setUnsafeBusy(true);setUnsafeError('');
+    try{const result=await bridge.setUnsafeEval(enabled);setUnsafeEval(result);setUnsafeEvalConfirm(false);}
+    catch(error){setUnsafeEvalConfirm(false);setUnsafeError(String(error));}
+    finally{setUnsafeBusy(false);}
   }
   const contributed=nativeSettings.filter(contribution=>(contribution.tab??'extensions')===tab);
   return <div className="modal-backdrop" onClick={onClose}><section className="settings-modal" role="dialog" aria-modal="true" aria-label="Settings" onClick={e=>e.stopPropagation()}>
@@ -83,9 +103,14 @@ export function Settings({value,onChange,onClose,plugins,enabled,onTogglePlugin,
       {tab==='community'&&<>
         <div className="security-notice"><Shield size={20}/><div><strong>Restricted mode by default</strong><p>Local plugins may use the Engine API or an experimental CommonJS Obsidian API subset. Full community-plugin compatibility is not supported. Unsupported APIs fail explicitly. Enabled plugins can read and modify notes and store data, including during startup. Only enable trusted code.</p></div></div>
         <p className="settings-note">Worker is the default. Trusted renderer adds DOM and CodeMirror integration but is not isolated from the application or vault bridge and cannot be forcibly interrupted. Runtime choices and enabled state reset on restart; no plugin runs automatically.</p>
-        <div className="setting-row"><div><strong>Allow unsafe-eval in trusted renderer</strong><p>Required by DataviewJS and dv.view. This only applies to the packaged desktop app, weakens the Content Security Policy and requires a restart. Plugins remain unsandboxed.</p></div><input aria-label="Allow unsafe-eval in trusted renderer" type="checkbox" role="switch" checked={!!unsafeEval} disabled={!bridge.desktop} onChange={event=>{if(event.target.checked&&!unsafeEval)setUnsafeEvalConfirm(true);else void changeUnsafeEval(false);}}/></div>
-        {unsafeEvalConfirm&&<div className="unsafe-eval-warning" role="alert"><p>Allowing unsafe-eval lets trusted plugins run eval/Function, including DataviewJS and dv.view. It weakens CSP for the whole desktop renderer and does not sandbox plugins. Restart is required.</p><button onClick={()=>void changeUnsafeEval(true)}>Enable unsafe-eval</button><button onClick={()=>setUnsafeEvalConfirm(false)}>Cancel</button></div>}
+        <div className="setting-row"><div><strong>Allow unsafe-eval in trusted renderer</strong><p>Required by DataviewJS and dv.view. This only applies to the packaged desktop app, weakens the Content Security Policy and requires a restart. Plugins remain unsandboxed.</p></div><input aria-label="Allow unsafe-eval in trusted renderer" type="checkbox" role="switch" checked={!!unsafeEval} disabled={!bridge.desktop||unsafeBusy||activeTrust===null} onChange={event=>{if(event.target.checked&&!unsafeEval)setUnsafeEvalConfirm(true);else void changeUnsafeEval(false);}}/></div>
+        {unsafeEvalConfirm&&<div className="unsafe-eval-warning" role="alert"><p>Allowing unsafe-eval lets trusted plugins run eval/Function, including DataviewJS and dv.view. It weakens CSP for the whole desktop renderer and does not sandbox plugins. Restart is required.</p><button disabled={unsafeBusy} onClick={()=>void changeUnsafeEval(true)}>Enable unsafe-eval</button><button disabled={unsafeBusy} onClick={()=>setUnsafeEvalConfirm(false)}>Cancel</button></div>}
+        {unsafeError&&<p role="alert">{unsafeError}</p>}
         {unsafeEvalRestart&&<p className="settings-note" role="status">Restart Crafactory Engine to apply the unsafe-eval change.</p>}
+        <div className="setting-row"><div><strong>Allow native Node.js plugins</strong><p>Full desktop access for trusted plugins such as Git. All renderer scripts can access files outside the vault, execute commands, access credentials and use the network. NOT a per-plugin sandbox. Granting or revoking requires a restart.</p></div><input aria-label="Allow native Node.js plugins" type="checkbox" role="switch" checked={nativePlugins} disabled={!bridge.desktop||nativeBusy||activeTrust===null} onChange={event=>{if(event.target.checked&&!nativePlugins)setNativeConfirm(true);else void changeNativePlugins(false);}}/></div>
+        {nativeConfirm&&<div role="alert"><p>This trusts every script in this desktop renderer with your computer, not only the selected plugin. Only enable code you fully trust. Unloading a plugin cannot undo file changes or commands.</p><button disabled={nativeBusy} onClick={()=>void changeNativePlugins(true)}>Enable native plugins</button><button disabled={nativeBusy} onClick={()=>setNativeConfirm(false)}>Cancel</button></div>}
+        {nativeError&&<p role="alert">{nativeError}</p>}
+        {nativeRestart&&<p role="status">Restart Crafactory Engine to apply the native plugin permission change, including revocation.</p>}
         {!plugins.length?<div className="empty"><Puzzle size={28}/><h3>No local plugins installed</h3><p>Place a manifest.json and main.js in .crafactory/plugins/plugin-id, then reopen settings. An example plugin is included in the repository.</p></div>:plugins.map(p=><div key={p.id}>{row(p.name,`${p.description||''} · ${p.version}`,<input type="checkbox" role="switch" aria-label={'Enable '+p.name} checked={enabled.includes(p.id)} onChange={()=>onTogglePlugin(p.id)}/>)}<label className="plugin-runtime">Runtime for {p.name}<select aria-label={'Runtime for '+p.name} value={modes[p.id]||'worker'} disabled={enabled.includes(p.id)} onChange={e=>onMode(p.id,e.target.value)}><option value="worker">Worker (default)</option><option value="renderer">Trusted renderer (not sandboxed)</option></select></label></div>)}
       </>}
       {tab==='about'&&<div className="about"><img src="./icon.svg" width="64" height="64" alt="Crafactory Engine"/><h2>Crafactory Engine</h2><p>Version {version} · MIT license</p><p>An independently implemented Markdown workspace. No Obsidian source code, branded assets, or subscription services are included.</p><p>{bridge.desktop?'Desktop mode: local filesystem vault.':'Browser preview: temporary in-memory vault. Refreshing resets your changes.'}</p><p>Functional parity is a project goal, not a claim of this release. See docs/PARITY.md for the current boundary.</p><a href="https://github.com/crafactory/engine" target="_blank" rel="noreferrer">Repository & documentation</a></div>}

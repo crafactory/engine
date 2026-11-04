@@ -8,7 +8,7 @@ const root=path.resolve(process.env.ENGINE_PLUGIN_CORPUS||'.compat-corpus');
 await fs.mkdir(root,{recursive:true});
 for(const plugin of config.plugins){
   const folder=path.join(root,plugin.directory);await fs.mkdir(folder,{recursive:true});
-  for(const [file,expected]of [['main.js',plugin.main_sha256],['manifest.json',plugin.manifest_sha256]]){
+  for(const [file,expected]of [['main.js',plugin.main_sha256],['manifest.json',plugin.manifest_sha256],...(plugin.styles_sha256?[['styles.css',plugin.styles_sha256]]:[])]){
     const full=path.join(folder,file);
     try{await fs.access(full);}catch{
       execFileSync('curl',['-fLsS',`https://github.com/${plugin.repo}/releases/download/${plugin.tag}/${file}`,'-o',full],{stdio:'inherit'});

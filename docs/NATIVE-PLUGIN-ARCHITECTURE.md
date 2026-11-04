@@ -2,6 +2,8 @@
 
 状态：阶段 1（组装内核）、阶段 2（storage/documents/commands 默认提供者，内存/本地双提供者同一契约套件）与阶段 3（render/workspace 视图槽与格式注册，Markdown/Canvas/Bases 各自注册格式视图）已实现，其余迁移阶段未开始。阶段 1 规格见 [KERNEL-SPEC.md](KERNEL-SPEC.md)，阶段 2/3 规格见 [SERVICES-SPEC.md](SERVICES-SPEC.md)，单元证据见 `tests/kernel.test.ts`、`tests/services.test.ts` 与 `tests/workspace.test.ts`。阶段 4 已接入：`engine.editor/v1` 与两套提供者已实现，应用以默认 CodeMirror provider 为活动笔记开 session，选区/视口经 provider 恢复（证据 `tests/editor.test.ts`、`e2e/regressions.spec.ts`）；正文草稿与写入冲突仍沿用应用既有机制。格式分发已接入 `src/App.tsx`，但 storage/documents/commands 仍由 `src/bridge.ts` 提供，产品功能其余部分尚未完成迁移，全文其余勾选框保持未勾选是有意的。原创应用代码继续 MIT；不复制 Obsidian 应用、SDK、类型声明或示例代码。
 
+桌面新增的可选 Node.js 全信任配置见 [原生插件权限](NATIVE-PLUGIN-PERMISSIONS.md)。它是经过单独确认并重启生效的安全启动配置，不是下文服务迁移已经完成的证明，也不提供逐插件隔离。当前社区插件的有限工作流和缺口仍以 [插件支持表](PLUGIN-SUPPORT-MATRIX.md) 为准。
+
 ## 路线结论
 
 采用用户提出的“组装内核之外全部插件化”目标，编辑器也不例外。Obsidian API 是可选兼容插件提供的外部协议，不是 Engine 原生 API，更不能反向规定内核必须依赖 CodeMirror。这里借鉴 Cordis 的服务、依赖、作用域和可逆副作用设计，不直接搬运 DeepSeek Harness 实现。

@@ -1,4 +1,4 @@
-import {describe,it,expect,beforeEach,afterEach} from 'vitest';
+import {describe,it,expect,beforeEach,afterEach,vi} from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -7,6 +7,73 @@ let root,vault,outside;
 beforeEach(async()=>{root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-vault-'));outside=await fs.mkdtemp(path.join(os.tmpdir(),'engine-outside-'));vault=await new Vault(root).init();});
 afterEach(async()=>{await fs.rm(root,{recursive:true,force:true});await fs.rm(outside,{recursive:true,force:true});});
 describe('local vault storage',()=>{
+  it('documents the accepted final-check binary deletion race without claiming conditional publication',async()=>{
+    const target=path.join(root,'image.bin'),original=fs.rename;
+    await vault.writeBinary('image.bin',new Uint8Array([1,2,255]),'create');
+    let injected=false;
+    const rename=vi.spyOn(fs,'rename').mockImplementation(async(from,to)=>{
+      if(to===target&&String(from).startsWith(target+'.engine-')){injected=true;await fs.unlink(target);}
+      return original(from,to);
+    });
+    try{
+      await vault.writeBinary('image.bin',new Uint8Array([9,8]),'modify');
+      expect(injected).toBe(true);
+      expect([...new Uint8Array(await vault.readBinary('image.bin'))]).toEqual([9,8]);
+      expect((await fs.readdir(root)).some(name=>name.includes('.engine-'))).toBe(false);
+    }finally{rename.mockRestore();}
+  });
+  it('keeps original binary bytes on partial temporary-write failures and cleans debris',async()=>{
+    const original=fs.writeFile;
+    await vault.writeBinary('image.bin',new Uint8Array([1,2,255]),'create');
+    const write=vi.spyOn(fs,'writeFile').mockImplementation(async(file,data,options)=>{
+      if(String(file).includes('.engine-')){await original(file,new Uint8Array([8]),options);throw new Error('Injected disk-full failure');}
+      return original(file,data,options);
+    });
+    try{
+      for(const mode of ['modify','write']){
+        await expect(vault.writeBinary('image.bin',new Uint8Array([9,9]),mode)).rejects.toThrow('disk-full');
+        expect([...new Uint8Array(await vault.readBinary('image.bin'))]).toEqual([1,2,255]);
+        expect((await fs.readdir(root)).some(name=>name.includes('.engine-'))).toBe(false);
+      }
+      await expect(vault.writeBinary('new.bin',new Uint8Array([9]),'create')).rejects.toThrow('disk-full');
+      await expect(fs.stat(path.join(root,'new.bin'))).rejects.toThrow();
+    }finally{write.mockRestore();}
+  });
+  it('excludes a plugin whose stylesheet exceeds the bounded reader limit',async()=>{
+    const dir=path.join(root,'.crafactory/plugins/oversized');await fs.mkdir(dir,{recursive:true});
+    await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id:'oversized',name:'Oversized',version:'1'}));await fs.writeFile(path.join(dir,'main.js'),'module.exports={};');await fs.writeFile(path.join(dir,'styles.css'),Buffer.alloc(4*1024*1024+1));
+    expect(await vault.plugins()).toEqual([]);
+  });
+  it('does not recreate a modify target deleted while its replacement was staged',async()=>{
+    const full=path.join(root,'removed.bin');await fs.writeFile(full,new Uint8Array([1]));
+    const original=fs.writeFile,write=vi.spyOn(fs,'writeFile').mockImplementation(async(file,...args)=>{const result=await original(file,...args);if(String(file).startsWith(full+'.engine-'))await fs.unlink(full);return result;});
+    try{await expect(vault.writeBinary('removed.bin',new Uint8Array([2]),'modify')).rejects.toThrow();await expect(fs.stat(full)).rejects.toThrow();expect((await fs.readdir(root)).filter(name=>name.includes('.engine-'))).toEqual([]);}finally{write.mockRestore();}
+  });
+  it('round-trips exact binary view slices with create-only and modify-existing semantics',async()=>{
+    const buffer=new Uint8Array([99,0,255,128,99]),slice=buffer.subarray(1,4);
+    await vault.writeBinary('assets/image.bin',slice,'create');
+    expect([...new Uint8Array(await vault.readBinary('assets/image.bin'))]).toEqual([0,255,128]);
+    await expect(vault.writeBinary('assets/image.bin',new Uint8Array([4]),'create')).rejects.toThrow();
+    expect([...new Uint8Array(await vault.readBinary('assets/image.bin'))]).toEqual([0,255,128]);
+    await vault.writeBinary('assets/image.bin',new Uint8Array([7]),'modify');
+    expect([...new Uint8Array(await vault.readBinary('assets/image.bin'))]).toEqual([7]);
+    await expect(vault.writeBinary('missing.bin',slice,'modify')).rejects.toThrow();
+    await expect(fs.stat(path.join(root,'missing.bin'))).rejects.toThrow();
+  });
+  it('rejects unsafe binary paths, buffers and oversized data',async()=>{
+    for(const name of ['../escape.bin','.crafactory/secret.bin']){
+      await expect(vault.writeBinary(name,new Uint8Array([1]))).rejects.toThrow();
+      await expect(vault.readBinary(name)).rejects.toThrow();
+    }
+    await expect(vault.writeBinary('bad.bin','text')).rejects.toThrow();
+    await expect(vault.writeBinary('large.bin',new Uint8Array(64*1024*1024+1))).rejects.toThrow();
+    await expect(vault.writeBinary('shared.bin',new Uint8Array(new SharedArrayBuffer(1)))).rejects.toThrow();
+    await fs.writeFile(path.join(outside,'external.bin'),new Uint8Array([9]));
+    await fs.symlink(path.join(outside,'external.bin'),path.join(root,'link.bin'));
+    await expect(vault.readBinary('link.bin')).rejects.toThrow();
+    await expect(vault.writeBinary('link.bin',new Uint8Array([1]))).rejects.toThrow();
+    expect([...await fs.readFile(path.join(outside,'external.bin'))]).toEqual([9]);
+  });
   it('plugin create never overwrites existing content, including competing creates',async()=>{
     const results=await Promise.allSettled([vault.create('Create.md','first'),vault.create('Create.md','second')]);
     expect(results.filter(r=>r.status==='fulfilled')).toHaveLength(1);expect((await vault.read('Create.md')).content).toBe('first');
@@ -63,5 +130,15 @@ describe('local vault storage',()=>{
     await fs.writeFile(path.join(root,'.crafactory/plugins/example/manifest.json'),JSON.stringify({id:'example',name:'Example',version:'1'}));
     await fs.writeFile(path.join(root,'.crafactory/plugins/example/main.js'),'engine.notice("Hi");');
     expect(await vault.plugins()).toHaveLength(1);
+  });
+  it('discovers optional package styles and refuses oversized or escaped stylesheet packages',async()=>{
+    const dir=path.join(root,'.crafactory/plugins/styled');await fs.mkdir(dir,{recursive:true});
+    await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id:'styled',name:'Styled',version:'1'}));await fs.writeFile(path.join(dir,'main.js'),'module.exports={};');
+    expect((await vault.plugins())[0]).not.toHaveProperty('styles');
+    await fs.writeFile(path.join(dir,'styles.css'),'.fixture {color:red}');
+    expect((await vault.plugins())[0].styles).toBe('.fixture {color:red}');
+    await fs.writeFile(path.join(dir,'styles.css'),'x'.repeat(4*1024*1024+1));expect(await vault.plugins()).toEqual([]);
+    await fs.rm(path.join(dir,'styles.css'));await fs.writeFile(path.join(outside,'private.css'),'private');
+    await fs.symlink(path.join(outside,'private.css'),path.join(dir,'styles.css'));expect(await vault.plugins()).toEqual([]);
   });
 });

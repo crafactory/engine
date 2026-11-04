@@ -16,6 +16,13 @@ the functional rows unless stated otherwise; pinned default-Worker runs still fa
 
 ## Status legend
 
+Delivery remains gated by the live [PR #72 review](https://github.com/crafactory/engine/pull/72).
+The binary modify path has a reproduced external-deletion race between its final identity
+check and rename publication; it is not atomic replace-only-if-existing. The maintainer
+explicitly accepted that narrow risk on 2026-11-04 without a complex storage rewrite; the
+contract and regression retain the limitation, not a claim of repair. All other review
+findings and latest-head review/CI remain independent merge gates.
+
 | Mark | Meaning |
 |---|---|
 | ✅ | Named bounded workflow(s) pass with real UI/input and persisted effects |
@@ -30,24 +37,24 @@ It does **not** certify commands, views, rendering, menus, settings behavior or 
 
 | Plugin | Pinned release | Outcome | Verified workflows | Main boundary / next step |
 |---|---|---|---|---|
-| Tasks | `8.6.0` | `BOUNDED_WORKFLOWS_PASS` | Cross-note `not done` query excludes completed tasks; completion writes the original note and removes it from the query | Recoverable `metadataTypeManager` warning; other queries, recurrence, dialogs and property-type integration unverified |
-| Excalidraw | `2.29.1` | `STARTUP_ONLY` | Clean bounded startup observation | Drawing/edit/reopen not certified |
-| Git | `2.42.0` | `UNSUPPORTED_STARTUP` | None | Requires reviewed native capabilities; `require path` rejects |
+| Tasks | `8.6.0` | `BOUNDED_WORKFLOWS_WITH_ERRORS` | Cross-note `not done` query excludes completed tasks; completion writes the original note and removes it from the query | Recoverable `metadataTypeManager` error retained; other queries, recurrence, dialogs and property-type integration unverified |
+| Excalidraw | `2.29.1` | `BOUNDED_WORKFLOWS_WITH_ERRORS` | Explicit native profile: pointer-drawn rectangle, exact saved scene, document switch and application restart/re-enable/reopen | Private core Canvas integration rejects; additional tools, export and embedding unverified |
+| Git | `2.42.0` | `BOUNDED_WORKFLOWS_PASS` | Explicit native profile: real index stage, specific-message commit, push to disposable local bare remote, peer-commit pull and editor refresh | Authenticated remotes, signing, hooks, diff, backup and conflicts unverified |
 | Copilot | `4.0.17` | `STARTUP_WITH_ERRORS` | None | Background initialization fails at `App.secretStorage`; inference/indexing/chat unverified |
 | Style Settings | `1.0.9` | Startup observation only | None | Theme/snippet/CSS round-trip acceptance unfinished |
-| Kanban | `2.0.51` | `UNSUPPORTED_STARTUP` | None | Private `App.embedRegistry` unavailable; text-file views alone do not certify boards |
+| Kanban | `2.0.51` | `BOUNDED_WORKFLOWS_WITH_ERRORS` | Real board/list creation and Markdown persistence, switch/restart/re-enable/reopen; negative card-submission acceptance retains its failure | Card parser fails on undefined `has`; embedded focus reports missing `setTimeout`. Card editing/completion/move/conversion not supported |
 | **Dataview** | `0.5.70` / manifest `0.5.68` | ✅ `BOUNDED_WORKFLOWS_PASS` | `TABLE`, `TASK`, `LIST FROM`, `WHERE`, `SORT`/`LIMIT`, `GROUP BY`, `FLATTEN`, inline query, DataviewJS, `dv.view` | Not full query/frontmatter/view semantics; DataviewJS and `dv.view` need 🔒 desktop `unsafe-eval` |
 | **Reading Time** | `1.1.2` | ✅ `BOUNDED_WORKFLOWS_PASS` | 400-word test at 200 wpm; speed setting persists; reading/source transition; editor change 8 min; selected-text modal; disable/re-enable | Format variants, invalid input, timing and multiple leaves remain unverified |
 | **Templater** | `2.26.0` | ✅ `BOUNDED_WORKFLOWS_PASS` | Template folder, toggle and dropdown settings persist across restart; dangerous trigger-on-creation cancel/confirm and startup acknowledgement persist locally; template hotkey list add/delete persists; startup template runs after restart and creates an exact note; user script function inserts exact output; insert template into the active note; exact inserted content persists; disable/re-enable re-registers the command; create a new note from a template and open its exact content | Other dangerous settings (system commands), other startup/user-script functions, other lists, number validation and shell/system functions remain unverified |
 | **Calendar (Beta)** | `2.0.0-beta.2` | ✅ `BOUNDED_WORKFLOWS_PASS` | Opens the calendar view; creates today's daily note from the configured folder/template; exact note content and open state | Week numbers, other dates/navigation, context menus, calendar settings and mobile behavior remain unverified |
 | **Advanced Tables** | `0.23.2` | ✅ `BOUNDED_WORKFLOWS_PASS` | **Format table at the cursor** in live mode; exact editor/disk formatting persists | Source-mode command availability, navigation, row/column edits, sort, formulas and CM5/CM6 edge cases remain unverified |
 
-Evidence references: Dataview from pinned Linux corpus workflow `41042973930`; Templater
-insertion from the local macOS desktop corpus run on 2026-11-03 (pinned Linux rerun still
-pending); Reading Time from its bounded corpus run; Calendar/Advanced Tables retain their latest
-pinned startup results. Exact hashes and timestamps are in
-[renderer-community-results.json](compatibility/renderer-community-results.json); the Templater
-entry there is still the older Linux `STARTUP_ONLY` record until the next Linux run replaces it.
+The current pinned Linux corpus evidence, exact grants, hashes, errors and timestamps are in
+[renderer-community-results.json](compatibility/renderer-community-results.json).
+Earlier per-plugin/macOS observations are historical, not a substitute for that complete run.
+The [native profile](NATIVE-PLUGIN-PERMISSIONS.md) requires explicit confirmation and restart,
+grants every renderer script full operating-system-user access, and is not per-plugin isolation.
+Default Worker/renderer execution does not receive Node access; eval is separately authorized.
 
 ## Dataview detail
 
@@ -179,7 +186,7 @@ and has explicit rejection or documented gaps for the rest.
 | Editor / CodeMirror | 🟡 | CM6 provider, selection/mutation host, plugin extensions, editor suggest, `editorInfoField`/`editorLivePreviewField`, bounded CM5 shim and `Editor.getDoc` document view | Multiple leaves, undocumented CM internals and a real CM5 Doc object are unsupported |
 | Markdown processors | ✅ | Reading post-processors, named code processors, `MarkdownRenderChild`, static sanitized renderer, opt-in live block previews | Live processors are opt-in block kinds, not full reference Live Preview |
 | DOM / UI components | 🟡 | Bounded HTMLElement/DocumentFragment helpers, global `createEl`/`createDiv`/`createSpan`, Modal, ConfirmationModal, Menu/MenuItem, Settings, declarative `getSettingDefinitions` rendering, AbstractInputSuggest, FuzzySuggestModal, View/ItemView/FileView/WorkspaceLeaf | Full settings navigation/search/list semantics, theme icons, menus, popovers, mobile and accessibility parity unverified |
-| Network / Node modules | ❌ | `util`, refusing `child_process` shims and `moment` as the bounded date library | No `requestUrl`, `fs`, `path`, arbitrary npm or Electron Node |
+| Network / Node modules | ❌ | Default profile: bounded `util`, refusing `child_process` and host `moment`. Explicit native profile: real entry-module Node `require`, with host CodeMirror/Lezer/`moment` identity retained | Default profile: no `requestUrl`, `fs`, `path`, arbitrary npm or Electron Node. Native profile still lacks `requestUrl`; see [native permissions](NATIVE-PLUGIN-PERMISSIONS.md) |
 | CSP / security | 🔒 | Default entry is `script-src 'self' blob:` (no `unsafe-eval` or `wasm-unsafe-eval`); desktop `trusted.html` opt-in adds both; native confirmation + restart | Trusted renderer is **not** sandboxed; `unsafe-eval` is a deliberate risk; the default entry has no verified WebAssembly-only workflow |
 | Plugin discovery / distribution | ❌ | Local `.crafactory/plugins/<id>/{manifest.json,main.js}` only | No `.obsidian` discovery, marketplace, updates, dependency install or signatures |
 
