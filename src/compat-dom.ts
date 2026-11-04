@@ -69,6 +69,16 @@ export class Menu {
 const element=(tag:string,parent?:HTMLElement,cls='')=>{const el=document.createElement(tag);el.className=cls;parent?.append(el);return el;};
 /** Install shared DOM conveniences once without replacing browser-provided implementations. */
 export function installDomHelpers(){
+  /** Documents own themselves; detached nodes fall back only when they have no owner. */
+  const nodeDocument=(node:Node):Document=>node.nodeType===9?node as Document:node.ownerDocument??document;
+  /** Prefer the event's native view, then the document of its dispatched DOM target. */
+  const eventDocument=(event:UIEvent):Document=>{
+    const target=event.target as Node|null;
+    const targetWindow=event.target as Window|null;
+    return event.view?.document??(target&&typeof target.nodeType==='number'?nodeDocument(target):targetWindow?.window===targetWindow?targetWindow.document:document);
+  };
+  for(const [name,get]of Object.entries({doc(this:Node){return nodeDocument(this);},win(this:Node){return nodeDocument(this).defaultView??window;}}))if(!(name in Node.prototype))Object.defineProperty(Node.prototype,name,{configurable:true,get});
+  for(const [name,get]of Object.entries({doc(this:UIEvent){return eventDocument(this);},win(this:UIEvent){const target=this.target as Window|null;return this.view??(target?.window===target?target:null)??eventDocument(this).defaultView??window;}}))if(!(name in UIEvent.prototype))Object.defineProperty(UIEvent.prototype,name,{configurable:true,get});
   for(const [name,value]of Object.entries({first(this:unknown[]){return this[0];},last(this:unknown[]){return this[this.length-1];}}))if(!(name in Array.prototype))Object.defineProperty(Array.prototype,name,{value,configurable:true,writable:true});
   if(!('instanceOf' in Node.prototype))Object.defineProperty(Node.prototype,'instanceOf',{configurable:true,writable:true,value:function(this:Node,type:new()=>unknown){
     if(this instanceof type)return true;
@@ -91,8 +101,6 @@ export function installDomHelpers(){
   };
   for(const prototype of [HTMLElement.prototype,Document.prototype])for(const [name,value]of Object.entries({on,off}))if(!(name in prototype))Object.defineProperty(prototype,name,{value,configurable:true,writable:true});
   const globalWindow=window as unknown as Record<string,unknown>;
-  if(!('doc' in Node.prototype))Object.defineProperty(Node.prototype,'doc',{get(){return this.nodeType===9?this:this.ownerDocument;},configurable:true});
-  if(!('win' in Node.prototype))Object.defineProperty(Node.prototype,'win',{get(){return (this.nodeType===9?this:this.ownerDocument)?.defaultView;},configurable:true});
   if(typeof globalWindow.activeWindow==='undefined')globalWindow.activeWindow=window;
   if(typeof globalWindow.activeDocument==='undefined')globalWindow.activeDocument=document;
   if(typeof globalWindow.global==='undefined')globalWindow.global=window;
@@ -445,6 +453,26 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     close(){this.generation++;super.close();}
   }
   let app:any,nativeMarkdownView:any;
+  const embeddedEditors=new Set<EditorView>();
+  const knownEmbeddedEditors=new WeakSet<EditorView>();
+  let focusedEditor:{info:any;view:EditorView;path:string|null}|null=null;
+  /** Retain context through palette focus, but not file changes, foreign editors or disposal. */
+  const getActiveEditor=()=>{
+    const focused=focusedEditor;if(!focused)return null;
+    const current=app.workspace.getActiveFile()?.path??null;
+    if(!embeddedEditors.has(focused.view)||!focused.view.dom.isConnected||focused.path!==current||(focused.info.file?.path??null)!==current||focused.info.editor?.cm!==focused.view){focusedEditor=null;return null;}
+    return focused.info;
+  };
+  /** Admit only owned focused editors; ignore timers that run after their editor lost focus. */
+  const setActiveEditor=(info:any)=>{
+    if(info===null){focusedEditor=null;return;}
+    const editor=info?.editor,view=editor?.cm,path=info?.file?.path??null,current=app.workspace.getActiveFile()?.path??null;
+    if(!(editor instanceof Editor)||!knownEmbeddedEditors.has(view))throw new Error('Active editor must belong to this plugin runtime');
+    if(!embeddedEditors.has(view))return;
+    if(view.dom.isConnected&&view.dom.contains(view.dom.ownerDocument.activeElement)&&path===current)focusedEditor={info,view,path};
+  };
+  /** Another CodeMirror surface replaces focus context; palettes and menus retain it. */
+  const editorFocused=(event:FocusEvent)=>{const target=event.target;if(focusedEditor&&target instanceof Element&&target.closest('.cm-editor')&&!focusedEditor.view.dom.contains(target))focusedEditor=null;};
   class DOMEditorSuggest<T=unknown> extends EditorSuggest<T>{
     containerEl=element('div',undefined,'suggestion-container');
     suggestEl=element('div',this.containerEl,'suggestion');
@@ -454,6 +482,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   const scope=new Scope(new Scope()),modalScopes:Scope[]=[];
   const keymap=new Keymap(scope,modalScopes);
   const dispatchKey=(event:KeyboardEvent)=>{if(!event.defaultPrevented)try{keymap.dispatch(event);}catch(error){onError(error);}};
+  document.addEventListener('focusin',editorFocused);
   document.addEventListener('keydown',dispatchKey);
   class View extends Component {
     leaf:any;app:any;containerEl:HTMLElement;icon='file';navigation=false;
@@ -574,8 +603,8 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       if(!(this.containerEl instanceof HTMLElement))throw new Error('Embedded Markdown editor requires a container');
       const send=(_base:string,text:string,from:number,to:number)=>{this.cm.dispatch({changes:{from:0,to:this.cm.state.doc.length,insert:text},selection:{anchor:from,head:to}});};
       this.editor=new Editor({text:'',from:0,to:0},send);
-      this.cm=new EditorView({parent:this.containerEl,state:EditorState.create({extensions:[markdown(),history(),this.localExtensions.of([]),cmKeymap.of([...defaultKeymap,...historyKeymap]),EditorView.contentAttributes.of({'aria-label':'Embedded Markdown editor'}),EditorView.updateListener.of(update=>{if(update.docChanged){this.revision++;this.editor=new Editor({text:update.state.doc.toString(),from:update.state.selection.main.from,to:update.state.selection.main.to},send);this.editor.cm=this.cm;}this.onUpdate(update);})]})});
-      this.editor.cm=this.cm;this.register(()=>this.cm.destroy());
+      this.cm=new EditorView({parent:this.containerEl,state:EditorState.create({extensions:[markdown(),history(),this.localExtensions.of([]),cmKeymap.of([...defaultKeymap,...historyKeymap]),EditorView.contentAttributes.of({'aria-label':'Embedded Markdown editor'}),EditorView.updateListener.of(update=>{if(update.docChanged||update.selectionSet){if(update.docChanged)this.revision++;this.editor=new Editor({text:update.state.doc.toString(),from:update.state.selection.main.from,to:update.state.selection.main.to},send);this.editor.cm=this.cm;}this.onUpdate(update);})]})});
+      this.editor.cm=this.cm;embeddedEditors.add(this.cm);knownEmbeddedEditors.add(this.cm);this.register(()=>{embeddedEditors.delete(this.cm);if(focusedEditor?.view===this.cm)focusedEditor=null;this.cm.destroy();});
       return guardCompatibilityObject(this,'EmbeddedSource',traceEmbed);
     }
     set(text:string){if(typeof text!=='string')throw new Error('Embedded editor text must be a string');if(text!==this.get())this.cm.dispatch({changes:{from:0,to:this.cm.state.doc.length,insert:text},annotations:Transaction.addToHistory.of(false)});}
@@ -623,7 +652,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   return {
     setApp(value:any){app=value;nativeMarkdownView=reusableLeaf.view?.constructor;},
-    scope,keymap,
+    scope,keymap,getActiveEditor,setActiveEditor,
     reportError:onError,
     embedRegistry,
     exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,FileView,TextFileView,WorkspaceLeaf,EditorSuggest:DOMEditorSuggest,AbstractInputSuggest,SuggestModal,FuzzySuggestModal,Keymap,Scope,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,Menu:OwnedMenu,MenuItem,addIcon,getIcon,getIconIds,setIcon,
@@ -753,6 +782,6 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       return {element:mounted.containerEl,dispose:()=>{queueMicrotask(()=>{if(viewMounts.get(mounted)!==token)return;viewMounts.delete(mounted);void mounted.detach(false).catch(onSaveError);});}};
     },
     /** Dispose processor children, visible UI and editor registrations after owner stop. */
-    async dispose(){document.removeEventListener('keydown',dispatchKey);for(const menu of [...menus])menu.hide();menus.clear();processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach(false);for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();for(const suggest of suggests)suggest.close();suggests.clear();protocolHandlers.clear();hoverSources.clear();basesFactories.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
+    async dispose(){document.removeEventListener('keydown',dispatchKey);document.removeEventListener('focusin',editorFocused);focusedEditor=null;for(const menu of [...menus])menu.hide();menus.clear();processorsStopped=true;await stopProcessors(processors);processors.clear();for(const modal of modals)modal.close();for(const leaf of [...leaves])await leaf.detach(false);for(const el of resources)el.remove();for(const tab of tabs)tab.hide();tabs.clear();for(const suggest of suggests)suggest.close();suggests.clear();protocolHandlers.clear();hoverSources.clear();basesFactories.clear();extensions.splice(0);onTabs([]);onExtensions([]);}
   };
 }

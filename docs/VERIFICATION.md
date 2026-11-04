@@ -5,6 +5,54 @@
 > plugin status see [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); for API boundaries
 > see [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md).
 
+## Kanban cards, DOM ownership and focused editor routing
+
+On 2026-11-04 UTC, the original host changes in [PR #73](https://github.com/crafactory/engine/pull/73)
+passed inventory validation, 866 units across 49 files, TypeScript/production build, all 64
+browser tests and all 95 Electron desktop tests. All eleven pinned Worker and eleven renderer
+cases executed without skips. Both published reports were regenerated exclusively from
+`/tmp/engine-pr73-complete-{renderer,worker}`. Renderer outcomes are seven bounded passes,
+two bounded passes with errors, one startup with errors and one startup-only observation.
+Worker refusals remain negative evidence. The existing bundle-size warning remains.
+
+The unchanged Kanban input now creates an unchecked card, saves its exact Markdown, switches
+documents and survives application restart/re-enable/reopen with the visible saved card.
+The complete run records no Kanban runtime or console errors; the outcome ratchet no longer
+permits the old `has`/`setTimeout` failures. This does not establish completion, later editing,
+list/card movement, pointer dragging, conversion or cross-plugin integration.
+
+Original regressions cover eighteen Node/UIEvent document/window ownership checks, actual
+focus and timer behavior, foreign window/document targets, detached documents and no
+Object.prototype pollution. Another regression replaces selected embedded text through the
+actual command palette while preserving the native file, then checks file-switch
+invalidation, retired editor assignments and foreign-object rejection. These same two
+regressions and the real Kanban workflow pass against the actual Linux packaged executable
+at `/tmp/engine-pr73-package/linux-unpacked/crafactory-engine` (three tests). This is bounded
+Linux runtime acceptance, not native Windows/macOS or installer/release acceptance.
+
+The ownership regression fails against the unchanged packaged PR #72 executable, recorded in
+`/tmp/engine-pr73-focus-baseline.log`. Earlier candidates exposed read-only activeEditor,
+optional-delegate TypeScript, a harness variable typo and an obsolete expected-error ratchet;
+those failed runs remain separate from acceptance. An initial packaged command selected a
+nonexistent `engine` filename and all three cases failed to launch with ENOENT; the corrected
+command selects `crafactory-engine` and passes. The failed invocation is not a product result.
+Logs are `/tmp/engine-pr73-complete-{check,browser,desktop}.log`,
+`/tmp/engine-pr73-packaged-{desktop,acceptance}.log` and `/tmp/engine-pr73-focus*-*.log`.
+
+The enabled-plugin Set is lifecycle-owned and own-runtime only, including cleanup on failed
+construction/startup and throwing shutdown. Embedded focus routing is also scoped to its
+owning runtime; it is not shared plugin discovery or cross-plugin editor context. Native
+profile trust and the previously accepted binary publication race are unchanged.
+Use the PR for effective review, exact-head cloud checks and merge state; these local
+results do not claim those external steps have completed.
+
+The [effective CodeRabbit implementation review](https://github.com/crafactory/engine/pull/73#issuecomment-6621975902)
+completed successfully on `0a84173` with no actionable comments and no established blocking
+defect. Later changes only align reports/documentation. Automatic review of those later
+commits is skipped because the repository has fewer than ten stars; no optional manual
+repeat is requested under the maintainer's bounded-review instruction. This completed
+review is not a claim of formal GitHub approval or a substitute for exact-head cloud checks.
+
 ## Third-review recovery, stylesheet identity and trust-profile repairs
 
 On 2026-11-04 UTC, the completed review of `ead4e7a` identified four further inline

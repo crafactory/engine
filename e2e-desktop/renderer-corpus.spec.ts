@@ -306,11 +306,11 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.locator('.plugin-view-pane').getByText('Add a card').click();
       await page.getByRole('textbox',{name:'Embedded Markdown editor',exact:true}).fill('Compatibility card');
       await page.getByRole('textbox',{name:'Embedded Markdown editor',exact:true}).press('Enter');
-      // Negative acceptance preserves the actual failure; lists alone are not full board support.
-      await expect.poll(()=>consoleErrors.some(error=>error.includes("Cannot read properties of undefined (reading 'has')"))).toBe(true);
-      expect(await fs.readFile(path.join(root,boardPath),'utf8')).not.toContain('Compatibility card');
+      await expect.poll(async()=>(await fs.readFile(path.join(root,boardPath),'utf8')).includes('- [ ] Compatibility card')).toBe(true);
+      await expect(page.locator('.plugin-view-pane').getByText('Compatibility card',{exact:true})).toBeVisible();
       await page.getByTestId('file-Test.md').click();await page.getByTestId('file-'+boardPath).click();
       await expect(page.locator('.plugin-view-pane').getByText('Tasks',{exact:true})).toBeVisible();
+      await expect(page.locator('.plugin-view-pane').getByText('Compatibility card',{exact:true})).toBeVisible();
       await app.close();app=await launch();page=await app.firstWindow();trackPage();
       await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
       const restartedControl=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});await restartedControl.click();await page.getByTestId('dialog-submit').click();await expect(restartedControl).toBeChecked();await page.getByTestId('settings-close').click();
@@ -321,9 +321,11 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
         await page.locator('.palette-list button').filter({hasText:/Toggle between Kanban and markdown mode$/}).click();
       }
       await expect(page.locator('.plugin-view-pane').getByText('Tasks',{exact:true})).toBeVisible();
-      expect(await fs.readFile(path.join(root,boardPath),'utf8')).not.toContain('Compatibility card');
-      outcome='BOUNDED_WORKFLOWS_WITH_ERRORS';blocker="Card creation remains blocked: Cannot read properties of undefined (reading 'has'); embedded focus also reports missing setTimeout";
-      workflows=['create board Markdown via plugin command','create real list using embedded Markdown input and verify Markdown save','negative acceptance: card Enter reports parser failure and does not persist a card','switch documents and retain the board','restart application, re-enable plugin and reopen the saved list; cards/completion/moves remain unsupported'];
+      await expect(page.locator('.plugin-view-pane').getByText('Compatibility card',{exact:true})).toBeVisible();
+      expect(await fs.readFile(path.join(root,boardPath),'utf8')).toContain('- [ ] Compatibility card');
+      expect([...pageErrors,...consoleErrors]).toEqual([]);
+      outcome='BOUNDED_WORKFLOWS_PASS';blocker="None in the tested board/list/card workflow; completion and moves remain unverified";
+      workflows=['create board Markdown via plugin command','create real list using embedded Markdown input and verify Markdown save','submit a real card and verify unchecked Markdown persistence','switch documents and retain the saved board, list and card','restart application, re-enable plugin and reopen the saved list and card; completion/moves remain unverified'];
     }
     if(outcome==='STARTUP_ONLY'){
       if(plugin.name==='Excalidraw'){await page.waitForTimeout(750);for(const button of await page.getByRole('button',{name:'Close plugin modal',exact:true}).all())await button.click();}
@@ -336,10 +338,10 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
     }
     if(plugin.name==='Tasks'&&outcome==='BOUNDED_WORKFLOWS_PASS'&&consoleErrors.some(error=>error.startsWith('setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager.'))){outcome='BOUNDED_WORKFLOWS_WITH_ERRORS';blocker='App.metadataTypeManager remains unsupported; task query/completion workflows passed with the recorded property-type error';}
     // A diagnostic refusal is not an acceptable regression for an already proven workflow.
-    if(!['Copilot','Style Settings'].includes(plugin.name))expect(outcome).toBe(['Excalidraw','Tasks','Kanban'].includes(plugin.name)?'BOUNDED_WORKFLOWS_WITH_ERRORS':'BOUNDED_WORKFLOWS_PASS');
+    if(!['Copilot','Style Settings'].includes(plugin.name))expect(outcome).toBe(['Excalidraw','Tasks'].includes(plugin.name)?'BOUNDED_WORKFLOWS_WITH_ERRORS':'BOUNDED_WORKFLOWS_PASS');
     if(outcome==='BOUNDED_WORKFLOWS_PASS')expect(pageErrors).toEqual([]);
     if(outcome==='BOUNDED_WORKFLOWS_WITH_ERRORS')expect(pageErrors.filter(error=>error!=='Unsupported Obsidian capability: Obsidian core Canvas plugin. See docs/PLUGIN-COMPATIBILITY.md.')).toEqual([]);
-    if(outcome.startsWith('BOUNDED_WORKFLOWS_'))expect(consoleErrors.filter(error=>/\b(?:CompatibilityError|TypeError|ReferenceError|Error):/.test(error)&&!(plugin.name==='Kanban'&&/^TypeError: Cannot read properties of undefined \(reading '(?:has|setTimeout)'\)/.test(error))&&!(plugin.name==='Tasks'&&error.startsWith('setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager.')))).toEqual([]);
+    if(outcome.startsWith('BOUNDED_WORKFLOWS_'))expect(consoleErrors.filter(error=>/\b(?:CompatibilityError|TypeError|ReferenceError|Error):/.test(error)&&!(plugin.name==='Tasks'&&error.startsWith('setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager.')))).toEqual([]);
     const platform=process.platform==='linux'?'Linux x64 Electron':process.platform==='darwin'?'macOS '+process.arch+' Electron':process.platform+' '+process.arch+' Electron';
     const nativeEnabled=await page.evaluate(()=>typeof (window as any).require==='function');expect(nativeEnabled).toBe(needsNative);
     const unsafeEvalEnabled=await page.evaluate(()=>window.engine!.unsafeEval!());expect(unsafeEvalEnabled).toBe(needsEval);

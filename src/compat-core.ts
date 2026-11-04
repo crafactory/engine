@@ -39,6 +39,7 @@ export interface CompatNativeServices {
   /** Bounded daily-note settings exposed through the synthetic Daily Notes internal plugin. */
   dailyNotes?: {folder:string;format:string;template:string};
 }
+export interface CompatActiveEditor {file:TFile|null;editor:Editor}
 export interface CompatHost {
   request(operation:string,args:unknown[]):Promise<unknown>;
   commands(commands:{id:string;name:string}[]):void;
@@ -48,6 +49,8 @@ export interface CompatHost {
   ui?:{
     scope?:unknown;
     keymap?:unknown;
+    getActiveEditor?():CompatActiveEditor|null;
+    setActiveEditor?(info:CompatActiveEditor|null):void;
     embedRegistry?:unknown;
     reportError?:(error:unknown)=>void;
     exports:Record<string,unknown>;workspace:Record<string,unknown>;
@@ -419,7 +422,10 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     getActiveFile(){return vault.getFileByPath(snapshot.active);}
     getActiveViewOfType(type:unknown):any{if(host.ui){if(typeof type!=='function')return unsupported('Workspace.getActiveViewOfType invalid type');const view=(host.ui.workspace.activeLeaf as any)?.view;return view instanceof type?view:null;}return type===MarkdownView&&editor?new MarkdownView():null;}
     iterateAllLeaves(_callback:(leaf:unknown)=>void){return unsupported('Workspace.iterateAllLeaves');}
-    get activeEditor(){return editor?{file:this.getActiveFile(),editor}:null;}
+    /** Prefer an owned embedded focus context while preserving the native editor fallback. */
+    get activeEditor():CompatActiveEditor|null{return host.ui?.getActiveEditor?.()??(editor?{file:this.getActiveFile(),editor}:null);}
+    /** Delegate focus admission to the renderer; workers cannot fabricate DOM editor ownership. */
+    set activeEditor(info:CompatActiveEditor|null){const set=host.ui?.setActiveEditor;if(!set){unsupported('Workspace.activeEditor assignment');return;}set.call(host.ui,info);}
     onLayoutReady(callback:()=>void){callback();}
     /** Internal exact-path open used by workspace leaves; not a reference method. */
     async openPath(path:string){if(typeof path!=='string'||!path)throw new Error('Invalid open path');await request('open',[path]);}
@@ -519,7 +525,8 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   const canvasPlugin={enabled:false,_loaded:false,instance:null,load:()=>unsupported('Obsidian core Canvas plugin')};
   const internalPluginInstances={'daily-notes':dailyPlugin,canvas:canvasPlugin};
   const internalPlugins={plugins:host.trace?new Proxy(internalPluginInstances,{get(target,key,receiver){if(typeof key==='string')host.trace?.('InternalPlugins.plugins.'+key);return Reflect.get(target,key,receiver);}}):internalPluginInstances,getPluginById:(id:string)=>id==='daily-notes'?dailyPlugin:id==='canvas'?canvasPlugin:null};
-  const plugins={plugins:{} as Record<string,Plugin>,getPlugin:(id:string)=>id===manifest.id?plugin??null:null};
+  // This bounded manager exposes only its own runtime, not other plugins' APIs.
+  const plugins={plugins:Object.create(null) as Record<string,Plugin>,enabledPlugins:new Set<string>(),getPlugin:(id:string):Plugin|null=>id===manifest.id?plugins.plugins[id]??null:null};
   const foldManager={load:(_file:TFile)=>({folds:[]}),save:async(_file:TFile,_info:unknown)=>{}};
   type Hotkey={modifiers:string[];key:string};
   const savedHotkeys=host.ui?loadLocalStorage('engine.hotkeys.'+manifest.id):null;
@@ -609,10 +616,12 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     editor=snapshot.editor?new Editor(snapshot.editor,(base,text,from,to)=>{const result=mutate('editor',[path,base,text,from,to]);editorWrites.add(result);result.then(()=>editorWrites.delete(result),()=>{});return result;}):null;
   }
   initEditor();
+  /** Check and run commands against the admitted editor context rather than a different host draft. */
   function available(command:CompatCommand,checking:boolean){
     let result:unknown;
-    if(command.editorCheckCallback){if(!editor)return false;result=command.editorCheckCallback(checking,editor,new MarkdownView());}
-    else if(command.editorCallback){if(!editor)return false;if(!checking)result=command.editorCallback(editor,new MarkdownView());else return true;}
+    const focused=host.ui?.getActiveEditor?.(),active=focused?.editor??editor,context=focused??new MarkdownView();
+    if(command.editorCheckCallback){if(!active)return false;result=command.editorCheckCallback(checking,active,context);}
+    else if(command.editorCallback){if(!active)return false;if(!checking)result=command.editorCallback(active,context);else return true;}
     else if(command.checkCallback)result=command.checkCallback(checking);
     else {if(!checking)return command.callback?.();return true;}
     if(checking&&result&&typeof (result as any).then==='function')return unsupported('Command async checking callback');
@@ -703,10 +712,15 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     app,api,settle,
     sync(next:PluginSnapshot){refresh(next,true);publish();},
     /** Await actual initialization even when public repeated load calls return immediately. */
-    async boot(constructor:any){if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');plugin=new constructor(app,manifest);plugins.plugins[manifest.id]=plugin!;await Promise.all([plugin!.load(),componentLifecycle(plugin!,'startup')]);await plugin!.onUserEnable();await settle();publish();metadataCache.trigger('resolved');if(host.ui)workspace.trigger('layout-change');},
+    async boot(constructor:any){
+      if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');
+      plugins.enabledPlugins.add(manifest.id);
+      try{plugin=new constructor(app,manifest);plugins.plugins[manifest.id]=plugin!;await Promise.all([plugin!.load(),componentLifecycle(plugin!,'startup')]);await plugin!.onUserEnable();await settle();publish();metadataCache.trigger('resolved');if(host.ui)workspace.trigger('layout-change');}
+      catch(error){plugins.enabledPlugins.delete(manifest.id);delete plugins.plugins[manifest.id];throw error;}
+    },
     async run(id:string){if(unloaded)throw new Error('Plugin is unloaded');initEditor();const command=commands.get(id);if(!command)throw new Error('Command not found');if(!available(command,true))throw new Error('Command unavailable');await available(command,false);await settle();},
     /** Keep the request fence open until actual hook/cleanup work and data operations settle. */
-    async stop(){if(unloaded)return;try{if(plugin)await Promise.all([plugin.unload(),componentLifecycle(plugin,'shutdown')]);await settle();}finally{for(const id of hotkeyBindings.keys())removeHotkeys(id);delete plugins.plugins[manifest.id];commands.clear();host.commands([]);unloaded=true;releaseApp(app);}},
+    async stop(){if(unloaded)return;try{if(plugin)await Promise.all([plugin.unload(),componentLifecycle(plugin,'shutdown')]);await settle();}finally{for(const id of hotkeyBindings.keys())removeHotkeys(id);plugins.enabledPlugins.delete(manifest.id);delete plugins.plugins[manifest.id];commands.clear();host.commands([]);unloaded=true;releaseApp(app);}},
     /** Deliver a hover-link event to renderer plugins with a minimal hover parent. */
     hoverLink(payload:{event:MouseEvent;source:string;targetEl:HTMLElement;linktext:string;sourcePath:string}){
       workspace.trigger('hover-link',{...payload,hoverParent:{hoverPopover:null}});

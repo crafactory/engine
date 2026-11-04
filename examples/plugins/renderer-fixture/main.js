@@ -92,6 +92,8 @@ module.exports=class extends Plugin {
     this.addCommand({id:'protocol',name:'Dispatch protocol',callback:()=>window.dispatchEvent(new CustomEvent('engine:protocol',{detail:'obsidian://fixture-protocol?value=ok'}))});
     this.addCommand({id:'view',name:'Open view',callback:async()=>{const leaf=this.app.workspace.getRightLeaf(false);await leaf.setViewState({type:'fixture-view'});await this.app.workspace.revealLeaf(leaf);}});
     this.addCommand({id:'embedded-editor',name:'Open embedded editor',callback:async()=>{await this.app.workspace.getRightLeaf(false).setViewState({type:'fixture-embedded'});}});
+    this.addCommand({id:'edit-focused',name:'Edit focused buffer',editorCallback:editor=>editor.setValue('focused command edit')});
+    this.addCommand({id:'replace-focused',name:'Replace focused selection',editorCallback:editor=>editor.replaceSelection('focused selection')});
     this.addCommand({id:'text-markdown',name:'Open Markdown as text view',callback:async()=>{await this.app.workspace.getLeaf(false).setViewState({type:'fixture-text',state:{file:'Zeta.md'}});}});
     this.addCommand({id:'reuse-file',name:'Reuse leaf for another file',callback:async()=>{await this.app.workspace.getMostRecentLeaf().setViewState({type:'fixture-text',state:{file:'Test.txt'}});}});
     this.addCommand({id:'same-view-state',name:'Update current view state',callback:async()=>{const leaf=this.app.workspace.getMostRecentLeaf(),view=leaf.view;await leaf.setViewState({type:'fixture-text',state:{file:'Test.txt'}},{probe:true});this.status.setText('View reused: '+(leaf.view===view));window.__fixtureEphemeral=leaf.getEphemeralState();}});
