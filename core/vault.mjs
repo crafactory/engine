@@ -88,6 +88,7 @@ export class Vault {
       const temporary=full+'.engine-'+crypto.randomUUID();
       // This catches changes during staging, not a deletion between the final stat and rename.
       // Portable Node rename is not an atomic replace-only-if-existing operation.
+      // The maintainer explicitly accepts this remaining recreation race; retain staged writes.
       try{await fs.writeFile(temporary,bytes,{flag:'wx'});if(original){const current=await fs.stat(full);if(!current.isFile()||current.dev!==original.dev||current.ino!==original.ino)throw new Error('CONFLICT: Binary target changed before publication');}if(mode==='create')await fs.link(temporary,full);else await fs.rename(temporary,full);}
       finally{await fs.rm(temporary,{force:true});}
       return {path:relative,version:hash(bytes)};

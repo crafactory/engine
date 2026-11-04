@@ -17,9 +17,11 @@ the functional rows unless stated otherwise; pinned default-Worker runs still fa
 ## Status legend
 
 Delivery remains gated by the live [PR #72 review](https://github.com/crafactory/engine/pull/72).
-The binary modify path still has a reproduced external-deletion race between its final identity
-check and rename publication; it is not atomic replace-only-if-existing. Successful finite
-plugin workflows below do not resolve that finding or establish release/merge readiness.
+The binary modify path has a reproduced external-deletion race between its final identity
+check and rename publication; it is not atomic replace-only-if-existing. The maintainer
+explicitly accepted that narrow risk on 2026-11-04 without a complex storage rewrite; the
+contract and regression retain the limitation, not a claim of repair. All other review
+findings and latest-head review/CI remain independent merge gates.
 
 | Mark | Meaning |
 |---|---|

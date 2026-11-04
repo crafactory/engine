@@ -63,16 +63,19 @@ regressions on unchanged `64b89c2` produced five expected failures and one alrea
 retention case; the baseline worktree was removed. Use the current logs under
 `/tmp/engine-pr72-round2-*`, not the earlier 843-unit reports, for this repair candidate.
 
-Binary finding `4458871645` is NOT resolved. A post-staging file-identity check catches deletion
-during staging, but cannot atomically require existence at rename publication. The explicit
-probe `/tmp/engine-pr72-binary-final-race.mjs` reproduced target recreation when unlink occurs
-after the final stat and immediately before rename. Do not describe that recheck as atomic or
-resolve its thread without a real repair or reviewer-accepted contract change. Reverting to
-truncate-in-place would reintroduce the earlier data-loss finding.
+On 2026-11-04 the maintainer explicitly accepted the narrow recreation race in binary finding
+`4458871645` and requested fresh CodeRabbit review, merge if otherwise clean, then continued
+plugin work. Do not complicate storage to eliminate this accepted race or claim it is fixed.
+The contract now records that decision; a deterministic regression injects deletion after
+the final stat and immediately before rename, then verifies recreation with staged bytes and
+cleanup. Existing staging failure protection and pre-publication checks remain unchanged.
+Record the acceptance on the review thread and resolve it as accepted risk, not a repair.
 
-Do not merge while this finding or any other issue remains unresolved. Request and inspect
-review of the latest repair head after pushing, but even a green check does not close the
-known race. Latest-head review and CI must be separately verified. No latest-request results
-email has been sent at this checkpoint.
+Latest-head review and CI remain mandatory independently of the accepted risk. The previous
+repair head `c664d24` passed all cloud verification, three-platform packaging and explicitly
+triggered pinned corpus checks, but its whole-source re-review was quota-blocked. Request and
+inspect a completed review of the acceptance checkpoint, fix other findings and re-review
+after fixes before merging. The previous results email was sent; this latest request has only
+received a private starting acknowledgment.
 
 Delivery must distinguish PR/review/merge state, native full-trust risk and bounded compatibility gaps. No issue creation is authorized.

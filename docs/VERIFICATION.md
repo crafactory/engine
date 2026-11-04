@@ -127,6 +127,21 @@ Final reports use only `/tmp/engine-pr72-reviewed-renderer` and
 `/tmp/engine-pr72-restart-repeat.log`. This supersedes the earlier 841-unit repair checkpoint,
 not the retained historical failures, and still does not replace completed latest-head review.
 
+## Maintainer acceptance of the binary publication race
+
+On 2026-11-04 the maintainer explicitly accepted the narrow final-check-to-rename deletion
+race from [finding 4458871645](https://github.com/crafactory/engine/pull/72#discussion_r4458871645)
+and requested another completed CodeRabbit review, merge if otherwise clean, then the next
+plugin increment. No complex storage rewrite or truncate-in-place fallback was authorized.
+The existing checks and staged-write protection remain unchanged. A new deterministic unit
+injects deletion immediately before target rename, verifies that modify recreates the target
+with the staged bytes and cleans temporary files. This is characterization of accepted
+behavior, not a fix or cross-process conditional-write guarantee.
+
+The unresolved/blocker language in the earlier checkpoint below records the decision before
+this acceptance. It no longer blocks merge by itself; other findings, completed latest-head
+review and latest-head CI still must satisfy CONTRIBUTING.
+
 ## Second native-increment review repairs
 
 The [completed review of `64b89c2`](https://github.com/crafactory/engine/pull/72#pullrequestreview-5757536733)

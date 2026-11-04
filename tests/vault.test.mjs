@@ -7,6 +7,21 @@ let root,vault,outside;
 beforeEach(async()=>{root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-vault-'));outside=await fs.mkdtemp(path.join(os.tmpdir(),'engine-outside-'));vault=await new Vault(root).init();});
 afterEach(async()=>{await fs.rm(root,{recursive:true,force:true});await fs.rm(outside,{recursive:true,force:true});});
 describe('local vault storage',()=>{
+  it('documents the accepted final-check binary deletion race without claiming conditional publication',async()=>{
+    const target=path.join(root,'image.bin'),original=fs.rename;
+    await vault.writeBinary('image.bin',new Uint8Array([1,2,255]),'create');
+    let injected=false;
+    const rename=vi.spyOn(fs,'rename').mockImplementation(async(from,to)=>{
+      if(to===target&&String(from).startsWith(target+'.engine-')){injected=true;await fs.unlink(target);}
+      return original(from,to);
+    });
+    try{
+      await vault.writeBinary('image.bin',new Uint8Array([9,8]),'modify');
+      expect(injected).toBe(true);
+      expect([...new Uint8Array(await vault.readBinary('image.bin'))]).toEqual([9,8]);
+      expect((await fs.readdir(root)).some(name=>name.includes('.engine-'))).toBe(false);
+    }finally{rename.mockRestore();}
+  });
   it('keeps original binary bytes on partial temporary-write failures and cleans debris',async()=>{
     const original=fs.writeFile;
     await vault.writeBinary('image.bin',new Uint8Array([1,2,255]),'create');
