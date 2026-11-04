@@ -11,6 +11,33 @@ function harness(native?:CompatNativeServices){
   const runtime=createCompatibilityRuntime(manifest,initial(),{ui,request,commands:()=>{},notice:()=>{},native});
   return {runtime,api:runtime.api as any,ui,iterateAllLeaves,request,settingCleanup,extensionCleanup,viewCleanup,extensionsCleanup,suggestCleanup,protocolCleanup,hoverCleanup,basesCleanup,updateOptions,ribbonCleanup,ribbonElement};
 }
+it('keeps the owned enabled-plugin Set stable across load and unload',async()=>{
+  const h=harness(),manager=h.runtime.app.plugins,enabled=manager.enabledPlugins;
+  expect(enabled).toBeInstanceOf(Set);expect(enabled.size).toBe(0);
+  class P extends h.api.Plugin{
+    onload(){expect(enabled.has(manifest.id)).toBe(true);expect(manager.getPlugin(manifest.id)).toBe(this);}
+    onunload(){expect(enabled.has(manifest.id)).toBe(true);}
+  }
+  await h.runtime.boot(P);expect(manager.enabledPlugins).toBe(enabled);expect([...enabled]).toEqual([manifest.id]);
+  expect(enabled.has('obsidian-tasks-plugin')).toBe(false);expect(manager.getPlugin('obsidian-tasks-plugin')).toBeNull();
+  await h.runtime.stop();expect(enabled.size).toBe(0);expect(manager.plugins).not.toHaveProperty(manifest.id);
+});
+it.each(['constructor','onload','onUserEnable'] as const)('removes failed %s admission from enabled plugins',async phase=>{
+  const h=harness(),manager=h.runtime.app.plugins;
+  class P extends h.api.Plugin{
+    constructor(...args:any[]){super(...args);if(phase==='constructor')throw new Error('admission failed');}
+    onload(){if(phase==='onload')throw new Error('admission failed');}
+    onUserEnable(){if(phase==='onUserEnable')throw new Error('admission failed');}
+  }
+  await expect(h.runtime.boot(P)).rejects.toThrow('admission failed');
+  expect(manager.enabledPlugins.size).toBe(0);expect(manager.plugins).not.toHaveProperty(manifest.id);expect(manager.getPlugin(manifest.id)).toBeNull();
+  await h.runtime.stop();
+});
+it('revokes enabled-plugin admission even when plugin shutdown fails',async()=>{
+  const h=harness(),enabled=h.runtime.app.plugins.enabledPlugins;
+  class P extends h.api.Plugin{onunload(){throw new Error('shutdown failed');}}
+  await h.runtime.boot(P);await expect(h.runtime.stop()).rejects.toThrow('shutdown failed');expect(enabled.size).toBe(0);
+});
 it('refuses reads and further writes after an asynchronous editor send rejects',async()=>{
   let reject!:(error:Error)=>void;const result=new Promise<void>((_resolve,no)=>{reject=no;}),send=vi.fn(()=>result),editor=new Editor({text:'one',from:0,to:1},send);
   editor.setValue('rejected');reject(new Error('host rejected'));await result.catch(()=>{});

@@ -519,7 +519,8 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   const canvasPlugin={enabled:false,_loaded:false,instance:null,load:()=>unsupported('Obsidian core Canvas plugin')};
   const internalPluginInstances={'daily-notes':dailyPlugin,canvas:canvasPlugin};
   const internalPlugins={plugins:host.trace?new Proxy(internalPluginInstances,{get(target,key,receiver){if(typeof key==='string')host.trace?.('InternalPlugins.plugins.'+key);return Reflect.get(target,key,receiver);}}):internalPluginInstances,getPluginById:(id:string)=>id==='daily-notes'?dailyPlugin:id==='canvas'?canvasPlugin:null};
-  const plugins={plugins:{} as Record<string,Plugin>,getPlugin:(id:string)=>id===manifest.id?plugin??null:null};
+  // This bounded manager exposes only its own runtime, not other plugins' APIs.
+  const plugins={plugins:Object.create(null) as Record<string,Plugin>,enabledPlugins:new Set<string>(),getPlugin:(id:string):Plugin|null=>id===manifest.id?plugins.plugins[id]??null:null};
   const foldManager={load:(_file:TFile)=>({folds:[]}),save:async(_file:TFile,_info:unknown)=>{}};
   type Hotkey={modifiers:string[];key:string};
   const savedHotkeys=host.ui?loadLocalStorage('engine.hotkeys.'+manifest.id):null;
@@ -703,10 +704,15 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     app,api,settle,
     sync(next:PluginSnapshot){refresh(next,true);publish();},
     /** Await actual initialization even when public repeated load calls return immediately. */
-    async boot(constructor:any){if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');plugin=new constructor(app,manifest);plugins.plugins[manifest.id]=plugin!;await Promise.all([plugin!.load(),componentLifecycle(plugin!,'startup')]);await plugin!.onUserEnable();await settle();publish();metadataCache.trigger('resolved');if(host.ui)workspace.trigger('layout-change');},
+    async boot(constructor:any){
+      if(typeof constructor!=='function'||!(constructor.prototype instanceof Plugin))throw new Error('CommonJS default export must extend Plugin');
+      plugins.enabledPlugins.add(manifest.id);
+      try{plugin=new constructor(app,manifest);plugins.plugins[manifest.id]=plugin!;await Promise.all([plugin!.load(),componentLifecycle(plugin!,'startup')]);await plugin!.onUserEnable();await settle();publish();metadataCache.trigger('resolved');if(host.ui)workspace.trigger('layout-change');}
+      catch(error){plugins.enabledPlugins.delete(manifest.id);delete plugins.plugins[manifest.id];throw error;}
+    },
     async run(id:string){if(unloaded)throw new Error('Plugin is unloaded');initEditor();const command=commands.get(id);if(!command)throw new Error('Command not found');if(!available(command,true))throw new Error('Command unavailable');await available(command,false);await settle();},
     /** Keep the request fence open until actual hook/cleanup work and data operations settle. */
-    async stop(){if(unloaded)return;try{if(plugin)await Promise.all([plugin.unload(),componentLifecycle(plugin,'shutdown')]);await settle();}finally{for(const id of hotkeyBindings.keys())removeHotkeys(id);delete plugins.plugins[manifest.id];commands.clear();host.commands([]);unloaded=true;releaseApp(app);}},
+    async stop(){if(unloaded)return;try{if(plugin)await Promise.all([plugin.unload(),componentLifecycle(plugin,'shutdown')]);await settle();}finally{for(const id of hotkeyBindings.keys())removeHotkeys(id);plugins.enabledPlugins.delete(manifest.id);delete plugins.plugins[manifest.id];commands.clear();host.commands([]);unloaded=true;releaseApp(app);}},
     /** Deliver a hover-link event to renderer plugins with a minimal hover parent. */
     hoverLink(payload:{event:MouseEvent;source:string;targetEl:HTMLElement;linktext:string;sourcePath:string}){
       workspace.trigger('hover-link',{...payload,hoverParent:{hoverPopover:null}});

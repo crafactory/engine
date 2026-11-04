@@ -32,7 +32,21 @@ and current unrelated plugin workflows; never hardcode behavior for one plugin.
 
 ## Work and evidence
 
-No Kanban implementation changes yet. The early PR records scope while runtime probes start.
+The early [PR #73](https://github.com/crafactory/engine/pull/73) records scope and receives
+incremental repairs. Runtime metadata identified a missing plugin-manager enabled Set,
+not a missing keyboard modifier Set (that injected alternative failed). The original
+manager now has stable own-runtime `enabledPlugins` admission/revocation, cleanup on failed
+constructor/load/user-enable, and no stale getPlugin result after failure/stop.
+It remains an own-runtime view, not cross-plugin discovery/API support.
+
+29 targeted contract units and production build pass. The pinned real Kanban desktop case
+now creates and persists an unchecked card, switches documents and restarts/re-enables/reopens
+with the saved card visible. The targeted run passed; focus still logs missing setTimeout.
+Log: `/tmp/engine-pr73-enabled-{units,build,kanban}.log`. No generated report pair has been
+upgraded from this partial run. Full acceptance/review is still pending.
+
+Public SDK declarations confirm Node and UIEvent doc/win helpers; only HTMLElement helpers
+are currently installed. This is the next focus hypothesis, not a verified production fix.
 Node 22 is `/tmp/engine-node/node_modules/node/bin`; unchanged corpus is
 `/tmp/engine-plugin-corpus`. Previous accepted logs are `/tmp/engine-pr72-round3-*`.
 Capture new probes separately and do not mix corpus report rows from different runs.
