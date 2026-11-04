@@ -75,6 +75,7 @@ export class CompatibilityError extends Error {
   constructor(readonly capability:string){super('Unsupported Obsidian capability: '+capability+'. See docs/PLUGIN-COMPATIBILITY.md.');this.name='CompatibilityError';}
 }
 export const unsupported=(name:string):never=>{throw new CompatibilityError(name);};
+/** Refuse unknown members explicitly while preserving ordinary Promise detection. */
 export function guardCompatibilityObject<T extends object>(object:T,label:string,trace?:(member:string)=>void):T{return new Proxy(object,{get(target,key,receiver){
   if(key==='then')return undefined;
   if(typeof key==='string')trace?.(label+'.'+key);
@@ -280,6 +281,7 @@ export class EditorSuggest<T=unknown> {
   close():void{}
   setInstructions(_instructions:unknown[]):void{}
 }
+/** Bind one plugin's public SDK facade to owned snapshots, mutations and lifecycle resources. */
 export function createCompatibilityRuntime(manifest:PluginManifest,initial:PluginSnapshot,host:CompatHost){
   const guard=<T extends object>(object:T,label:string)=>guardCompatibilityObject(object,label,host.trace);
   let snapshot=initial,plugin:InstanceType<typeof Plugin>|undefined,unloaded=false,editor:Editor|null=null;
@@ -295,8 +297,10 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     const result=mutationQueue.then(()=>request(operation,args));mutationQueue=result.catch(()=>undefined);pending.add(result);
     result.then(()=>pending.delete(result),()=>pending.delete(result));return result;
   }
+  /** Observe queued host writes, retaining failed optimistic edits until their error is consumed. */
   async function settle(){while(pending.size||editorWrites.size){const writes=[...editorWrites],results=await Promise.allSettled([...new Set([...pending,...writes])]);for(const write of writes)editorWrites.delete(write);const failed=results.find(r=>r.status==='rejected');if(failed?.status==='rejected')throw failed.reason;}}
   const adapter=new FileSystemAdapter(host.native?.basePath,{read:path=>request('readBinary',[path]) as Promise<ArrayBuffer>,write:(path,data)=>mutate('writeBinary',[path,data])});
+  /** Intern file/folder identities and attach them once to the cached parent graph. */
   function ensureAbstract(path:string,folder:boolean):TAbstractFile{
     const current=objects.get(path);if(current)return current;
     const file=folder?new TFolder(path,vault):new TFile(path,vault);objects.set(path,file);
@@ -523,7 +527,9 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   const hotkeyBindings=new Map<string,unknown[]>();
   const defaultHotkeys=new Map<string,unknown>();
   const commandId=(id:string)=>id.startsWith(manifest.id+':')?id.slice(manifest.id.length+1):id;
+  /** Revoke this command's previously owned keyboard registrations. */
   function removeHotkeys(id:string){const scope=host.ui?.scope as any;for(const handler of hotkeyBindings.get(id)??[])scope?.unregister(handler);hotkeyBindings.delete(id);}
+  /** Rebind effective user/default shortcuts through the plugin's owned key scope. */
   function bindHotkeys(id:string){
     removeHotkeys(id);const scope=host.ui?.scope as any,command=commands.get(id);if(!scope||!command)return;
     const values=customKeys[manifest.id+':'+id]??defaultHotkeys.get(id)??command.hotkeys??[];
@@ -552,6 +558,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   const app=guard({appId:'crafactory-engine',isMobile:false,vault,workspace,metadataCache,fileManager,plugins,internalPlugins,foldManager,loadLocalStorage,saveLocalStorage,...(host.ui?{hotkeyManager,commands:commandManager,getAccentColor:()=>{const color=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();return color||unsupported('App.getAccentColor without theme');}}:{}),...(host.ui?.scope?{scope:host.ui.scope}:{}),...(host.ui?.keymap?{keymap:host.ui.keymap}:{}),...(host.ui?.embedRegistry?{embedRegistry:host.ui.embedRegistry}:{})},'App');
   // Some plugins use Obsidian's untyped global instead of the plugin context.
   exposeApp(app);
+  /** Reconcile a host snapshot while preserving file identities and emitting requested deltas. */
   function refresh(next:PluginSnapshot,events=false){
     const previous=snapshot;snapshot=next;
     const nextNotePaths=new Set(snapshot.notes.map(note=>note.path));
@@ -596,6 +603,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   }
   refresh(initial);
   if(host.ui){const leaf=host.ui.workspace.activeLeaf as any;if(leaf&&!leaf.view)leaf.view=new MarkdownView();}
+  /** Replace the active editor facade and retain rejected host mutations for settle. */
   function initEditor(){
     const path=snapshot.active;
     editor=snapshot.editor?new Editor(snapshot.editor,(base,text,from,to)=>{const result=mutate('editor',[path,base,text,from,to]);editorWrites.add(result);result.then(()=>editorWrites.delete(result),()=>{});return result;}):null;

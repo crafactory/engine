@@ -1,6 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {fileURLToPath} from 'node:url';
+const runFile=promisify(execFile),styleReader=fileURLToPath(new URL('./plugin-styles.cjs',import.meta.url));
 
 const textExtensions = new Set(['.md', '.markdown', '.txt', '.canvas', '.base', '.csv', '.json', '.css', '.js', '.mjs']);
 const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
@@ -24,7 +28,8 @@ export class Vault {
     }
     return full;
   }
-  async init() {await fs.mkdir(this.root, {recursive:true}); await fs.mkdir(path.join(this.root,'.crafactory'),{recursive:true}); return this;}
+  /** Initialize storage and retain the canonical root identity for isolated stylesheet reads. */
+  async init() {await fs.mkdir(this.root, {recursive:true}); await fs.mkdir(path.join(this.root,'.crafactory'),{recursive:true});const realRoot=await fs.realpath(this.root),stat=await fs.stat(realRoot,{bigint:true});this.stylesRoot={path:realRoot,dev:String(stat.dev),ino:String(stat.ino)};return this;}
   async list() {
     const result = [];
     const walk = async (dir, prefix = '') => {
@@ -68,6 +73,7 @@ export class Vault {
       return {path:relative,content,version:hash(content)};
   }
   async create(relative, content) {return this.write(relative,content,undefined,true);}
+  /** Return bounded exact file bytes after the normal vault path checks. */
   async readBinary(relative) {
     const full=await this.safe(relative),stat=await fs.stat(full);
     if(!stat.isFile()||stat.size>64*1024*1024)throw new Error('Invalid or oversized binary file');
@@ -75,6 +81,7 @@ export class Vault {
     if(data.byteLength>64*1024*1024)throw new Error('Binary file grew beyond the size limit');
     return data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength);
   }
+  /** Stage exact bytes; preserve create-only checks and the documented accepted modify race. */
   async writeBinary(relative,data,mode='write') {
     if(!['write','create','modify'].includes(mode))throw new Error('Invalid binary write mode');
     if(!(data instanceof ArrayBuffer)&&!ArrayBuffer.isView(data))throw new Error('Binary data must be an ArrayBuffer or view');
@@ -187,6 +194,7 @@ export class Vault {
     await fs.mkdir(path.dirname(full),{recursive:true}); await fs.writeFile(full,Buffer.from(data),{flag:'wx'});
     return relative;
   }
+  /** Discover physical plugin packages and read optional bounded CSS in an anchored child. */
   async plugins() {
     const dir = await this.safe('.crafactory/plugins',true);
     let names; try {names=await fs.readdir(dir,{withFileTypes:true});} catch(e) {if(e.code==='ENOENT')return[];throw e;}
@@ -199,14 +207,11 @@ export class Vault {
         if(manifest.id!==entry.name || typeof manifest.name!=='string' || typeof manifest.version!=='string') continue;
         let styles='';
         try{
-          const stylePath=await this.safe(`.crafactory/plugins/${entry.name}/styles.css`,true),handle=await fs.open(stylePath,'r'),limit=4*1024*1024;
-          try{
-            const stat=await handle.stat();if(!stat.isFile()||stat.size>limit)throw new Error('Plugin stylesheet too large');
-            const bytes=Buffer.alloc(limit+1);let used=0;
-            while(used<bytes.length){const {bytesRead}=await handle.read(bytes,used,bytes.length-used,null);if(!bytesRead)break;used+=bytesRead;}
-            if(used>limit)throw new Error('Plugin stylesheet too large');styles=bytes.subarray(0,used).toString('utf8');
-          }finally{await handle.close();}
-        }catch(error){if(error.code!=='ENOENT')throw error;}
+          const anchor=this.stylesRoot;if(!anchor)throw new Error('Vault is not initialized');
+          const env={ELECTRON_RUN_AS_NODE:'1'};for(const key of ['SystemRoot','SYSTEMROOT','TEMP','TMP'])if(process.env[key])env[key]=process.env[key];
+          const result=await runFile(process.execPath,[styleReader,anchor.path,JSON.stringify({dev:anchor.dev,ino:anchor.ino}),entry.name],{cwd:anchor.path,env,encoding:'buffer',maxBuffer:4*1024*1024+1024,timeout:10000,windowsHide:true});
+          styles=result.stdout.toString('utf8');
+        }catch(error){if(error.code!==2)throw error;}
         result.push({manifest,code:await fs.readFile(codePath,'utf8'),...(styles?{styles}:{})});
       } catch {}
     }

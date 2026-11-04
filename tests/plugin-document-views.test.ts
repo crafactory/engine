@@ -1,5 +1,5 @@
 import {expect,it,vi} from 'vitest';
-import {recordPluginDocumentView,retirePluginFileViews,type PluginDocumentView} from '../src/plugin-document-views';
+import {recordPluginDocumentView,retirePluginFileViews,recoverPluginFileViews,type PluginDocumentView} from '../src/plugin-document-views';
 
 it('moves only the same owner/leaf registration to its new path',()=>{
   const views=new Map<string,PluginDocumentView>();
@@ -24,8 +24,29 @@ it('rolls back all seals before retirement if a draft changed during preparation
 });
 
 it('restores persisted views if owner cleanup fails after retirement starts',async()=>{
-  const first={seal:vi.fn(),commit:vi.fn(async()=>{}),rollback:vi.fn()},second={seal:vi.fn(),commit:vi.fn(async()=>{throw new Error('close failed');}),rollback:vi.fn()},restore=vi.fn();
+  const first={seal:vi.fn(),commit:vi.fn(async()=>{}),rollback:vi.fn(),restore:vi.fn(async()=>{})},second={seal:vi.fn(),commit:vi.fn(async()=>{throw new Error('close failed');}),rollback:vi.fn(),restore:vi.fn(async()=>{})},restore=vi.fn();
   await expect(retirePluginFileViews([{prepareFileViews:async()=>first},{prepareFileViews:async()=>second}],'Note.md',restore)).rejects.toThrow('close failed');expect(restore).toHaveBeenCalledOnce();
+  expect(first.rollback).toHaveBeenCalledOnce();expect(second.rollback).toHaveBeenCalledOnce();
+  expect(first.restore).toHaveBeenCalledOnce();expect(second.restore).toHaveBeenCalledOnce();
+});
+it('returns restoration for a host filesystem failure after successful retirement',async()=>{
+  const change={seal:vi.fn(),commit:vi.fn(async()=>{}),rollback:vi.fn(),restore:vi.fn(async()=>{})};
+  const restore=await retirePluginFileViews([{prepareFileViews:async()=>change}],'Note.md',vi.fn());
+  expect(change.restore).not.toHaveBeenCalled();await restore();expect(change.rollback).toHaveBeenCalledOnce();expect(change.restore).toHaveBeenCalledOnce();
+});
+
+it('attempts every owner and host mapping even when restoration throws',async()=>{
+  const original=new Error('close failed'),restoreFailure=new Error('reload failed'),mapping=vi.fn();
+  const first={seal(){},async commit(){},rollback:vi.fn(),restore:vi.fn(async()=>{throw restoreFailure;})};
+  const second={seal(){},async commit(){throw original;},rollback:vi.fn(),restore:vi.fn(async()=>{})};
+  const failure=await retirePluginFileViews([{prepareFileViews:async()=>first},{prepareFileViews:async()=>second}],'Note.md',mapping).catch(error=>error);
+  expect(failure).toBeInstanceOf(AggregateError);expect(failure.cause).toBe(original);
+  expect(mapping).toHaveBeenCalledOnce();for(const change of [first,second]){expect(change.rollback).toHaveBeenCalledOnce();expect(change.restore).toHaveBeenCalledOnce();}
+});
+it('preserves a host failure and still restores a second file after the first recovery fails',async()=>{
+  const original=new Error('rename failed'),reload=new Error('reload failed'),next=vi.fn();
+  const failure=await recoverPluginFileViews(original,[async()=>{throw reload;},next]).catch(error=>error);
+  expect(failure.cause).toBe(original);expect(failure.errors).toEqual([original,reload]);expect(next).toHaveBeenCalledOnce();
 });
 
 it('ignores stale/foreign close notifications and removes only the current matching registration',()=>{

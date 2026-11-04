@@ -12,6 +12,7 @@ const singleInstance=app.requestSingleInstanceLock();
 if(!singleInstance)app.quit();
 else app.on('second-instance',()=>{if(win&&!win.isDestroyed()){if(win.isMinimized())win.restore();win.focus();}});
 const development = process.env.ENGINE_DEV === '1';
+/** Replace the active vault and watcher, then persist the chosen root for restart. */
 async function openVault(root) {
   vault = await new Vault(root).init(); currentRoot=root;
   await fs.writeFile(path.join(app.getPath('userData'),'last-vault.json'),JSON.stringify({root}));
@@ -20,12 +21,14 @@ async function openVault(root) {
   watcher=watch(root,{ignoreInitial:true,ignored:p=>p.split(path.sep).some(s=>s.startsWith('.')),awaitWriteFinish:{stabilityThreshold:300,pollInterval:100}});
   watcher.on('all',()=>win && !win.isDestroyed() && win.webContents.send('vault:changed'));
 }
+/** Expose an operation only to this window's current main frame. */
 function ipc(name, handler) {
   ipcMain.handle('engine:'+name,async(event,...args)=>{
     if(!win || event.sender!==win.webContents || event.senderFrame!==win.webContents.mainFrame) throw new Error('Untrusted caller');
     return handler(...args);
   });
 }
+/** Freeze startup privileges, install guarded desktop IPC and load the matching entry page. */
 async function start() {
   ({Vault}=await import('../core/vault.mjs'));
   try{const settings=JSON.parse(await fs.readFile(path.join(app.getPath('userData'),'trusted-renderer.json'),'utf8'));unsafeEvalEnabled=settings.unsafeEval===true;nativePluginsEnabled=settings.nativePlugins===true;}catch{}
@@ -75,7 +78,8 @@ async function start() {
   ipc('close-listener-unready',()=>{closeListenerReady=false;});
   ipc('close-ready',()=>{closeAllowed=true;win.close();});
   ipc('unsafeEval',()=>unsafeEvalEnabled);
-  ipc('trustProfile',()=>({saved:{unsafeEval:unsafeEvalEnabled,nativePlugins:nativePluginsEnabled},active:{unsafeEval:activeUnsafeEval,nativePlugins:activeNativePlugins}}));
+  const trustProfile=()=>({saved:{unsafeEval:unsafeEvalEnabled,nativePlugins:nativePluginsEnabled},active:{unsafeEval:activeUnsafeEval,nativePlugins:activeNativePlugins}});
+  ipc('trustProfile',trustProfile);
   let trustSettingsQueue=Promise.resolve();
   const withTrustLock=action=>{const result=trustSettingsQueue.then(action);trustSettingsQueue=result.catch(()=>{});return result;};
   const saveTrustSettings=async()=>{const target=path.join(app.getPath('userData'),'trusted-renderer.json');await fs.writeFile(target+'.tmp',JSON.stringify({unsafeEval:unsafeEvalEnabled,nativePlugins:nativePluginsEnabled}),{mode:0o600});await fs.rename(target+'.tmp',target);};
@@ -89,7 +93,7 @@ async function start() {
       if(result.response!==1)return nativePluginsEnabled;
     }
     const previous=nativePluginsEnabled;nativePluginsEnabled=enabled===true;
-    try{await saveTrustSettings();}catch(error){nativePluginsEnabled=previous;throw error;}return nativePluginsEnabled;
+    try{await saveTrustSettings();}catch(error){nativePluginsEnabled=previous;throw error;}win.webContents.send('engine:trust-profile-changed',trustProfile());return nativePluginsEnabled;
   }));
   ipc('setUnsafeEval',enabled=>withTrustLock(async()=>{
     if(enabled===true&&!unsafeEvalEnabled){
@@ -97,7 +101,7 @@ async function start() {
       if(result.response!==1)return unsafeEvalEnabled;
     }
     const previous=unsafeEvalEnabled;unsafeEvalEnabled=enabled===true;
-    try{await saveTrustSettings();}catch(error){unsafeEvalEnabled=previous;throw error;}
+    try{await saveTrustSettings();}catch(error){unsafeEvalEnabled=previous;throw error;}win.webContents.send('engine:trust-profile-changed',trustProfile());
     return unsafeEvalEnabled;
   }));
   ipc('vault',async()=>({name:path.basename(currentRoot),root:currentRoot,entries:await vault.list(),state:await vault.loadState()}));

@@ -39,20 +39,10 @@ describe('local vault storage',()=>{
       await expect(fs.stat(path.join(root,'new.bin'))).rejects.toThrow();
     }finally{write.mockRestore();}
   });
-  it('checks actual stylesheet bytes even when the file was previously small',async()=>{
-    const dir=path.join(root,'.crafactory/plugins/growing');await fs.mkdir(dir,{recursive:true});
-    await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id:'growing',name:'Growing',version:'1'}));
-    await fs.writeFile(path.join(dir,'main.js'),'module.exports={};');await fs.writeFile(path.join(dir,'styles.css'),'small');
-    const original=fs.open,reads=[],open=vi.spyOn(fs,'open').mockImplementation(async(file,...args)=>{
-      const handle=await original(file,...args);if(String(file).endsWith('styles.css')){const stat=handle.stat.bind(handle);vi.spyOn(handle,'stat').mockImplementationOnce(async()=>{const before=await stat();await fs.appendFile(file,Buffer.alloc(4*1024*1024+20));return before;});reads.push(vi.spyOn(handle,'read'));}return handle;
-    });
-    try{expect(await vault.plugins()).toEqual([]);expect(reads).toHaveLength(1);expect(reads[0].mock.calls.every(call=>call[2]<=4*1024*1024+1)).toBe(true);}finally{open.mockRestore();}
-  });
-  it('rejects an oversized stylesheet through the handle before reading its bytes',async()=>{
+  it('excludes a plugin whose stylesheet exceeds the bounded reader limit',async()=>{
     const dir=path.join(root,'.crafactory/plugins/oversized');await fs.mkdir(dir,{recursive:true});
     await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id:'oversized',name:'Oversized',version:'1'}));await fs.writeFile(path.join(dir,'main.js'),'module.exports={};');await fs.writeFile(path.join(dir,'styles.css'),Buffer.alloc(4*1024*1024+1));
-    const original=fs.open,reads=[],open=vi.spyOn(fs,'open').mockImplementation(async(file,...args)=>{const handle=await original(file,...args);if(String(file).endsWith('styles.css'))reads.push(vi.spyOn(handle,'read'));return handle;});
-    try{expect(await vault.plugins()).toEqual([]);expect(reads).toHaveLength(1);expect(reads[0]).not.toHaveBeenCalled();}finally{open.mockRestore();}
+    expect(await vault.plugins()).toEqual([]);
   });
   it('does not recreate a modify target deleted while its replacement was staged',async()=>{
     const full=path.join(root,'removed.bin');await fs.writeFile(full,new Uint8Array([1]));

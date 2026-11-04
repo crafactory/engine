@@ -119,6 +119,39 @@ test('merge flushes the plugin draft into both destination and trash before reti
   await expect.poll(()=>page.evaluate(()=>(window as any).app.workspace.getLeavesOfType('fixture-text').length)).toBe(0);
   await expect(fs.stat(path.join(root,'Zeta.md'))).rejects.toThrow();
 });
+test('failed filesystem rename restores an overlay leaf and its saved draft',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  await app.evaluate(({ipcMain})=>{ipcMain.removeHandler('engine:rename');ipcMain.handle('engine:rename',()=>{throw new Error('fixture rename denied');});});
+  const result=await page.evaluate(async()=>{
+    const app=(window as any).app,leaf=app.workspace.getRightLeaf();await leaf.setViewState({type:'fixture-text',state:{file:'Test.txt'}});leaf.view.input.value='pending overlay draft';const id=leaf.id;
+    let error='';try{await app.vault.rename(app.vault.getAbstractFileByPath('Test.txt'),'Renamed.txt');}catch(e){error=String(e);}
+    return {error,same:app.workspace.getLeafById(id)===leaf,connected:leaf.containerEl.isConnected,inert:leaf.containerEl.inert,text:leaf.view?.getViewData()};
+  });
+  expect(result).toEqual({error:expect.stringContaining('fixture rename denied'),same:true,connected:true,inert:false,text:'pending overlay draft'});
+  expect(await fs.readFile(path.join(root,'Test.txt'),'utf8')).toBe('pending overlay draft');await expect(fs.stat(path.join(root,'Renamed.txt'))).rejects.toThrow();
+});
+test('an earlier unload cannot discard a later draft changed after sealing',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  const result=await page.evaluate(async()=>{
+    const app=(window as any).app;await app.vault.createFolder('Batch');const leaves=[];
+    for(const name of ['First','Second']){const file=await app.vault.create('Batch/'+name+'.md','original '+name),leaf=app.workspace.getRightLeaf();await leaf.setViewState({type:'fixture-text',state:{file:file.path}});leaf.view.input.value='pending '+name;leaves.push(leaf);}
+    const original=leaves[0].view.onUnloadFile.bind(leaves[0].view);leaves[0].view.onUnloadFile=async(file:any)=>{leaves[1].view.input.value='changed after seal';await original(file);};
+    let error='';try{await app.vault.rename(app.vault.getAbstractFileByPath('Batch'),'MovedBatch');}catch(e){error=String(e);}
+    return {error,leaves:leaves.map(leaf=>({registered:app.workspace.getLeafById(leaf.id)===leaf,connected:leaf.containerEl.isConnected,inert:leaf.containerEl.inert,text:leaf.view?.getViewData()}))};
+  });
+  expect(result.error).toContain('changed during file retirement');
+  expect(result.leaves).toEqual(['pending First','changed after seal'].map(text=>({registered:true,connected:true,inert:false,text})));
+  await expect(fs.stat(path.join(root,'MovedBatch'))).rejects.toThrow();expect((await fs.stat(path.join(root,'Batch'))).isDirectory()).toBe(true);
+});
+test('merge saves a dirty destination plugin view before appending source content',async()=>{
+  await enable();await page.getByTestId('settings-close').click();await command('Open Markdown as text view');
+  await page.evaluate(async()=>{const app=(window as any).app,leaf=app.workspace.getRightLeaf();await leaf.setViewState({type:'fixture-text',state:{file:'Test.md'}});leaf.view.input.value='latest destination draft';});
+  await page.locator('.retained-plugin-view').getByRole('textbox',{name:'Fixture document',exact:true}).fill('latest source draft');
+  await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Merge into');await page.keyboard.press('Enter');
+  await expect(page.getByTestId('palette-input')).toHaveAttribute('aria-label','Merge into note');await page.getByTestId('palette-item-Test.md').click();await page.getByTestId('dialog-submit').click();
+  await expect(page.getByTestId('file-Zeta.md')).toHaveCount(0);
+  const destination=await fs.readFile(path.join(root,'Test.md'),'utf8');expect(destination).toContain('latest destination draft');expect(destination).toContain('latest source draft');
+});
 for(const fail of [true,false])test(`file-view retirement ${fail?'keeps all views after a later save fails':'does not repeat fallible saves after sealing'}`,async()=>{
   await enable();await page.getByTestId('settings-close').click();
   const result=await page.evaluate(async fail=>{

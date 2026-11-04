@@ -5,6 +5,27 @@ import os from 'node:os';
 import {spawn} from 'node:child_process';
 import {nativeTestEnv} from './native-env';
 
+test('a delayed initial trust response cannot overwrite a newer confirmed profile event',async()=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-trust-order-')),profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-trust-order-profile-'));
+  await fs.writeFile(path.join(root,'Test.md'),'Trust ordering fixture');
+  const app=await electron.launch({executablePath:process.env.E2E_EXECUTABLE_PATH,args:['--no-sandbox',...(process.env.E2E_EXECUTABLE_PATH?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:nativeTestEnv(profile)});
+  try{
+    const page=await app.firstWindow();await expect(page.locator('.note-title h1')).toHaveText('Test');
+    await app.evaluate(({dialog,ipcMain})=>{
+      dialog.showMessageBox=async()=>({response:1,checkboxChecked:false});ipcMain.removeHandler('engine:trustProfile');
+      ipcMain.handle('engine:trustProfile',()=>new Promise(resolve=>{(globalThis as any).__releaseOldTrust=()=>resolve({saved:{unsafeEval:false,nativePlugins:false},active:{unsafeEval:false,nativePlugins:false}});}));
+    });
+    await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();
+    await expect.poll(()=>app.evaluate(()=>typeof (globalThis as any).__releaseOldTrust)).toBe('function');
+    await page.evaluate(()=>window.engine!.setUnsafeEval!(true));
+    const toggle=page.getByRole('switch',{name:'Allow unsafe-eval in trusted renderer',exact:true});
+    await expect(toggle).toBeChecked();await expect(toggle).toBeEnabled();
+    await app.evaluate(()=>(globalThis as any).__releaseOldTrust());
+    // Drain a further native IPC round trip after the old profile reply is released.
+    await page.evaluate(()=>window.engine!.vault());
+    await expect(toggle).toBeChecked();await expect(page.getByRole('status').filter({hasText:'Restart Crafactory Engine to apply the unsafe-eval change.'})).toBeVisible();
+  }finally{await app.close();await fs.rm(root,{recursive:true,force:true});await fs.rm(profile,{recursive:true,force:true});}
+});
 for(const active of [false,true])test(`restart notices clear when both saved trust switches return to startup ${active}`,async()=>{
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-trust-revert-')),profile=await fs.mkdtemp(path.join(os.tmpdir(),'engine-trust-profile-'));
   await fs.writeFile(path.join(root,'Test.md'),'Trust reversion fixture');
@@ -14,9 +35,9 @@ for(const active of [false,true])test(`restart notices clear when both saved tru
     const page=await app.firstWindow();await expect(page.locator('.note-title h1')).toHaveText('Test');
     await app.evaluate(({dialog})=>{dialog.showMessageBox=async()=>({response:1,checkboxChecked:false});});
     await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();
-    for(const [label,confirm,notice]of [
-      ['Allow unsafe-eval in trusted renderer','Enable unsafe-eval','Restart Crafactory Engine to apply the unsafe-eval change.'],
-      ['Allow native Node.js plugins','Enable native plugins','Restart Crafactory Engine to apply the native plugin permission change, including revocation.']
+    for(const [label,confirm,notice,operation]of [
+      ['Allow unsafe-eval in trusted renderer','Enable unsafe-eval','Restart Crafactory Engine to apply the unsafe-eval change.','setUnsafeEval'],
+      ['Allow native Node.js plugins','Enable native plugins','Restart Crafactory Engine to apply the native plugin permission change, including revocation.','setNativePlugins']
     ]){
       const toggle=page.getByRole('switch',{name:label,exact:true}),status=page.getByRole('status').filter({hasText:notice});
       await expect(toggle).toBeEnabled();await expect(toggle).toBeChecked({checked:active});
@@ -24,7 +45,20 @@ for(const active of [false,true])test(`restart notices clear when both saved tru
       await expect(toggle).toBeChecked({checked:!active});await expect(status).toBeVisible();
       await toggle.click();if(active)await page.getByRole('button',{name:confirm,exact:true}).click();
       await expect(toggle).toBeChecked({checked:active});await expect(status).toHaveCount(0);
+      await page.evaluate(async({operation,value})=>{await (window.engine as any)[operation](value);},{operation,value:!active});
+      await expect(toggle).toBeChecked({checked:!active});await expect(status).toBeVisible();
+      await page.evaluate(async({operation,value})=>{await (window.engine as any)[operation](value);},{operation,value:active});
+      await expect(toggle).toBeChecked({checked:active});await expect(status).toHaveCount(0);
     }
+    const evalToggle=page.getByRole('switch',{name:'Allow unsafe-eval in trusted renderer',exact:true}),nativeToggle=page.getByRole('switch',{name:'Allow native Node.js plugins',exact:true});
+    const evalNotice=page.getByRole('status').filter({hasText:'Restart Crafactory Engine to apply the unsafe-eval change.'}),nativeNotice=page.getByRole('status').filter({hasText:'Restart Crafactory Engine to apply the native plugin permission change, including revocation.'});
+    await page.evaluate(async value=>{await window.engine!.setUnsafeEval!(value);await window.engine!.setNativePlugins!(value);},!active);
+    await expect(evalToggle).toBeChecked({checked:!active});await expect(nativeToggle).toBeChecked({checked:!active});
+    await expect(evalNotice).toBeVisible();await expect(nativeNotice).toBeVisible();
+    await evalToggle.click();if(active)await page.getByRole('button',{name:'Enable unsafe-eval',exact:true}).click();
+    await expect(evalNotice).toHaveCount(0);await expect(nativeNotice).toBeVisible();
+    await nativeToggle.click();if(active)await page.getByRole('button',{name:'Enable native plugins',exact:true}).click();
+    await expect(nativeNotice).toHaveCount(0);
     expect(await page.evaluate(()=>window.engine!.trustProfile!())).toEqual({saved:{unsafeEval:active,nativePlugins:active},active:{unsafeEval:active,nativePlugins:active}});
   }finally{await app.close();await fs.rm(root,{recursive:true,force:true});await fs.rm(profile,{recursive:true,force:true});}
 });

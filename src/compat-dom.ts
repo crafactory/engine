@@ -67,6 +67,7 @@ export class Menu {
   }
 }
 const element=(tag:string,parent?:HTMLElement,cls='')=>{const el=document.createElement(tag);el.className=cls;parent?.append(el);return el;};
+/** Install shared DOM conveniences once without replacing browser-provided implementations. */
 export function installDomHelpers(){
   for(const [name,value]of Object.entries({first(this:unknown[]){return this[0];},last(this:unknown[]){return this[this.length-1];}}))if(!(name in Array.prototype))Object.defineProperty(Array.prototype,name,{value,configurable:true,writable:true});
   if(!('instanceOf' in Node.prototype))Object.defineProperty(Node.prototype,'instanceOf',{configurable:true,writable:true,value:function(this:Node,type:new()=>unknown){
@@ -182,6 +183,7 @@ export function installDomHelpers(){
 }
 /** Create plugin-owned trusted-renderer UI hooks; this adapter is not an isolation boundary. */
 export interface VersionedText {content:string;version:string}
+/** Own one renderer plugin's views, editor contributions, events and retirement lifecycle. */
 export function createDomAdapters(id:string,name:string,onError:(reason:unknown)=>void,onTabs:(tabs:PluginTab[])=>void,onExtensions:(extensions:unknown[])=>void,onFileExtensions?:(extensions:string[],viewType?:string)=>void,applyEditorEdit?:(base:string,text:string,from:number,to:number)=>Promise<unknown>,fileIO?:{read(path:string):Promise<VersionedText>;write(path:string,data:string,version:string):Promise<VersionedText>},onSaveError:(error:unknown)=>void=onError,onOpenView?:(viewType:string|null,path:string,leafId:string)=>void,onSaveLayout?:()=>Promise<void>){
   installDomHelpers();
   const resources=new Set<HTMLElement>(),modals=new Set<any>(),tabs=new Set<any>(),extensions:unknown[]=[],factories=new Map<string,(leaf:any)=>any>(),leaves=new Set<any>(),extensionViews=new Map<string,string>(),suggests=new Set<EditorSuggest<any>>(),protocolHandlers=new Map<string,(params:Record<string,string>)=>unknown>(),hoverSources=new Map<string,{display:string;defaultMod:boolean}>(),basesFactories=new Map<string,(controller:QueryController)=>unknown>();
@@ -552,7 +554,9 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     async detach(notify=true){const path=viewFilePath(this);await this.detachView();this.containerEl.remove();leaves.delete(this);if(notify&&this.placement==='tab'&&path)onOpenView?.(null,path,this.id);}
   }
   const reusableLeaf=new WorkspaceLeaf();let activatedLeaf:WorkspaceLeaf|null=null;
+  /** Normalize string-backed and SDK file-backed views to their current path. */
   function viewFilePath(leaf:WorkspaceLeaf):string|undefined{return typeof leaf.view?.file==='string'?leaf.view.file:leaf.view?.file?.path;}
+  /** Prefer an explicitly activated live same-file leaf, then registered and native fallbacks. */
   function currentLeaf():WorkspaceLeaf{const path=app?.workspace.getActiveFile()?.path;if(path&&activatedLeaf&&leaves.has(activatedLeaf)&&viewFilePath(activatedLeaf)===path)return activatedLeaf;return (path?[...leaves].reverse().find(leaf=>viewFilePath(leaf)===path):null)??reusableLeaf;}
   const traceEmbed=(member:string)=>{if((window as unknown as {__ENGINE_TRACE_COMPAT?:string}).__ENGINE_TRACE_COMPAT===id)console.debug('[compat:'+id+'] '+member);};
   /** Original embed factory registry; factories own Component lifecycles, not raw HTML. */
@@ -726,13 +730,16 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     async prepareFileViews(path:string){
       const affected=[...leaves].filter(leaf=>{const file=viewFilePath(leaf);return file===path||file?.startsWith(path+'/');});
       const inert=new Map(affected.map(leaf=>[leaf,leaf.containerEl.inert])),textViews=affected.map(leaf=>leaf.view).filter((view):view is TextFileView=>view instanceof TextFileView);
-      const values=new Map(textViews.map(view=>[view,view.getViewData()]));let committed=false;
-      const rollback=()=>{if(committed)return;for(const [leaf,value]of inert)leaf.containerEl.inert=value;for(const view of textViews)retiringTextViews.delete(view);};
+      const values=new Map(textViews.map(view=>[view,view.getViewData()]));
+      const snapshots=affected.map(leaf=>({leaf,state:leaf.getViewState(),parent:leaf.containerEl.parentElement})),attempted=new Set<WorkspaceLeaf>();
+      const rollback=()=>{for(const [leaf,value]of inert)leaf.containerEl.inert=value;for(const view of textViews)retiringTextViews.delete(view);};
       try{
         for(const leaf of affected)leaf.containerEl.inert=true;
         for(const view of textViews)await view.save();
         return {seal(){for(const [view,value]of values)if(view.getViewData()!==value)throw new Error('Plugin draft changed during file preparation; retry');for(const view of textViews)retiringTextViews.add(view);},
-          async commit(){for(const leaf of affected)await leaf.detach(false);committed=true;},rollback};
+          async commit(){for(const leaf of affected){if(leaf.view instanceof TextFileView&&leaf.view.getViewData()!==values.get(leaf.view))throw new Error('Plugin draft changed during file retirement; retry');attempted.add(leaf);await leaf.detach(false);}},
+          async restore(){const closed=snapshots.filter(({leaf})=>attempted.has(leaf)),errors:unknown[]=[];for(const {leaf}of closed){leaf.view=null;leaf.containerEl.replaceChildren();leaves.add(leaf);}for(const {leaf,state,parent}of closed)try{await leaf.setViewState(state,leaf.placement==='tab'?(parent??document.createElement('div')):undefined);attempted.delete(leaf);}catch(error){errors.push(error);}if(errors.length)throw new AggregateError(errors,'Some plugin leaves could not be restored');},
+          rollback};
       }catch(error){rollback();throw error;}
     },
     async mountView(viewType:string,path:string,parent:HTMLElement,leafId?:string){

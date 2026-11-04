@@ -10,7 +10,7 @@ import {
 import {bridge,defaults} from './bridge';
 import {renameDestination} from './file-path';
 import {readWorkspaceLayout} from './workspace-layout';
-import {recordPluginDocumentView,retirePluginFileViews,type PluginDocumentView} from './plugin-document-views';
+import {recordPluginDocumentView,retirePluginFileViews,recoverPluginFileViews,type PluginDocumentView} from './plugin-document-views';
 import {title,isNote,frontmatter,setProperties,resolveLink,headings,applyTemplate,rewriteLinks} from './knowledge';
 import type {EditorHandle} from './Editor';
 import {Markdown,renderMarkdown} from './Markdown';
@@ -172,6 +172,7 @@ export function App(){
     refreshPluginDocumentViews(value=>value+1);
     for(const [key,dispose] of [...pluginViewCleanups.current])if(key.startsWith(id+':')){dispose();pluginViewCleanups.current.delete(key);}
   }
+  /** Settle owned plugin shutdown and host requests before clearing shell registrations. */
   async function stopPlugins(){
     try{await Promise.allSettled([...pluginStops.current.values()].map(controller=>controller.stop()));await Promise.allSettled([...pluginRequests.current]);}
     finally{
@@ -197,6 +198,7 @@ export function App(){
     if(!service){setPluginList([]);return;}
     setPluginList(await service.list());
   }
+  /** Bind workspace services and restore the selected vault's documents and UI state. */
   async function initialize(){
     setLoading(true);setError('');
     try {
@@ -368,7 +370,7 @@ export function App(){
     const path=await dialog.ask('New folder','New folder');
     if(path)try{if(!validPath(path))throw new Error('Invalid folder path');await bridge.mkdir(path);setEntries(await bridge.list());setExpanded(e=>new Set([...e,path]));}catch(e){report(e);}
   }
-  /** Rename without changing file format; `strict` rethrows and rejects adjusted destinations. */
+  /** Save/seal owned file views, retaining restoration for failed host filesystem changes. */
   async function preparePluginFileChange(path:string){
     const affected=(file:string)=>file===path||file.startsWith(path+'/');
     const views=new Map<string,{viewType:string;pluginId:string;leafId?:string}>();
@@ -376,14 +378,16 @@ export function App(){
       const view=pluginViewFor(file);if(affected(file)&&view)views.set(file,view);
     }
     // Recreate, rather than retarget, leaves so no save retains an obsolete file object.
-    const restore=(remap:(file:string)=>string|null)=>{
+    /** Keep original explicit leaf IDs on failure, leaving implicit extension views implicit. */
+    const restore=(remap:(file:string)=>string|null,failed=false)=>{
       for(const file of [...pluginDocumentViews.current.keys()])if(affected(file))pluginDocumentViews.current.delete(file);
-      for(const [file,view]of views){const next=remap(file);if(next)pluginDocumentViews.current.set(next,{...view,leafId:crypto.randomUUID()});}
+      for(const [file,view]of views){const next=remap(file);if(next&&(!failed||view.leafId))pluginDocumentViews.current.set(next,{...view,leafId:failed&&view.leafId?view.leafId:crypto.randomUUID()});}
       refreshPluginDocumentViews(value=>value+1);
     };
-    await retirePluginFileViews(pluginStops.current.values(),path,()=>restore(file=>file));
-    return restore;
+    const restoreRetired=await retirePluginFileViews(pluginStops.current.values(),path,()=>restore(file=>file,true));
+    return async(remap:(file:string)=>string|null,failed=false)=>{try{if(failed)await restoreRetired();}finally{restore(remap,failed);}};
   }
+  /** Rename while preserving file format and restoring original views on filesystem failure. */
   async function renamePath(from:string,requested?:string,strict=false):Promise<string|undefined>{
     const input=requested || await dialog.ask('Rename or move',from,'The original file extension is preserved. Internal links will be updated where their targets can be resolved.');
     if(!input)return undefined;
@@ -396,7 +400,7 @@ export function App(){
       const restoreViews=await preparePluginFileChange(from);
       const before=[...notesRef.current];
       try{if(documents)await documents.rename(from,to);else await bridge.rename(from,to);}
-      catch(error){restoreViews(file=>file);throw error;}
+      catch(error){return await recoverPluginFileViews(error,[()=>restoreViews(file=>file,true)]);}
       const remap=(p:string)=>p===from||p.startsWith(from+'/')?to+p.slice(from.length):p;
       const nextEntries=await bridge.list().catch(error=>{report(error);return pluginState.current.entries.map(entry=>({...entry,path:remap(entry.path),name:remap(entry.path).split('/').pop()!}));});
       const moved=before.filter(n=>n.path===from||n.path.startsWith(from+'/'));
@@ -410,7 +414,7 @@ export function App(){
         if(isNote(note.path))for(const pair of mappings)content=rewriteLinks(content,pair.from,pair.to,note.path,before);
         if(content!==note.content)editNote(newPath,content);
       }
-      restoreViews(remap);
+      await restoreViews(remap);
       pluginState.current.entries=nextEntries;pluginState.current.active=remap(pluginState.current.active);
       for(const [id,controller]of pluginStops.current)controller.sync(pluginSnapshot(pluginManifests.current.get(id)));
       setTabs(t=>t.map(remap));setActive(remap);setSplit(p=>p?remap(p):null);setBookmarksFromService(bookmarkPaths().map(remap));setRecent(r=>r.map(remap));
@@ -423,8 +427,8 @@ export function App(){
     const storage=storageRuntime.current?.storage;
     const restoreViews=await preparePluginFileChange(path);
     try{if(storage)await storage.trash(path);else await bridge.trash(path);}
-    catch(error){restoreViews(file=>file);throw error;}
-    restoreViews(()=>null);
+    catch(error){return recoverPluginFileViews(error,[()=>restoreViews(file=>file,true)]);}
+    await restoreViews(()=>null);
     const removed=(p:string)=>p===path||p.startsWith(path+'/');
     updateNotes(notesRef.current.filter(n=>!removed(n.path)));
     for(const p of [...editorSessions.current.keys()])if(removed(p))editorSessions.current.delete(p);
@@ -440,6 +444,7 @@ export function App(){
     if(!await dialog.confirm('Move to trash?',`${path} will be moved out of the vault. Desktop files are retained in .crafactory/trash.`,true))return;
     try{await trashPath(path);}catch(e){report(e);}
   }
+  /** Cancel outgoing layout debounce and save the old workspace before selecting a new root. */
   async function chooseVault(create=false){
     switchingVault.current=true;clearTimeout(layoutSaveTimer.current);layoutSaveTimer.current=undefined;
     try{await stopPlugins();await flush();await bridge.state(vaultState.current);if(await bridge.choose(create))await initialize();}catch(e){report(e);}
@@ -479,13 +484,15 @@ export function App(){
     if(notes.some(n=>n.path===target)){report(new Error('Target note already exists'));return;}
     editor.current?.replaceSelection(composerRuntime.current?.service.extractLink(target)??`[[${target.replace(/\.md$/,'')}]]`);await createNote(target,selection);
   }
+  /** Save both files' plugin drafts before merging, restoring retired views on failure. */
   async function mergeInto(target:string){
     if(!activeNote||target===active)return;
     const destination=notes.find(n=>n.path===target);if(!destination)return;
     if(!await dialog.confirm('Merge notes?',`Append ${active} to ${target} and move the original to trash.`))return;
     try{
-      const source=active;await flush();const restoreViews=await preparePluginFileChange(source);let trashed=false;
+      const source=active;await flush();const restoreViews=await preparePluginFileChange(source);let trashed=false,restoreTarget:Awaited<ReturnType<typeof preparePluginFileChange>>|undefined;
       try{
+        restoreTarget=await preparePluginFileChange(target);
         const currentSource=notesRef.current.find(note=>note.path===source),currentTarget=notesRef.current.find(note=>note.path===target);
         if(!currentSource||!currentTarget)throw new Error('Merge file no longer exists');
         editNote(target,composerRuntime.current?.service.merge(currentTarget.content,currentSource.content)??currentTarget.content+'\n\n'+frontmatter(currentSource.content).body);
@@ -493,9 +500,9 @@ export function App(){
           const updated=rewriteLinks(n.content,source,target,n.path,notesRef.current);
           if(updated!==n.content)editNote(n.path,updated);
         }
-        await flush();await bridge.trash(source);trashed=true;restoreViews(()=>null);
+        await flush();await bridge.trash(source);trashed=true;await restoreViews(()=>null);await restoreTarget(file=>file);
         updateNotes(notesRef.current.filter(n=>n.path!==source));setTabs(t=>t.filter(p=>p!==source));setSplit(p=>p===source?null:p);editorSessions.current.delete(source);setEntries(await bridge.list());open(target);
-      }catch(error){restoreViews(trashed?()=>null:file=>file);throw error;}
+      }catch(error){await recoverPluginFileViews(error,[()=>restoreViews(trashed?()=>null:file=>file,!trashed),async()=>{await restoreTarget?.(file=>file,true);}]);}
     }catch(e){report(e);}
   }
   async function showRecovery(){
@@ -553,6 +560,7 @@ export function App(){
     const url=await dialog.ask('Open web viewer','https://example.com','Only HTTPS pages are supported. Some sites block embedded viewing.');
     if(!url)return;try{const viewer=webViewerRuntime.current?.service;const normalized=viewer?viewer.normalize(url):(()=>{const parsed=new URL(url);if(parsed.protocol!=='https:')throw new Error('Use an HTTPS URL');return url;})();open('web:'+normalized);}catch(e){report(e);}
   }
+  /** Confirm capability grants and bind one owned runtime, or fully stop its registrations. */
   async function togglePlugin(id:string){
     await supportTransition.current;
     if(!enabled('compat')){toast('Enable Obsidian plugin support in Core plugins first.');return;}

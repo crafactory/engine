@@ -44,17 +44,23 @@ function NativeSetting({contribution,value,onChange}:{contribution:SettingsContr
   return <section className="native-setting"><h3>{contribution.label}</h3><Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={contribution.id}><Component value={value} onChange={onChange}/></ViewBoundary></Suspense></section>;
 }
 
+/** Render owned preference panels and reconcile saved trust flags with startup privileges. */
 export function Settings({value,onChange,onClose,plugins,enabled,onTogglePlugin,pluginTabs=[],modes={},onMode=()=>{},nativeSettings=[]}:{value:Preferences;onChange:(value:Preferences)=>void;onClose:()=>void;plugins:PluginManifest[];enabled:string[];onTogglePlugin:(id:string)=>void;pluginTabs?:PluginTab[];modes?:Record<string,string>;onMode?:(id:string,mode:string)=>void;nativeSettings?:SettingsContribution[]}) {
   const [tab,setTab]=useState('appearance'),[pluginQuery,setPluginQuery]=useState('') ,[unsafeEval,setUnsafeEval]=useState<boolean|null>(null),[unsafeEvalConfirm,setUnsafeEvalConfirm]=useState(false);
   const [nativePlugins,setNativePlugins]=useState(false),[nativeConfirm,setNativeConfirm]=useState(false);
   const [activeTrust,setActiveTrust]=useState<{unsafeEval:boolean;nativePlugins:boolean}|null>(null);
+  const trustProfileSequence=useRef(0);
   const unsafeEvalRestart=activeTrust!==null&&unsafeEval!==null&&unsafeEval!==activeTrust.unsafeEval,nativeRestart=activeTrust!==null&&nativePlugins!==activeTrust.nativePlugins;
   const [nativeBusy,setNativeBusy]=useState(false),[nativeError,setNativeError]=useState('');
   const [unsafeBusy,setUnsafeBusy]=useState(false),[unsafeError,setUnsafeError]=useState('');
   useEffect(()=>{if(tab!=='community')return;let live=true;setActiveTrust(null);
-    if(bridge.desktop&&bridge.trustProfile)void bridge.trustProfile().then(profile=>{if(live){setNativePlugins(profile.saved.nativePlugins);setUnsafeEval(profile.saved.unsafeEval);setActiveTrust(profile.active);}}).catch(error=>{if(live)setNativeError(String(error));});
+    /** Apply a confirmed profile only while this Community panel subscription remains live. */
+    const apply=(profile:{saved:{unsafeEval:boolean;nativePlugins:boolean};active:{unsafeEval:boolean;nativePlugins:boolean}})=>{if(live){setNativePlugins(profile.saved.nativePlugins);setUnsafeEval(profile.saved.unsafeEval);setActiveTrust(profile.active);setNativeError('');}};
+    const offTrust=bridge.onTrustProfileChange?.(profile=>{trustProfileSequence.current++;apply(profile);});
+    const sequence=trustProfileSequence.current;
+    if(bridge.desktop&&bridge.trustProfile)void bridge.trustProfile().then(profile=>{if(sequence===trustProfileSequence.current)apply(profile);}).catch(error=>{if(live&&sequence===trustProfileSequence.current)setNativeError(String(error));});
     else{setNativePlugins(false);setUnsafeEval(false);}
-    return()=>{live=false};
+    return()=>{live=false;offTrust?.();};
   },[tab]);
   /** Persist only native-confirmed profile changes, preserving UI state on failure. */
   async function changeNativePlugins(enabled:boolean){if(!bridge.desktop||!bridge.setNativePlugins||nativeBusy||!activeTrust)return;setNativeBusy(true);setNativeError('');try{const result=await bridge.setNativePlugins(enabled);setNativePlugins(result);setNativeConfirm(false);}catch(error){setNativeConfirm(false);setNativeError(String(error));}finally{setNativeBusy(false);}}
