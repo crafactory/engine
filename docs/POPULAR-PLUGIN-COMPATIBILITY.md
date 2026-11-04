@@ -17,7 +17,7 @@ The target set is the all-time download top ten on [Obsidian Stats](https://www.
 | 7 | Calendar | tag 2.0.0-beta.2 / manifest 2.0.0 | Existing today/create/open daily-note workflow |
 | 8 | Copilot | 4.0.17 | Startup with background failure at `App.secretStorage`; inference not tested |
 | 9 | Style Settings | 1.0.9 | Startup only; full theme/snippet acceptance unfinished |
-| 10 | Kanban | 2.0.51 | Board/list creation and Markdown save/restart; card submission remains blocked by a recorded parser error |
+| 10 | Kanban | 2.0.51 | Board/list and unchecked-card creation, exact Markdown save, switch and restart/reopen; no recorded errors in the bounded run |
 
 Reading Time 1.1.2 remains an eleventh regression sentinel, not a top-ten claim. Hashes, repositories, identities, actual outcomes and workflows are recorded in the [pins](compatibility/community-corpus.json), [renderer evidence](TRUSTED-RENDERER-PLUGIN-TESTS.md), and [Worker evidence](COMMUNITY-PLUGIN-TESTS.md). External binaries stay outside checkout and packaging inputs. New input licenses have not been audited; test downloads do not authorize redistribution.
 
@@ -37,7 +37,7 @@ Worker remains the default and rejects DOM/native modules. Renderer execution re
 
 Git receives actual native modules in that full-trust profile rather than fake filesystem/process modules. Disposable-repository acceptance does not establish credential, cancellation or conflict safety for arbitrary user repositories. The original embed registry and editable CodeMirror source surface are bounded implementations, not complete private-API parity; `metadataTypeManager` remains unsupported. Tasks' recoverable property-type warning is recorded; automatic reference-app property-type integration is not implemented.
 
-The remaining goal includes additional Excalidraw tools/export/embedding and core Canvas integration, Kanban card/completion/move/conversion workflows, Git diff/backup/conflict/authentication flows, Copilot authorized authenticated inference, and Style Settings CSS round trips. Existing bounded tests establish neither mobile compatibility nor arbitrary versions, complete settings coverage or all upstream features.
+The remaining goal includes additional Excalidraw tools/export/embedding and core Canvas integration, Kanban later card edits/completion/move/conversion/pointer dragging, Git diff/backup/conflict/authentication flows, Copilot authorized authenticated inference, and Style Settings CSS round trips. Existing bounded tests establish neither mobile compatibility nor arbitrary versions, complete settings coverage, cross-plugin focus sharing or all upstream features.
 
 ## Public contracts
 

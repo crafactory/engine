@@ -38,11 +38,13 @@ cross-plugin integration/focus sharing remain unverified or unsupported.
 
 ## Next delivery steps
 
-One initial effective CodeRabbit review was requested and is processing. Address blocking
-findings with original regressions; do not chase optional review loops. Publish aligned
-reports/docs in a small commit, then require exact-head cloud Verify, all three package
-builds and an explicitly dispatched plugin-corpus workflow before merge. Existing cloud
-runs on `0a84173` are not evidence for a later head.
+The [initial effective CodeRabbit review](https://github.com/crafactory/engine/pull/73#issuecomment-6621975902)
+completed on implementation head `0a84173`, with no actionable comments and no established
+blocking defect; its check run completed successfully. Subsequent changes are reports/docs
+only. Automatic later review is skipped because the repository has fewer than ten stars;
+do not chase an optional manual repeat. Address any actual blocking findings with original
+regressions. Require exact-head cloud Verify, all three package builds and an explicitly
+dispatched corpus workflow before merge. Older-head runs do not certify a later head.
 
 Merge only the verified exact head, sync main, then privately email the owner in Chinese
 with PR #72/#73 results, accepted risk and remaining boundaries. No final results email
