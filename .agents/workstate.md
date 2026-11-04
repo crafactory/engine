@@ -45,8 +45,23 @@ with the saved card visible. The targeted run passed; focus still logs missing s
 Log: `/tmp/engine-pr73-enabled-{units,build,kanban}.log`. No generated report pair has been
 upgraded from this partial run. Full acceptance/review is still pending.
 
-Public SDK declarations confirm Node and UIEvent doc/win helpers; only HTMLElement helpers
-are currently installed. This is the next focus hypothesis, not a verified production fix.
+The existing Node helpers lacked the documented detached-window fallback; UIEvent doc/win
+helpers were absent. The initial ownership repair exposed a second real focus failure:
+workspace.activeEditor was getter-only. Current candidate adds owned embedded-editor focus
+admission, context-preserving command routing and selection-only snapshot updates.
+It releases context on competing editors/file changes/disposal, ignores stale owned timers,
+and rejects foreign editor objects. No Object.prototype patch is in product code.
+
+Ownership and focused-command regressions pass, including a palette command that replaces
+the actual selected embedded text without writing the native file. The ownership test fails
+against the unchanged packaged PR #72 binary. The first combined candidate failed on the
+read-only activeEditor error; the next failed TypeScript on optional host delegation; a later
+run completed the real Kanban workflow but failed on a test variable typo, then on its old
+expected-error outcome ratchet. These are separate failed candidates, not acceptance.
+The corrected targeted Kanban case passed with no runtime/console errors, including card
+save/switch/restart. Its outcome ratchet now requires bounded PASS and no longer allows the
+old has/setTimeout errors. Full new source/browser/95-desktop acceptance is in progress;
+verify actual counts/completion before publishing reports or result claims.
 Node 22 is `/tmp/engine-node/node_modules/node/bin`; unchanged corpus is
 `/tmp/engine-plugin-corpus`. Previous accepted logs are `/tmp/engine-pr72-round3-*`.
 Capture new probes separately and do not mix corpus report rows from different runs.

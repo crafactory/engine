@@ -235,6 +235,48 @@ test('renderer array endpoints and DOM instance checks handle adopted nodes acro
     return {checks,first:([1,2] as any).first(),last:([1,2] as any).last(),emptyFirst:([] as any).first(),emptyLast:([] as any).last()};
   })).toEqual({checks:[true,true,false],first:1,last:2,emptyFirst:undefined,emptyLast:undefined});
 });
+test('renderer Node and UIEvent ownership helpers resolve actual documents and windows',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  expect(await page.evaluate(async()=>{
+    const text=document.createTextNode('ownership'),fragment=document.createDocumentFragment(),input=document.createElement('input');
+    document.body.append(input);let realFocus=false;
+    input.addEventListener('focus',event=>{realFocus=(event as any).doc===document&&(event as any).win===window;},{once:true});input.focus();
+    const key=new KeyboardEvent('keydown',{bubbles:true});input.dispatchEvent(key);
+    const iframe=document.createElement('iframe');document.body.append(iframe);const foreign=iframe.contentDocument!,realm=iframe.contentWindow!;
+    const borrowedDoc=Object.getOwnPropertyDescriptor(Node.prototype,'doc')!.get!,borrowedWin=Object.getOwnPropertyDescriptor(Node.prototype,'win')!.get!;
+    const foreignEvent=new FocusEvent('focus',{view:realm}),detached=document.implementation.createHTMLDocument('detached');
+    const windowEvent=new UIEvent('resize'),documentEvent=new KeyboardEvent('keydown'),detachedEvent=new KeyboardEvent('keydown');
+    realm.dispatchEvent(windowEvent);foreign.dispatchEvent(documentEvent);const detachedInput=detached.createElement('input');detachedInput.dispatchEvent(detachedEvent);
+    const checks=[(document as any).doc===document,(document as any).win===window,(text as any).doc===document,(fragment as any).win===window,
+      (key as any).doc===document,(key as any).win===window,(foreignEvent as any).doc===foreign,(foreignEvent as any).win===realm,
+      borrowedDoc.call(foreign)===foreign,borrowedWin.call(foreign)===realm,borrowedDoc.call(detached)===detached,borrowedWin.call(detached)===window,
+      (windowEvent as any).doc===foreign,(windowEvent as any).win===realm,(documentEvent as any).doc===foreign,(documentEvent as any).win===realm,
+      (detachedEvent as any).doc===detached,(detachedEvent as any).win===window];
+    const timer=await new Promise<boolean>(resolve=>(key as any).win.setTimeout(()=>resolve(true),0));
+    input.remove();iframe.remove();return {checks,realFocus,timer,objectPollution:Object.hasOwn(Object.prototype,'win')};
+  })).toEqual({checks:Array(18).fill(true),realFocus:true,timer:true,objectPollution:false});
+});
+test('focused embedded editors keep command context through the palette and retire on file switch',async()=>{
+  await enable();await page.getByTestId('settings-close').click();const before=await fs.readFile(path.join(root,'Zeta.md'),'utf8');
+  await command('Open embedded editor');const input=page.getByRole('textbox',{name:'Embedded Markdown editor',exact:true});await input.fill('owned draft');
+  expect(await page.evaluate(()=>{
+    const app=(window as any).app,source=(window as any).__fixtureEmbeddedEditor;
+    const info={file:app.workspace.getActiveFile(),get editor(){return source.editor;}};
+    (window as any).__fixtureFocusedInfo=info;app.workspace.activeEditor=info;return app.workspace.activeEditor===info;
+  })).toBe(true);
+  await page.evaluate(()=>(window as any).__fixtureEmbeddedEditor.cm.dispatch({selection:{anchor:6,head:11}}));
+  await command('Replace focused selection');await expect(input).toHaveText('owned focused selection');
+  await command('Edit focused buffer');await expect(input).toHaveText('focused command edit');
+  expect(await fs.readFile(path.join(root,'Zeta.md'),'utf8')).toBe(before);
+  await page.getByTestId('file-Test.txt').click();
+  expect(await page.evaluate(()=>(window as any).app.workspace.activeEditor!==(window as any).__fixtureFocusedInfo)).toBe(true);
+  await page.getByRole('button',{name:'Close Embedded fixture',exact:true}).click();
+  expect(await page.evaluate(()=>{
+    const app=(window as any).app,stale=(window as any).__fixtureFocusedInfo;app.workspace.activeEditor=stale;
+    return app.workspace.activeEditor!==stale;
+  })).toBe(true);
+  expect(await page.evaluate(()=>{try{const app=(window as any).app;app.workspace.activeEditor={file:app.workspace.getActiveFile(),editor:{}};return false;}catch(error){return String(error).includes('must belong to this plugin runtime');}})).toBe(true);
+});
 test('renderer embedded Markdown editor subclasses handle real input and dispose with their view',async()=>{
   await enable();await page.getByTestId('settings-close').click();await command('Open embedded editor');
   const input=page.getByRole('textbox',{name:'Embedded Markdown editor',exact:true});

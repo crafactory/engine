@@ -11,6 +11,22 @@ function harness(native?:CompatNativeServices){
   const runtime=createCompatibilityRuntime(manifest,initial(),{ui,request,commands:()=>{},notice:()=>{},native});
   return {runtime,api:runtime.api as any,ui,iterateAllLeaves,request,settingCleanup,extensionCleanup,viewCleanup,extensionsCleanup,suggestCleanup,protocolCleanup,hoverCleanup,basesCleanup,updateOptions,ribbonCleanup,ribbonElement};
 }
+it('routes checking and editor callbacks to the focused embedded context without host writes',async()=>{
+  const h=harness(),writes:string[]=[],focused=new Editor({text:'local draft',from:0,to:0},(_base,text)=>{writes.push(text);});
+  const info={file:h.runtime.app.vault.getFileByPath('One.md'),editor:focused};let current:any=info;
+  Object.assign(h.ui,{getActiveEditor:()=>current,setActiveEditor:(next:any)=>{current=next;}});
+  class P extends h.api.Plugin{
+    onload(){
+      this.addCommand({id:'check-focused',name:'Check focused',editorCheckCallback:(_checking:boolean,ed:any,context:any)=>{expect(ed).toBe(focused);expect(context).toBe(info);return true;}});
+      this.addCommand({id:'edit-focused',name:'Edit focused',editorCallback:(ed:any,context:any)=>{expect(context).toBe(info);ed.setValue('focused command');}});
+    }
+  }
+  await h.runtime.boot(P);expect(h.runtime.app.workspace.activeEditor).toBe(info);
+  await h.runtime.run('check-focused');await h.runtime.run('edit-focused');
+  expect(writes).toEqual(['focused command']);expect(h.request).not.toHaveBeenCalled();
+  h.runtime.app.workspace.activeEditor=null;expect(h.runtime.app.workspace.activeEditor).toBeNull();
+  await h.runtime.stop();
+});
 it('keeps the owned enabled-plugin Set stable across load and unload',async()=>{
   const h=harness(),manager=h.runtime.app.plugins,enabled=manager.enabledPlugins;
   expect(enabled).toBeInstanceOf(Set);expect(enabled.size).toBe(0);

@@ -39,6 +39,7 @@ export interface CompatNativeServices {
   /** Bounded daily-note settings exposed through the synthetic Daily Notes internal plugin. */
   dailyNotes?: {folder:string;format:string;template:string};
 }
+export interface CompatActiveEditor {file:TFile|null;editor:Editor}
 export interface CompatHost {
   request(operation:string,args:unknown[]):Promise<unknown>;
   commands(commands:{id:string;name:string}[]):void;
@@ -48,6 +49,8 @@ export interface CompatHost {
   ui?:{
     scope?:unknown;
     keymap?:unknown;
+    getActiveEditor?():CompatActiveEditor|null;
+    setActiveEditor?(info:CompatActiveEditor|null):void;
     embedRegistry?:unknown;
     reportError?:(error:unknown)=>void;
     exports:Record<string,unknown>;workspace:Record<string,unknown>;
@@ -419,7 +422,10 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     getActiveFile(){return vault.getFileByPath(snapshot.active);}
     getActiveViewOfType(type:unknown):any{if(host.ui){if(typeof type!=='function')return unsupported('Workspace.getActiveViewOfType invalid type');const view=(host.ui.workspace.activeLeaf as any)?.view;return view instanceof type?view:null;}return type===MarkdownView&&editor?new MarkdownView():null;}
     iterateAllLeaves(_callback:(leaf:unknown)=>void){return unsupported('Workspace.iterateAllLeaves');}
-    get activeEditor(){return editor?{file:this.getActiveFile(),editor}:null;}
+    /** Prefer an owned embedded focus context while preserving the native editor fallback. */
+    get activeEditor():CompatActiveEditor|null{return host.ui?.getActiveEditor?.()??(editor?{file:this.getActiveFile(),editor}:null);}
+    /** Delegate focus admission to the renderer; workers cannot fabricate DOM editor ownership. */
+    set activeEditor(info:CompatActiveEditor|null){const set=host.ui?.setActiveEditor;if(!set){unsupported('Workspace.activeEditor assignment');return;}set.call(host.ui,info);}
     onLayoutReady(callback:()=>void){callback();}
     /** Internal exact-path open used by workspace leaves; not a reference method. */
     async openPath(path:string){if(typeof path!=='string'||!path)throw new Error('Invalid open path');await request('open',[path]);}
@@ -610,10 +616,12 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     editor=snapshot.editor?new Editor(snapshot.editor,(base,text,from,to)=>{const result=mutate('editor',[path,base,text,from,to]);editorWrites.add(result);result.then(()=>editorWrites.delete(result),()=>{});return result;}):null;
   }
   initEditor();
+  /** Check and run commands against the admitted editor context rather than a different host draft. */
   function available(command:CompatCommand,checking:boolean){
     let result:unknown;
-    if(command.editorCheckCallback){if(!editor)return false;result=command.editorCheckCallback(checking,editor,new MarkdownView());}
-    else if(command.editorCallback){if(!editor)return false;if(!checking)result=command.editorCallback(editor,new MarkdownView());else return true;}
+    const focused=host.ui?.getActiveEditor?.(),active=focused?.editor??editor,context=focused??new MarkdownView();
+    if(command.editorCheckCallback){if(!active)return false;result=command.editorCheckCallback(checking,active,context);}
+    else if(command.editorCallback){if(!active)return false;if(!checking)result=command.editorCallback(active,context);else return true;}
     else if(command.checkCallback)result=command.checkCallback(checking);
     else {if(!checking)return command.callback?.();return true;}
     if(checking&&result&&typeof (result as any).then==='function')return unsupported('Command async checking callback');
