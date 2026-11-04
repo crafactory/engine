@@ -1,81 +1,89 @@
 # Native drawing, board and Git increment
 
-## Scope and authorization
+## Scope and current delivery
 
-The user requested appropriate permission broadening and maximum practical Excalidraw, Kanban and Git functionality after [PR #71](https://github.com/crafactory/engine/pull/71) merged at `e1dbd49`. Implementation and evidence are on `compat/native-drawing-board-git` in [PR #72](https://github.com/crafactory/engine/pull/72); use the PR for live review/CI/merge state. No agents were delegated. Third-party bundles/styles remain unchanged, hash-pinned external black-box inputs; their implementation is neither inspected nor incorporated.
+[PR #72](https://github.com/crafactory/engine/pull/72) is on `compat/native-drawing-board-git`,
+after [PR #71](https://github.com/crafactory/engine/pull/71) merged at `e1dbd49`.
+No agents were delegated. Upstream plugin bundles/styles remain unchanged, hash-pinned
+black-box inputs; do not inspect, copy, modify or distribute their implementations.
 
-Native access is explicit, warned, profile-wide full trust, not per-plugin isolation. Least-capability defaults remain unchanged. Grant/revocation needs restart; development HTTP cannot enable native access. The native test environment excludes service credentials and uses a temporary home, but is not OS filesystem containment.
+Native access is explicit profile-wide full trust, not per-plugin isolation. Defaults remain
+least-capability; grant/revocation needs restart and development HTTP cannot grant it.
+The temporary native test home/environment is not OS filesystem containment.
 
-## Initial candidate verification
+## Latest maintainer direction
 
-The complete candidate run finished successfully: inventory, 838 units across 47 files, production build, 79 desktop cases including all eleven Worker and all eleven renderer inputs, and 64 browser cases. Logs are `/tmp/engine-next-final2-check.log`, `/tmp/engine-next-final2-desktop.log` and `/tmp/engine-next-final2-browser.log`.
+The maintainer accepted only the binary final-stat-to-rename recreation window:
+an external deletion can still be followed by recreation with staged bytes.
+Do not complicate storage further or describe this as repaired atomicity.
+The accepted-risk thread is resolved; other correctness/security findings are not accepted.
 
-Both corpus reports were regenerated only from the complete candidate directories `/tmp/engine-next-final2-renderer` and `/tmp/engine-next-final2-worker`; no earlier probes were combined. Node 22 is at `/tmp/engine-node/node_modules/node/bin`, and immutable corpus inputs are at `/tmp/engine-plugin-corpus`.
+The latest instruction supersedes the earlier mandatory repeated-latest-head-review gate:
+open PRs early and push frequent commits; normally one or two effective Review + Fix
+rounds are sufficient. If review is unavailable/rate-limited afterward, merge may proceed
+with exact-head green required checks and no known blocking issue. Record the effective
+reviews, repairs, verification and service limitation. Do not repeatedly request reviews
+solely for bot approval. CONTRIBUTING now documents this policy; do not restore the old
+quota-blocked-wait rule from historical notes.
 
-Earlier failed candidates exposed a CM5 factory/specification mismatch, null-mode stream non-advancement, missing state copying and a rectangle-tool click/drag race in the harness. Original host repairs and tool-state synchronization are present and passed the complete run. The chronological verification note preserves the failed candidate.
+## Current third-review repairs
 
-## Workflow boundaries
+The completed actual review of `ead4e7a` is
+[5762696669](https://github.com/crafactory/engine/pull/72#pullrequestreview-5762696669).
+Re-query GitHub for live IDs/state; an earlier compacted summary contained incorrect IDs.
+Verified open thread data is `/tmp/engine-pr72-round3-live-threads.json`.
+Prepared replies are `/tmp/engine-pr72-round3-replies.json`.
 
-- Excalidraw acceptance requires actual pointer drawing, file save, document switching and full application restart/re-enable/reopen with identical element identity/dimensions. The private Obsidian core Canvas dependency still rejects; preserve `BOUNDED_WORKFLOWS_WITH_ERRORS`.
-- Git acceptance stages the actual index, commits a specific message, pushes to a disposable local bare remote, pulls a peer commit and verifies editor refresh. No credentials or Internet remote; authentication, signing, hooks, diff, backup and conflicts remain unverified.
-- Kanban acceptance creates a board/list, persists Markdown and recovers after document switching/restart. Card Enter reproducibly fails on undefined `has`; embedded focus reports undefined `setTimeout`. The negative card test retains the error and checks that no card was saved. Do not claim card editing/completion/move or full support.
-- Tasks retains its property-type error despite a passing query/completion workflow. Copilot advances through native module startup to the unsupported secret-storage boundary; authenticated inference remains untested.
+- Recreate detached main/left/right/overlay file views after a failed filesystem operation,
+  retaining public view state and original IDs. Implicit extension views remain implicit.
+  Attempt all owners/leaves and host mappings even if another restoration fails; preserve
+  the original failure alongside recovery errors. Private plugin state is not guaranteed.
+- Recheck each saved text draft immediately before its own detach. An earlier unload can
+  mutate a later draft after the shared seal; abort and retain that later live draft.
+- Flush source and destination plugin drafts before obtaining fresh merge content.
+- Publish confirmed persisted trust profiles and subscribe only while Community is open;
+  ignore stale initial responses and keep both restart notices independent.
+- Read stylesheets in an original bounded child whose cwd is anchored to the initialized
+  canonical root. Verify entered directories and the opened descriptor before reads;
+  reject symlinks/non-regular files and absent inode identities, compare identities
+  losslessly, cap allocation/growth, and apply a timeout. This secures this reader only,
+  not every vault API. Symlinked config/package/style paths are unsupported.
 
-The canonical current tracker is [PLUGIN-SUPPORT-MATRIX.md](../docs/PLUGIN-SUPPORT-MATRIX.md). Generated reports must preserve observed errors and grants. Original fixtures additionally cover binary permissions/bytes, retained views/mount leases, CM5 contracts, embedded CM6, newer subclass-owned data during save, and validated host layout restoration. Arbitrary plugin leaf state is not restored.
+## Verification and next actions
 
-## Earlier review checkpoints
+Current source passes inventory, 860 units /49 files and production build.
+Four new Electron regressions all fail on unchanged `ead4e7a`; all four pass after repair,
+including the actual packaged Linux executable. Packaged CSS loading/ownership/cleanup
+also passes. The browser suite passes 64 cases; all 93 desktop cases passed, including
+the 22 pinned corpus cases with no skips. Both reports have been regenerated from that run.
+The first repair attempt passed 858 units but failed TypeScript on an optional captured ID;
+that failed candidate is not acceptance evidence.
 
-CodeRabbit completed review of `0a472a4` with sixteen inline findings and two review-body follow-ups. The corrected repair source passed inventory, 841 units across 47 files, build, 64 browser cases and all 83 desktop cases, including all 22 pinned corpus cases without skips. Rename/trash additionally passed three targeted repetitions. Logs use `/tmp/engine-pr72-{repairs-final-check,final-browser,final-desktop,rename-repeat}.log`. Reports were regenerated exclusively from `/tmp/engine-pr72-final-renderer` and `/tmp/engine-pr72-final-worker`.
+Use `/tmp/engine-pr72-round3-*` logs. Regenerate both reports exclusively from the new complete
+pair `/tmp/engine-pr72-round3-complete-{renderer,worker}`, never from mixed runs.
+Node 22: `/tmp/engine-node/node_modules/node/bin`; corpus: `/tmp/engine-plugin-corpus`.
+The baseline worktree `/tmp/engine-pr72-round3-baseline` is temporary and read-only apart
+from copied original test harnesses; remove it after recording the baseline.
 
-The earlier repair desktop candidate had 82 passes and one premature rename-fixture assertion, plus a Kanban startup downgrade that a generic diagnostic case incorrectly accepted. Neither that downgrade nor mixed corpus rows is acceptable. The redundant `_loaded` assignment fix and explicit corpus workflow ratchet prevent that regression. Verification preserves the failed candidate.
+Finish evidence/docs, commit/push, reply/resolve verified repaired threads and request one
+consolidated latest-head review. Verify exact-head cloud verification, three-platform
+packaging and explicitly triggered pinned corpus checks. Follow the latest review-service
+exception if genuinely blocked with no known blocking issues; merge using match-head-commit.
+Then sync main and start the Kanban card/focus/dragging increment with an early PR.
+No new Kanban implementation has begun. No issue creation is authorized.
 
-Review data and thread IDs are in `/tmp/engine-pr72-{reviews,review-comments,review-threads}.json`; prepared inline replies are `/tmp/engine-pr72-review-replies.json`. Use the PR for live reply/resolution/re-review/CI state after this source checkpoint. Follow CONTRIBUTING exactly: completed latest-head CodeRabbit review, all issues addressed, completed re-review after fixes, no unresolved threads, and green latest-head CI before merge. If review is unavailable or blocked, leave the PR open and report the blocker. Do not repeat the quota-limited earlier merge shortcut.
+## Bounded plugin outcomes
 
-Final strengthened checkpoint: 843 units /48 files, inventory/build, 64 browser cases and
-83 desktop cases passed, including all 22 pinned corpus cases; final report directories are
-`/tmp/engine-pr72-reviewed-{renderer,worker}`. Host path registration now has direct pure tests
-because the same-leaf UI case also passed the pre-repair baseline. Original baseline probes
-gave six unit failures /54 passes and three desktop failures /one pass. A later candidate's
-Excalidraw restart failed before waiting for plugin enable completion; both restart fixtures
-now await the checked control, and three targeted Excalidraw repetitions passed. See the
-verification log for separate failed-candidate evidence and exact paths.
+- Excalidraw: real rectangle drawing/save/switch/restart preserves element ID/dimensions.
+  Obsidian core Canvas still rejects; full Markdown mode is unverified.
+- Git: actual stage/commit/local bare-remote push/peer pull/editor refresh pass.
+  Internet authentication, signing, hooks, conflicts and backup are unverified.
+- Kanban: board/list persistence/switch/restart pass; cards fail on undefined `has`,
+  embedded focus reports undefined `setTimeout`; completion/moves remain unsupported.
+- Tasks retains its property-type error despite a passing query/completion workflow.
+  Copilot stops at unsupported secret storage; inference is untested.
 
-All initial sixteen review threads have individual replies and were resolved after fixes;
-both review-body follow-ups were answered in the re-review request. The subsequent completed
-[review of `64b89c2`](https://github.com/crafactory/engine/pull/72#pullrequestreview-5757536733)
-reported seven inline findings and two review-body follow-ups. The previous temporary quota
-block is historical, not evidence of the current quota state.
-
-## Current second-review repairs and delivery gate
-
-The repair source bounds stylesheet reads through an open handle; remembers explicit leaf
-activation; publishes activation overrides only after a successful host open; prepares and
-seals all owners' file views before retiring any; skips host-owned repeat saves after sealing;
-flushes plugin drafts before constructing merge content; derives both restart notices from
-saved versus startup-active privileges; and marks asynchronously rejected Editor instances
-stale while preserving rejected writes until settle observes them.
-
-Six new desktop regressions passed together. Full source checks passed with 850 units across
-48 files and the existing build-size warning. Complete validation also passed all 64 browser
-and 89 desktop cases, including all 22 pinned corpus cases with none skipped. Reports were
-regenerated only from `/tmp/engine-pr72-round2-complete-{renderer,worker}`. The six desktop
-regressions on unchanged `64b89c2` produced five expected failures and one already-passing
-retention case; the baseline worktree was removed. Use the current logs under
-`/tmp/engine-pr72-round2-*`, not the earlier 843-unit reports, for this repair candidate.
-
-On 2026-11-04 the maintainer explicitly accepted the narrow recreation race in binary finding
-`4458871645` and requested fresh CodeRabbit review, merge if otherwise clean, then continued
-plugin work. Do not complicate storage to eliminate this accepted race or claim it is fixed.
-The contract now records that decision; a deterministic regression injects deletion after
-the final stat and immediately before rename, then verifies recreation with staged bytes and
-cleanup. Existing staging failure protection and pre-publication checks remain unchanged.
-Record the acceptance on the review thread and resolve it as accepted risk, not a repair.
-
-Latest-head review and CI remain mandatory independently of the accepted risk. The previous
-repair head `c664d24` passed all cloud verification, three-platform packaging and explicitly
-triggered pinned corpus checks, but its whole-source re-review was quota-blocked. Request and
-inspect a completed review of the acceptance checkpoint, fix other findings and re-review
-after fixes before merging. The previous results email was sent; this latest request has only
-received a private starting acknowledgment.
-
-Delivery must distinguish PR/review/merge state, native full-trust risk and bounded compatibility gaps. No issue creation is authorized.
+The support matrix is canonical. Worker refusals and startup success are not full
+compatibility. Preserve errors/classifications in generated reports. Deliver results
+privately in Chinese to the owner; latest-request progress emails have been sent,
+but no final results email for these repairs or the new review policy has been sent.

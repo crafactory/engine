@@ -5,6 +5,49 @@
 > plugin status see [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); for API boundaries
 > see [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md).
 
+## Third-review recovery, stylesheet identity and trust-profile repairs
+
+On 2026-11-04 UTC, the completed review of `ead4e7a` identified four further inline
+correctness findings and a stylesheet path-swap follow-up. The repaired Linux source
+passes inventory validation, 860 units across 49 files, production build, 64 browser tests
+and all 93 Electron desktop tests. All eleven pinned Worker and eleven pinned renderer
+inputs executed with no skips. Both reports were regenerated exclusively from
+`/tmp/engine-pr72-round3-complete-{renderer,worker}`; classifications and known plugin errors
+remain bounded, not upgraded to full compatibility. The existing bundle-size warning remains.
+
+Four new actual Electron regressions all fail on unchanged `ead4e7a`: filesystem failure
+loses the overlay registration, an earlier unload discards a later changed draft, merge uses
+old destination content, and an open trust panel does not observe an external confirmed
+profile update. All four pass after repair and against the actual Linux packaged executable.
+A separate packaged CSS loading/ownership/cleanup regression also passes. The existing
+startup-false and startup-true trust tests additionally cover both switches diverging,
+reverting one while retaining the other's notice, then reverting the other. Pure recovery
+tests verify attempts continue across owner/recovery errors and retain the original failure.
+
+Seven isolated child-process stylesheet tests cover ordinary content, oversized rejection
+before content reads, concurrent growth, final symlink replacement, descriptor-identity
+rejection even when final no-follow flags are deliberately bypassed in the harness, a parent
+swap before entering, and an ancestor replacement after entering. The reader compares
+lossless file identities and rejects missing inode identities; symlinked config/package/style
+paths are unsupported. On Windows, an OS refusal to rename an entered cwd is an accepted
+safe outcome with no content read. These tests secure this reader, not the entire vault API
+or trusted native plugins. Windows/macOS packaging is not native runtime/security acceptance.
+
+Logs are `/tmp/engine-pr72-round3-{check-final,browser,desktop-full,baseline-desktop,packaged-desktop,packaged-css}.log`.
+The earlier repair candidate passed 858 units but failed TypeScript on an optional captured
+leaf ID; it was not accepted. The repaired failure path retains explicit IDs and leaves
+implicit extension views implicit. Nine targeted desktop cases passed before the later
+full run and additional recovery-error assertions; those partial results do not replace
+the complete 860/64/93 evidence.
+
+The maintainer's accepted binary final-check-to-rename recreation window remains unchanged,
+not repaired. A subsequent instruction explicitly prioritizes early PRs, frequent commits
+and one or two effective Review + Fix rounds: after effective review, review-service
+unavailability alone need not block merge when no known blocking issue remains and exact-head
+required checks pass. CONTRIBUTING records the revised policy. Use the PR for current cloud
+checks, consolidated re-review and merge state; this local evidence does not claim those
+external steps have completed.
+
 ## Native profile, drawing, board and Git increment
 
 On 2026-11-03, the complete Linux x64 candidate passed inventory validation, 838 unit tests
