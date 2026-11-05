@@ -1,51 +1,36 @@
-# Kanban card and focus increment
+# Mainstream plugin workflow gaps
 
-## Authorization and baseline
+## Baseline and scope
 
-[PR #72](https://github.com/crafactory/engine/pull/72) merged at `a1c79b7` after effective
-review/fix rounds, exact-head green checks and a recorded quota exception. Its narrow binary
-final-check-to-rename recreation risk remains accepted, not repaired.
+PR #73 merged at `7d2ea5a`; its card creation/save/switch/restart and owned-runtime focus
+evidence is historical baseline, not completion/move/drag acceptance.
+The owner now authorizes continuing Kanban and checking other plugins' real workflows,
+recording observed gaps and implementing their original host fixes.
 
-Open PRs early and submit frequent reviewable commits. Normally use one or two effective
-Review + Fix rounds, fix blocking findings with regressions, then allow the maintainer's
-review-service exception only with no known blockers and exact-head green checks.
-CONTRIBUTING is authoritative. No agents or issue creation authorized. Original host code
-only: unchanged pinned plugin bundles/styles are black-box inputs, never inspected/copied.
-Public declarations and runtime DOM/API/exception metadata are allowed.
+Branch: `compat/plugin-workflow-gaps`. Open an early draft PR and push small commits.
+Use one or two effective CodeRabbit review/fix rounds; do not chase optional repeats.
+No known blocking issue or failing exact-head checks may be bypassed. See CONTRIBUTING.
+Do not spawn agents, create issues, inspect/copy upstream plugin implementations or rewrite
+their pinned bundles/styles. Runtime DOM/API/exception observations and public docs are allowed.
+Native profile is full OS-user trust, not isolation; use disposable vaults and allowlisted env.
+The accepted narrow binary rename recreation race remains unchanged.
 
-## Current work and evidence
+## Current increment
 
-Branch `compat/kanban-card-workflows`, [PR #73](https://github.com/crafactory/engine/pull/73),
-is ready for review. `ab431cc` adds lifecycle-owned own-runtime enabledPlugins admission,
-revocation and registry cleanup. `0a84173` adds UIEvent ownership, detached Node fallback and
-owned embedded-editor focus admission/routing, selection snapshots and stale/foreign context
-handling. No Object.prototype workaround or shared plugin registry was introduced.
+Expand black-box Kanban coverage to edits, completion, movement and pointer dragging.
+Recheck all eleven existing pinned inputs in the full corpus; probe concrete Tasks and
+Style Settings workflows instead of treating startup as compatibility. Copilot secret storage,
+Excalidraw core Canvas, authenticated Git and cross-plugin context remain known gaps, not
+promises of completion in this increment. Implement only observed, testable host contracts.
 
-Complete Linux source acceptance: inventory/build, 866 units /49 files, 64 browser and 95
-desktop tests. All 22 pinned corpus cases executed without skips. Both reports derive only
-from `/tmp/engine-pr73-complete-{renderer,worker}`. Kanban now passes unchecked-card exact
-save, switch and full restart/re-enable/reopen with no recorded runtime/console errors.
-Two ownership/focus regressions plus real Kanban pass against the actual Linux package
-`/tmp/engine-pr73-package/linux-unpacked/crafactory-engine` (three cases). The ownership
-test fails against unchanged packaged PR #72. Failed implementation/harness candidates and
-the initially incorrect executable filename remain distinct evidence in VERIFICATION.
+No new positive workflow outcome is established yet. Reports must only be regenerated from
+one accepted complete Worker/renderer pair; preserve failed candidates and baseline evidence.
 
-Logs: `/tmp/engine-pr73-complete-{check,browser,desktop}.log`,
-`/tmp/engine-pr73-packaged-acceptance.log`, `/tmp/engine-pr73-focus-baseline.log`.
-Node 22: `/tmp/engine-node/node_modules/node/bin`; corpus: `/tmp/engine-plugin-corpus`.
-No full compatibility claim: completion, later edits, movement, pointer dragging and
-cross-plugin integration/focus sharing remain unverified or unsupported.
+## Environment and delivery
 
-## Next delivery steps
-
-The [initial effective CodeRabbit review](https://github.com/crafactory/engine/pull/73#issuecomment-6621975902)
-completed on implementation head `0a84173`, with no actionable comments and no established
-blocking defect; its check run completed successfully. Subsequent changes are reports/docs
-only. Automatic later review is skipped because the repository has fewer than ten stars;
-do not chase an optional manual repeat. Address any actual blocking findings with original
-regressions. Require exact-head cloud Verify, all three package builds and an explicitly
-dispatched corpus workflow before merge. Older-head runs do not certify a later head.
-
-Merge only the verified exact head, sync main, then privately email the owner in Chinese
-with PR #72/#73 results, accepted risk and remaining boundaries. No final results email
-has been sent yet.
+Node 22: `/tmp/engine-node/node_modules/node/bin`.
+Pinned corpus: `/tmp/engine-plugin-corpus`. Main checkout: `/home/user/workspace/engine`.
+Require source inventory/build/unit/browser/desktop, all pinned corpus cases without skips,
+targeted packaged Linux behavior, effective review and exact-head cloud Verify/three-platform
+packages/explicit corpus before authorized squash merge. Email results privately in Chinese.
+The owner has received the starting acknowledgment; no results email has been sent.
