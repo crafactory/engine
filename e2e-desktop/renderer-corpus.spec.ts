@@ -74,7 +74,45 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
     if(await page.locator('.error-banner').count()){
       blocker=await page.locator('.error-banner span').innerText();outcome=blocker.includes('Unsupported Obsidian capability:')?'UNSUPPORTED_STARTUP':'LOAD_ERROR';
       await expect(control).not.toBeChecked();await expect(page.locator('.plugin-status-item')).toHaveCount(0);
+    }else if(plugin.name==='Style Settings'){
+      // Original fixture CSS follows the public @settings format; upstream bytes stay untouched.
+      const css='/* @settings\nname: Engine Probe\nid: engine-probe\nsettings:\n  - id: engine-probe-toggle\n    title: Probe toggle\n    type: class-toggle\n  - id: engine-probe-color\n    title: Probe color\n    type: variable-text\n    default: red\n*/\nbody { --engine-probe-color: red; }\nbody.engine-probe-toggle { --engine-visible-probe: 1; }';
+      const openStyleSettings=async()=>{
+        await page.addStyleTag({content:css});
+        await page.evaluate(()=>(window as any).app.workspace.trigger('parse-style-settings'));
+        await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();
+        await page.locator('.plugin-settings-content').getByText('Engine Probe',{exact:true}).click();
+      };
+      const effects=()=>page.evaluate(()=>[
+        document.body.classList.contains('engine-probe-toggle'),
+        getComputedStyle(document.body).getPropertyValue('--engine-probe-color').trim(),
+        getComputedStyle(document.body).getPropertyValue('--engine-visible-probe').trim(),
+      ]);
+      await openStyleSettings();
+      await page.getByRole('switch',{name:'Probe toggle',exact:true}).check();
+      await page.getByRole('textbox',{name:'Probe color',exact:true}).fill('#123456');
+      await page.getByRole('textbox',{name:'Probe color',exact:true}).press('Tab');
+      await expect.poll(effects).toEqual([true,'#123456','1']);
+      const saved={'engine-probe@@engine-probe-toggle':true,'engine-probe@@engine-probe-color':'#123456'};
+      await expect.poll(async()=>JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8'))).toEqual(saved);
+      const search=page.locator('.plugin-settings-content').getByRole('searchbox');
+      await search.fill('Probe color');await expect(page.getByRole('switch',{name:'Probe toggle',exact:true})).not.toBeVisible();
+      await expect(page.getByRole('textbox',{name:'Probe color',exact:true})).toBeVisible();
+      await page.getByRole('button',{name:'Clear search',exact:true}).click();
+      await expect(page.getByRole('switch',{name:'Probe toggle',exact:true})).toBeVisible();
+      await app.close();app=await launch();page=await app.firstWindow();trackPage();
+      await page.getByTestId('file-Test.md').click();await settings();
+      await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
+      const restartedControl=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});
+      await restartedControl.click();await page.getByTestId('dialog-submit').click();await expect(restartedControl).toBeChecked();
+      await openStyleSettings();
+      await expect(page.getByRole('switch',{name:'Probe toggle',exact:true})).toBeChecked();
+      await expect(page.getByRole('textbox',{name:'Probe color',exact:true})).toHaveValue('#123456');
+      await expect.poll(effects).toEqual([true,'#123456','1']);
+      expect(JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8'))).toEqual(saved);
+      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['parse original @settings CSS using the documented rescan event','expand real class-toggle and variable-text settings','UI changes affect computed CSS and persist exact plugin data','search filters controls and clear restores them','application restart and re-enable restore controls, computed CSS and persisted values; theme/snippet management and other setting kinds unverified'];
     }else if(plugin.name==='Tasks'){
+      expect(await page.evaluate(()=>(window as any).app.metadataTypeManager.getAllProperties().tq_explain.type)).toBe('checkbox');
       await page.getByTestId('settings-close').click();await page.getByTestId('mode-reading').click();
       const block=page.locator('.reading-surface .plugin-code-block');
       await expect(block).toContainText('Engine compatibility task',{timeout:15000});
@@ -308,9 +346,37 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.getByRole('textbox',{name:'Embedded Markdown editor',exact:true}).press('Enter');
       await expect.poll(async()=>(await fs.readFile(path.join(root,boardPath),'utf8')).includes('- [ ] Compatibility card')).toBe(true);
       await expect(page.locator('.plugin-view-pane').getByText('Compatibility card',{exact:true})).toBeVisible();
+      const cardText=page.locator('.kanban-plugin__item-wrapper').getByText('Compatibility card',{exact:true});
+      await cardText.click();await cardText.dblclick();
+      const cardEditor=page.locator('.kanban-plugin__item-wrapper').getByRole('textbox',{name:'Embedded Markdown editor',exact:true});
+      await cardEditor.fill('Edited compatibility card');await cardEditor.press('Enter');
+      await expect(page.locator('.kanban-plugin__item').getByText('Edited compatibility card',{exact:true})).toBeVisible();
+      await page.getByRole('button',{name:'Open board settings',exact:true}).click();
+      const boardSettings=page.getByRole('dialog');
+      await boardSettings.getByRole('switch',{name:'Display card checkbox',exact:true}).check();
+      await boardSettings.getByRole('button',{name:'Close plugin modal',exact:true}).click();
+      await page.locator('.kanban-plugin__item input[type=checkbox]').check();
+      await page.getByRole('button',{name:'Add a list',exact:true}).click();
+      await page.getByRole('textbox',{name:'Embedded Markdown editor',exact:true}).last().fill('Done');
+      await page.locator('.plugin-view-pane button').filter({hasText:/^Add list$/}).click();
+      await page.locator('.plugin-view-pane button').filter({hasText:/^Done$/}).click();
+      const lanes=page.locator('.kanban-plugin__lane');
+      await expect.poll(()=>lanes.first().locator('.kanban-plugin__item-wrapper').getAttribute('data-hitboxid')).not.toBeNull();
+      const start=(await lanes.first().locator('.kanban-plugin__item-title').boundingBox())!,target=(await lanes.nth(1).locator('.kanban-plugin__placeholder[data-hitboxid]').boundingBox())!;
+      const frame=()=>page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+      await page.mouse.move(start.x+start.width/2,start.y+start.height/2);await page.mouse.down();
+      await page.mouse.move(start.x+start.width/2+12,start.y+start.height/2+8,{steps:5});await frame();
+      await page.mouse.move(target.x+target.width/2,target.y+Math.max(target.height/2,8),{steps:30});await frame();await page.mouse.up();
+      await expect(lanes.nth(1)).toContainText('Edited compatibility card');await expect(lanes.first().locator('.kanban-plugin__item')).toHaveCount(0);
+      await expect.poll(()=>fs.readFile(path.join(root,boardPath),'utf8')).toMatch(/## Done\s+- \[x\] Edited compatibility card/);
+      const savedBoard=await fs.readFile(path.join(root,boardPath),'utf8');
+      expect(savedBoard.match(/^## .*$/gm)).toEqual(['## Tasks','## Done']);
+      expect(savedBoard.match(/^- \[.\] .*$/gm)).toEqual(['- [x] Edited compatibility card']);
+      expect(savedBoard).toContain('"show-checkboxes":true');
       await page.getByTestId('file-Test.md').click();await page.getByTestId('file-'+boardPath).click();
       await expect(page.locator('.plugin-view-pane').getByText('Tasks',{exact:true})).toBeVisible();
-      await expect(page.locator('.plugin-view-pane').getByText('Compatibility card',{exact:true})).toBeVisible();
+      await expect(lanes.nth(1).getByText('Edited compatibility card',{exact:true})).toBeVisible();
+      expect(await fs.readFile(path.join(root,boardPath),'utf8')).toBe(savedBoard);
       await app.close();app=await launch();page=await app.firstWindow();trackPage();
       await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
       const restartedControl=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});await restartedControl.click();await page.getByTestId('dialog-submit').click();await expect(restartedControl).toBeChecked();await page.getByTestId('settings-close').click();
@@ -321,11 +387,12 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
         await page.locator('.palette-list button').filter({hasText:/Toggle between Kanban and markdown mode$/}).click();
       }
       await expect(page.locator('.plugin-view-pane').getByText('Tasks',{exact:true})).toBeVisible();
-      await expect(page.locator('.plugin-view-pane').getByText('Compatibility card',{exact:true})).toBeVisible();
-      expect(await fs.readFile(path.join(root,boardPath),'utf8')).toContain('- [ ] Compatibility card');
+      await expect(page.locator('.kanban-plugin__lane').nth(1).getByText('Edited compatibility card',{exact:true})).toBeVisible();
+      await expect(page.locator('.kanban-plugin__lane').nth(1).locator('input[type=checkbox]')).toBeChecked();
+      expect(await fs.readFile(path.join(root,boardPath),'utf8')).toBe(savedBoard);
       expect([...pageErrors,...consoleErrors]).toEqual([]);
-      outcome='BOUNDED_WORKFLOWS_PASS';blocker="None in the tested board/list/card workflow; completion and moves remain unverified";
-      workflows=['create board Markdown via plugin command','create real list using embedded Markdown input and verify Markdown save','submit a real card and verify unchecked Markdown persistence','switch documents and retain the saved board, list and card','restart application, re-enable plugin and reopen the saved list and card; completion/moves remain unverified'];
+      outcome='BOUNDED_WORKFLOWS_PASS';blocker="None in the tested board/list/card/edit/completion/pointer-move workflow; other movement and integration modes unverified";
+      workflows=['create board and list using real embedded Markdown input','submit a card and verify unchecked Markdown persistence','double-click edit a card through the owned embedded editor','open board settings and enable visible completion checkbox','complete card and create a second list','real frame-paced pointer drag moves completed card between lists','verify section ownership, checked Markdown, saved checkbox configuration and exact bytes across document switch','restart application, re-enable and verify moved card, checked state and exact saved Markdown; other drag/order modes and cross-plugin integrations unverified'];
     }
     if(outcome==='STARTUP_ONLY'){
       if(plugin.name==='Excalidraw'){await page.waitForTimeout(750);for(const button of await page.getByRole('button',{name:'Close plugin modal',exact:true}).all())await button.click();}
@@ -336,12 +403,11 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.keyboard.press('Escape');
       if(orderedErrors.length){outcome='STARTUP_WITH_ERRORS';blocker=orderedErrors[0];}
     }
-    if(plugin.name==='Tasks'&&outcome==='BOUNDED_WORKFLOWS_PASS'&&consoleErrors.some(error=>error.startsWith('setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager.'))){outcome='BOUNDED_WORKFLOWS_WITH_ERRORS';blocker='App.metadataTypeManager remains unsupported; task query/completion workflows passed with the recorded property-type error';}
     // A diagnostic refusal is not an acceptable regression for an already proven workflow.
-    if(!['Copilot','Style Settings'].includes(plugin.name))expect(outcome).toBe(['Excalidraw','Tasks'].includes(plugin.name)?'BOUNDED_WORKFLOWS_WITH_ERRORS':'BOUNDED_WORKFLOWS_PASS');
+    if(plugin.name!=='Copilot')expect(outcome).toBe(plugin.name==='Excalidraw'?'BOUNDED_WORKFLOWS_WITH_ERRORS':'BOUNDED_WORKFLOWS_PASS');
     if(outcome==='BOUNDED_WORKFLOWS_PASS')expect(pageErrors).toEqual([]);
     if(outcome==='BOUNDED_WORKFLOWS_WITH_ERRORS')expect(pageErrors.filter(error=>error!=='Unsupported Obsidian capability: Obsidian core Canvas plugin. See docs/PLUGIN-COMPATIBILITY.md.')).toEqual([]);
-    if(outcome.startsWith('BOUNDED_WORKFLOWS_'))expect(consoleErrors.filter(error=>/\b(?:CompatibilityError|TypeError|ReferenceError|Error):/.test(error)&&!(plugin.name==='Tasks'&&error.startsWith('setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager.')))).toEqual([]);
+    if(outcome.startsWith('BOUNDED_WORKFLOWS_'))expect(consoleErrors.filter(error=>/\b(?:CompatibilityError|TypeError|ReferenceError|Error):/.test(error))).toEqual([]);
     const platform=process.platform==='linux'?'Linux x64 Electron':process.platform==='darwin'?'macOS '+process.arch+' Electron':process.platform+' '+process.arch+' Electron';
     const nativeEnabled=await page.evaluate(()=>typeof (window as any).require==='function');expect(nativeEnabled).toBe(needsNative);
     const unsafeEvalEnabled=await page.evaluate(()=>window.engine!.unsafeEval!());expect(unsafeEvalEnabled).toBe(needsEval);

@@ -10,7 +10,7 @@ Crafactory Engine v0.6.0 provides an experimental independent compatibility subs
 ## Two explicit runtimes
 
 - **Default Worker:** 30 bounded public runtime exports, commands, asynchronous lifecycle, text files, plugin-local JSON and one editor selection. DOM, editor extensions and external CommonJS modules remain rejected. Graceful Worker unload has a two-second force-termination limit.
-- **Opt-in trusted renderer:** the same 30 plus 39 bounded public UI/render exports, for 69 public runtime exports. Observed private adapters are not included in that public inventory. Select the mode in Community plugins while disabled and approve the separate warning. This mode is NOT sandboxed: plugin source runs on the main renderer and can access DOM, the entire vault bridge and workspace metadata. Main-thread freezes or pathological asynchronous unload cannot be forcibly stopped; completed writes are not rolled back. Do not use untrusted code.
+- **Opt-in trusted renderer:** the same 30 plus 42 bounded public UI/render exports, for 72 public runtime exports. Observed private adapters are not included in that public inventory. Select the mode in Community plugins while disabled and approve the separate warning. This mode is NOT sandboxed: plugin source runs on the main renderer and can access DOM, the entire vault bridge and workspace metadata. Main-thread freezes or pathological asynchronous unload cannot be forcibly stopped; completed writes are not rolled back. Do not use untrusted code.
 
 Both modes start disabled, use local `.crafactory/plugins/<id>/manifest.json` and `main.js`, and reset enabled/runtime choices on restart. No automatic `.obsidian` discovery, downloads, marketplace, updates or silent renderer fallback occurs. The default entry permits Blob modules but not `unsafe-eval`, `wasm-unsafe-eval` or inline script. A separate desktop-only opt-in (`trusted.html`, Community plugins warning + restart) serves a CSP that also permits `unsafe-eval` and `wasm-unsafe-eval`; DataviewJS and `dv.view` require `unsafe-eval`, and Templater requires both for its JavaScript bundle and Rust/WASM parser. No default-entry plugin has a verified WebAssembly-only workflow, so the default entry does not carry the WebAssembly relaxation. The opt-in does not sandbox plugins and is not available in the browser preview. By default Electron retains context isolation, sandbox and disabled Node integration. A separate, explicit profile-wide native opt-in changes those settings after native confirmation and restart; it grants every renderer script filesystem, process, network and credential access, not a per-plugin sandbox. Revocation also requires restart. See [NATIVE-PLUGIN-PERMISSIONS.md](NATIVE-PLUGIN-PERMISSIONS.md) for the authoritative grant, revocation and loader boundaries.
 
@@ -45,6 +45,42 @@ A revoked post-processor context ignores new addChild requests without unloading
 The strict renderer CommonJS allowlist contains installed host CodeMirror packages, supported Lezer packages and Moment, not arbitrary npm/Node loading or reference module-version equivalence. Unknown native modules such as `fs` reject in that profile. Only the separate full-trust native profile supplies actual Node/CommonJS loading; it does not complete unsupported Obsidian APIs.
 
 The bounded legacy `window.CodeMirror` registry passes separate editor configuration and mode specification to factories and supports string/object MIME aliases, following the [CodeMirror 5 mode API](https://codemirror.net/5/doc/manual.html#modeapi). Each lookup instantiates its mode independently; unknown modes use an advancing, non-highlighting null mode. This does not implement a full CM5 editor, all modes, helper dispatch or complete overlay semantics.
+
+## Additional renderer contracts
+
+- **Setting controls:** `SearchComponent`, `ExtraButtonComponent` and `MomentFormatComponent`
+  are renderer exports and are also supplied through `Setting.addSearch/addExtraButton/addMomentFormat`.
+  Search clear/disabled/change behavior, extra-button callbacks, and default/placeholder/sample
+  date-format previews use actual controls. Other control kinds and full layout/validation
+  equivalence remain unsupported. These are subsets of the
+  [public SDK declarations](https://raw.githubusercontent.com/obsidianmd/obsidian-api/master/obsidian.d.ts).
+- **DOM factories and events:** global and element factories honor `parent`, `prepend`,
+  fragment text and callback-before-append. Same-origin target windows receive their own
+  helper installation so returned elements support chained factories. UIEvent `targetNode`
+  retains an actual Node or null, and cross-window `instanceOf` follows the event prototype
+  chain rather than assuming its target or view constructed it. `onNodeInserted` schedules
+  an initial notification for an already-connected node; disposal before delivery suppresses
+  it, `once` unhooks, and later insertions remain observed otherwise. This initial delivery
+  closes the observed Kanban drag-registration gap; exact reference timing is not certified.
+  The public `Node.detach()` removes an attached node and is harmless when already detached,
+  including text nodes and same-origin foreign-window nodes.
+- **Modal reachability:** root height/scroll constraints survive a plugin replacing the
+  dialog's CSS classes, keeping actual large settings reachable. Complete stacked-dialog,
+  mobile layout and reference focus equivalence remain unverified.
+- **Owned component trees:** host Component child lifecycle tracking is separate from
+  plugin-owned `children` configuration data, including through guarded receivers.
+  Other arbitrary subclass field collisions are not certified.
+- **Property types:** renderer-only private `app.metadataTypeManager.getAllProperties`
+  returns defensive property names/types/counts inferred from current Markdown frontmatter.
+  `setType` validates bounded explicit types and persists overrides in renderer-profile local
+  storage keyed by vault path, case-insensitively. This is not Obsidian `types.json`, a property
+  editor or full private-manager equivalence; the existing local-storage fallback is per-runtime
+  memory when persistence is unavailable.
+- **Private registry reads:** `workspace.editorSuggest.suggests` is a defensive snapshot of
+  actual owned registrations, not an empty fabricated registry or cross-plugin registry.
+  The private core Templates descriptor is explicitly disabled/unloaded and exposes frozen
+  empty-folder/default-date/time options; loading rejects. No core Templates implementation
+  or enablement is claimed.
 
 ## Existing contracts
 

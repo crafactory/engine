@@ -9,7 +9,7 @@ import {Component,Editor,EditorSuggest,Events,unsupported} from './compat-core';
 import {Keymap,Scope} from './compat-keymap';
 import {addIcon,getIcon,getIconIds,setIcon} from './compat-icons';
 import {MarkdownRenderChild,createMarkdownRenderer,registerPostProcessor,registerCodeProcessor,stopProcessors} from './markdown-plugins';
-export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','FileView','TextFileView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','SuggestModal','FuzzySuggestModal','Keymap','Scope','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','Menu','MenuItem','editorLivePreviewField','editorInfoField','Platform','prepareFuzzySearch','addIcon','getIcon','getIconIds','setIcon','setTooltip'] as const;
+export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','SearchComponent','ExtraButtonComponent','MomentFormatComponent','View','ItemView','FileView','TextFileView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','SuggestModal','FuzzySuggestModal','Keymap','Scope','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','Menu','MenuItem','editorLivePreviewField','editorInfoField','Platform','prepareFuzzySearch','addIcon','getIcon','getIconIds','setIcon','setTooltip'] as const;
 /** Bounded editor fields: live preview is always active and no file is exposed. */
 export const editorLivePreviewField=StateField.define<boolean>({create:()=>true,update:value=>value});
 export const editorInfoField=StateField.define<{file:null}>({create:()=>({file:null}),update:value=>value});
@@ -68,7 +68,11 @@ export class Menu {
 }
 const element=(tag:string,parent?:HTMLElement,cls='')=>{const el=document.createElement(tag);el.className=cls;parent?.append(el);return el;};
 /** Install shared DOM conveniences once without replacing browser-provided implementations. */
-export function installDomHelpers(){
+const domHelperRealms=new WeakSet<Window>();
+export function installDomHelpers(realm:Window=globalThis.window){
+  if(domHelperRealms.has(realm))return;
+  const window=realm,{document,Node,UIEvent,HTMLElement,SVGElement,Document,DocumentFragment,Element,Array,String,MutationObserver}=realm as Window & typeof globalThis;
+  const getComputedStyle=realm.getComputedStyle.bind(realm);
   /** Documents own themselves; detached nodes fall back only when they have no owner. */
   const nodeDocument=(node:Node):Document=>node.nodeType===9?node as Document:node.ownerDocument??document;
   /** Prefer the event's native view, then the document of its dispatched DOM target. */
@@ -78,7 +82,16 @@ export function installDomHelpers(){
     return event.view?.document??(target&&typeof target.nodeType==='number'?nodeDocument(target):targetWindow?.window===targetWindow?targetWindow.document:document);
   };
   for(const [name,get]of Object.entries({doc(this:Node){return nodeDocument(this);},win(this:Node){return nodeDocument(this).defaultView??window;}}))if(!(name in Node.prototype))Object.defineProperty(Node.prototype,name,{configurable:true,get});
-  for(const [name,get]of Object.entries({doc(this:UIEvent){return eventDocument(this);},win(this:UIEvent){const target=this.target as Window|null;return this.view??(target?.window===target?target:null)??eventDocument(this).defaultView??window;}}))if(!(name in UIEvent.prototype))Object.defineProperty(UIEvent.prototype,name,{configurable:true,get});
+  if(!('detach' in Node.prototype))Object.defineProperty(Node.prototype,'detach',{configurable:true,writable:true,value:function(this:Node){this.parentNode?.removeChild(this);}});
+  for(const [name,get]of Object.entries({doc(this:UIEvent){return eventDocument(this);},win(this:UIEvent){const target=this.target as Window|null;return this.view??(target?.window===target?target:null)??eventDocument(this).defaultView??window;},targetNode(this:UIEvent){const target=this.target as Node|null;return target&&typeof target.nodeType==='number'?target:null;}}))if(!(name in UIEvent.prototype))Object.defineProperty(UIEvent.prototype,name,{configurable:true,get});
+  if(!('instanceOf' in UIEvent.prototype))Object.defineProperty(UIEvent.prototype,'instanceOf',{configurable:true,writable:true,value:function(this:UIEvent,type:new(...args:any[])=>unknown){
+    if(this instanceof type)return true;
+    for(let prototype=Object.getPrototypeOf(this);prototype;prototype=Object.getPrototypeOf(prototype)){
+      const equivalent=prototype.constructor;
+      if(typeof equivalent==='function'&&equivalent.name===type.name&&type.prototype?.[Symbol.toStringTag]===prototype[Symbol.toStringTag]&&this instanceof equivalent)return true;
+    }
+    return false;
+  }});
   for(const [name,value]of Object.entries({first(this:unknown[]){return this[0];},last(this:unknown[]){return this[this.length-1];}}))if(!(name in Array.prototype))Object.defineProperty(Array.prototype,name,{value,configurable:true,writable:true});
   if(!('instanceOf' in Node.prototype))Object.defineProperty(Node.prototype,'instanceOf',{configurable:true,writable:true,value:function(this:Node,type:new()=>unknown){
     if(this instanceof type)return true;
@@ -107,16 +120,19 @@ export function installDomHelpers(){
   if(typeof globalWindow.sleep==='undefined')globalWindow.sleep=(milliseconds:number)=>new Promise(resolve=>setTimeout(resolve,milliseconds));
   if(typeof globalWindow.createFragment!=='function')globalWindow.createFragment=(callback?:(element:HTMLElement)=>void)=>{const fragment=document.createDocumentFragment();if(typeof callback==='function'){const element=document.createElement('div');callback(element);fragment.append(...element.childNodes);}return fragment;};
   /** Detached element helper exposed globally by the reference API. */
-  const createDetached=(tag:string,options:any={},callback?:(element:HTMLElement)=>void)=>{
-    const element=document.createElement(tag);
-    if(typeof options==='string')element.className=options;else{
-      if(options?.cls)element.className=Array.isArray(options.cls)?options.cls.join(' '):options.cls;
-      if(options?.text!==undefined)element.textContent=String(options.text);
-      for(const [key,value]of Object.entries(options?.attr||{}))element.setAttribute(key,String(value));
-      if(options?.type)element.setAttribute('type',options.type);
-      if(options?.value!==undefined)(element as HTMLInputElement).value=String(options.value);
-    }
-    callback?.(element);return element;
+  const createDetached=(tag:string,options:any={},callback?:(element:HTMLElement)=>void,parent?:Node)=>{
+    const info=typeof options==='string'?{cls:options}:options??{},target=info.parent??parent;
+    const targetDocument=target?nodeDocument(target):document;
+    if(targetDocument.defaultView&&targetDocument.defaultView!==window)installDomHelpers(targetDocument.defaultView);
+    const element=targetDocument.createElement(tag);
+    if(info.cls)element.className=Array.isArray(info.cls)?info.cls.join(' '):info.cls;
+    if(info.text!==undefined){if(typeof info.text==='object'&&info.text!==null)element.append(info.text);else element.textContent=String(info.text);}
+    for(const [key,value]of Object.entries(info.attr||{}))if(value!==null)element.setAttribute(key,String(value));
+    for(const key of ['title','value','placeholder','href'] as const)if(info[key]!==undefined&&key in element)(element as any)[key]=String(info[key]);
+    if(info.type!==undefined&&['INPUT','STYLE'].includes(element.tagName))element.setAttribute('type',String(info.type));
+    callback?.(element);
+    if(target){if(info.prepend)target.insertBefore(element,target.firstChild);else target.appendChild(element);}
+    return element;
   };
   if(typeof globalWindow.createEl!=='function')globalWindow.createEl=createDetached;
   if(typeof globalWindow.createDiv!=='function')globalWindow.createDiv=(options?:any,callback?:any)=>createDetached('div',options,callback);
@@ -151,7 +167,7 @@ export function installDomHelpers(){
   const classNames=(values:unknown[]):string[]=>values.flat(Infinity).flatMap(value=>String(value).split(/\s+/)).filter(Boolean);
   const methods:Record<string,Function>={
     onWindowMigrated(this:HTMLElement,listener:(win:Window)=>unknown){if(typeof listener!=='function')throw new Error('Expected window migration listener');const node=this;let owner=node.ownerDocument,win=owner.defaultView;const observer=new MutationObserver(()=>{const next=node.ownerDocument;if(next!==owner){owner=next;observer.disconnect();observer.observe(owner,{childList:true,subtree:true});if(owner.defaultView&&owner.defaultView!==win){win=owner.defaultView;listener(win);}}});observer.observe(owner,{childList:true,subtree:true});return()=>observer.disconnect();},
-    onNodeInserted(this:HTMLElement,listener:()=>unknown,once=false){if(typeof listener!=='function')throw new Error('Expected insertion listener');const node=this,observer=new MutationObserver(records=>{if(node.isConnected&&records.some(record=>[...record.addedNodes].some(added=>added===node||added.contains(node)))){if(once)observer.disconnect();listener();}});observer.observe(node.ownerDocument,{childList:true,subtree:true});return()=>observer.disconnect();},
+    onNodeInserted(this:HTMLElement,listener:()=>unknown,once=false){if(typeof listener!=='function')throw new Error('Expected insertion listener');const node=this;let active=true,pendingInitial=node.isConnected;const notify=()=>{if(!active||!node.isConnected)return;pendingInitial=false;if(once){active=false;observer.disconnect();}listener();},observer=new MutationObserver(records=>{if(records.some(record=>[...record.addedNodes].some(added=>added===node||added.contains(node))))notify();});observer.observe(node.ownerDocument,{childList:true,subtree:true});if(pendingInitial)queueMicrotask(()=>{if(pendingInitial)notify();});return()=>{active=false;pendingInitial=false;observer.disconnect();};},
     onClickEvent(this:HTMLElement,callback:(event:MouseEvent)=>unknown,options?:AddEventListenerOptions){this.addEventListener('click',callback,options);return ()=>this.removeEventListener('click',callback,options);},
     empty(this:HTMLElement){this.replaceChildren();},
     setText(this:HTMLElement,text:unknown){this.textContent=String(text);},
@@ -169,14 +185,7 @@ export function installDomHelpers(){
       for(let element:HTMLElement|null=this;element;element=element.parentElement){if(element.hidden||getComputedStyle(element).display==='none')return false;}
       return this.isConnected;
     },
-    createEl(this:HTMLElement,tag:string,options:any={},callback?:(el:HTMLElement)=>void){
-      const el=element(tag,this);if(typeof options==='string')el.className=options;else{
-        if(options.cls)el.className=Array.isArray(options.cls)?options.cls.join(' '):options.cls;
-        if(options.text!==undefined)el.textContent=String(options.text);
-        for(const [key,value]of Object.entries(options.attr||{}))el.setAttribute(key,String(value));
-        if(options.type)el.setAttribute('type',options.type);
-      }callback?.(el);return el;
-    },
+    createEl(this:HTMLElement,tag:string,options:any={},callback?:(el:HTMLElement)=>void){return createDetached(tag,options,callback,this);},
     createDiv(this:HTMLElement,options?:any,callback?:any){return methods.createEl.call(this,'div',options,callback);},
     createSpan(this:HTMLElement,options?:any,callback?:any){return methods.createEl.call(this,'span',options,callback);},
     find(this:HTMLElement,selector:string){return this.querySelector(selector);},
@@ -188,6 +197,7 @@ export function installDomHelpers(){
   // Obsidian's DOM helpers also build children on document fragments and shadow roots.
   const fragmentMethods:Record<string,Function>={empty:methods.empty,createEl:methods.createEl,createDiv:methods.createDiv,createSpan:methods.createSpan,appendText:methods.appendText,setText:methods.setText,getText:methods.getText,find:methods.find,findAll:methods.findAll};
   for(const [name,value]of Object.entries(fragmentMethods))if(!(name in DocumentFragment.prototype))Object.defineProperty(DocumentFragment.prototype,name,{value,configurable:true,writable:true});
+  domHelperRealms.add(realm);
 }
 /** Create plugin-owned trusted-renderer UI hooks; this adapter is not an isolation boundary. */
 export interface VersionedText {content:string;version:string}
@@ -215,6 +225,23 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   class TextComponent extends AbstractTextComponent {}
   class TextAreaComponent extends AbstractTextComponent {constructor(parent:HTMLElement){super(parent,'textarea');}}
+  class MomentFormatComponent extends AbstractTextComponent {
+    private defaultFormat='';private sampleEl?:HTMLElement;
+    constructor(parent:HTMLElement){super(parent);this.inputEl.addEventListener('input',()=>this.updateSample());}
+    setDefaultFormat(format:string){this.defaultFormat=format;this.setPlaceholder(format);this.updateSample();return this;}
+    setSampleEl(sampleEl:HTMLElement){this.sampleEl=sampleEl;this.updateSample();return this;}
+    setValue(value:string){super.setValue(value);this.updateSample();return this;}
+    updateSample(){if(this.sampleEl)this.sampleEl.textContent=moment().format(this.getValue()||this.defaultFormat);}
+    onChanged(){this.updateSample();super.onChanged();}
+  }
+  class SearchComponent extends AbstractTextComponent {
+    clearButtonEl:HTMLButtonElement;
+    constructor(parent:HTMLElement){super(parent);(this.inputEl as HTMLInputElement).type='search';this.clearButtonEl=element('button',parent,'search-input-clear-button') as HTMLButtonElement;this.clearButtonEl.type='button';this.clearButtonEl.setAttribute('aria-label','Clear search');this.clearButtonEl.textContent='×';this.clearButtonEl.addEventListener('click',()=>{this.setValue('');this.onChanged();this.inputEl.focus();});this.inputEl.addEventListener('input',()=>this.updateClear());this.updateClear();}
+    private updateClear(){this.clearButtonEl.hidden=!this.getValue();this.clearButtonEl.style.display=this.getValue()?'':'none';}
+    setValue(value:string){super.setValue(value);this.updateClear();return this;}
+    onChanged(){this.updateClear();super.onChanged();}
+    setDisabled(disabled:boolean){super.setDisabled(disabled);this.clearButtonEl.disabled=disabled;return this;}
+  }
   class DropdownComponent extends ValueComponent {
     selectEl:HTMLSelectElement;constructor(parent:HTMLElement){super();this.selectEl=element('select',parent) as HTMLSelectElement;}
     addOption(value:string,label:string){const option=document.createElement('option');option.value=value;option.textContent=label;this.selectEl.append(option);return this;}
@@ -237,6 +264,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     setDisabled(disabled:boolean){super.setDisabled(disabled);this.buttonEl.disabled=disabled;return this;}
     setIcon(icon:string){setIcon(this.buttonEl,icon);return this;}
   }
+  class ExtraButtonComponent extends ButtonComponent {extraSettingsEl=this.buttonEl;}
   class SliderComponent extends ValueComponent {
     sliderEl:HTMLInputElement;constructor(parent:HTMLElement){super();this.sliderEl=element('input',parent) as HTMLInputElement;this.sliderEl.type='range';}
     setLimits(min:number,max:number,step:number){Object.assign(this.sliderEl,{min:String(min),max:String(max),step:String(step)});return this;}
@@ -274,8 +302,8 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     addText(callback:any){return this.add(TextComponent,callback);}addTextArea(callback:any){return this.add(TextAreaComponent,callback);}
     addDropdown(callback:any){return this.add(DropdownComponent,callback);}addToggle(callback:any){return this.add(ToggleComponent,callback);}
     addButton(callback:any){return this.add(ButtonComponent,callback);}addSlider(callback:any){return this.add(SliderComponent,callback);}
-    addExtraButton(){return unsupported('Setting.addExtraButton');}addColorPicker(){return unsupported('Setting.addColorPicker');}
-    addSearch(){return unsupported('Setting.addSearch');}addMomentFormat(){return unsupported('Setting.addMomentFormat');}
+    addExtraButton(callback:any){return this.add(ExtraButtonComponent,callback);}addColorPicker(){return unsupported('Setting.addColorPicker');}
+    addSearch(callback:any){return this.add(SearchComponent,callback);}addMomentFormat(callback:any){return this.add(MomentFormatComponent,callback);}
     addProgressBar(){return unsupported('Setting.addProgressBar');}addComponent(){return unsupported('Setting.addComponent');}
   }
   class SettingTab {
@@ -375,7 +403,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   class Modal {
     app:any;containerEl=element('div',undefined,'modal-backdrop plugin-modal-backdrop');modalEl=element('section',this.containerEl,'modal plugin-modal');titleEl=element('h2',this.modalEl);contentEl=element('div',this.modalEl);shouldRestoreSelection=true;
     private previous:Element|null=null;private callback:(()=>void)|undefined;
-    constructor(app:any){this.app=app;this.modalEl.setAttribute('role','dialog');this.modalEl.setAttribute('aria-modal','true');const close=element('button',this.modalEl,'plugin-modal-close');close.textContent='×';close.setAttribute('aria-label','Close plugin modal');close.addEventListener('click',()=>this.close());this.containerEl.addEventListener('click',event=>{if(event.target===this.containerEl)this.close();});
+    constructor(app:any){this.app=app;this.modalEl.setAttribute('role','dialog');this.modalEl.setAttribute('aria-modal','true');Object.assign(this.modalEl.style,{position:'relative',maxHeight:'85vh',overflow:'auto'});const close=element('button',this.modalEl,'plugin-modal-close');close.textContent='×';close.setAttribute('aria-label','Close plugin modal');close.addEventListener('click',()=>this.close());this.containerEl.addEventListener('click',event=>{if(event.target===this.containerEl)this.close();});
       this.containerEl.addEventListener('keydown',event=>{if(event.key==='Escape'){event.stopPropagation();this.close();}if(event.key==='Tab'){const list=[...this.modalEl.querySelectorAll<HTMLElement>('button,input,select,textarea,[tabindex="0"]')].filter(el=>!el.hasAttribute('disabled'));if(list.length){const i=list.indexOf(document.activeElement as HTMLElement),next=(i+(event.shiftKey?-1:1)+list.length)%list.length;event.preventDefault();list[next].focus();}}});}
     scope=new Scope(scope);
     setTitle(text:string){this.titleEl.textContent=text;this.modalEl.setAttribute('aria-label',text);return this;}
@@ -655,7 +683,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     scope,keymap,getActiveEditor,setActiveEditor,
     reportError:onError,
     embedRegistry,
-    exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,FileView,TextFileView,WorkspaceLeaf,EditorSuggest:DOMEditorSuggest,AbstractInputSuggest,SuggestModal,FuzzySuggestModal,Keymap,Scope,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,Menu:OwnedMenu,MenuItem,addIcon,getIcon,getIconIds,setIcon,
+    exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,SearchComponent,ExtraButtonComponent,MomentFormatComponent,View,ItemView,FileView,TextFileView,WorkspaceLeaf,EditorSuggest:DOMEditorSuggest,AbstractInputSuggest,SuggestModal,FuzzySuggestModal,Keymap,Scope,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,Menu:OwnedMenu,MenuItem,addIcon,getIcon,getIconIds,setIcon,
       setTooltip:(el:HTMLElement,text:string)=>{el.title=text;el.setAttribute('aria-label',text);}},
     /** Bind reading post-processors to this plugin's error and lifecycle ownership. */
     postProcessor(callback:any,sortOrder?:number){if(processorsStopped)throw new Error('Plugin Markdown processors are stopped');return ownProcessor(registerPostProcessor(callback,sortOrder,onError));},
@@ -664,6 +692,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     /** Atomically deactivate this plugin's processors before runtime resource cleanup. */
     async stopProcessors(){processorsStopped=true;await stopProcessors(processors);processors.clear();},
     workspace:{
+      editorSuggest:guardCompatibilityObject({get suggests(){return [...suggests];}},'EditorSuggestManager'),
       requestSaveLayout(){if(!onSaveLayout)unsupported('Workspace.requestSaveLayout');void onSaveLayout!().catch(onSaveError);},
       floatingSplit:{children:[]},
       get containerEl(){return document.querySelector('main')??document.body;},

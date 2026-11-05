@@ -1,5 +1,5 @@
 import {describe,it,expect,vi} from 'vitest';
-import {createCompatibilityRuntime,Component,Events,Editor,TFile,TFolder,supportedExports,CompatibilityError,type PluginSnapshot} from '../src/compat-core';
+import {createCompatibilityRuntime,Component,Events,Editor,TFile,TFolder,supportedExports,CompatibilityError,guardCompatibilityObject,type PluginSnapshot} from '../src/compat-core';
 import inventory from '../docs/compatibility/obsidian-exports.json';
 import memberContracts from '../docs/compatibility/member-contracts.json';
 
@@ -141,6 +141,15 @@ describe('documented command callback rules',()=>{
   });
 });
 describe('lifecycle, data and event registration',()=>{
+  it('keeps owned child lifecycle separate from subclass tree data through guarded receivers',async()=>{
+    const seen:string[]=[];
+    class Tree extends Component{children=['configuration'];}
+    class Child extends Component{onload(){seen.push('load');}onunload(){seen.push('unload');}}
+    const parent=guardCompatibilityObject(new Tree(),'Tree'),child=new Child();
+    parent.addChild(child);expect(parent.children).toEqual(['configuration']);
+    await parent.load();expect(seen).toEqual(['load']);parent.children.push('second');
+    await parent.unload();expect(seen).toEqual(['load','unload']);expect(parent.children).toEqual(['configuration','second']);
+  });
   it('loads once, cleans children and registered callbacks in reverse order',async()=>{
     const seen:string[]=[];class C extends Component {onload(){seen.push('load');}onunload(){seen.push('unload');}}
     const parent=new C(),child=new C();parent.addChild(child);parent.register(()=>seen.push('first'));parent.register(()=>seen.push('last'));

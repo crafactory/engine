@@ -11,7 +11,7 @@ The [popular-plugin scope and gap analysis](POPULAR-PLUGIN-COMPATIBILITY.md) exp
 all-time-download target set, added host capabilities, and remaining work before any
 top-ten-wide compatibility claim.
 
-**Last matrix update:** 2026-11-04 UTC. **Runtime:** explicit trusted renderer (not sandboxed) for
+**Last matrix update:** 2026-11-05 UTC. **Runtime:** explicit trusted renderer (not sandboxed) for
 the functional rows unless stated otherwise; pinned default-Worker runs still fail.
 
 ## Status legend
@@ -19,6 +19,7 @@ the functional rows unless stated otherwise; pinned default-Worker runs still fa
 [PR #72](https://github.com/crafactory/engine/pull/72) merged after effective review/fix rounds
 and exact-head green checks, with its latest quota-skipped review explicitly recorded.
 The card/focus increment is tracked in [PR #73](https://github.com/crafactory/engine/pull/73).
+The multi-plugin workflow increment is tracked in [PR #74](https://github.com/crafactory/engine/pull/74).
 The binary modify path has a reproduced external-deletion race between its final identity
 check and rename publication; it is not atomic replace-only-if-existing. The maintainer
 explicitly accepted that narrow risk on 2026-11-04 without a complex storage rewrite; the
@@ -40,12 +41,12 @@ It does **not** certify commands, views, rendering, menus, settings behavior or 
 
 | Plugin | Pinned release | Outcome | Verified workflows | Main boundary / next step |
 |---|---|---|---|---|
-| Tasks | `8.6.0` | `BOUNDED_WORKFLOWS_WITH_ERRORS` | Cross-note `not done` query excludes completed tasks; completion writes the original note and removes it from the query | Recoverable `metadataTypeManager` error retained; other queries, recurrence, dialogs and property-type integration unverified |
+| Tasks | `8.6.0` | `BOUNDED_WORKFLOWS_PASS` | Cross-note `not done` query, source completion and refresh without the former private property-type error; inferred types and profile/vault-keyed override persistence | Other queries, recurrence, dialogs, reference types.json and full property editing unverified |
 | Excalidraw | `2.29.1` | `BOUNDED_WORKFLOWS_WITH_ERRORS` | Explicit native profile: pointer-drawn rectangle, exact saved scene, document switch and application restart/re-enable/reopen | Private core Canvas integration rejects; additional tools, export and embedding unverified |
 | Git | `2.42.0` | `BOUNDED_WORKFLOWS_PASS` | Explicit native profile: real index stage, specific-message commit, push to disposable local bare remote, peer-commit pull and editor refresh | Authenticated remotes, signing, hooks, diff, backup and conflicts unverified |
 | Copilot | `4.0.17` | `STARTUP_WITH_ERRORS` | None | Background initialization fails at `App.secretStorage`; inference/indexing/chat unverified |
-| Style Settings | `1.0.9` | Startup observation only | None | Theme/snippet/CSS round-trip acceptance unfinished |
-| Kanban | `2.0.51` | `BOUNDED_WORKFLOWS_PASS` | Real board/list and unchecked-card creation; exact Markdown persistence, document switch and application restart/re-enable/reopen; no recorded runtime/console errors in this bounded run | Completion, later card edits, list/card moves, pointer dragging and conversion unverified; cross-plugin integrations/focus sharing unsupported |
+| Style Settings | `1.0.9` | `BOUNDED_WORKFLOWS_PASS` | Original documented CSS fixture, class-toggle/variable-text controls, computed CSS effects, exact saved JSON, search/clear and restart recovery | Other control kinds, import/export and full theme/snippet management not certified |
+| Kanban | `2.0.51` | `BOUNDED_WORKFLOWS_PASS` | Board/list/card creation, scoped embedded edit, checkbox settings/completion, real frame-paced drag between lists, section ownership and exact Markdown across switch/restart; no recorded runtime/console errors | Other card/list reorder, movement/conversion modes and upstream settings unverified; cross-plugin integrations/focus sharing unsupported |
 | **Dataview** | `0.5.70` / manifest `0.5.68` | ✅ `BOUNDED_WORKFLOWS_PASS` | `TABLE`, `TASK`, `LIST FROM`, `WHERE`, `SORT`/`LIMIT`, `GROUP BY`, `FLATTEN`, inline query, DataviewJS, `dv.view` | Not full query/frontmatter/view semantics; DataviewJS and `dv.view` need 🔒 desktop `unsafe-eval` |
 | **Reading Time** | `1.1.2` | ✅ `BOUNDED_WORKFLOWS_PASS` | 400-word test at 200 wpm; speed setting persists; reading/source transition; editor change 8 min; selected-text modal; disable/re-enable | Format variants, invalid input, timing and multiple leaves remain unverified |
 | **Templater** | `2.26.0` | ✅ `BOUNDED_WORKFLOWS_PASS` | Template folder, toggle and dropdown settings persist across restart; dangerous trigger-on-creation cancel/confirm and startup acknowledgement persist locally; template hotkey list add/delete persists; startup template runs after restart and creates an exact note; user script function inserts exact output; insert template into the active note; exact inserted content persists; disable/re-enable re-registers the command; create a new note from a template and open its exact content | Other dangerous settings (system commands), other startup/user-script functions, other lists, number validation and shell/system functions remain unverified |

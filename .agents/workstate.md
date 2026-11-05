@@ -1,51 +1,104 @@
-# Kanban card and focus increment
+# Mainstream plugin workflow gaps
 
-## Authorization and baseline
+## Current acceptance checkpoint
 
-[PR #72](https://github.com/crafactory/engine/pull/72) merged at `a1c79b7` after effective
-review/fix rounds, exact-head green checks and a recorded quota exception. Its narrow binary
-final-check-to-rename recreation risk remains accepted, not repaired.
+PR: https://github.com/crafactory/engine/pull/74 .
+Frozen implementation: `e2eddc25eebc44fd107b18aa5266f1f1e021fb05`.
+Local inventory/build, 869 units, 64 browser and 102 desktop tests pass; all 22 pinned
+cases execute. Only the complete fresh `/tmp/engine-gaps-accept2-{worker,renderer}` pair
+was published. Renderer: nine bounded passes, Excalidraw core Canvas refusal, Copilot
+startup error. Actual Linux package passes all 11 targeted cases.
+Initial effective review 5781526190 at `6fab5fb`; both threads and the event follow-up
+were repaired in `e2eddc2`. Both threads are resolved. One incremental request was rate
+limited (6653128941); do not repeat optional review requests.
+Current matrix/API/popular-gap/report/verification documentation is aligned.
+Read live PR state for final documentation-head Verify, three-platform builds, explicit
+pinned-corpus eligibility and merge outcome. If already merged, sync main rather than
+reopening this increment. Otherwise require those exact-head gates, no unresolved blocker,
+record acceptance and use the authorized match-head squash merge, then sync main and email
+the owner privately in Chinese with the verified outcome. No issue creation, agents or
+upstream implementation inspection is authorized.
+All earlier notes below are historical candidate observations, not the current verdict.
 
-Open PRs early and submit frequent reviewable commits. Normally use one or two effective
-Review + Fix rounds, fix blocking findings with regressions, then allow the maintainer's
-review-service exception only with no known blockers and exact-head green checks.
-CONTRIBUTING is authoritative. No agents or issue creation authorized. Original host code
-only: unchanged pinned plugin bundles/styles are black-box inputs, never inspected/copied.
-Public declarations and runtime DOM/API/exception metadata are allowed.
+## Historical in-progress notes
 
-## Current work and evidence
+## Baseline and scope
 
-Branch `compat/kanban-card-workflows`, [PR #73](https://github.com/crafactory/engine/pull/73),
-is ready for review. `ab431cc` adds lifecycle-owned own-runtime enabledPlugins admission,
-revocation and registry cleanup. `0a84173` adds UIEvent ownership, detached Node fallback and
-owned embedded-editor focus admission/routing, selection snapshots and stale/foreign context
-handling. No Object.prototype workaround or shared plugin registry was introduced.
+PR #73 merged at `7d2ea5a`; its card creation/save/switch/restart and owned-runtime focus
+evidence is historical baseline, not completion/move/drag acceptance.
+The owner now authorizes continuing Kanban and checking other plugins' real workflows,
+recording observed gaps and implementing their original host fixes.
 
-Complete Linux source acceptance: inventory/build, 866 units /49 files, 64 browser and 95
-desktop tests. All 22 pinned corpus cases executed without skips. Both reports derive only
-from `/tmp/engine-pr73-complete-{renderer,worker}`. Kanban now passes unchecked-card exact
-save, switch and full restart/re-enable/reopen with no recorded runtime/console errors.
-Two ownership/focus regressions plus real Kanban pass against the actual Linux package
-`/tmp/engine-pr73-package/linux-unpacked/crafactory-engine` (three cases). The ownership
-test fails against unchanged packaged PR #72. Failed implementation/harness candidates and
-the initially incorrect executable filename remain distinct evidence in VERIFICATION.
+Branch: `compat/plugin-workflow-gaps`. Open an early draft PR and push small commits.
+Use one or two effective CodeRabbit review/fix rounds; do not chase optional repeats.
+No known blocking issue or failing exact-head checks may be bypassed. See CONTRIBUTING.
+Do not spawn agents, create issues, inspect/copy upstream plugin implementations or rewrite
+their pinned bundles/styles. Runtime DOM/API/exception observations and public docs are allowed.
+Native profile is full OS-user trust, not isolation; use disposable vaults and allowlisted env.
+The accepted narrow binary rename recreation race remains unchanged.
 
-Logs: `/tmp/engine-pr73-complete-{check,browser,desktop}.log`,
-`/tmp/engine-pr73-packaged-acceptance.log`, `/tmp/engine-pr73-focus-baseline.log`.
-Node 22: `/tmp/engine-node/node_modules/node/bin`; corpus: `/tmp/engine-plugin-corpus`.
-No full compatibility claim: completion, later edits, movement, pointer dragging and
-cross-plugin integration/focus sharing remain unverified or unsupported.
+## Current increment
 
-## Next delivery steps
+Expand black-box Kanban coverage to edits, completion, movement and pointer dragging.
+Recheck all eleven existing pinned inputs in the full corpus; probe concrete Tasks and
+Style Settings workflows instead of treating startup as compatibility. Copilot secret storage,
+Excalidraw core Canvas, authenticated Git and cross-plugin context remain known gaps, not
+promises of completion in this increment. Implement only observed, testable host contracts.
 
-The [initial effective CodeRabbit review](https://github.com/crafactory/engine/pull/73#issuecomment-6621975902)
-completed on implementation head `0a84173`, with no actionable comments and no established
-blocking defect; its check run completed successfully. Subsequent changes are reports/docs
-only. Automatic later review is skipped because the repository has fewer than ten stars;
-do not chase an optional manual repeat. Address any actual blocking findings with original
-regressions. Require exact-head cloud Verify, all three package builds and an explicitly
-dispatched corpus workflow before merge. Older-head runs do not certify a later head.
+Draft [PR #74](https://github.com/crafactory/engine/pull/74) is open.
+Four targeted Electron cases pass: Tasks query/completion without the old property-type
+error, actual search/extra controls, property-type restart persistence and fourteen UIEvent
+target/cross-window checks. The live type registry is profile-backed and vault-keyed, not
+Obsidian types.json or a property editing UI. Only observed getAllProperties/setType are added.
+Seven targeted cases now pass, additionally covering DOM factories, date previews and
+large modal reachability after a plugin replaces its root CSS classes. A separate eighth
+owned-suggestion-registry test passes against actual registrations, with no synthetic registry.
+32 renderer contract units pass. Logs: `/tmp/engine-gaps-target3.log`,
+`/tmp/engine-gaps-units3.log`, `/tmp/engine-gaps-suggest-test.log`.
+The old PR #73 package fails search/property/UIEvent and DOM/modal regression cases.
+The date-format probe initially hung because Playwright assimilated a fluent component's
+then method; correcting the harness passed, not evidence of a product deadlock.
+Style Settings probe18 falsified the proposed loaded-flag-only explanation; do not ship a
+speculative flag refactor. Kanban probe13 edited/completed a card and created a second lane,
+but its drag selector was wrong (no item-grip exists); no drag success is established.
+Reports must only be regenerated from one accepted complete Worker/renderer pair; preserve
+failed candidates and baseline evidence. Kanban settings and Style Settings remain probes.
 
-Merge only the verified exact head, sync main, then privately email the owner in Chinese
-with PR #72/#73 results, accepted risk and remaining boundaries. No final results email
-has been sent yet.
+Style Settings now passes an actual corpus workflow (4.9s): class-toggle, variable-text,
+computed CSS, exact plugin JSON, search/clear and application restart/re-enable.
+Root cause was host Component child ownership colliding with plugin-owned `children` data.
+Symbol-backed ownership preserves guarded/proxy receivers; an initial #private-field
+candidate fixed Style but broke guarded Kanban embeds and was replaced, not accepted.
+The original isolated lifecycle regression fails on PR #73 and passes in the candidate.
+Full units: 869 passed (`/tmp/engine-gaps-units4.log`); seven current UI contracts also pass
+(`/tmp/engine-gaps-contract-final.log`). Style: `/tmp/engine-gaps-style-target.log`.
+Kanban still fails genuine pointer dragging with a null dataset in dragStart. Runtime
+exception/local-variable/DOM metadata only are being observed, never bundle bodies.
+Initial CodeRabbit review was requested after marking PR #74 ready at `6fab5fb`; await
+effective results. Current reports still intentionally retain the historical PR #73 pair.
+
+08:14 UTC: initial effective review completed at `6fab5fb`, review 5781526190.
+Fixed both actionable threads (4477918348 foreign factory chaining, 4477918357 own __proto__
+assertion) and the follow-up viewless event construction-realm finding with original tests.
+Foreign realms now install their own helpers; UIEvent type checks use the actual prototype
+chain. Exposed the three already-implemented public search/extra/date control constructors.
+Kanban root drag gap was onNodeInserted being registered after connection without an initial
+delivery. Added cancellable initial microtask, once/reinsert coverage and public Node.detach
+(cleanup had thrown after successful movement). Do not accept the earlier cleanup-error run.
+Clean source acceptance now passes all 11 targeted cases, including real Kanban
+edit/checkbox completion/frame-paced pointer movement/section ownership/exact saved bytes/
+document switch/restart, plus Tasks, Style and eight host contracts.
+Log: `/tmp/engine-gaps-target-final3.log`. Build16 is current runtime.
+Frozen-source full verification is running: desktop2 with fresh accept2 Worker/renderer
+report directories; units-final3/browser-final3; package `/tmp/engine-gaps-package`.
+The preliminary desktop1 run is not final acceptance (runtime was changing); never use its
+reports. Current tracked reports still intentionally retain PR #73 until accept2 completes.
+
+## Environment and delivery
+
+Node 22: `/tmp/engine-node/node_modules/node/bin`.
+Pinned corpus: `/tmp/engine-plugin-corpus`. Main checkout: `/home/user/workspace/engine`.
+Require source inventory/build/unit/browser/desktop, all pinned corpus cases without skips,
+targeted packaged Linux behavior, effective review and exact-head cloud Verify/three-platform
+packages/explicit corpus before authorized squash merge. Email results privately in Chinese.
+The owner has received the starting acknowledgment; no results email has been sent.

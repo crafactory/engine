@@ -36,12 +36,95 @@ test('renderer DOM compatibility helpers delegate, unsubscribe and observe real 
     root.on('click','.fixture-delegate',()=>once++,{once:true});unrelated.click();child.click();child.click();
     const values=['a','b','a'] as any;values.remove('a');
     const node=document.createElement('div') as any;let inserted=0;const stopInserted=node.onNodeInserted(()=>inserted++,true);root.append(node);await Promise.resolve();node.remove();root.append(node);await Promise.resolve();stopInserted();
+    let connectedInserted=0;const stopConnected=node.onNodeInserted(()=>connectedInserted++);await Promise.resolve();node.remove();root.append(node);await Promise.resolve();stopConnected();
+    let cancelledInserted=0;const stopCancelled=node.onNodeInserted(()=>cancelledInserted++,true);stopCancelled();await Promise.resolve();
+    let connectedOnce=0;const stopOnce=node.onNodeInserted(()=>connectedOnce++,true);await Promise.resolve();node.remove();root.append(node);await Promise.resolve();stopOnce();
+    const detachedText=document.createTextNode('detach') as any,detachedElement=document.createElement('div') as any;root.append(detachedText,detachedElement);detachedText.detach();detachedElement.detach();detachedElement.detach();const detached=detachedText.parentNode===null&&detachedElement.parentNode===null;
     const frame=document.createElement('iframe');root.append(frame);let migrated=0,correctWindow=false;
     const moved=new Promise<void>(resolve=>{const stop=node.onWindowMigrated((win:Window)=>{migrated++;correctWindow=win===frame.contentWindow;stop();resolve();});});
     frame.contentDocument!.body.append(node);await moved;root.append(node);await Promise.resolve();root.remove();
-    return {calls,once,context,delegate,values:[...values],inserted,migrated,correctWindow};
+    return {calls,once,context,delegate,values:[...values],inserted,connectedInserted,cancelledInserted,connectedOnce,detached,migrated,correctWindow};
   });
-  expect(result).toEqual({calls:1,once:1,context:true,delegate:true,values:['b'],inserted:1,migrated:1,correctWindow:true});
+  expect(result).toEqual({calls:1,once:1,context:true,delegate:true,values:['b'],inserted:1,connectedInserted:2,cancelledInserted:0,connectedOnce:1,detached:true,migrated:1,correctWindow:true});
+});
+test('search and extra setting controls clear, notify and respect disabled state',async()=>{
+  await enable();await page.getByRole('button',{name:'Plugin settings Renderer fixture',exact:true}).click();
+  const input=page.getByRole('searchbox',{name:'Fixture search',exact:true}),clear=page.getByRole('button',{name:'Clear search',exact:true}),extra=page.getByRole('button',{name:'Reset fixture search',exact:true});
+  await expect(clear).toBeHidden();await input.fill('Filter value');await expect(clear).toBeVisible();await clear.click();await expect(input).toHaveValue('');await expect(input).toBeFocused();
+  await expect.poll(async()=>JSON.parse(await fs.readFile(path.join(root,'.crafactory/plugins/renderer-fixture/data.json'),'utf8')).search).toBe('');
+  await input.fill('Reset me');await extra.click();await expect(input).toHaveValue('');
+  await page.evaluate(()=>{(window as any).__fixtureExtra.setDisabled(true);(window as any).__fixtureSearch.setValue('Disabled value').setDisabled(true);});
+  await expect(input).toBeDisabled();await expect(clear).toBeDisabled();await expect(extra).toBeDisabled();
+  await extra.evaluate((button:HTMLButtonElement)=>button.click());expect(await page.evaluate(()=>(window as any).__fixtureExtraClicks)).toBe(1);
+});
+test('renderer property types survive application restart for the same vault',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  await page.evaluate(()=>(window as any).app.metadataTypeManager.setType('Fixture date','date'));
+  await app.close();const executablePath=process.env.E2E_EXECUTABLE_PATH;
+  app=await electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:{...process.env,ENGINE_DEV:'0'}});
+  page=await app.firstWindow();await enable();await page.getByTestId('settings-close').click();
+  expect(await page.evaluate(()=>(window as any).app.metadataTypeManager.getAllProperties()['fixture date'])).toEqual({name:'Fixture date',type:'date',count:0});
+});
+test('DOM factories honor parent, prepend, fragment text and callback-before-append',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  const checks=await page.evaluate(()=>{
+    const w=window as any,root=document.createElement('div') as any,other=document.createElement('div'),tail=document.createElement('span');root.append(tail);document.body.append(root,other);
+    let detached=false;const child=w.createDiv({parent:root,prepend:true,cls:['one','two'],title:'Factory title',text:'First'},(el:HTMLElement)=>{detached=el.parentNode===null;});
+    const fragment=document.createDocumentFragment();fragment.append(document.createTextNode('Fragment content'));
+    const nested=root.createEl('div',{parent:other,text:fragment});const input=w.createEl('input',{parent:root,type:'search',value:'Initial',placeholder:'Search fixture',attr:{'data-value':2,'data-null':null}});
+    const link=w.createEl('a',{parent:root,href:'#factory'});
+    const frame=document.createElement('iframe');document.body.append(frame);const foreign=root.createDiv({parent:frame.contentDocument!.body});
+    const foreignChild=foreign.createDiv({text:'Foreign child'}),foreignSpan=foreignChild.createSpan({text:'Nested span'});
+    foreignSpan.detach();
+    const result=[detached,root.firstChild===child,child.classList.contains('one'),child.classList.contains('two'),child.title==='Factory title',child.textContent==='First',nested.parentNode===other,nested.textContent==='Fragment content',
+      input.parentNode===root,input.value==='Initial',input.placeholder==='Search fixture',input.type==='search',input.getAttribute('data-value')==='2',!input.hasAttribute('data-null'),link.getAttribute('href')==='#factory',foreign.ownerDocument===frame.contentDocument,foreignChild.parentNode===foreign,foreignSpan.ownerDocument===frame.contentDocument,foreignSpan.textContent==='Nested span',foreignSpan.parentNode===null];
+    frame.remove();other.remove();root.remove();return result;
+  });expect(checks).toEqual(Array(20).fill(true));
+});
+test('date format setting previews edited and cleared formats using its default',async()=>{
+  await enable();await page.getByRole('button',{name:'Plugin settings Renderer fixture',exact:true}).click();
+  const input=page.getByRole('textbox',{name:'Fixture date format',exact:true}),sample=page.getByTestId('fixture-format-sample');
+  await expect(input).toHaveAttribute('placeholder','YYYY-MM-DD');await expect(sample).toHaveText(/\d{4}-\d{2}-\d{2}/);
+  await input.fill('[Fixture year] YYYY');await expect(sample).toHaveText(/Fixture year \d{4}/);
+  await input.fill('');await expect(sample).toHaveText(/\d{4}-\d{2}-\d{2}/);
+  await page.evaluate(()=>{(window as any).__fixtureFormat.setValue('[Programmatic] YYYY');});
+  await expect(sample).toHaveText(/Programmatic \d{4}/);
+});
+test('large plugin modals stay scrollable after replacing their CSS classes',async()=>{
+  await enable();await page.getByTestId('settings-close').click();await command('Open large modal');
+  const modal=page.getByRole('dialog',{name:'Large fixture modal'}),bounds=await modal.boundingBox(),height=await page.evaluate(()=>innerHeight);
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);expect(bounds!.y+bounds!.height).toBeLessThanOrEqual(height);
+  await modal.getByPlaceholder('Row 0',{exact:true}).fill('First row');await modal.getByPlaceholder('Row 59',{exact:true}).fill('Last row');
+  expect(await modal.evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);
+  await page.keyboard.press('Escape');await expect(modal).toHaveCount(0);
+});
+test('owned suggestion registry returns actual defensive snapshots and clears on disable',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  expect(await page.evaluate(()=>{const manager=(window as any).app.workspace.editorSuggest;(window as any).__fixtureSuggestManager=manager;const owned=manager.suggests;const count=owned.length;owned.length=0;return {count,retained:manager.suggests.length};})).toEqual({count:1,retained:1});
+  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();
+  expect(await page.evaluate(()=>(window as any).__fixtureSuggestManager.suggests.length)).toBe(0);
+});
+test('renderer UIEvents expose real target nodes and cross-window type checks',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  const checks=await page.evaluate(()=>{
+    const body=document.body,div=document.createElement('div'),text=document.createTextNode('event target');div.append(text);body.append(div);
+    const click=new MouseEvent('click',{bubbles:true,view:window}) as any;text.dispatchEvent(click);
+    const winEvent=new UIEvent('fixture-window',{view:window}) as any;window.dispatchEvent(winEvent);
+    const unbound=new MouseEvent('fixture-unbound') as any;
+    const frame=document.createElement('iframe');body.append(frame);const foreign=frame.contentWindow as any;
+    const target=Object.getOwnPropertyDescriptor(UIEvent.prototype,'targetNode')!.get!;
+    const instanceOf=(UIEvent.prototype as any).instanceOf;
+    const foreignEvent=new foreign.MouseEvent('fixture-foreign',{view:foreign});foreign.document.body.dispatchEvent(foreignEvent);
+    const viewless=new MouseEvent('fixture-viewless') as any;foreign.document.body.dispatchEvent(viewless);
+    const foreignViewless=new foreign.MouseEvent('fixture-viewless');body.dispatchEvent(foreignViewless);
+    const result=[click.targetNode===text,click.targetNode.instanceOf(Text),click.instanceOf(MouseEvent),click.instanceOf(UIEvent),!click.instanceOf(KeyboardEvent),
+      winEvent.targetNode===null,unbound.targetNode===null,target.call(foreignEvent)===foreign.document.body,
+      instanceOf.call(foreignEvent,MouseEvent),instanceOf.call(foreignEvent,UIEvent),!instanceOf.call(foreignEvent,KeyboardEvent),
+      !instanceOf.call(foreignEvent,class MouseEvent {}),!Object.hasOwn(Object.prototype,'targetNode'),!Object.hasOwn(Object.prototype,'instanceOf'),
+      viewless.view===null,viewless.instanceOf(foreign.MouseEvent),!viewless.instanceOf(foreign.KeyboardEvent),instanceOf.call(foreignViewless,MouseEvent),!instanceOf.call(foreignViewless,KeyboardEvent)];
+    frame.remove();div.remove();return result;
+  });
+  expect(checks).toEqual(Array(19).fill(true));
 });
 test('embedded input survives a late read, including typing and clearing the buffer',async()=>{
   await enable();await page.getByTestId('settings-close').click();

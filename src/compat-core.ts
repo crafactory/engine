@@ -116,8 +116,10 @@ const componentLifecycles=new WeakMap<Component,LifecycleState>();
 export function componentLifecycle(component:Component,phase:'startup'|'shutdown'):Promise<void>{
   return componentLifecycles.get(component)?.[phase]??Promise.resolve();
 }
+// Avoid colliding with plugin-owned tree data; symbols also work through guarded receivers.
+const componentChildren=Symbol('component children');
 export class Component {
-  private loaded=false;private disposed=false;private generation=0;private admission=0;private lifecycle:LifecycleState={};private cleanups:(()=>unknown)[]=[];private children:Component[]=[];private childStarts=new Map<Component,Promise<void>>();
+  private loaded=false;private disposed=false;private generation=0;private admission=0;private lifecycle:LifecycleState={};private cleanups:(()=>unknown)[]=[];private [componentChildren]:Component[]=[];private childStarts=new Map<Component,Promise<void>>();
   /** Observed private alias backed by actual lifecycle state, not a simulated loaded flag. */
   get _loaded(){return this.loaded&&!this.disposed;}
   set _loaded(value:boolean){if(value!==this._loaded)unsupported('Component._loaded assignment');}
@@ -139,7 +141,7 @@ export class Component {
     const {promise:startup,resolve,reject}=lifecyclePromise();
     this.lifecycle.startup=startup;
     void (async()=>{
-      try{await this.onload();if(!this.loaded||generation!==this.generation)return;for(const child of this.children){if(!this.loaded||generation!==this.generation)break;const started=this.childStarts.get(child);try{await (started??Promise.all([child.load(),componentLifecycle(child,'startup')]));}finally{if(this.childStarts.get(child)===started)this.childStarts.delete(child);}}}
+      try{await this.onload();if(!this.loaded||generation!==this.generation)return;for(const child of this[componentChildren]){if(!this.loaded||generation!==this.generation)break;const started=this.childStarts.get(child);try{await (started??Promise.all([child.load(),componentLifecycle(child,'startup')]));}finally{if(this.childStarts.get(child)===started)this.childStarts.delete(child);}}}
       catch(e){if(generation===this.generation){try{await this.unload();}catch{/* preserve the startup error */}}throw e;}
     })().then(resolve,reject);
     try{await startup;}finally{if(this.lifecycle.startup===startup)this.lifecycle.startup=undefined;}
@@ -150,7 +152,7 @@ export class Component {
     if(!this.loaded)return;
     this.loaded=false;
     this.disposed=true;++this.generation;
-    const children=[...this.children].reverse(),cleanups=this.cleanups.splice(0).reverse();
+    const children=[...this[componentChildren]].reverse(),cleanups=this.cleanups.splice(0).reverse();
     this.childStarts.clear();
     const {promise:shutdown,resolve,reject}=lifecyclePromise();
     this.lifecycle.shutdown=shutdown;
@@ -182,9 +184,9 @@ export class Component {
     element.addEventListener(type,callback,options);this.register(()=>element.removeEventListener(type,callback,options));
   }
   /** Adopt a child only while this component remains active or has not yet loaded. */
-  addChild<T extends Component>(child:T):T{if(this.disposed)return child;this.children.push(child);if(this.loaded){const started=Promise.all([child.load(),componentLifecycle(child,'startup')]).then(()=>{});if(this.lifecycle.startup)this.childStarts.set(child,started);void started.catch(error=>console.error(error));}return child;}
+  addChild<T extends Component>(child:T):T{if(this.disposed)return child;this[componentChildren].push(child);if(this.loaded){const started=Promise.all([child.load(),componentLifecycle(child,'startup')]).then(()=>{});if(this.lifecycle.startup)this.childStarts.set(child,started);void started.catch(error=>console.error(error));}return child;}
   /** Remove an attached child and observe asynchronous cleanup errors rather than leaking rejections. */
-  removeChild<T extends Component>(child:T):T{if(!this.children.includes(child))return child;this.children=this.children.filter(c=>c!==child);this.childStarts.delete(child);void child.unload().catch(error=>console.error(error));return child;}
+  removeChild<T extends Component>(child:T):T{if(!this[componentChildren].includes(child))return child;this[componentChildren]=this[componentChildren].filter(c=>c!==child);this.childStarts.delete(child);void child.unload().catch(error=>console.error(error));return child;}
 }
 export class TAbstractFile {
   path='';name='';parent:TFolder|null=null;vault:any;
@@ -509,6 +511,39 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     if(raw===undefined){removeStorage(key as string);return;}
     writeStorage(key as string,raw);
   }
+  /** Vault-keyed property types inferred from live notes, with explicit profile-persisted overrides. */
+  const propertyTypes=['text','multitext','number','checkbox','date','datetime','tags','aliases'];
+  const propertyStorageKey='crafactory:property-types:'+JSON.stringify(host.native?.basePath??snapshot.name);
+  type PropertyType={name:string;type:string;count:number};
+  const propertyOverrides=()=>{
+    const stored=loadLocalStorage(propertyStorageKey),result:Record<string,{name:string;type:string}>=Object.create(null);
+    if(stored&&typeof stored==='object'&&!Array.isArray(stored))for(const value of Object.values(stored)){
+      if(value&&typeof value==='object'&&typeof (value as any).name==='string'&&(value as any).name.trim()&&propertyTypes.includes((value as any).type)){
+        const {name,type}=value as {name:string;type:string};result[name.toLowerCase()]={name,type};
+      }
+    }
+    return result;
+  };
+  const metadataTypeManager=guard({
+    getAllProperties(){
+      const result:Record<string,PropertyType>=Object.create(null),overrides=propertyOverrides();
+      for(const note of snapshot.notes){
+        const properties=host.native?.metadata?.(note.path)?.frontmatter??frontmatter(note.content).properties;
+        for(const [name,value]of Object.entries(properties)){
+          const key=name.toLowerCase();
+          const inferred=typeof value==='boolean'?'checkbox':typeof value==='number'?'number':Array.isArray(value)?'multitext':'text';
+          const property=result[key]??={name,type:overrides[key]?.type??inferred,count:0};property.count++;
+        }
+      }
+      for(const [key,value]of Object.entries(overrides))result[key]={...value,count:result[key]?.count??0};
+      return result;
+    },
+    setType(name:string,type:string){
+      if(typeof name!=='string'||!name.trim())throw new TypeError('Property name must be a nonempty string');
+      if(!propertyTypes.includes(type))return unsupported('Metadata property type '+type);
+      const overrides=propertyOverrides();overrides[name.toLowerCase()]={name,type};saveLocalStorage(propertyStorageKey,overrides);
+    }
+  },'MetadataTypeManager');
   const fileManager=guard({
     async createNewMarkdownFile(parent:TFolder,name='Untitled',content='',options?:unknown){checkAbstract(parent);if(!(parent instanceof TFolder))throw new Error('Expected TFolder');checkOptions(options,'FileManager.createNewMarkdownFile options');if(typeof name!=='string'||/[\\/]/.test(name)||typeof content!=='string')throw new Error('Invalid Markdown filename or content');const base=name.replace(/\.md$/i,'')||'Untitled',path=parent.path?parent.path+'/'+base:base;return vault.create(vault.getAvailablePath(path,'md'),content);},
     /** Engine's new-note placement is the vault root, independent of source document. */
@@ -523,8 +558,10 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   const dailyPlugin={_id:'daily-notes',enabled:true,get instance(){return {options:{...dailyNotes()}};}};
   // Engine's own canvas provider is not the private Obsidian Canvas core plugin.
   const canvasPlugin={enabled:false,_loaded:false,instance:null,load:()=>unsupported('Obsidian core Canvas plugin')};
-  const internalPluginInstances={'daily-notes':dailyPlugin,canvas:canvasPlugin};
-  const internalPlugins={plugins:host.trace?new Proxy(internalPluginInstances,{get(target,key,receiver){if(typeof key==='string')host.trace?.('InternalPlugins.plugins.'+key);return Reflect.get(target,key,receiver);}}):internalPluginInstances,getPluginById:(id:string)=>id==='daily-notes'?dailyPlugin:id==='canvas'?canvasPlugin:null};
+  // A missing private core Templates integration is disabled, not silently enabled.
+  const templatesPlugin={enabled:false,_loaded:false,instance:Object.freeze({options:Object.freeze({folder:'',dateFormat:'YYYY-MM-DD',timeFormat:'HH:mm'})}),load:()=>unsupported('Obsidian core Templates plugin')};
+  const internalPluginInstances={'daily-notes':dailyPlugin,canvas:canvasPlugin,templates:templatesPlugin};
+  const internalPlugins={plugins:host.trace?new Proxy(internalPluginInstances,{get(target,key,receiver){if(typeof key==='string')host.trace?.('InternalPlugins.plugins.'+key);return Reflect.get(target,key,receiver);}}):internalPluginInstances,getPluginById:(id:string)=>Object.hasOwn(internalPluginInstances,id)?internalPluginInstances[id as keyof typeof internalPluginInstances]:null};
   // This bounded manager exposes only its own runtime, not other plugins' APIs.
   const plugins={plugins:Object.create(null) as Record<string,Plugin>,enabledPlugins:new Set<string>(),getPlugin:(id:string):Plugin|null=>id===manifest.id?plugins.plugins[id]??null:null};
   const foldManager={load:(_file:TFile)=>({folds:[]}),save:async(_file:TFile,_info:unknown)=>{}};
@@ -562,7 +599,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     executeCommand(command:CompatCommand){const owned=typeof command?.id==='string'?commands.get(commandId(command.id)):undefined;if(!owned)return false;initEditor();if(!available(owned,true))return false;void Promise.resolve(available(owned,false)).then(settle).catch(error=>host.ui?.reportError?host.ui.reportError(error):host.notice(String(error)));return true;},
     executeCommandById(id:string){const command=commands.get(commandId(id));return command?this.executeCommand(command):false;}
   },'CommandManager');
-  const app=guard({appId:'crafactory-engine',isMobile:false,vault,workspace,metadataCache,fileManager,plugins,internalPlugins,foldManager,loadLocalStorage,saveLocalStorage,...(host.ui?{hotkeyManager,commands:commandManager,getAccentColor:()=>{const color=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();return color||unsupported('App.getAccentColor without theme');}}:{}),...(host.ui?.scope?{scope:host.ui.scope}:{}),...(host.ui?.keymap?{keymap:host.ui.keymap}:{}),...(host.ui?.embedRegistry?{embedRegistry:host.ui.embedRegistry}:{})},'App');
+  const app=guard({appId:'crafactory-engine',isMobile:false,vault,workspace,metadataCache,fileManager,plugins,internalPlugins,foldManager,loadLocalStorage,saveLocalStorage,...(host.ui?{metadataTypeManager,hotkeyManager,commands:commandManager,getAccentColor:()=>{const color=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();return color||unsupported('App.getAccentColor without theme');}}:{}),...(host.ui?.scope?{scope:host.ui.scope}:{}),...(host.ui?.keymap?{keymap:host.ui.keymap}:{}),...(host.ui?.embedRegistry?{embedRegistry:host.ui.embedRegistry}:{})},'App');
   // Some plugins use Obsidian's untyped global instead of the plugin context.
   exposeApp(app);
   /** Reconcile a host snapshot while preserving file identities and emitting requested deltas. */
