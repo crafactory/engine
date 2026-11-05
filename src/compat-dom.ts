@@ -78,7 +78,12 @@ export function installDomHelpers(){
     return event.view?.document??(target&&typeof target.nodeType==='number'?nodeDocument(target):targetWindow?.window===targetWindow?targetWindow.document:document);
   };
   for(const [name,get]of Object.entries({doc(this:Node){return nodeDocument(this);},win(this:Node){return nodeDocument(this).defaultView??window;}}))if(!(name in Node.prototype))Object.defineProperty(Node.prototype,name,{configurable:true,get});
-  for(const [name,get]of Object.entries({doc(this:UIEvent){return eventDocument(this);},win(this:UIEvent){const target=this.target as Window|null;return this.view??(target?.window===target?target:null)??eventDocument(this).defaultView??window;}}))if(!(name in UIEvent.prototype))Object.defineProperty(UIEvent.prototype,name,{configurable:true,get});
+  for(const [name,get]of Object.entries({doc(this:UIEvent){return eventDocument(this);},win(this:UIEvent){const target=this.target as Window|null;return this.view??(target?.window===target?target:null)??eventDocument(this).defaultView??window;},targetNode(this:UIEvent){const target=this.target as Node|null;return target&&typeof target.nodeType==='number'?target:null;}}))if(!(name in UIEvent.prototype))Object.defineProperty(UIEvent.prototype,name,{configurable:true,get});
+  if(!('instanceOf' in UIEvent.prototype))Object.defineProperty(UIEvent.prototype,'instanceOf',{configurable:true,writable:true,value:function(this:UIEvent,type:new(...args:any[])=>unknown){
+    if(this instanceof type)return true;
+    const local=(eventDocument(this).defaultView??window) as unknown as Record<string,any>,equivalent=local[type.name];
+    return typeof equivalent==='function'&&type.prototype?.[Symbol.toStringTag]===equivalent.prototype?.[Symbol.toStringTag]&&this instanceof equivalent;
+  }});
   for(const [name,value]of Object.entries({first(this:unknown[]){return this[0];},last(this:unknown[]){return this[this.length-1];}}))if(!(name in Array.prototype))Object.defineProperty(Array.prototype,name,{value,configurable:true,writable:true});
   if(!('instanceOf' in Node.prototype))Object.defineProperty(Node.prototype,'instanceOf',{configurable:true,writable:true,value:function(this:Node,type:new()=>unknown){
     if(this instanceof type)return true;
@@ -215,6 +220,14 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   class TextComponent extends AbstractTextComponent {}
   class TextAreaComponent extends AbstractTextComponent {constructor(parent:HTMLElement){super(parent,'textarea');}}
+  class SearchComponent extends AbstractTextComponent {
+    clearButtonEl:HTMLButtonElement;
+    constructor(parent:HTMLElement){super(parent);(this.inputEl as HTMLInputElement).type='search';this.clearButtonEl=element('button',parent,'search-input-clear-button') as HTMLButtonElement;this.clearButtonEl.type='button';this.clearButtonEl.setAttribute('aria-label','Clear search');this.clearButtonEl.textContent='×';this.clearButtonEl.addEventListener('click',()=>{this.setValue('');this.onChanged();this.inputEl.focus();});this.inputEl.addEventListener('input',()=>this.updateClear());this.updateClear();}
+    private updateClear(){this.clearButtonEl.hidden=!this.getValue();this.clearButtonEl.style.display=this.getValue()?'':'none';}
+    setValue(value:string){super.setValue(value);this.updateClear();return this;}
+    onChanged(){this.updateClear();super.onChanged();}
+    setDisabled(disabled:boolean){super.setDisabled(disabled);this.clearButtonEl.disabled=disabled;return this;}
+  }
   class DropdownComponent extends ValueComponent {
     selectEl:HTMLSelectElement;constructor(parent:HTMLElement){super();this.selectEl=element('select',parent) as HTMLSelectElement;}
     addOption(value:string,label:string){const option=document.createElement('option');option.value=value;option.textContent=label;this.selectEl.append(option);return this;}
@@ -237,6 +250,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     setDisabled(disabled:boolean){super.setDisabled(disabled);this.buttonEl.disabled=disabled;return this;}
     setIcon(icon:string){setIcon(this.buttonEl,icon);return this;}
   }
+  class ExtraButtonComponent extends ButtonComponent {extraSettingsEl=this.buttonEl;}
   class SliderComponent extends ValueComponent {
     sliderEl:HTMLInputElement;constructor(parent:HTMLElement){super();this.sliderEl=element('input',parent) as HTMLInputElement;this.sliderEl.type='range';}
     setLimits(min:number,max:number,step:number){Object.assign(this.sliderEl,{min:String(min),max:String(max),step:String(step)});return this;}
@@ -274,8 +288,8 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     addText(callback:any){return this.add(TextComponent,callback);}addTextArea(callback:any){return this.add(TextAreaComponent,callback);}
     addDropdown(callback:any){return this.add(DropdownComponent,callback);}addToggle(callback:any){return this.add(ToggleComponent,callback);}
     addButton(callback:any){return this.add(ButtonComponent,callback);}addSlider(callback:any){return this.add(SliderComponent,callback);}
-    addExtraButton(){return unsupported('Setting.addExtraButton');}addColorPicker(){return unsupported('Setting.addColorPicker');}
-    addSearch(){return unsupported('Setting.addSearch');}addMomentFormat(){return unsupported('Setting.addMomentFormat');}
+    addExtraButton(callback:any){return this.add(ExtraButtonComponent,callback);}addColorPicker(){return unsupported('Setting.addColorPicker');}
+    addSearch(callback:any){return this.add(SearchComponent,callback);}addMomentFormat(){return unsupported('Setting.addMomentFormat');}
     addProgressBar(){return unsupported('Setting.addProgressBar');}addComponent(){return unsupported('Setting.addComponent');}
   }
   class SettingTab {

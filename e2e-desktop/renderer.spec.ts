@@ -43,6 +43,43 @@ test('renderer DOM compatibility helpers delegate, unsubscribe and observe real 
   });
   expect(result).toEqual({calls:1,once:1,context:true,delegate:true,values:['b'],inserted:1,migrated:1,correctWindow:true});
 });
+test('search and extra setting controls clear, notify and respect disabled state',async()=>{
+  await enable();await page.getByRole('button',{name:'Plugin settings Renderer fixture',exact:true}).click();
+  const input=page.getByRole('searchbox',{name:'Fixture search',exact:true}),clear=page.getByRole('button',{name:'Clear search',exact:true}),extra=page.getByRole('button',{name:'Reset fixture search',exact:true});
+  await expect(clear).toBeHidden();await input.fill('Filter value');await expect(clear).toBeVisible();await clear.click();await expect(input).toHaveValue('');await expect(input).toBeFocused();
+  await expect.poll(async()=>JSON.parse(await fs.readFile(path.join(root,'.crafactory/plugins/renderer-fixture/data.json'),'utf8')).search).toBe('');
+  await input.fill('Reset me');await extra.click();await expect(input).toHaveValue('');
+  await page.evaluate(()=>{(window as any).__fixtureExtra.setDisabled(true);(window as any).__fixtureSearch.setValue('Disabled value').setDisabled(true);});
+  await expect(input).toBeDisabled();await expect(clear).toBeDisabled();await expect(extra).toBeDisabled();
+  await extra.evaluate((button:HTMLButtonElement)=>button.click());expect(await page.evaluate(()=>(window as any).__fixtureExtraClicks)).toBe(1);
+});
+test('renderer property types survive application restart for the same vault',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  await page.evaluate(()=>(window as any).app.metadataTypeManager.setType('Fixture date','date'));
+  await app.close();const executablePath=process.env.E2E_EXECUTABLE_PATH;
+  app=await electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+profile],env:{...process.env,ENGINE_DEV:'0'}});
+  page=await app.firstWindow();await enable();await page.getByTestId('settings-close').click();
+  expect(await page.evaluate(()=>(window as any).app.metadataTypeManager.getAllProperties()['fixture date'])).toEqual({name:'Fixture date',type:'date',count:0});
+});
+test('renderer UIEvents expose real target nodes and cross-window type checks',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  const checks=await page.evaluate(()=>{
+    const body=document.body,div=document.createElement('div'),text=document.createTextNode('event target');div.append(text);body.append(div);
+    const click=new MouseEvent('click',{bubbles:true,view:window}) as any;text.dispatchEvent(click);
+    const winEvent=new UIEvent('fixture-window',{view:window}) as any;window.dispatchEvent(winEvent);
+    const unbound=new MouseEvent('fixture-unbound') as any;
+    const frame=document.createElement('iframe');body.append(frame);const foreign=frame.contentWindow as any;
+    const target=Object.getOwnPropertyDescriptor(UIEvent.prototype,'targetNode')!.get!;
+    const instanceOf=(UIEvent.prototype as any).instanceOf;
+    const foreignEvent=new foreign.MouseEvent('fixture-foreign',{view:foreign});foreign.document.body.dispatchEvent(foreignEvent);
+    const result=[click.targetNode===text,click.targetNode.instanceOf(Text),click.instanceOf(MouseEvent),click.instanceOf(UIEvent),!click.instanceOf(KeyboardEvent),
+      winEvent.targetNode===null,unbound.targetNode===null,target.call(foreignEvent)===foreign.document.body,
+      instanceOf.call(foreignEvent,MouseEvent),instanceOf.call(foreignEvent,UIEvent),!instanceOf.call(foreignEvent,KeyboardEvent),
+      !instanceOf.call(foreignEvent,class MouseEvent {}),!Object.hasOwn(Object.prototype,'targetNode'),!Object.hasOwn(Object.prototype,'instanceOf')];
+    frame.remove();div.remove();return result;
+  });
+  expect(checks).toEqual(Array(14).fill(true));
+});
 test('embedded input survives a late read, including typing and clearing the buffer',async()=>{
   await enable();await page.getByTestId('settings-close').click();
   await page.evaluate(async()=>{

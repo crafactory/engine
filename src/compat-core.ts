@@ -509,6 +509,39 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     if(raw===undefined){removeStorage(key as string);return;}
     writeStorage(key as string,raw);
   }
+  /** Vault-keyed property types inferred from live notes, with explicit profile-persisted overrides. */
+  const propertyTypes=['text','multitext','number','checkbox','date','datetime','tags','aliases'];
+  const propertyStorageKey='crafactory:property-types:'+JSON.stringify(host.native?.basePath??snapshot.name);
+  type PropertyType={name:string;type:string;count:number};
+  const propertyOverrides=()=>{
+    const stored=loadLocalStorage(propertyStorageKey),result:Record<string,{name:string;type:string}>=Object.create(null);
+    if(stored&&typeof stored==='object'&&!Array.isArray(stored))for(const value of Object.values(stored)){
+      if(value&&typeof value==='object'&&typeof (value as any).name==='string'&&(value as any).name.trim()&&propertyTypes.includes((value as any).type)){
+        const {name,type}=value as {name:string;type:string};result[name.toLowerCase()]={name,type};
+      }
+    }
+    return result;
+  };
+  const metadataTypeManager=guard({
+    getAllProperties(){
+      const result:Record<string,PropertyType>=Object.create(null),overrides=propertyOverrides();
+      for(const note of snapshot.notes){
+        const properties=host.native?.metadata?.(note.path)?.frontmatter??frontmatter(note.content).properties;
+        for(const [name,value]of Object.entries(properties)){
+          const key=name.toLowerCase();
+          const inferred=typeof value==='boolean'?'checkbox':typeof value==='number'?'number':Array.isArray(value)?'multitext':'text';
+          const property=result[key]??={name,type:overrides[key]?.type??inferred,count:0};property.count++;
+        }
+      }
+      for(const [key,value]of Object.entries(overrides))result[key]={...value,count:result[key]?.count??0};
+      return result;
+    },
+    setType(name:string,type:string){
+      if(typeof name!=='string'||!name.trim())throw new TypeError('Property name must be a nonempty string');
+      if(!propertyTypes.includes(type))return unsupported('Metadata property type '+type);
+      const overrides=propertyOverrides();overrides[name.toLowerCase()]={name,type};saveLocalStorage(propertyStorageKey,overrides);
+    }
+  },'MetadataTypeManager');
   const fileManager=guard({
     async createNewMarkdownFile(parent:TFolder,name='Untitled',content='',options?:unknown){checkAbstract(parent);if(!(parent instanceof TFolder))throw new Error('Expected TFolder');checkOptions(options,'FileManager.createNewMarkdownFile options');if(typeof name!=='string'||/[\\/]/.test(name)||typeof content!=='string')throw new Error('Invalid Markdown filename or content');const base=name.replace(/\.md$/i,'')||'Untitled',path=parent.path?parent.path+'/'+base:base;return vault.create(vault.getAvailablePath(path,'md'),content);},
     /** Engine's new-note placement is the vault root, independent of source document. */
@@ -562,7 +595,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     executeCommand(command:CompatCommand){const owned=typeof command?.id==='string'?commands.get(commandId(command.id)):undefined;if(!owned)return false;initEditor();if(!available(owned,true))return false;void Promise.resolve(available(owned,false)).then(settle).catch(error=>host.ui?.reportError?host.ui.reportError(error):host.notice(String(error)));return true;},
     executeCommandById(id:string){const command=commands.get(commandId(id));return command?this.executeCommand(command):false;}
   },'CommandManager');
-  const app=guard({appId:'crafactory-engine',isMobile:false,vault,workspace,metadataCache,fileManager,plugins,internalPlugins,foldManager,loadLocalStorage,saveLocalStorage,...(host.ui?{hotkeyManager,commands:commandManager,getAccentColor:()=>{const color=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();return color||unsupported('App.getAccentColor without theme');}}:{}),...(host.ui?.scope?{scope:host.ui.scope}:{}),...(host.ui?.keymap?{keymap:host.ui.keymap}:{}),...(host.ui?.embedRegistry?{embedRegistry:host.ui.embedRegistry}:{})},'App');
+  const app=guard({appId:'crafactory-engine',isMobile:false,vault,workspace,metadataCache,fileManager,plugins,internalPlugins,foldManager,loadLocalStorage,saveLocalStorage,...(host.ui?{metadataTypeManager,hotkeyManager,commands:commandManager,getAccentColor:()=>{const color=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();return color||unsupported('App.getAccentColor without theme');}}:{}),...(host.ui?.scope?{scope:host.ui.scope}:{}),...(host.ui?.keymap?{keymap:host.ui.keymap}:{}),...(host.ui?.embedRegistry?{embedRegistry:host.ui.embedRegistry}:{})},'App');
   // Some plugins use Obsidian's untyped global instead of the plugin context.
   exposeApp(app);
   /** Reconcile a host snapshot while preserving file identities and emitting requested deltas. */

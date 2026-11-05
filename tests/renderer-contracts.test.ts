@@ -11,6 +11,22 @@ function harness(native?:CompatNativeServices){
   const runtime=createCompatibilityRuntime(manifest,initial(),{ui,request,commands:()=>{},notice:()=>{},native});
   return {runtime,api:runtime.api as any,ui,iterateAllLeaves,request,settingCleanup,extensionCleanup,viewCleanup,extensionsCleanup,suggestCleanup,protocolCleanup,hoverCleanup,basesCleanup,updateOptions,ribbonCleanup,ribbonElement};
 }
+it('property types infer live note values and persist explicit overrides across runtimes by vault',()=>{
+  const values=new Map<string,string>();vi.stubGlobal('localStorage',{getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>values.set(key,value),removeItem:(key:string)=>values.delete(key)});
+  try{
+    const h=harness({basePath:'/fixture/vault'}),manager=h.runtime.app.metadataTypeManager!;
+    h.runtime.sync({...initial(),notes:[{path:'One.md',content:'---\nDue: today\nactive: true\ncount: 2\nlabels: [one, two]\n---\n'},{path:'Two.md',content:'---\ndue: tomorrow\n---\n'}]});
+    expect(manager.getAllProperties()).toEqual({due:{name:'Due',type:'text',count:2},active:{name:'active',type:'checkbox',count:1},count:{name:'count',type:'number',count:1},labels:{name:'labels',type:'multitext',count:1}});
+    manager.setType('DUE','date');manager.setType('__proto__','text');manager.setType('TQ_explain','checkbox');
+    const properties=manager.getAllProperties();expect(properties.due).toEqual({name:'DUE',type:'date',count:2});properties.due.type='corrupted';
+    expect(manager.getAllProperties().due.type).toBe('date');
+    expect(manager.getAllProperties()['__proto__']).toEqual({name:'__proto__',type:'text',count:0});
+    expect(harness({basePath:'/fixture/vault'}).runtime.app.metadataTypeManager!.getAllProperties()).toMatchObject({due:{type:'date',count:0},tq_explain:{type:'checkbox',count:0},__proto__:{type:'text'}});
+    expect(harness({basePath:'/other/vault'}).runtime.app.metadataTypeManager!.getAllProperties()).toEqual({});
+    expect(()=>manager.setType('','text')).toThrow('nonempty');expect(()=>manager.setType('title','mystery')).toThrow('Unsupported');
+    h.runtime.sync({...initial(),notes:[]});expect(manager.getAllProperties().due.count).toBe(0);expect(manager.getAllProperties().labels).toBeUndefined();
+  }finally{vi.unstubAllGlobals();}
+});
 it('routes checking and editor callbacks to the focused embedded context without host writes',async()=>{
   const h=harness(),writes:string[]=[],focused=new Editor({text:'local draft',from:0,to:0},(_base,text)=>{writes.push(text);});
   const info={file:h.runtime.app.vault.getFileByPath('One.md'),editor:focused};let current:any=info;

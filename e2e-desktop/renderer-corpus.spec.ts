@@ -75,6 +75,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       blocker=await page.locator('.error-banner span').innerText();outcome=blocker.includes('Unsupported Obsidian capability:')?'UNSUPPORTED_STARTUP':'LOAD_ERROR';
       await expect(control).not.toBeChecked();await expect(page.locator('.plugin-status-item')).toHaveCount(0);
     }else if(plugin.name==='Tasks'){
+      expect(await page.evaluate(()=>(window as any).app.metadataTypeManager.getAllProperties().tq_explain.type)).toBe('checkbox');
       await page.getByTestId('settings-close').click();await page.getByTestId('mode-reading').click();
       const block=page.locator('.reading-surface .plugin-code-block');
       await expect(block).toContainText('Engine compatibility task',{timeout:15000});
@@ -336,12 +337,11 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.keyboard.press('Escape');
       if(orderedErrors.length){outcome='STARTUP_WITH_ERRORS';blocker=orderedErrors[0];}
     }
-    if(plugin.name==='Tasks'&&outcome==='BOUNDED_WORKFLOWS_PASS'&&consoleErrors.some(error=>error.startsWith('setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager.'))){outcome='BOUNDED_WORKFLOWS_WITH_ERRORS';blocker='App.metadataTypeManager remains unsupported; task query/completion workflows passed with the recorded property-type error';}
     // A diagnostic refusal is not an acceptable regression for an already proven workflow.
-    if(!['Copilot','Style Settings'].includes(plugin.name))expect(outcome).toBe(['Excalidraw','Tasks'].includes(plugin.name)?'BOUNDED_WORKFLOWS_WITH_ERRORS':'BOUNDED_WORKFLOWS_PASS');
+    if(!['Copilot','Style Settings'].includes(plugin.name))expect(outcome).toBe(plugin.name==='Excalidraw'?'BOUNDED_WORKFLOWS_WITH_ERRORS':'BOUNDED_WORKFLOWS_PASS');
     if(outcome==='BOUNDED_WORKFLOWS_PASS')expect(pageErrors).toEqual([]);
     if(outcome==='BOUNDED_WORKFLOWS_WITH_ERRORS')expect(pageErrors.filter(error=>error!=='Unsupported Obsidian capability: Obsidian core Canvas plugin. See docs/PLUGIN-COMPATIBILITY.md.')).toEqual([]);
-    if(outcome.startsWith('BOUNDED_WORKFLOWS_'))expect(consoleErrors.filter(error=>/\b(?:CompatibilityError|TypeError|ReferenceError|Error):/.test(error)&&!(plugin.name==='Tasks'&&error.startsWith('setObsidianPropertiesTypes error CompatibilityError: Unsupported Obsidian capability: App.metadataTypeManager.')))).toEqual([]);
+    if(outcome.startsWith('BOUNDED_WORKFLOWS_'))expect(consoleErrors.filter(error=>/\b(?:CompatibilityError|TypeError|ReferenceError|Error):/.test(error))).toEqual([]);
     const platform=process.platform==='linux'?'Linux x64 Electron':process.platform==='darwin'?'macOS '+process.arch+' Electron':process.platform+' '+process.arch+' Electron';
     const nativeEnabled=await page.evaluate(()=>typeof (window as any).require==='function');expect(nativeEnabled).toBe(needsNative);
     const unsafeEvalEnabled=await page.evaluate(()=>window.engine!.unsafeEval!());expect(unsafeEvalEnabled).toBe(needsEval);

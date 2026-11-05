@@ -23,8 +23,14 @@ Style Settings workflows instead of treating startup as compatibility. Copilot s
 Excalidraw core Canvas, authenticated Git and cross-plugin context remain known gaps, not
 promises of completion in this increment. Implement only observed, testable host contracts.
 
-No new positive workflow outcome is established yet. Reports must only be regenerated from
-one accepted complete Worker/renderer pair; preserve failed candidates and baseline evidence.
+Draft [PR #74](https://github.com/crafactory/engine/pull/74) is open.
+Four targeted Electron cases pass: Tasks query/completion without the old property-type
+error, actual search/extra controls, property-type restart persistence and fourteen UIEvent
+target/cross-window checks. The live type registry is profile-backed and vault-keyed, not
+Obsidian types.json or a property editing UI. Only observed getAllProperties/setType are added.
+Logs: `/tmp/engine-gaps-target2.log`, `/tmp/engine-gaps-units2.log`.
+Reports must only be regenerated from one accepted complete Worker/renderer pair; preserve
+failed candidates and baseline evidence. Kanban settings and Style Settings remain probes.
 
 ## Environment and delivery
 

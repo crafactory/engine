@@ -38,6 +38,8 @@ class FixtureSettings extends PluginSettingTab {
     new Setting(this.containerEl).setName('Fixture slider').addSlider(c=>c.setLimits(1,10,1).setValue(p.data.slider||1).onChange(async slider=>{p.data.slider=slider;await p.saveData(p.data);}));
     new Setting(this.containerEl).setName('Fixture textarea').addTextArea(c=>c.setValue(p.data.area||'').onChange(async area=>{p.data.area=area;await p.saveData(p.data);}));
     new Setting(this.containerEl).setName('Fixture button').addButton(c=>c.setButtonText('Open fixture modal').onClick(()=>new FixtureModal(this.app).open()));
+    new Setting(this.containerEl).setName('Fixture search').addSearch(c=>{window.__fixtureSearch=c;c.setValue(p.data.search||'').onChange(async search=>{p.data.search=search;await p.saveData(p.data);});});
+    new Setting(this.containerEl).setName('Fixture extra').addExtraButton(c=>{window.__fixtureExtra=c;c.setIcon('reset').setTooltip('Reset fixture search').onClick(()=>{window.__fixtureExtraClicks=(window.__fixtureExtraClicks||0)+1;window.__fixtureSearch.setValue('');window.__fixtureSearch.onChanged();});});
   }
 }
 class FixturePicker extends SuggestModal {
