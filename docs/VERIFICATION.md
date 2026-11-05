@@ -5,6 +5,65 @@
 > plugin status see [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); for API boundaries
 > see [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md).
 
+## Multi-plugin gaps and Kanban pointer persistence
+
+On 2026-11-05 UTC, implementation `e2eddc25eebc44fd107b18aa5266f1f1e021fb05`
+in [PR #74](https://github.com/crafactory/engine/pull/74) passed inventory validation,
+869 units across 49 files, TypeScript/production build, all 64 browser tests and all
+102 Linux Electron desktop tests. All eleven Worker and eleven renderer corpus cases
+executed without skips. Reports were regenerated only from the fresh complete
+`/tmp/engine-gaps-accept2-{worker,renderer}` pair. Renderer outcomes are nine clean
+bounded passes, one bounded pass retaining only the known Excalidraw core Canvas
+refusal, and Copilot startup with errors. Worker refusals are negative evidence.
+
+The unchanged Tasks bundle now queries/completes/refreshes without the former private
+property-type-manager error. Original contracts also verify live inferred properties,
+validated profile-local vault-keyed overrides, case-insensitive lookup and restart
+persistence. This is not types.json or a complete property editor.
+
+The unchanged Style Settings bundle parses original documented fixture CSS, exposes
+class-toggle/variable-text controls, changes computed CSS, saves exact plugin JSON,
+filters/clears search and restores effects and values after application restart.
+Host-owned Component children no longer collide with plugin-owned configuration trees.
+Other settings kinds, import/export and theme/snippet management remain unverified.
+
+The unchanged Kanban bundle now creates/edits a card through actual embedded editors,
+opens reachable board settings, enables completion checkboxes, completes the card,
+creates another list and moves the card using real frame-paced mouse input. Assertions
+check section ownership, checked Markdown, persisted configuration and byte-identical
+saved data across document switch and application restart/re-enable/reopen.
+After-connected insertion notification registers real drag hitboxes; public Node.detach
+cleans up dragged DOM. Neither missing registration nor cleanup errors are allowed.
+Other card/list ordering, movement/conversion and cross-plugin integrations are not certified.
+
+Eleven targeted cases also pass against the actual Linux packaged executable at
+`/tmp/engine-gaps-package/linux-unpacked/crafactory-engine`, including these three plugins
+and eight host contracts. Cross-window chained factories, viewless event type checks,
+insertion notification/once/cancellation, text/element detach, search/extra/date settings,
+large modal reachability, property restart and actual owned suggestions are covered.
+This is Linux runtime acceptance, not native Windows/macOS, installer or release acceptance.
+Public renderer export inventory rises to 72 bounded symbols; counts are not compatibility.
+
+Negative evidence is retained: unchanged PR #73 fails the search/property/event,
+DOM/modal and insertion/factory/event assertions, while an isolated original child-tree
+lifecycle regression also fails against that baseline. A fluent-component harness return
+caused a then-assimilation hang; it was corrected without claiming a product deadlock.
+A #private-field candidate broke guarded receivers and was replaced with symbol-backed
+ownership. A card editor selector initially targeted the new-card composer; a later
+candidate completed the Kanban workflow but reported missing detach during cleanup.
+The preliminary desktop1 run overlapped runtime changes and was not used for final
+acceptance or report generation.
+
+The [initial effective CodeRabbit review](https://github.com/crafactory/engine/pull/74#pullrequestreview-5781526190)
+covered `6fab5fb`. Both actionable findings and the viewless-event follow-up were repaired
+with original regressions in `e2eddc2`, and both finding threads were resolved.
+The [single incremental re-review request was rate limited](https://github.com/crafactory/engine/pull/74#issuecomment-6653128941);
+no optional review loop was pursued under the maintainer-authorized policy.
+Exact final-head Verify, three-platform packaging and the separate pinned-corpus workflow
+remain independent merge gates, recorded in the PR's final acceptance checkpoint.
+The narrow accepted binary rename recreation risk, native profile-wide trust boundary,
+core Canvas refusal and Copilot secret-storage limitation remain unchanged.
+
 ## Kanban cards, DOM ownership and focused editor routing
 
 On 2026-11-04 UTC, the original host changes in [PR #73](https://github.com/crafactory/engine/pull/73)

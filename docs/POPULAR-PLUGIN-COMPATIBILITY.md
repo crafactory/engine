@@ -11,13 +11,13 @@ The target set is the all-time download top ten on [Obsidian Stats](https://www.
 | 1 | Excalidraw | 2.29.1 | Native-profile pointer drawing, saved scene and application restart; private core Canvas integration still rejected |
 | 2 | Templater | 2.26.0 | Existing insertion, creation, startup/user scripts and settings workflows |
 | 3 | Dataview | tag 0.5.70 / manifest 0.5.68 | Existing bounded DQL and DataviewJS workflows |
-| 4 | Tasks | 8.6.0 | Cross-note not-done query, completion persisted to source, query refresh |
+| 4 | Tasks | 8.6.0 | Cross-note not-done query, persisted completion and refresh without the former property-type error; bounded profile/vault-keyed property overrides |
 | 5 | Git | 2.42.0 | Native-profile stage/commit/push to local bare remote and peer-commit pull; authentication/conflicts not certified |
 | 6 | Advanced Tables | 0.23.2 | Existing live-editor table-formatting workflow |
 | 7 | Calendar | tag 2.0.0-beta.2 / manifest 2.0.0 | Existing today/create/open daily-note workflow |
 | 8 | Copilot | 4.0.17 | Startup with background failure at `App.secretStorage`; inference not tested |
-| 9 | Style Settings | 1.0.9 | Startup only; full theme/snippet acceptance unfinished |
-| 10 | Kanban | 2.0.51 | Board/list and unchecked-card creation, exact Markdown save, switch and restart/reopen; no recorded errors in the bounded run |
+| 9 | Style Settings | 1.0.9 | Documented CSS fixture, class-toggle/variable-text effects, search/clear, exact saved data and restart; other controls/theme management unfinished |
+| 10 | Kanban | 2.0.51 | Board/list/card creation, editing, checkbox completion, real pointer movement between lists, exact Markdown save, switch and restart/reopen; other movement/integration modes unverified |
 
 Reading Time 1.1.2 remains an eleventh regression sentinel, not a top-ten claim. Hashes, repositories, identities, actual outcomes and workflows are recorded in the [pins](compatibility/community-corpus.json), [renderer evidence](TRUSTED-RENDERER-PLUGIN-TESTS.md), and [Worker evidence](COMMUNITY-PLUGIN-TESTS.md). External binaries stay outside checkout and packaging inputs. New input licenses have not been audited; test downloads do not authorize redistribution.
 
@@ -30,14 +30,15 @@ Reading Time 1.1.2 remains an eleventh regression sentinel, not a top-ten claim.
 - **Host integration:** `getLanguage()` returns `en`, matching Engine's UI rather than OS locale. Theme/custom-CSS settings changes emit `css-change`. Style Settings' explicit parse event can be registered/triggered. Lezer LR/common use actual open-source modules.
 - **Evidence:** all eleven pinned inputs run in both modes. Reports retain runtime/console diagnostics and distinguish background errors, clean startup, and bounded workflows. Recoverable console warnings are retained even when a bounded workflow passes.
 - **Native shutdown:** early window-close requests wait for the renderer's initialized save/unload listener, rather than being lost during startup. Close-time state flush also retains property types instead of relying on the debounced settings save.
+- **Workflow gap fixes:** actual property types remove Tasks' former background error; isolated Component child ownership unblocks Style Settings controls; after-connected insertion delivery and Node.detach allow Kanban drag registration/cleanup. Search/extra/date controls, DOM factories and modal reachability have original regressions. Exact API limits are maintained in [the compatibility boundary](PLUGIN-COMPATIBILITY.md).
 
 ## Remaining scope and security
 
 Worker remains the default and rejects DOM/native modules. Renderer execution remains explicit, unsandboxed opt-in. Unsafe evaluation is a separate profile-level opt-in; corpus profiles are disposable. The separately confirmed [native profile](NATIVE-PLUGIN-PERMISSIONS.md) grants unrestricted filesystem/process access to every renderer script, not just one plugin. Neither default execution nor enabling a renderer plugin alone grants native access.
 
-Git receives actual native modules in that full-trust profile rather than fake filesystem/process modules. Disposable-repository acceptance does not establish credential, cancellation or conflict safety for arbitrary user repositories. The original embed registry and editable CodeMirror source surface are bounded implementations, not complete private-API parity; `metadataTypeManager` remains unsupported. Tasks' recoverable property-type warning is recorded; automatic reference-app property-type integration is not implemented.
+Git receives actual native modules in that full-trust profile rather than fake filesystem/process modules. Disposable-repository acceptance does not establish credential, cancellation or conflict safety for arbitrary user repositories. The original embed registry, editable CodeMirror source surface and metadata type manager are bounded implementations, not complete private-API parity. Property overrides use profile-local vault-keyed storage, not Obsidian types.json or a complete property editor.
 
-The remaining goal includes additional Excalidraw tools/export/embedding and core Canvas integration, Kanban later card edits/completion/move/conversion/pointer dragging, Git diff/backup/conflict/authentication flows, Copilot authorized authenticated inference, and Style Settings CSS round trips. Existing bounded tests establish neither mobile compatibility nor arbitrary versions, complete settings coverage, cross-plugin focus sharing or all upstream features.
+The remaining goal includes additional Excalidraw tools/export/embedding and core Canvas integration, Kanban card/list reordering, other movement/conversion modes and cross-plugin integrations, Git diff/backup/conflict/authentication flows, Copilot authorized authenticated inference, and Style Settings other control types/import/export/theme management. Existing bounded tests establish neither mobile compatibility nor arbitrary versions, complete settings coverage, cross-plugin focus sharing or all upstream features.
 
 ## Public contracts
 

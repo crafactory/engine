@@ -1,5 +1,27 @@
 # Mainstream plugin workflow gaps
 
+## Current acceptance checkpoint
+
+PR: https://github.com/crafactory/engine/pull/74 .
+Frozen implementation: `e2eddc25eebc44fd107b18aa5266f1f1e021fb05`.
+Local inventory/build, 869 units, 64 browser and 102 desktop tests pass; all 22 pinned
+cases execute. Only the complete fresh `/tmp/engine-gaps-accept2-{worker,renderer}` pair
+was published. Renderer: nine bounded passes, Excalidraw core Canvas refusal, Copilot
+startup error. Actual Linux package passes all 11 targeted cases.
+Initial effective review 5781526190 at `6fab5fb`; both threads and the event follow-up
+were repaired in `e2eddc2`. Both threads are resolved. One incremental request was rate
+limited (6653128941); do not repeat optional review requests.
+Current matrix/API/popular-gap/report/verification documentation is aligned.
+Read live PR state for final documentation-head Verify, three-platform builds, explicit
+pinned-corpus eligibility and merge outcome. If already merged, sync main rather than
+reopening this increment. Otherwise require those exact-head gates, no unresolved blocker,
+record acceptance and use the authorized match-head squash merge, then sync main and email
+the owner privately in Chinese with the verified outcome. No issue creation, agents or
+upstream implementation inspection is authorized.
+All earlier notes below are historical candidate observations, not the current verdict.
+
+## Historical in-progress notes
+
 ## Baseline and scope
 
 PR #73 merged at `7d2ea5a`; its card creation/save/switch/restart and owned-runtime focus
@@ -56,7 +78,7 @@ Initial CodeRabbit review was requested after marking PR #74 ready at `6fab5fb`;
 effective results. Current reports still intentionally retain the historical PR #73 pair.
 
 08:14 UTC: initial effective review completed at `6fab5fb`, review 5781526190.
-Fixed both actionable threads (4477918348 foreign factory chaining, 4477918350 own __proto__
+Fixed both actionable threads (4477918348 foreign factory chaining, 4477918357 own __proto__
 assertion) and the follow-up viewless event construction-realm finding with original tests.
 Foreign realms now install their own helpers; UIEvent type checks use the actual prototype
 chain. Exposed the three already-implemented public search/extra/date control constructors.
