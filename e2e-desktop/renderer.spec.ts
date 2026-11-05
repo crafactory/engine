@@ -61,6 +61,43 @@ test('renderer property types survive application restart for the same vault',as
   page=await app.firstWindow();await enable();await page.getByTestId('settings-close').click();
   expect(await page.evaluate(()=>(window as any).app.metadataTypeManager.getAllProperties()['fixture date'])).toEqual({name:'Fixture date',type:'date',count:0});
 });
+test('DOM factories honor parent, prepend, fragment text and callback-before-append',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  const checks=await page.evaluate(()=>{
+    const w=window as any,root=document.createElement('div') as any,other=document.createElement('div'),tail=document.createElement('span');root.append(tail);document.body.append(root,other);
+    let detached=false;const child=w.createDiv({parent:root,prepend:true,cls:['one','two'],title:'Factory title',text:'First'},(el:HTMLElement)=>{detached=el.parentNode===null;});
+    const fragment=document.createDocumentFragment();fragment.append(document.createTextNode('Fragment content'));
+    const nested=root.createEl('div',{parent:other,text:fragment});const input=w.createEl('input',{parent:root,type:'search',value:'Initial',placeholder:'Search fixture',attr:{'data-value':2,'data-null':null}});
+    const link=w.createEl('a',{parent:root,href:'#factory'});
+    const frame=document.createElement('iframe');document.body.append(frame);const foreign=root.createDiv({parent:frame.contentDocument!.body});
+    const result=[detached,root.firstChild===child,child.classList.contains('one'),child.classList.contains('two'),child.title==='Factory title',child.textContent==='First',nested.parentNode===other,nested.textContent==='Fragment content',
+      input.parentNode===root,input.value==='Initial',input.placeholder==='Search fixture',input.type==='search',input.getAttribute('data-value')==='2',!input.hasAttribute('data-null'),link.getAttribute('href')==='#factory',foreign.ownerDocument===frame.contentDocument];
+    frame.remove();other.remove();root.remove();return result;
+  });expect(checks).toEqual(Array(16).fill(true));
+});
+test('date format setting previews edited and cleared formats using its default',async()=>{
+  await enable();await page.getByRole('button',{name:'Plugin settings Renderer fixture',exact:true}).click();
+  const input=page.getByRole('textbox',{name:'Fixture date format',exact:true}),sample=page.getByTestId('fixture-format-sample');
+  await expect(input).toHaveAttribute('placeholder','YYYY-MM-DD');await expect(sample).toHaveText(/\d{4}-\d{2}-\d{2}/);
+  await input.fill('[Fixture year] YYYY');await expect(sample).toHaveText(/Fixture year \d{4}/);
+  await input.fill('');await expect(sample).toHaveText(/\d{4}-\d{2}-\d{2}/);
+  await page.evaluate(()=>{(window as any).__fixtureFormat.setValue('[Programmatic] YYYY');});
+  await expect(sample).toHaveText(/Programmatic \d{4}/);
+});
+test('large plugin modals stay scrollable after replacing their CSS classes',async()=>{
+  await enable();await page.getByTestId('settings-close').click();await command('Open large modal');
+  const modal=page.getByRole('dialog',{name:'Large fixture modal'}),bounds=await modal.boundingBox(),height=await page.evaluate(()=>innerHeight);
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);expect(bounds!.y+bounds!.height).toBeLessThanOrEqual(height);
+  await modal.getByPlaceholder('Row 0',{exact:true}).fill('First row');await modal.getByPlaceholder('Row 59',{exact:true}).fill('Last row');
+  expect(await modal.evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);
+  await page.keyboard.press('Escape');await expect(modal).toHaveCount(0);
+});
+test('owned suggestion registry returns actual defensive snapshots and clears on disable',async()=>{
+  await enable();await page.getByTestId('settings-close').click();
+  expect(await page.evaluate(()=>{const manager=(window as any).app.workspace.editorSuggest;(window as any).__fixtureSuggestManager=manager;const owned=manager.suggests;const count=owned.length;owned.length=0;return {count,retained:manager.suggests.length};})).toEqual({count:1,retained:1});
+  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();await page.getByRole('switch',{name:'Enable Renderer fixture',exact:true}).click();
+  expect(await page.evaluate(()=>(window as any).__fixtureSuggestManager.suggests.length)).toBe(0);
+});
 test('renderer UIEvents expose real target nodes and cross-window type checks',async()=>{
   await enable();await page.getByTestId('settings-close').click();
   const checks=await page.evaluate(()=>{

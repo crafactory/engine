@@ -27,6 +27,11 @@ it('property types infer live note values and persist explicit overrides across 
     h.runtime.sync({...initial(),notes:[]});expect(manager.getAllProperties().due.count).toBe(0);expect(manager.getAllProperties().labels).toBeUndefined();
   }finally{vi.unstubAllGlobals();}
 });
+it('unintegrated private core Templates is disabled with an explicit loading refusal',()=>{
+  const h=harness(),plugin=h.runtime.app.internalPlugins.getPluginById('templates');
+  expect(plugin).toBe(h.runtime.app.internalPlugins.plugins.templates);expect(plugin?.enabled).toBe(false);expect(plugin?.instance?.options).toMatchObject({folder:'',dateFormat:'YYYY-MM-DD'});
+  expect(()=>h.runtime.app.internalPlugins.plugins.templates.load()).toThrow('core Templates');expect(h.runtime.app.internalPlugins.getPluginById('__proto__')).toBeNull();
+});
 it('routes checking and editor callbacks to the focused embedded context without host writes',async()=>{
   const h=harness(),writes:string[]=[],focused=new Editor({text:'local draft',from:0,to:0},(_base,text)=>{writes.push(text);});
   const info={file:h.runtime.app.vault.getFileByPath('One.md'),editor:focused};let current:any=info;

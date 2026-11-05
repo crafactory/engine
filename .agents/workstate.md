@@ -28,7 +28,17 @@ Four targeted Electron cases pass: Tasks query/completion without the old proper
 error, actual search/extra controls, property-type restart persistence and fourteen UIEvent
 target/cross-window checks. The live type registry is profile-backed and vault-keyed, not
 Obsidian types.json or a property editing UI. Only observed getAllProperties/setType are added.
-Logs: `/tmp/engine-gaps-target2.log`, `/tmp/engine-gaps-units2.log`.
+Seven targeted cases now pass, additionally covering DOM factories, date previews and
+large modal reachability after a plugin replaces its root CSS classes. A separate eighth
+owned-suggestion-registry test passes against actual registrations, with no synthetic registry.
+32 renderer contract units pass. Logs: `/tmp/engine-gaps-target3.log`,
+`/tmp/engine-gaps-units3.log`, `/tmp/engine-gaps-suggest-test.log`.
+The old PR #73 package fails search/property/UIEvent and DOM/modal regression cases.
+The date-format probe initially hung because Playwright assimilated a fluent component's
+then method; correcting the harness passed, not evidence of a product deadlock.
+Style Settings probe18 falsified the proposed loaded-flag-only explanation; do not ship a
+speculative flag refactor. Kanban probe13 edited/completed a card and created a second lane,
+but its drag selector was wrong (no item-grip exists); no drag success is established.
 Reports must only be regenerated from one accepted complete Worker/renderer pair; preserve
 failed candidates and baseline evidence. Kanban settings and Style Settings remain probes.
 

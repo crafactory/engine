@@ -112,16 +112,17 @@ export function installDomHelpers(){
   if(typeof globalWindow.sleep==='undefined')globalWindow.sleep=(milliseconds:number)=>new Promise(resolve=>setTimeout(resolve,milliseconds));
   if(typeof globalWindow.createFragment!=='function')globalWindow.createFragment=(callback?:(element:HTMLElement)=>void)=>{const fragment=document.createDocumentFragment();if(typeof callback==='function'){const element=document.createElement('div');callback(element);fragment.append(...element.childNodes);}return fragment;};
   /** Detached element helper exposed globally by the reference API. */
-  const createDetached=(tag:string,options:any={},callback?:(element:HTMLElement)=>void)=>{
-    const element=document.createElement(tag);
-    if(typeof options==='string')element.className=options;else{
-      if(options?.cls)element.className=Array.isArray(options.cls)?options.cls.join(' '):options.cls;
-      if(options?.text!==undefined)element.textContent=String(options.text);
-      for(const [key,value]of Object.entries(options?.attr||{}))element.setAttribute(key,String(value));
-      if(options?.type)element.setAttribute('type',options.type);
-      if(options?.value!==undefined)(element as HTMLInputElement).value=String(options.value);
-    }
-    callback?.(element);return element;
+  const createDetached=(tag:string,options:any={},callback?:(element:HTMLElement)=>void,parent?:Node)=>{
+    const info=typeof options==='string'?{cls:options}:options??{},target=info.parent??parent;
+    const element=(target?nodeDocument(target):document).createElement(tag);
+    if(info.cls)element.className=Array.isArray(info.cls)?info.cls.join(' '):info.cls;
+    if(info.text!==undefined){if(typeof info.text==='object'&&info.text!==null)element.append(info.text);else element.textContent=String(info.text);}
+    for(const [key,value]of Object.entries(info.attr||{}))if(value!==null)element.setAttribute(key,String(value));
+    for(const key of ['title','value','placeholder','href'] as const)if(info[key]!==undefined&&key in element)(element as any)[key]=String(info[key]);
+    if(info.type!==undefined&&['INPUT','STYLE'].includes(element.tagName))element.setAttribute('type',String(info.type));
+    callback?.(element);
+    if(target){if(info.prepend)target.insertBefore(element,target.firstChild);else target.appendChild(element);}
+    return element;
   };
   if(typeof globalWindow.createEl!=='function')globalWindow.createEl=createDetached;
   if(typeof globalWindow.createDiv!=='function')globalWindow.createDiv=(options?:any,callback?:any)=>createDetached('div',options,callback);
@@ -174,14 +175,7 @@ export function installDomHelpers(){
       for(let element:HTMLElement|null=this;element;element=element.parentElement){if(element.hidden||getComputedStyle(element).display==='none')return false;}
       return this.isConnected;
     },
-    createEl(this:HTMLElement,tag:string,options:any={},callback?:(el:HTMLElement)=>void){
-      const el=element(tag,this);if(typeof options==='string')el.className=options;else{
-        if(options.cls)el.className=Array.isArray(options.cls)?options.cls.join(' '):options.cls;
-        if(options.text!==undefined)el.textContent=String(options.text);
-        for(const [key,value]of Object.entries(options.attr||{}))el.setAttribute(key,String(value));
-        if(options.type)el.setAttribute('type',options.type);
-      }callback?.(el);return el;
-    },
+    createEl(this:HTMLElement,tag:string,options:any={},callback?:(el:HTMLElement)=>void){return createDetached(tag,options,callback,this);},
     createDiv(this:HTMLElement,options?:any,callback?:any){return methods.createEl.call(this,'div',options,callback);},
     createSpan(this:HTMLElement,options?:any,callback?:any){return methods.createEl.call(this,'span',options,callback);},
     find(this:HTMLElement,selector:string){return this.querySelector(selector);},
@@ -220,6 +214,15 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   class TextComponent extends AbstractTextComponent {}
   class TextAreaComponent extends AbstractTextComponent {constructor(parent:HTMLElement){super(parent,'textarea');}}
+  class MomentFormatComponent extends AbstractTextComponent {
+    private defaultFormat='';private sampleEl?:HTMLElement;
+    constructor(parent:HTMLElement){super(parent);this.inputEl.addEventListener('input',()=>this.updateSample());}
+    setDefaultFormat(format:string){this.defaultFormat=format;this.setPlaceholder(format);this.updateSample();return this;}
+    setSampleEl(sampleEl:HTMLElement){this.sampleEl=sampleEl;this.updateSample();return this;}
+    setValue(value:string){super.setValue(value);this.updateSample();return this;}
+    updateSample(){if(this.sampleEl)this.sampleEl.textContent=moment().format(this.getValue()||this.defaultFormat);}
+    onChanged(){this.updateSample();super.onChanged();}
+  }
   class SearchComponent extends AbstractTextComponent {
     clearButtonEl:HTMLButtonElement;
     constructor(parent:HTMLElement){super(parent);(this.inputEl as HTMLInputElement).type='search';this.clearButtonEl=element('button',parent,'search-input-clear-button') as HTMLButtonElement;this.clearButtonEl.type='button';this.clearButtonEl.setAttribute('aria-label','Clear search');this.clearButtonEl.textContent='×';this.clearButtonEl.addEventListener('click',()=>{this.setValue('');this.onChanged();this.inputEl.focus();});this.inputEl.addEventListener('input',()=>this.updateClear());this.updateClear();}
@@ -289,7 +292,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     addDropdown(callback:any){return this.add(DropdownComponent,callback);}addToggle(callback:any){return this.add(ToggleComponent,callback);}
     addButton(callback:any){return this.add(ButtonComponent,callback);}addSlider(callback:any){return this.add(SliderComponent,callback);}
     addExtraButton(callback:any){return this.add(ExtraButtonComponent,callback);}addColorPicker(){return unsupported('Setting.addColorPicker');}
-    addSearch(callback:any){return this.add(SearchComponent,callback);}addMomentFormat(){return unsupported('Setting.addMomentFormat');}
+    addSearch(callback:any){return this.add(SearchComponent,callback);}addMomentFormat(callback:any){return this.add(MomentFormatComponent,callback);}
     addProgressBar(){return unsupported('Setting.addProgressBar');}addComponent(){return unsupported('Setting.addComponent');}
   }
   class SettingTab {
@@ -389,7 +392,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   class Modal {
     app:any;containerEl=element('div',undefined,'modal-backdrop plugin-modal-backdrop');modalEl=element('section',this.containerEl,'modal plugin-modal');titleEl=element('h2',this.modalEl);contentEl=element('div',this.modalEl);shouldRestoreSelection=true;
     private previous:Element|null=null;private callback:(()=>void)|undefined;
-    constructor(app:any){this.app=app;this.modalEl.setAttribute('role','dialog');this.modalEl.setAttribute('aria-modal','true');const close=element('button',this.modalEl,'plugin-modal-close');close.textContent='×';close.setAttribute('aria-label','Close plugin modal');close.addEventListener('click',()=>this.close());this.containerEl.addEventListener('click',event=>{if(event.target===this.containerEl)this.close();});
+    constructor(app:any){this.app=app;this.modalEl.setAttribute('role','dialog');this.modalEl.setAttribute('aria-modal','true');Object.assign(this.modalEl.style,{position:'relative',maxHeight:'85vh',overflow:'auto'});const close=element('button',this.modalEl,'plugin-modal-close');close.textContent='×';close.setAttribute('aria-label','Close plugin modal');close.addEventListener('click',()=>this.close());this.containerEl.addEventListener('click',event=>{if(event.target===this.containerEl)this.close();});
       this.containerEl.addEventListener('keydown',event=>{if(event.key==='Escape'){event.stopPropagation();this.close();}if(event.key==='Tab'){const list=[...this.modalEl.querySelectorAll<HTMLElement>('button,input,select,textarea,[tabindex="0"]')].filter(el=>!el.hasAttribute('disabled'));if(list.length){const i=list.indexOf(document.activeElement as HTMLElement),next=(i+(event.shiftKey?-1:1)+list.length)%list.length;event.preventDefault();list[next].focus();}}});}
     scope=new Scope(scope);
     setTitle(text:string){this.titleEl.textContent=text;this.modalEl.setAttribute('aria-label',text);return this;}
@@ -678,6 +681,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     /** Atomically deactivate this plugin's processors before runtime resource cleanup. */
     async stopProcessors(){processorsStopped=true;await stopProcessors(processors);processors.clear();},
     workspace:{
+      editorSuggest:guardCompatibilityObject({get suggests(){return [...suggests];}},'EditorSuggestManager'),
       requestSaveLayout(){if(!onSaveLayout)unsupported('Workspace.requestSaveLayout');void onSaveLayout!().catch(onSaveError);},
       floatingSplit:{children:[]},
       get containerEl(){return document.querySelector('main')??document.body;},

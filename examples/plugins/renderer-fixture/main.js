@@ -40,6 +40,8 @@ class FixtureSettings extends PluginSettingTab {
     new Setting(this.containerEl).setName('Fixture button').addButton(c=>c.setButtonText('Open fixture modal').onClick(()=>new FixtureModal(this.app).open()));
     new Setting(this.containerEl).setName('Fixture search').addSearch(c=>{window.__fixtureSearch=c;c.setValue(p.data.search||'').onChange(async search=>{p.data.search=search;await p.saveData(p.data);});});
     new Setting(this.containerEl).setName('Fixture extra').addExtraButton(c=>{window.__fixtureExtra=c;c.setIcon('reset').setTooltip('Reset fixture search').onClick(()=>{window.__fixtureExtraClicks=(window.__fixtureExtraClicks||0)+1;window.__fixtureSearch.setValue('');window.__fixtureSearch.onChanged();});});
+    const sample=this.containerEl.createDiv({attr:{'data-testid':'fixture-format-sample'}});
+    new Setting(this.containerEl).setName('Fixture date format').addMomentFormat(c=>{window.__fixtureFormat=c;c.setDefaultFormat('YYYY-MM-DD').setSampleEl(sample).setValue(p.data.dateFormat||'').onChange(async dateFormat=>{p.data.dateFormat=dateFormat;await p.saveData(p.data);});});
   }
 }
 class FixturePicker extends SuggestModal {
@@ -76,6 +78,7 @@ class FixtureEmbeddedView extends ItemView {
 }
 module.exports=class extends Plugin {
   async onload(){
+    this.addCommand({id:'large-modal',name:'Open large modal',callback:()=>{const modal=new Modal(this.app);modal.setTitle('Large fixture modal');modal.modalEl.className='modal mod-settings';for(let i=0;i<60;i++){const input=modal.contentEl.createEl('input',{placeholder:'Row '+i});input.style.display='block';input.style.margin='12px';}modal.open();}});
     this.data=(await this.loadData())||{};
     this.status=this.addStatusBarItem();this.status.setText('CM changes: 0');this.changes=0;
     this.registerEditorExtension(StateField.define({create:()=>0,update:(value,tr)=>value+(tr.docChanged?1:0)}));

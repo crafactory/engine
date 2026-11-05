@@ -556,8 +556,10 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
   const dailyPlugin={_id:'daily-notes',enabled:true,get instance(){return {options:{...dailyNotes()}};}};
   // Engine's own canvas provider is not the private Obsidian Canvas core plugin.
   const canvasPlugin={enabled:false,_loaded:false,instance:null,load:()=>unsupported('Obsidian core Canvas plugin')};
-  const internalPluginInstances={'daily-notes':dailyPlugin,canvas:canvasPlugin};
-  const internalPlugins={plugins:host.trace?new Proxy(internalPluginInstances,{get(target,key,receiver){if(typeof key==='string')host.trace?.('InternalPlugins.plugins.'+key);return Reflect.get(target,key,receiver);}}):internalPluginInstances,getPluginById:(id:string)=>id==='daily-notes'?dailyPlugin:id==='canvas'?canvasPlugin:null};
+  // A missing private core Templates integration is disabled, not silently enabled.
+  const templatesPlugin={enabled:false,_loaded:false,instance:Object.freeze({options:Object.freeze({folder:'',dateFormat:'YYYY-MM-DD',timeFormat:'HH:mm'})}),load:()=>unsupported('Obsidian core Templates plugin')};
+  const internalPluginInstances={'daily-notes':dailyPlugin,canvas:canvasPlugin,templates:templatesPlugin};
+  const internalPlugins={plugins:host.trace?new Proxy(internalPluginInstances,{get(target,key,receiver){if(typeof key==='string')host.trace?.('InternalPlugins.plugins.'+key);return Reflect.get(target,key,receiver);}}):internalPluginInstances,getPluginById:(id:string)=>Object.hasOwn(internalPluginInstances,id)?internalPluginInstances[id as keyof typeof internalPluginInstances]:null};
   // This bounded manager exposes only its own runtime, not other plugins' APIs.
   const plugins={plugins:Object.create(null) as Record<string,Plugin>,enabledPlugins:new Set<string>(),getPlugin:(id:string):Plugin|null=>id===manifest.id?plugins.plugins[id]??null:null};
   const foldManager={load:(_file:TFile)=>({folds:[]}),save:async(_file:TFile,_info:unknown)=>{}};
