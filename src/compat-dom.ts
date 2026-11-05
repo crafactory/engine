@@ -9,7 +9,7 @@ import {Component,Editor,EditorSuggest,Events,unsupported} from './compat-core';
 import {Keymap,Scope} from './compat-keymap';
 import {addIcon,getIcon,getIconIds,setIcon} from './compat-icons';
 import {MarkdownRenderChild,createMarkdownRenderer,registerPostProcessor,registerCodeProcessor,stopProcessors} from './markdown-plugins';
-export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','View','ItemView','FileView','TextFileView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','SuggestModal','FuzzySuggestModal','Keymap','Scope','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','Menu','MenuItem','editorLivePreviewField','editorInfoField','Platform','prepareFuzzySearch','addIcon','getIcon','getIconIds','setIcon','setTooltip'] as const;
+export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','SearchComponent','ExtraButtonComponent','MomentFormatComponent','View','ItemView','FileView','TextFileView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','SuggestModal','FuzzySuggestModal','Keymap','Scope','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','Menu','MenuItem','editorLivePreviewField','editorInfoField','Platform','prepareFuzzySearch','addIcon','getIcon','getIconIds','setIcon','setTooltip'] as const;
 /** Bounded editor fields: live preview is always active and no file is exposed. */
 export const editorLivePreviewField=StateField.define<boolean>({create:()=>true,update:value=>value});
 export const editorInfoField=StateField.define<{file:null}>({create:()=>({file:null}),update:value=>value});
@@ -68,7 +68,11 @@ export class Menu {
 }
 const element=(tag:string,parent?:HTMLElement,cls='')=>{const el=document.createElement(tag);el.className=cls;parent?.append(el);return el;};
 /** Install shared DOM conveniences once without replacing browser-provided implementations. */
-export function installDomHelpers(){
+const domHelperRealms=new WeakSet<Window>();
+export function installDomHelpers(realm:Window=globalThis.window){
+  if(domHelperRealms.has(realm))return;
+  const window=realm,{document,Node,UIEvent,HTMLElement,SVGElement,Document,DocumentFragment,Element,Array,String,MutationObserver}=realm as Window & typeof globalThis;
+  const getComputedStyle=realm.getComputedStyle.bind(realm);
   /** Documents own themselves; detached nodes fall back only when they have no owner. */
   const nodeDocument=(node:Node):Document=>node.nodeType===9?node as Document:node.ownerDocument??document;
   /** Prefer the event's native view, then the document of its dispatched DOM target. */
@@ -78,11 +82,15 @@ export function installDomHelpers(){
     return event.view?.document??(target&&typeof target.nodeType==='number'?nodeDocument(target):targetWindow?.window===targetWindow?targetWindow.document:document);
   };
   for(const [name,get]of Object.entries({doc(this:Node){return nodeDocument(this);},win(this:Node){return nodeDocument(this).defaultView??window;}}))if(!(name in Node.prototype))Object.defineProperty(Node.prototype,name,{configurable:true,get});
+  if(!('detach' in Node.prototype))Object.defineProperty(Node.prototype,'detach',{configurable:true,writable:true,value:function(this:Node){this.parentNode?.removeChild(this);}});
   for(const [name,get]of Object.entries({doc(this:UIEvent){return eventDocument(this);},win(this:UIEvent){const target=this.target as Window|null;return this.view??(target?.window===target?target:null)??eventDocument(this).defaultView??window;},targetNode(this:UIEvent){const target=this.target as Node|null;return target&&typeof target.nodeType==='number'?target:null;}}))if(!(name in UIEvent.prototype))Object.defineProperty(UIEvent.prototype,name,{configurable:true,get});
   if(!('instanceOf' in UIEvent.prototype))Object.defineProperty(UIEvent.prototype,'instanceOf',{configurable:true,writable:true,value:function(this:UIEvent,type:new(...args:any[])=>unknown){
     if(this instanceof type)return true;
-    const local=(eventDocument(this).defaultView??window) as unknown as Record<string,any>,equivalent=local[type.name];
-    return typeof equivalent==='function'&&type.prototype?.[Symbol.toStringTag]===equivalent.prototype?.[Symbol.toStringTag]&&this instanceof equivalent;
+    for(let prototype=Object.getPrototypeOf(this);prototype;prototype=Object.getPrototypeOf(prototype)){
+      const equivalent=prototype.constructor;
+      if(typeof equivalent==='function'&&equivalent.name===type.name&&type.prototype?.[Symbol.toStringTag]===prototype[Symbol.toStringTag]&&this instanceof equivalent)return true;
+    }
+    return false;
   }});
   for(const [name,value]of Object.entries({first(this:unknown[]){return this[0];},last(this:unknown[]){return this[this.length-1];}}))if(!(name in Array.prototype))Object.defineProperty(Array.prototype,name,{value,configurable:true,writable:true});
   if(!('instanceOf' in Node.prototype))Object.defineProperty(Node.prototype,'instanceOf',{configurable:true,writable:true,value:function(this:Node,type:new()=>unknown){
@@ -114,7 +122,9 @@ export function installDomHelpers(){
   /** Detached element helper exposed globally by the reference API. */
   const createDetached=(tag:string,options:any={},callback?:(element:HTMLElement)=>void,parent?:Node)=>{
     const info=typeof options==='string'?{cls:options}:options??{},target=info.parent??parent;
-    const element=(target?nodeDocument(target):document).createElement(tag);
+    const targetDocument=target?nodeDocument(target):document;
+    if(targetDocument.defaultView&&targetDocument.defaultView!==window)installDomHelpers(targetDocument.defaultView);
+    const element=targetDocument.createElement(tag);
     if(info.cls)element.className=Array.isArray(info.cls)?info.cls.join(' '):info.cls;
     if(info.text!==undefined){if(typeof info.text==='object'&&info.text!==null)element.append(info.text);else element.textContent=String(info.text);}
     for(const [key,value]of Object.entries(info.attr||{}))if(value!==null)element.setAttribute(key,String(value));
@@ -157,7 +167,7 @@ export function installDomHelpers(){
   const classNames=(values:unknown[]):string[]=>values.flat(Infinity).flatMap(value=>String(value).split(/\s+/)).filter(Boolean);
   const methods:Record<string,Function>={
     onWindowMigrated(this:HTMLElement,listener:(win:Window)=>unknown){if(typeof listener!=='function')throw new Error('Expected window migration listener');const node=this;let owner=node.ownerDocument,win=owner.defaultView;const observer=new MutationObserver(()=>{const next=node.ownerDocument;if(next!==owner){owner=next;observer.disconnect();observer.observe(owner,{childList:true,subtree:true});if(owner.defaultView&&owner.defaultView!==win){win=owner.defaultView;listener(win);}}});observer.observe(owner,{childList:true,subtree:true});return()=>observer.disconnect();},
-    onNodeInserted(this:HTMLElement,listener:()=>unknown,once=false){if(typeof listener!=='function')throw new Error('Expected insertion listener');const node=this,observer=new MutationObserver(records=>{if(node.isConnected&&records.some(record=>[...record.addedNodes].some(added=>added===node||added.contains(node)))){if(once)observer.disconnect();listener();}});observer.observe(node.ownerDocument,{childList:true,subtree:true});return()=>observer.disconnect();},
+    onNodeInserted(this:HTMLElement,listener:()=>unknown,once=false){if(typeof listener!=='function')throw new Error('Expected insertion listener');const node=this;let active=true,pendingInitial=node.isConnected;const notify=()=>{if(!active||!node.isConnected)return;pendingInitial=false;if(once){active=false;observer.disconnect();}listener();},observer=new MutationObserver(records=>{if(records.some(record=>[...record.addedNodes].some(added=>added===node||added.contains(node))))notify();});observer.observe(node.ownerDocument,{childList:true,subtree:true});if(pendingInitial)queueMicrotask(()=>{if(pendingInitial)notify();});return()=>{active=false;pendingInitial=false;observer.disconnect();};},
     onClickEvent(this:HTMLElement,callback:(event:MouseEvent)=>unknown,options?:AddEventListenerOptions){this.addEventListener('click',callback,options);return ()=>this.removeEventListener('click',callback,options);},
     empty(this:HTMLElement){this.replaceChildren();},
     setText(this:HTMLElement,text:unknown){this.textContent=String(text);},
@@ -187,6 +197,7 @@ export function installDomHelpers(){
   // Obsidian's DOM helpers also build children on document fragments and shadow roots.
   const fragmentMethods:Record<string,Function>={empty:methods.empty,createEl:methods.createEl,createDiv:methods.createDiv,createSpan:methods.createSpan,appendText:methods.appendText,setText:methods.setText,getText:methods.getText,find:methods.find,findAll:methods.findAll};
   for(const [name,value]of Object.entries(fragmentMethods))if(!(name in DocumentFragment.prototype))Object.defineProperty(DocumentFragment.prototype,name,{value,configurable:true,writable:true});
+  domHelperRealms.add(realm);
 }
 /** Create plugin-owned trusted-renderer UI hooks; this adapter is not an isolation boundary. */
 export interface VersionedText {content:string;version:string}
@@ -672,7 +683,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     scope,keymap,getActiveEditor,setActiveEditor,
     reportError:onError,
     embedRegistry,
-    exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,View,ItemView,FileView,TextFileView,WorkspaceLeaf,EditorSuggest:DOMEditorSuggest,AbstractInputSuggest,SuggestModal,FuzzySuggestModal,Keymap,Scope,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,Menu:OwnedMenu,MenuItem,addIcon,getIcon,getIconIds,setIcon,
+    exports:{Modal,ConfirmationModal,SettingTab,PluginSettingTab,SettingPage,Setting,BaseComponent,ValueComponent,AbstractTextComponent,TextComponent,TextAreaComponent,DropdownComponent,ToggleComponent,ButtonComponent,SliderComponent,SearchComponent,ExtraButtonComponent,MomentFormatComponent,View,ItemView,FileView,TextFileView,WorkspaceLeaf,EditorSuggest:DOMEditorSuggest,AbstractInputSuggest,SuggestModal,FuzzySuggestModal,Keymap,Scope,BasesView,QueryController,MarkdownRenderChild,MarkdownRenderer:createMarkdownRenderer(()=>app),editorLivePreviewField,editorInfoField,Platform,prepareFuzzySearch,Menu:OwnedMenu,MenuItem,addIcon,getIcon,getIconIds,setIcon,
       setTooltip:(el:HTMLElement,text:string)=>{el.title=text;el.setAttribute('aria-label',text);}},
     /** Bind reading post-processors to this plugin's error and lifecycle ownership. */
     postProcessor(callback:any,sortOrder?:number){if(processorsStopped)throw new Error('Plugin Markdown processors are stopped');return ownProcessor(registerPostProcessor(callback,sortOrder,onError));},

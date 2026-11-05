@@ -38,10 +38,10 @@ class FixtureSettings extends PluginSettingTab {
     new Setting(this.containerEl).setName('Fixture slider').addSlider(c=>c.setLimits(1,10,1).setValue(p.data.slider||1).onChange(async slider=>{p.data.slider=slider;await p.saveData(p.data);}));
     new Setting(this.containerEl).setName('Fixture textarea').addTextArea(c=>c.setValue(p.data.area||'').onChange(async area=>{p.data.area=area;await p.saveData(p.data);}));
     new Setting(this.containerEl).setName('Fixture button').addButton(c=>c.setButtonText('Open fixture modal').onClick(()=>new FixtureModal(this.app).open()));
-    new Setting(this.containerEl).setName('Fixture search').addSearch(c=>{window.__fixtureSearch=c;c.setValue(p.data.search||'').onChange(async search=>{p.data.search=search;await p.saveData(p.data);});});
-    new Setting(this.containerEl).setName('Fixture extra').addExtraButton(c=>{window.__fixtureExtra=c;c.setIcon('reset').setTooltip('Reset fixture search').onClick(()=>{window.__fixtureExtraClicks=(window.__fixtureExtraClicks||0)+1;window.__fixtureSearch.setValue('');window.__fixtureSearch.onChanged();});});
+    new Setting(this.containerEl).setName('Fixture search').addSearch(c=>{if(!(c instanceof require('obsidian').SearchComponent))throw new Error('Search constructor export mismatch');window.__fixtureSearch=c;c.setValue(p.data.search||'').onChange(async search=>{p.data.search=search;await p.saveData(p.data);});});
+    new Setting(this.containerEl).setName('Fixture extra').addExtraButton(c=>{if(!(c instanceof require('obsidian').ExtraButtonComponent))throw new Error('Extra-button constructor export mismatch');window.__fixtureExtra=c;c.setIcon('reset').setTooltip('Reset fixture search').onClick(()=>{window.__fixtureExtraClicks=(window.__fixtureExtraClicks||0)+1;window.__fixtureSearch.setValue('');window.__fixtureSearch.onChanged();});});
     const sample=this.containerEl.createDiv({attr:{'data-testid':'fixture-format-sample'}});
-    new Setting(this.containerEl).setName('Fixture date format').addMomentFormat(c=>{window.__fixtureFormat=c;c.setDefaultFormat('YYYY-MM-DD').setSampleEl(sample).setValue(p.data.dateFormat||'').onChange(async dateFormat=>{p.data.dateFormat=dateFormat;await p.saveData(p.data);});});
+    new Setting(this.containerEl).setName('Fixture date format').addMomentFormat(c=>{if(!(c instanceof require('obsidian').MomentFormatComponent))throw new Error('Moment-format constructor export mismatch');window.__fixtureFormat=c;c.setDefaultFormat('YYYY-MM-DD').setSampleEl(sample).setValue(p.data.dateFormat||'').onChange(async dateFormat=>{p.data.dateFormat=dateFormat;await p.saveData(p.data);});});
   }
 }
 class FixturePicker extends SuggestModal {

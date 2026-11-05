@@ -46,6 +46,42 @@ The strict renderer CommonJS allowlist contains installed host CodeMirror packag
 
 The bounded legacy `window.CodeMirror` registry passes separate editor configuration and mode specification to factories and supports string/object MIME aliases, following the [CodeMirror 5 mode API](https://codemirror.net/5/doc/manual.html#modeapi). Each lookup instantiates its mode independently; unknown modes use an advancing, non-highlighting null mode. This does not implement a full CM5 editor, all modes, helper dispatch or complete overlay semantics.
 
+## Additional renderer contracts
+
+- **Setting controls:** `SearchComponent`, `ExtraButtonComponent` and `MomentFormatComponent`
+  are renderer exports and are also supplied through `Setting.addSearch/addExtraButton/addMomentFormat`.
+  Search clear/disabled/change behavior, extra-button callbacks, and default/placeholder/sample
+  date-format previews use actual controls. Other control kinds and full layout/validation
+  equivalence remain unsupported. These are subsets of the
+  [public SDK declarations](https://raw.githubusercontent.com/obsidianmd/obsidian-api/master/obsidian.d.ts).
+- **DOM factories and events:** global and element factories honor `parent`, `prepend`,
+  fragment text and callback-before-append. Same-origin target windows receive their own
+  helper installation so returned elements support chained factories. UIEvent `targetNode`
+  retains an actual Node or null, and cross-window `instanceOf` follows the event prototype
+  chain rather than assuming its target or view constructed it. `onNodeInserted` schedules
+  an initial notification for an already-connected node; disposal before delivery suppresses
+  it, `once` unhooks, and later insertions remain observed otherwise. This initial delivery
+  closes the observed Kanban drag-registration gap; exact reference timing is not certified.
+  The public `Node.detach()` removes an attached node and is harmless when already detached,
+  including text nodes and same-origin foreign-window nodes.
+- **Modal reachability:** root height/scroll constraints survive a plugin replacing the
+  dialog's CSS classes, keeping actual large settings reachable. Complete stacked-dialog,
+  mobile layout and reference focus equivalence remain unverified.
+- **Owned component trees:** host Component child lifecycle tracking is separate from
+  plugin-owned `children` configuration data, including through guarded receivers.
+  Other arbitrary subclass field collisions are not certified.
+- **Property types:** renderer-only private `app.metadataTypeManager.getAllProperties`
+  returns defensive property names/types/counts inferred from current Markdown frontmatter.
+  `setType` validates bounded explicit types and persists overrides in renderer-profile local
+  storage keyed by vault path, case-insensitively. This is not Obsidian `types.json`, a property
+  editor or full private-manager equivalence; the existing local-storage fallback is per-runtime
+  memory when persistence is unavailable.
+- **Private registry reads:** `workspace.editorSuggest.suggests` is a defensive snapshot of
+  actual owned registrations, not an empty fabricated registry or cross-plugin registry.
+  The private core Templates descriptor is explicitly disabled/unloaded and exposes frozen
+  empty-folder/default-date/time options; loading rejects. No core Templates implementation
+  or enablement is claimed.
+
 ## Existing contracts
 
 Plugin/Component retain awaited lifecycle and cleanup, command registration and plugin data; command precedence is editorCheckCallback, editorCallback, checkCallback, callback, with synchronous checking. Custom hotkeys/icon/repeatable/mobileOnly reject. Renderer plugins additionally receive UI hooks: addRibbonIcon, addSettingTab, addStatusBarItem, registerView (with getLeaf/getRightLeaf/getLeavesOfType/detachLeavesOfType/revealLeaf), registerExtensions (maps single-segment file extensions to an already-registered view; opening such a file mounts the view in the main document area), registerEditorSuggest (onTrigger/getSuggestions are bridged to CodeMirror autocomplete, selection runs through the editor mutation host, and custom suggestion rendering is limited to the display-text hook), registerObsidianProtocolHandler (dispatched from the in-app `engine:protocol` event; OS `obsidian://` registration is not wired), registerHoverLinkSource (hovering a Markdown link delivers a hover-link event per registered source; the event carries a minimal hoverParent and no hover popover), registerBasesView (renderer-only minimal QueryController with type/config/app; plugins implement `render(container)`; query data/grouping/sorting and full BasesConfig semantics are not implemented), registerEditorExtension and Markdown processors. The renderer emits `file-menu` with a bounded `Menu`/`MenuItem` when the file context menu opens; `files-menu`/`editor-menu`/`url-menu` still reject. `AbstractInputSuggest` and `FuzzySuggestModal` provide input-driven filtering, and `prepareFuzzySearch` returns `{score, matches}`. Worker mode rejects these without a UI host. Ribbon icons currently use a text-glyph fallback rather than the reference icon set. Public behavior is described in [Plugin](https://docs.obsidian.md/Reference/TypeScript+API/Plugin), [Component](https://docs.obsidian.md/Reference/TypeScript+API/Component), and [Command](https://docs.obsidian.md/Reference/TypeScript+API/Command).

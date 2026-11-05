@@ -21,7 +21,7 @@ it('property types infer live note values and persist explicit overrides across 
     const properties=manager.getAllProperties();expect(properties.due).toEqual({name:'DUE',type:'date',count:2});properties.due.type='corrupted';
     expect(manager.getAllProperties().due.type).toBe('date');
     expect(manager.getAllProperties()['__proto__']).toEqual({name:'__proto__',type:'text',count:0});
-    expect(harness({basePath:'/fixture/vault'}).runtime.app.metadataTypeManager!.getAllProperties()).toMatchObject({due:{type:'date',count:0},tq_explain:{type:'checkbox',count:0},__proto__:{type:'text'}});
+    expect(harness({basePath:'/fixture/vault'}).runtime.app.metadataTypeManager!.getAllProperties()).toMatchObject({due:{type:'date',count:0},tq_explain:{type:'checkbox',count:0},['__proto__']:{type:'text'}});
     expect(harness({basePath:'/other/vault'}).runtime.app.metadataTypeManager!.getAllProperties()).toEqual({});
     expect(()=>manager.setType('','text')).toThrow('nonempty');expect(()=>manager.setType('title','mystery')).toThrow('Unsupported');
     h.runtime.sync({...initial(),notes:[]});expect(manager.getAllProperties().due.count).toBe(0);expect(manager.getAllProperties().labels).toBeUndefined();

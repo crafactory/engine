@@ -36,12 +36,16 @@ test('renderer DOM compatibility helpers delegate, unsubscribe and observe real 
     root.on('click','.fixture-delegate',()=>once++,{once:true});unrelated.click();child.click();child.click();
     const values=['a','b','a'] as any;values.remove('a');
     const node=document.createElement('div') as any;let inserted=0;const stopInserted=node.onNodeInserted(()=>inserted++,true);root.append(node);await Promise.resolve();node.remove();root.append(node);await Promise.resolve();stopInserted();
+    let connectedInserted=0;const stopConnected=node.onNodeInserted(()=>connectedInserted++);await Promise.resolve();node.remove();root.append(node);await Promise.resolve();stopConnected();
+    let cancelledInserted=0;const stopCancelled=node.onNodeInserted(()=>cancelledInserted++,true);stopCancelled();await Promise.resolve();
+    let connectedOnce=0;const stopOnce=node.onNodeInserted(()=>connectedOnce++,true);await Promise.resolve();node.remove();root.append(node);await Promise.resolve();stopOnce();
+    const detachedText=document.createTextNode('detach') as any,detachedElement=document.createElement('div') as any;root.append(detachedText,detachedElement);detachedText.detach();detachedElement.detach();detachedElement.detach();const detached=detachedText.parentNode===null&&detachedElement.parentNode===null;
     const frame=document.createElement('iframe');root.append(frame);let migrated=0,correctWindow=false;
     const moved=new Promise<void>(resolve=>{const stop=node.onWindowMigrated((win:Window)=>{migrated++;correctWindow=win===frame.contentWindow;stop();resolve();});});
     frame.contentDocument!.body.append(node);await moved;root.append(node);await Promise.resolve();root.remove();
-    return {calls,once,context,delegate,values:[...values],inserted,migrated,correctWindow};
+    return {calls,once,context,delegate,values:[...values],inserted,connectedInserted,cancelledInserted,connectedOnce,detached,migrated,correctWindow};
   });
-  expect(result).toEqual({calls:1,once:1,context:true,delegate:true,values:['b'],inserted:1,migrated:1,correctWindow:true});
+  expect(result).toEqual({calls:1,once:1,context:true,delegate:true,values:['b'],inserted:1,connectedInserted:2,cancelledInserted:0,connectedOnce:1,detached:true,migrated:1,correctWindow:true});
 });
 test('search and extra setting controls clear, notify and respect disabled state',async()=>{
   await enable();await page.getByRole('button',{name:'Plugin settings Renderer fixture',exact:true}).click();
@@ -70,10 +74,12 @@ test('DOM factories honor parent, prepend, fragment text and callback-before-app
     const nested=root.createEl('div',{parent:other,text:fragment});const input=w.createEl('input',{parent:root,type:'search',value:'Initial',placeholder:'Search fixture',attr:{'data-value':2,'data-null':null}});
     const link=w.createEl('a',{parent:root,href:'#factory'});
     const frame=document.createElement('iframe');document.body.append(frame);const foreign=root.createDiv({parent:frame.contentDocument!.body});
+    const foreignChild=foreign.createDiv({text:'Foreign child'}),foreignSpan=foreignChild.createSpan({text:'Nested span'});
+    foreignSpan.detach();
     const result=[detached,root.firstChild===child,child.classList.contains('one'),child.classList.contains('two'),child.title==='Factory title',child.textContent==='First',nested.parentNode===other,nested.textContent==='Fragment content',
-      input.parentNode===root,input.value==='Initial',input.placeholder==='Search fixture',input.type==='search',input.getAttribute('data-value')==='2',!input.hasAttribute('data-null'),link.getAttribute('href')==='#factory',foreign.ownerDocument===frame.contentDocument];
+      input.parentNode===root,input.value==='Initial',input.placeholder==='Search fixture',input.type==='search',input.getAttribute('data-value')==='2',!input.hasAttribute('data-null'),link.getAttribute('href')==='#factory',foreign.ownerDocument===frame.contentDocument,foreignChild.parentNode===foreign,foreignSpan.ownerDocument===frame.contentDocument,foreignSpan.textContent==='Nested span',foreignSpan.parentNode===null];
     frame.remove();other.remove();root.remove();return result;
-  });expect(checks).toEqual(Array(16).fill(true));
+  });expect(checks).toEqual(Array(20).fill(true));
 });
 test('date format setting previews edited and cleared formats using its default',async()=>{
   await enable();await page.getByRole('button',{name:'Plugin settings Renderer fixture',exact:true}).click();
@@ -109,13 +115,16 @@ test('renderer UIEvents expose real target nodes and cross-window type checks',a
     const target=Object.getOwnPropertyDescriptor(UIEvent.prototype,'targetNode')!.get!;
     const instanceOf=(UIEvent.prototype as any).instanceOf;
     const foreignEvent=new foreign.MouseEvent('fixture-foreign',{view:foreign});foreign.document.body.dispatchEvent(foreignEvent);
+    const viewless=new MouseEvent('fixture-viewless') as any;foreign.document.body.dispatchEvent(viewless);
+    const foreignViewless=new foreign.MouseEvent('fixture-viewless');body.dispatchEvent(foreignViewless);
     const result=[click.targetNode===text,click.targetNode.instanceOf(Text),click.instanceOf(MouseEvent),click.instanceOf(UIEvent),!click.instanceOf(KeyboardEvent),
       winEvent.targetNode===null,unbound.targetNode===null,target.call(foreignEvent)===foreign.document.body,
       instanceOf.call(foreignEvent,MouseEvent),instanceOf.call(foreignEvent,UIEvent),!instanceOf.call(foreignEvent,KeyboardEvent),
-      !instanceOf.call(foreignEvent,class MouseEvent {}),!Object.hasOwn(Object.prototype,'targetNode'),!Object.hasOwn(Object.prototype,'instanceOf')];
+      !instanceOf.call(foreignEvent,class MouseEvent {}),!Object.hasOwn(Object.prototype,'targetNode'),!Object.hasOwn(Object.prototype,'instanceOf'),
+      viewless.view===null,viewless.instanceOf(foreign.MouseEvent),!viewless.instanceOf(foreign.KeyboardEvent),instanceOf.call(foreignViewless,MouseEvent),!instanceOf.call(foreignViewless,KeyboardEvent)];
     frame.remove();div.remove();return result;
   });
-  expect(checks).toEqual(Array(14).fill(true));
+  expect(checks).toEqual(Array(19).fill(true));
 });
 test('embedded input survives a late read, including typing and clearing the buffer',async()=>{
   await enable();await page.getByTestId('settings-close').click();

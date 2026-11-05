@@ -1,6 +1,6 @@
 # Public API export coverage
 
-Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 30 bounded runtime symbols. Explicit opt-in trusted renderer: 69 bounded runtime symbols (39 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
+Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 30 bounded runtime symbols. Explicit opt-in trusted renderer: 72 bounded runtime symbols (42 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
 
 | Symbol | Kind | Default Worker | Trusted renderer | Public documentation |
 |---|---|---|---|---|
@@ -19,7 +19,7 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | DropdownComponent | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [DropdownComponent](https://docs.obsidian.md/Reference/TypeScript+API/DropdownComponent) |
 | DurationValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [DurationValue](https://docs.obsidian.md/Reference/TypeScript+API/DurationValue) |
 | Events | Classes | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [Events](https://docs.obsidian.md/Reference/TypeScript+API/Events) |
-| ExtraButtonComponent | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [ExtraButtonComponent](https://docs.obsidian.md/Reference/TypeScript+API/ExtraButtonComponent) |
+| ExtraButtonComponent | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [ExtraButtonComponent](https://docs.obsidian.md/Reference/TypeScript+API/ExtraButtonComponent) |
 | FileManager | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [FileManager](https://docs.obsidian.md/Reference/TypeScript+API/FileManager) |
 | FileSystemAdapter | Classes | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [FileSystemAdapter](https://docs.obsidian.md/Reference/TypeScript+API/FileSystemAdapter) |
 | FileValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [FileValue](https://docs.obsidian.md/Reference/TypeScript+API/FileValue) |
@@ -40,7 +40,7 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | MenuSeparator | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [MenuSeparator](https://docs.obsidian.md/Reference/TypeScript+API/MenuSeparator) |
 | MetadataCache | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [MetadataCache](https://docs.obsidian.md/Reference/TypeScript+API/MetadataCache) |
 | Modal | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [Modal](https://docs.obsidian.md/Reference/TypeScript+API/Modal) |
-| MomentFormatComponent | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [MomentFormatComponent](https://docs.obsidian.md/Reference/TypeScript+API/MomentFormatComponent) |
+| MomentFormatComponent | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [MomentFormatComponent](https://docs.obsidian.md/Reference/TypeScript+API/MomentFormatComponent) |
 | Notice | Classes | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [Notice](https://docs.obsidian.md/Reference/TypeScript+API/Notice) |
 | NullValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [NullValue](https://docs.obsidian.md/Reference/TypeScript+API/NullValue) |
 | NumberValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [NumberValue](https://docs.obsidian.md/Reference/TypeScript+API/NumberValue) |
@@ -51,7 +51,7 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | RelativeDateValue | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [RelativeDateValue](https://docs.obsidian.md/Reference/TypeScript+API/RelativeDateValue) |
 | RenderContext | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [RenderContext](https://docs.obsidian.md/Reference/TypeScript+API/RenderContext) |
 | Scope | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [Scope](https://docs.obsidian.md/Reference/TypeScript+API/Scope) |
-| SearchComponent | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [SearchComponent](https://docs.obsidian.md/Reference/TypeScript+API/SearchComponent) |
+| SearchComponent | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [SearchComponent](https://docs.obsidian.md/Reference/TypeScript+API/SearchComponent) |
 | SecretComponent | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [SecretComponent](https://docs.obsidian.md/Reference/TypeScript+API/SecretComponent) |
 | SecretStorage | Classes | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [SecretStorage](https://docs.obsidian.md/Reference/TypeScript+API/SecretStorage) |
 | Setting | Classes | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [Setting](https://docs.obsidian.md/Reference/TypeScript+API/Setting) |

@@ -55,6 +55,23 @@ exception/local-variable/DOM metadata only are being observed, never bundle bodi
 Initial CodeRabbit review was requested after marking PR #74 ready at `6fab5fb`; await
 effective results. Current reports still intentionally retain the historical PR #73 pair.
 
+08:14 UTC: initial effective review completed at `6fab5fb`, review 5781526190.
+Fixed both actionable threads (4477918348 foreign factory chaining, 4477918350 own __proto__
+assertion) and the follow-up viewless event construction-realm finding with original tests.
+Foreign realms now install their own helpers; UIEvent type checks use the actual prototype
+chain. Exposed the three already-implemented public search/extra/date control constructors.
+Kanban root drag gap was onNodeInserted being registered after connection without an initial
+delivery. Added cancellable initial microtask, once/reinsert coverage and public Node.detach
+(cleanup had thrown after successful movement). Do not accept the earlier cleanup-error run.
+Clean source acceptance now passes all 11 targeted cases, including real Kanban
+edit/checkbox completion/frame-paced pointer movement/section ownership/exact saved bytes/
+document switch/restart, plus Tasks, Style and eight host contracts.
+Log: `/tmp/engine-gaps-target-final3.log`. Build16 is current runtime.
+Frozen-source full verification is running: desktop2 with fresh accept2 Worker/renderer
+report directories; units-final3/browser-final3; package `/tmp/engine-gaps-package`.
+The preliminary desktop1 run is not final acceptance (runtime was changing); never use its
+reports. Current tracked reports still intentionally retain PR #73 until accept2 completes.
+
 ## Environment and delivery
 
 Node 22: `/tmp/engine-node/node_modules/node/bin`.
