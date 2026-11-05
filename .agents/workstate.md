@@ -42,6 +42,19 @@ but its drag selector was wrong (no item-grip exists); no drag success is establ
 Reports must only be regenerated from one accepted complete Worker/renderer pair; preserve
 failed candidates and baseline evidence. Kanban settings and Style Settings remain probes.
 
+Style Settings now passes an actual corpus workflow (4.9s): class-toggle, variable-text,
+computed CSS, exact plugin JSON, search/clear and application restart/re-enable.
+Root cause was host Component child ownership colliding with plugin-owned `children` data.
+Symbol-backed ownership preserves guarded/proxy receivers; an initial #private-field
+candidate fixed Style but broke guarded Kanban embeds and was replaced, not accepted.
+The original isolated lifecycle regression fails on PR #73 and passes in the candidate.
+Full units: 869 passed (`/tmp/engine-gaps-units4.log`); seven current UI contracts also pass
+(`/tmp/engine-gaps-contract-final.log`). Style: `/tmp/engine-gaps-style-target.log`.
+Kanban still fails genuine pointer dragging with a null dataset in dragStart. Runtime
+exception/local-variable/DOM metadata only are being observed, never bundle bodies.
+Initial CodeRabbit review was requested after marking PR #74 ready at `6fab5fb`; await
+effective results. Current reports still intentionally retain the historical PR #73 pair.
+
 ## Environment and delivery
 
 Node 22: `/tmp/engine-node/node_modules/node/bin`.

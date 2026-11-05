@@ -74,6 +74,43 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
     if(await page.locator('.error-banner').count()){
       blocker=await page.locator('.error-banner span').innerText();outcome=blocker.includes('Unsupported Obsidian capability:')?'UNSUPPORTED_STARTUP':'LOAD_ERROR';
       await expect(control).not.toBeChecked();await expect(page.locator('.plugin-status-item')).toHaveCount(0);
+    }else if(plugin.name==='Style Settings'){
+      // Original fixture CSS follows the public @settings format; upstream bytes stay untouched.
+      const css='/* @settings\nname: Engine Probe\nid: engine-probe\nsettings:\n  - id: engine-probe-toggle\n    title: Probe toggle\n    type: class-toggle\n  - id: engine-probe-color\n    title: Probe color\n    type: variable-text\n    default: red\n*/\nbody { --engine-probe-color: red; }\nbody.engine-probe-toggle { --engine-visible-probe: 1; }';
+      const openStyleSettings=async()=>{
+        await page.addStyleTag({content:css});
+        await page.evaluate(()=>(window as any).app.workspace.trigger('parse-style-settings'));
+        await page.getByRole('button',{name:'Plugin settings '+manifest.name,exact:true}).click();
+        await page.locator('.plugin-settings-content').getByText('Engine Probe',{exact:true}).click();
+      };
+      const effects=()=>page.evaluate(()=>[
+        document.body.classList.contains('engine-probe-toggle'),
+        getComputedStyle(document.body).getPropertyValue('--engine-probe-color').trim(),
+        getComputedStyle(document.body).getPropertyValue('--engine-visible-probe').trim(),
+      ]);
+      await openStyleSettings();
+      await page.getByRole('switch',{name:'Probe toggle',exact:true}).check();
+      await page.getByRole('textbox',{name:'Probe color',exact:true}).fill('#123456');
+      await page.getByRole('textbox',{name:'Probe color',exact:true}).press('Tab');
+      await expect.poll(effects).toEqual([true,'#123456','1']);
+      const saved={'engine-probe@@engine-probe-toggle':true,'engine-probe@@engine-probe-color':'#123456'};
+      await expect.poll(async()=>JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8'))).toEqual(saved);
+      const search=page.locator('.plugin-settings-content').getByRole('searchbox');
+      await search.fill('Probe color');await expect(page.getByRole('switch',{name:'Probe toggle',exact:true})).not.toBeVisible();
+      await expect(page.getByRole('textbox',{name:'Probe color',exact:true})).toBeVisible();
+      await page.getByRole('button',{name:'Clear search',exact:true}).click();
+      await expect(page.getByRole('switch',{name:'Probe toggle',exact:true})).toBeVisible();
+      await app.close();app=await launch();page=await app.firstWindow();trackPage();
+      await page.getByTestId('file-Test.md').click();await settings();
+      await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
+      const restartedControl=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});
+      await restartedControl.click();await page.getByTestId('dialog-submit').click();await expect(restartedControl).toBeChecked();
+      await openStyleSettings();
+      await expect(page.getByRole('switch',{name:'Probe toggle',exact:true})).toBeChecked();
+      await expect(page.getByRole('textbox',{name:'Probe color',exact:true})).toHaveValue('#123456');
+      await expect.poll(effects).toEqual([true,'#123456','1']);
+      expect(JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8'))).toEqual(saved);
+      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['parse original @settings CSS using the documented rescan event','expand real class-toggle and variable-text settings','UI changes affect computed CSS and persist exact plugin data','search filters controls and clear restores them','application restart and re-enable restore controls, computed CSS and persisted values; theme/snippet management and other setting kinds unverified'];
     }else if(plugin.name==='Tasks'){
       expect(await page.evaluate(()=>(window as any).app.metadataTypeManager.getAllProperties().tq_explain.type)).toBe('checkbox');
       await page.getByTestId('settings-close').click();await page.getByTestId('mode-reading').click();
@@ -338,7 +375,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       if(orderedErrors.length){outcome='STARTUP_WITH_ERRORS';blocker=orderedErrors[0];}
     }
     // A diagnostic refusal is not an acceptable regression for an already proven workflow.
-    if(!['Copilot','Style Settings'].includes(plugin.name))expect(outcome).toBe(plugin.name==='Excalidraw'?'BOUNDED_WORKFLOWS_WITH_ERRORS':'BOUNDED_WORKFLOWS_PASS');
+    if(plugin.name!=='Copilot')expect(outcome).toBe(plugin.name==='Excalidraw'?'BOUNDED_WORKFLOWS_WITH_ERRORS':'BOUNDED_WORKFLOWS_PASS');
     if(outcome==='BOUNDED_WORKFLOWS_PASS')expect(pageErrors).toEqual([]);
     if(outcome==='BOUNDED_WORKFLOWS_WITH_ERRORS')expect(pageErrors.filter(error=>error!=='Unsupported Obsidian capability: Obsidian core Canvas plugin. See docs/PLUGIN-COMPATIBILITY.md.')).toEqual([]);
     if(outcome.startsWith('BOUNDED_WORKFLOWS_'))expect(consoleErrors.filter(error=>/\b(?:CompatibilityError|TypeError|ReferenceError|Error):/.test(error))).toEqual([]);

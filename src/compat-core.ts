@@ -116,8 +116,10 @@ const componentLifecycles=new WeakMap<Component,LifecycleState>();
 export function componentLifecycle(component:Component,phase:'startup'|'shutdown'):Promise<void>{
   return componentLifecycles.get(component)?.[phase]??Promise.resolve();
 }
+// Avoid colliding with plugin-owned tree data; symbols also work through guarded receivers.
+const componentChildren=Symbol('component children');
 export class Component {
-  private loaded=false;private disposed=false;private generation=0;private admission=0;private lifecycle:LifecycleState={};private cleanups:(()=>unknown)[]=[];private children:Component[]=[];private childStarts=new Map<Component,Promise<void>>();
+  private loaded=false;private disposed=false;private generation=0;private admission=0;private lifecycle:LifecycleState={};private cleanups:(()=>unknown)[]=[];private [componentChildren]:Component[]=[];private childStarts=new Map<Component,Promise<void>>();
   /** Observed private alias backed by actual lifecycle state, not a simulated loaded flag. */
   get _loaded(){return this.loaded&&!this.disposed;}
   set _loaded(value:boolean){if(value!==this._loaded)unsupported('Component._loaded assignment');}
@@ -139,7 +141,7 @@ export class Component {
     const {promise:startup,resolve,reject}=lifecyclePromise();
     this.lifecycle.startup=startup;
     void (async()=>{
-      try{await this.onload();if(!this.loaded||generation!==this.generation)return;for(const child of this.children){if(!this.loaded||generation!==this.generation)break;const started=this.childStarts.get(child);try{await (started??Promise.all([child.load(),componentLifecycle(child,'startup')]));}finally{if(this.childStarts.get(child)===started)this.childStarts.delete(child);}}}
+      try{await this.onload();if(!this.loaded||generation!==this.generation)return;for(const child of this[componentChildren]){if(!this.loaded||generation!==this.generation)break;const started=this.childStarts.get(child);try{await (started??Promise.all([child.load(),componentLifecycle(child,'startup')]));}finally{if(this.childStarts.get(child)===started)this.childStarts.delete(child);}}}
       catch(e){if(generation===this.generation){try{await this.unload();}catch{/* preserve the startup error */}}throw e;}
     })().then(resolve,reject);
     try{await startup;}finally{if(this.lifecycle.startup===startup)this.lifecycle.startup=undefined;}
@@ -150,7 +152,7 @@ export class Component {
     if(!this.loaded)return;
     this.loaded=false;
     this.disposed=true;++this.generation;
-    const children=[...this.children].reverse(),cleanups=this.cleanups.splice(0).reverse();
+    const children=[...this[componentChildren]].reverse(),cleanups=this.cleanups.splice(0).reverse();
     this.childStarts.clear();
     const {promise:shutdown,resolve,reject}=lifecyclePromise();
     this.lifecycle.shutdown=shutdown;
@@ -182,9 +184,9 @@ export class Component {
     element.addEventListener(type,callback,options);this.register(()=>element.removeEventListener(type,callback,options));
   }
   /** Adopt a child only while this component remains active or has not yet loaded. */
-  addChild<T extends Component>(child:T):T{if(this.disposed)return child;this.children.push(child);if(this.loaded){const started=Promise.all([child.load(),componentLifecycle(child,'startup')]).then(()=>{});if(this.lifecycle.startup)this.childStarts.set(child,started);void started.catch(error=>console.error(error));}return child;}
+  addChild<T extends Component>(child:T):T{if(this.disposed)return child;this[componentChildren].push(child);if(this.loaded){const started=Promise.all([child.load(),componentLifecycle(child,'startup')]).then(()=>{});if(this.lifecycle.startup)this.childStarts.set(child,started);void started.catch(error=>console.error(error));}return child;}
   /** Remove an attached child and observe asynchronous cleanup errors rather than leaking rejections. */
-  removeChild<T extends Component>(child:T):T{if(!this.children.includes(child))return child;this.children=this.children.filter(c=>c!==child);this.childStarts.delete(child);void child.unload().catch(error=>console.error(error));return child;}
+  removeChild<T extends Component>(child:T):T{if(!this[componentChildren].includes(child))return child;this[componentChildren]=this[componentChildren].filter(c=>c!==child);this.childStarts.delete(child);void child.unload().catch(error=>console.error(error));return child;}
 }
 export class TAbstractFile {
   path='';name='';parent:TFolder|null=null;vault:any;
