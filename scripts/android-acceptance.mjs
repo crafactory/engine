@@ -22,6 +22,12 @@ const readNative=relative=>shell(`run-as ${APP} cat ${quote('files/'+relative)}`
 const rawNative=relative=>execFileSync('adb',['exec-out',`run-as ${APP} cat ${quote(relative)}`],{maxBuffer:64*1024*1024});
 const readJSON=relative=>JSON.parse(readNative(relative));
 const resumed=()=>/mResumedActivity:.*com\.crafactory\.engine|topResumedActivity=.*com\.crafactory\.engine/.test(shell('dumpsys activity activities'));
+async function keyboardVisibility(){
+  return {
+    native:/mInputShown=true|mIsInputViewShown=true|isInputViewShown=true/.test(shell('dumpsys input_method')),
+    reported:await page.locator('body').evaluate(body=>body.classList.contains('native-keyboard-open'))
+  };
+}
 async function nativeTap(locator){
   const rect=await locator.boundingBox(),ratio=await page.evaluate(()=>devicePixelRatio);assert(rect);
   shell(`input tap ${Math.round((rect.x+40)*ratio)} ${Math.round((rect.y+40)*ratio)}`);
@@ -128,7 +134,11 @@ async function enable(name,mode='renderer'){
 async function closeSettings(){await page.getByTestId('settings-close').click();}
 async function command(text){
   await page.getByRole('button',{name:'Mobile commands',exact:true}).click();
+  await page.locator('.palette input').click();
   await page.locator('.palette input').fill(text);
+  await expect.poll(keyboardVisibility,{timeout:10000}).toEqual({native:true,reported:true});
+  shell('input keyevent 4');await expect.poll(keyboardVisibility).toEqual({native:false,reported:false});
+  await expect(page.locator('.palette')).toBeVisible();
   await page.locator('.palette-list button').filter({hasText:text}).first().click();
 }
 const effects=()=>page.evaluate(()=>['choice','number','slider'].map(name=>getComputedStyle(document.body).getPropertyValue('--android-probe-'+name).trim()));
@@ -252,6 +262,9 @@ try{
     await page.getByRole('button',{name:'Mobile files',exact:true}).click();await expect(page.locator('.left-sidebar')).toBeVisible();
     shell('input keyevent 4');await expect(page.locator('.left-sidebar')).toHaveCount(0);
     await page.getByRole('button',{name:'Mobile search',exact:true}).click();await expect(page.locator('.left-sidebar')).toBeVisible();
+    await expect.poll(keyboardVisibility,{timeout:10000}).toEqual({native:true,reported:true});
+    shell('input keyevent 4');await expect.poll(keyboardVisibility).toEqual({native:false,reported:false});
+    await expect(page.locator('.left-sidebar')).toBeVisible();
     shell('input keyevent 4');await expect(page.locator('.left-sidebar')).toHaveCount(0);
     await page.getByRole('button',{name:'Mobile settings',exact:true}).click();
     await page.getByRole('button',{name:'Core plugins',exact:true}).click();

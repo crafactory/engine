@@ -33,11 +33,13 @@ Expanded unchanged Style Settings verifies five controls, exact plugin data/CSS 
 the missing SliderComponent.setDynamicTooltip was implemented. `68411f0` adds only a
 driver/static test; 904/55 units and its cloud Verify, packaging and independent corpus pass.
 
-Native run `42179342429` accepts installation and real InputConnection Chinese bytes,
-keyboard visibility/hide and Back. Group three then fails decoded binary asset refresh:
-32px remains instead of 48px despite changed bytes. A pending stable metadata-versioned
-native asset URL repair and original regression must pass actual native acceptance;
-no later Android groups or mobile plugin controls are accepted yet.
+Native run `42180409664` on `a57ab92` accepts its first four groups, including real
+InputConnection Chinese bytes, native asset replacement and history/near-limit names.
+Stable size/mtime URL versions repair the stale decoded asset; native SystemBars insets
+remove early CSS warnings. Group five stops because search correctly consumes one Back
+for its keyboard. Pending driver assertions now demand keyboard-first, then drawer close;
+production Back behavior is unchanged. Full units pass 906/55. No later Android groups
+or mobile plugin controls are accepted yet.
 
 ## Next increments
 

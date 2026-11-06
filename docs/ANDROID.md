@@ -68,6 +68,11 @@ is the documented configuration key ([Capacitor configuration](https://capacitor
 
 This pilot does not include iOS, Play publication, release signing, OEM/device-wide
 certification, authenticated Git, desktop-only plugins, SAF, or full mobile parity.
+The debug APK is a development pilot, not a signed production release. Hosted debug
+signing keys need not match between runs, so a later APK may refuse an in-place update.
+Export notes first; never uninstall around an update error without a checked external
+copy. The release variant is currently unsigned, and stable signing plus upgrade/migration
+acceptance remain future work.
 Build with `npm ci && npm run build && npx cap sync android`, then
 `cd android && bash gradlew assembleDebug` with JDK 21 and the Android SDK installed.
 The output is `android/app/build/outputs/apk/debug/app-debug.apk`; install it on a
@@ -88,6 +93,11 @@ composition/update/commit events, then restores the emulator keyboard. Its contr
 receiver requires the shell-only DUMP permission. Release source sets exclude the
 fixture; CI builds the release variant too and checks its manifest and debuggable flag.
 This is not certification of every vendor keyboard or Chinese candidate-selection UI.
+
+System bars use `insetsHandling:'native'` with the same initial `cover` viewport hint as
+the HTML entry point. This preserves native padding on older WebViews and env-based
+safe areas on newer ones without early CSS-injection warnings; insets are not disabled
+([SystemBars configuration](https://capacitorjs.com/docs/apis/system-bars)).
 
 Explicit share exports retain cache copies for 24 hours so recipients can read them.
 Expired copies are removed before a new export; retained copies are limited to 12 and

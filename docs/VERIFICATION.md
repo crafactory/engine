@@ -60,8 +60,11 @@ validated profile-local vault-keyed overrides, case-insensitive lookup and resta
 persistence. This is not types.json or a complete property editor.
 
 The unchanged Style Settings bundle parses original documented fixture CSS, exposes
-class-toggle/variable-text controls, changes computed CSS, saves exact plugin JSON,
-filters/clears search and restores effects and values after application restart.
+class-toggle/variable-text/variable-select/variable-number/variable-number-slider controls,
+changes computed CSS, saves exact plugin JSON, filters/clears search and restores all five
+controls, effects and values after application restart. Real range Home/ArrowRight input
+exposed the missing public `SliderComponent.setDynamicTooltip`; its implementation updates
+live tooltips without replacing controls.
 Host-owned Component children no longer collide with plugin-owned configuration trees.
 Other settings kinds, import/export and theme/snippet management remain unverified.
 

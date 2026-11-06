@@ -29,7 +29,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-05T08:15:04.334Z"
+      "checked_at": "2026-11-06T07:14:11.182Z"
     },
     {
       "name": "Templater",
@@ -58,7 +58,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-05T08:15:20.383Z"
+      "checked_at": "2026-11-06T07:14:18.373Z"
     },
     {
       "name": "Calendar (Beta)",
@@ -81,7 +81,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-05T08:15:26.300Z"
+      "checked_at": "2026-11-06T07:14:20.293Z"
     },
     {
       "name": "Advanced Tables",
@@ -103,7 +103,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-05T08:15:31.765Z"
+      "checked_at": "2026-11-06T07:14:23.559Z"
     },
     {
       "name": "Reading Time",
@@ -131,7 +131,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-05T08:15:40.717Z"
+      "checked_at": "2026-11-06T07:14:27.894Z"
     },
     {
       "name": "Excalidraw",
@@ -159,7 +159,7 @@
         "Unsupported Obsidian capability: Obsidian core Canvas plugin. See docs/PLUGIN-COMPATIBILITY.md."
       ],
       "console_errors": [],
-      "checked_at": "2026-11-05T08:15:58.736Z"
+      "checked_at": "2026-11-06T07:14:39.321Z"
     },
     {
       "name": "Tasks",
@@ -181,7 +181,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-05T08:16:03.709Z"
+      "checked_at": "2026-11-06T07:14:41.399Z"
     },
     {
       "name": "Git",
@@ -206,7 +206,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-05T08:16:15.671Z"
+      "checked_at": "2026-11-06T07:14:46.101Z"
     },
     {
       "name": "Copilot",
@@ -221,13 +221,13 @@
       "platform": "Linux x64 Electron",
       "mode": "trusted renderer (explicit opt-in, not sandboxed)",
       "outcome": "STARTUP_WITH_ERRORS",
-      "first_blocker": "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at Q (engine://app/assets/main-DuZg4gsu.js:667:3142)\n    at Object.get (engine://app/assets/main-DuZg4gsu.js:667:3313)\n    at UA.isAvailable (blob:engine://app/84c6be7e-edcf-4ece-9699-95a67975c62f:1189:4232)\n    at m5r (blob:engine://app/84c6be7e-edcf-4ece-9699-95a67975c62f:2428:18714)\n    at f8t (blob:engine://app/84c6be7e-edcf-4ece-9699-95a67975c62f:2428:19014)\n    at qRe.loadSettings (blob:engine://app/84c6be7e-edcf-4ece-9699-95a67975c62f:4279:17601)\n    at async qRe.initialize (blob:engine://app/84c6be7e-edcf-4ece-9699-95a67975c62f:4279:1834)",
+      "first_blocker": "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at ee (engine://app/assets/App-7tCq-zoE.js:668:3434)\n    at Object.get (engine://app/assets/App-7tCq-zoE.js:668:3605)\n    at UA.isAvailable (blob:engine://app/a2e037da-2d1d-41ee-8add-92b8fdc42f78:1189:4232)\n    at m5r (blob:engine://app/a2e037da-2d1d-41ee-8add-92b8fdc42f78:2428:18714)\n    at f8t (blob:engine://app/a2e037da-2d1d-41ee-8add-92b8fdc42f78:2428:19014)\n    at qRe.loadSettings (blob:engine://app/a2e037da-2d1d-41ee-8add-92b8fdc42f78:4279:17601)\n    at async qRe.initialize (blob:engine://app/a2e037da-2d1d-41ee-8add-92b8fdc42f78:4279:1834)",
       "functional_workflows": "NOT_RUN",
       "runtime_errors": [],
       "console_errors": [
-        "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at Q (engine://app/assets/main-DuZg4gsu.js:667:3142)\n    at Object.get (engine://app/assets/main-DuZg4gsu.js:667:3313)\n    at UA.isAvailable (blob:engine://app/84c6be7e-edcf-4ece-9699-95a67975c62f:1189:4232)\n    at m5r (blob:engine://app/84c6be7e-edcf-4ece-9699-95a67975c62f:2428:18714)\n    at f8t (blob:engine://app/84c6be7e-edcf-4ece-9699-95a67975c62f:2428:19014)\n    at qRe.loadSettings (blob:engine://app/84c6be7e-edcf-4ece-9699-95a67975c62f:4279:17601)\n    at async qRe.initialize (blob:engine://app/84c6be7e-edcf-4ece-9699-95a67975c62f:4279:1834)"
+        "Copilot failed to start. CompatibilityError: Unsupported Obsidian capability: App.secretStorage. See docs/PLUGIN-COMPATIBILITY.md.\n    at ee (engine://app/assets/App-7tCq-zoE.js:668:3434)\n    at Object.get (engine://app/assets/App-7tCq-zoE.js:668:3605)\n    at UA.isAvailable (blob:engine://app/a2e037da-2d1d-41ee-8add-92b8fdc42f78:1189:4232)\n    at m5r (blob:engine://app/a2e037da-2d1d-41ee-8add-92b8fdc42f78:2428:18714)\n    at f8t (blob:engine://app/a2e037da-2d1d-41ee-8add-92b8fdc42f78:2428:19014)\n    at qRe.loadSettings (blob:engine://app/a2e037da-2d1d-41ee-8add-92b8fdc42f78:4279:17601)\n    at async qRe.initialize (blob:engine://app/a2e037da-2d1d-41ee-8add-92b8fdc42f78:4279:1834)"
       ],
-      "checked_at": "2026-11-05T08:16:23.444Z"
+      "checked_at": "2026-11-06T07:14:51.246Z"
     },
     {
       "name": "Style Settings",
@@ -245,14 +245,15 @@
       "first_blocker": "",
       "functional_workflows": [
         "parse original @settings CSS using the documented rescan event",
-        "expand real class-toggle and variable-text settings",
+        "expand real class-toggle, variable-text, variable-select, variable-number and variable-number-slider settings",
         "UI changes affect computed CSS and persist exact plugin data",
+        "range Home/ArrowRight events update slider and formatted CSS",
         "search filters controls and clear restores them",
-        "application restart and re-enable restore controls, computed CSS and persisted values; theme/snippet management and other setting kinds unverified"
+        "application restart and re-enable restore all five controls, computed CSS and persisted values; theme/snippet management and other setting kinds unverified"
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-05T08:16:31.982Z"
+      "checked_at": "2026-11-06T07:14:55.792Z"
     },
     {
       "name": "Kanban",
@@ -280,7 +281,7 @@
       ],
       "runtime_errors": [],
       "console_errors": [],
-      "checked_at": "2026-11-05T08:16:54.941Z"
+      "checked_at": "2026-11-06T07:15:13.869Z"
     }
   ]
 }

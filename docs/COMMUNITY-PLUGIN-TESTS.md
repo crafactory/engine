@@ -15,7 +15,7 @@ These are **actual upstream release artifacts**, loaded unchanged into disposabl
 | Reading Time / status bar/statistics | `1.1.2` / `1.1.2` | UNSUPPORTED_STARTUP; `export PluginSettingTab` | [Reading Time](https://github.com/avr/obsidian-reading-time) |
 | Excalidraw / drawing | `2.29.1` / `2.29.1` | UNSUPPORTED_STARTUP; `require @codemirror/view` | [Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) |
 | Tasks / task management | `8.6.0` / `8.6.0` | UNSUPPORTED_STARTUP; `export Modal` | [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) |
-| Git / version control | `2.42.0` / `2.42.0` | UNSUPPORTED_STARTUP; `export Platform` | [Git](https://github.com/vinzent03/obsidian-git) |
+| Git / version control | `2.42.0` / `2.42.0` | LOAD_ERROR; `global is not defined` | [Git](https://github.com/vinzent03/obsidian-git) |
 | Copilot / AI assistant | `4.0.17` / `4.0.17` | UNSUPPORTED_STARTUP; `export Modal` | [Copilot](https://github.com/logancyang/obsidian-copilot) |
 | Style Settings / appearance | `1.0.9` / `1.0.9` | UNSUPPORTED_STARTUP; `export Modal` | [Style Settings](https://github.com/obsidian-community/obsidian-style-settings) |
 | Kanban / boards | `2.0.51` / `2.0.51` | LOAD_ERROR; `activeWindow is not defined` | [Kanban](https://github.com/obsidian-community/obsidian-kanban) |
