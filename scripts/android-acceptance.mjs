@@ -169,10 +169,29 @@ try{
   await step('native filesystem overwrite, Unicode composition and real keyboard/back',async()=>{
     const editor=page.locator('.editor .cm-content').first();await expect(editor).toBeVisible();
     await editor.click();await page.keyboard.press('Control+End');
-    const client=await page.context().newCDPSession(page);
-    await client.send('Input.imeSetComposition',{text:'中文',selectionStart:2,selectionEnd:2});
-    await client.send('Input.insertText',{text:'中文'});
-    await client.send('Input.insertText',{text:' Android persisted\n'});
+    // CDP's Android composition emulation duplicated text in the first native run.
+    // Use a debug-only owned IME through the real platform InputConnection instead.
+    const defaultIme=shell('settings get secure default_input_method').trim();
+    const fixtureIme=APP+'/.CompositionIme';
+    metadata.compositionDriver='Android InputConnection (owned debug IME)';
+    try{
+      shell('ime enable '+quote(fixtureIme));shell('ime set '+quote(fixtureIme));
+      await nativeTap(editor);
+      await page.keyboard.press('Control+End');
+      await editor.evaluate(element=>{
+        window.__nativeComposition=[];
+        for(const type of ['compositionstart','compositionupdate','compositionend']){
+          element.addEventListener(type,event=>window.__nativeComposition.push({type,data:event.data}));
+        }
+      });
+      await expect.poll(()=>shell(`am broadcast -a ${APP}.TEST_COMPOSITION -n '${APP}/.CompositionIme$Run'`),{timeout:15000}).toContain('result=0');
+      await expect.poll(()=>page.evaluate(()=>window.__nativeComposition.some(event=>event.type==='compositionend')),{timeout:15000}).toBe(true);
+      await expect(editor).toContainText('中文');
+      metadata.compositionEvents=await page.evaluate(()=>window.__nativeComposition);
+    }finally{
+      shell('ime set '+quote(defaultIme));shell('ime disable '+quote(fixtureIme));
+    }
+    await page.keyboard.insertText(' Android persisted\n');
     expectedText=initial+'中文 Android persisted\n';
     await expect.poll(()=>readNative('vault/'+notePath),{timeout:15000}).toBe(expectedText);
     // A real Android touch focuses the editor and must show the emulator's actual IME.
