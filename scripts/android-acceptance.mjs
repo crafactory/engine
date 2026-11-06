@@ -225,15 +225,20 @@ try{
     await page.keyboard.insertText(' Android persisted\n');
     expectedText=initial+'中文 Android persisted\n';
     await expect.poll(()=>readNative('vault/'+notePath),{timeout:15000}).toBe(expectedText);
+    // Rebind the restored system IME in a fresh Activity. Otherwise its asynchronous
+    // attach/show can outlive the fixture's visible-window state and undo a Back.
+    await restart();
+    const keyboardEditor=page.locator('.editor .cm-content').first();
     // A real Android touch focuses the editor and must show the emulator's actual IME.
-    const rect=await editor.boundingBox(),ratio=await page.evaluate(()=>devicePixelRatio);assert(rect);
+    const rect=await keyboardEditor.boundingBox(),ratio=await page.evaluate(()=>devicePixelRatio);assert(rect);
     shell(`input tap ${Math.round((rect.x+40)*ratio)} ${Math.round((rect.y+40)*ratio)}`);
-    await expect(page.locator('body')).toHaveClass(/native-keyboard-open/,{timeout:15000});
+    await expect.poll(keyboardVisibility,{timeout:15000}).toEqual({native:true,reported:true});
     const ime=shell('dumpsys input_method');await fs.writeFile(path.join(output,'keyboard.txt'),ime);
     assert(imeInputViewVisible(ime),'Real bound Android input view must be shown');
     await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeHidden();
     await fs.writeFile(path.join(output,'android-keyboard.png'),execFileSync('adb',['exec-out','screencap','-p']));
     shell('input keyevent 4');
+    await expect.poll(keyboardVisibility,{timeout:10000}).toEqual({native:false,reported:false});
     await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible({timeout:10000});
     await expect(page.locator('.note-title h1')).toHaveText('Native Probe');
   });
