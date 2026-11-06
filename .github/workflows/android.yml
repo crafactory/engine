@@ -1,0 +1,61 @@
+name: Android APK and native acceptance
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  android-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm run check && npx cap sync android
+      - name: Build debug and release APKs
+        run: cd android && bash gradlew --no-daemon assembleDebug assembleRelease
+      - name: Prepare unchanged pinned plugin inputs
+        run: node scripts/corpus.mjs
+        env:
+          ENGINE_PLUGIN_CORPUS: ${{ runner.temp }}/plugin-corpus
+      - name: Enable hosted-runner KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # v2, pinned after resolving the public tag. No user vaults or secrets enter this job.
+      - uses: reactivecircus/android-emulator-runner@4c44018e59b437e86cdfc41da381398f93ed8808
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: node scripts/android-acceptance.mjs
+        env:
+          ENGINE_PLUGIN_CORPUS: ${{ runner.temp }}/plugin-corpus
+          ENGINE_TESTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-debug-and-native-evidence
+          retention-days: 7
+          path: |
+            android/app/build/outputs/apk/debug/*.apk
+            test-results-android

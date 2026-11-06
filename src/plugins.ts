@@ -16,6 +16,8 @@ export interface PluginController {
   mountView?(viewType:string,path:string,parent:HTMLElement,leafId?:string):Promise<{element:HTMLElement;dispose():void}>;
   /** Host-only: save/freeze all owners before committing any file-view retirement. */
   prepareFileViews?(path:string):Promise<PluginFileViewChange>;
+  /** Save live file views without unloading plugins when the native app pauses. */
+  flushFileViews?():Promise<void>;
   /** Renderer-only: query registered editor suggests at a document position. */
   editorSuggest?(text:string,pos:number):EditorSuggestResult|null|Promise<EditorSuggestResult|null>;
   /** Renderer-only: dispatch an obsidian:// protocol URL to this plugin's handlers. */

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import {bridge,defaults} from './bridge';
 import {renameDestination} from './file-path';
+import {flushIndependent} from './services/flush-independent';
 import {readWorkspaceLayout} from './workspace-layout';
 import {recordPluginDocumentView,retirePluginFileViews,recoverPluginFileViews,type PluginDocumentView} from './plugin-document-views';
 import {title,isNote,frontmatter,setProperties,resolveLink,headings,applyTemplate,rewriteLinks} from './knowledge';
@@ -18,6 +19,7 @@ import {Settings} from './Settings';
 import {Palette,type Choice} from './Palette';
 import {Slides} from './Slides';
 import {useDialog} from './Dialog';
+import {dismissTopPluginModal} from './compat-dom';
 import type {HoverLinkPayload,PluginCommand,PluginController} from './plugins';
 import {createCompatRuntime,type CompatHost,type CompatRuntime} from './compat';
 import {Menu as ContextMenu,editorInfoField,editorLivePreviewField} from './compat-dom';
@@ -46,12 +48,15 @@ function Logo(){return <svg viewBox="0 0 32 32" fill="none" aria-label="Crafacto
 function IconButton({label,children,onClick,active=false,className='',testid}:{label:string;children:React.ReactNode;onClick:()=>void;active?:boolean;className?:string;testid?:string}){
   return <button className={'icon-button '+(active?'active ':'')+className} aria-label={label} title={label} onClick={onClick} data-testid={testid||label.toLowerCase().replace(/[^a-z0-9]+/g,'-')}>{children}</button>;
 }
-function download(name:string,content:string|Blob,type='text/plain'){
-  const url=URL.createObjectURL(typeof content==='string'?new Blob([content],{type}):content);
+async function download(name:string,content:string|Blob,type='text/plain'){
+  const blob=typeof content==='string'?new Blob([content],{type}):content;
+  if(bridge.exportFile)return bridge.exportFile(name,blob,type);
+  const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
 /** Compose the local-first vault workspace and explicitly authorized plugin controllers. */
 export function App(){
+  const nativeAndroid=bridge.platform==='android',persistent=bridge.desktop||!!bridge.persistent;
   const [notes,setNotes]=useState<Note[]>([]),[entries,setEntries]=useState<Entry[]>([]);
   const imageEntries=entries.filter(e=>!e.folder&&/\.(png|jpe?g|gif|webp|svg|bmp|ico|avif|apng)$/i.test(e.path));
   const assetRevision=imageEntries.map(e=>e.path+'\0'+e.size+'\0'+e.mtime).join('\0');
@@ -66,7 +71,7 @@ export function App(){
   const pluginDocumentViews=useRef(new Map<string,PluginDocumentView>());
   const [,refreshPluginDocumentViews]=useState(0);
   const layoutSaveTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined),switchingVault=useRef(false);
-  const [left,setLeft]=useState(()=>window.innerWidth>650),[right,setRight]=useState(true),[sideTab,setSideTab]=useState('files'),[rightTab,setRightTab]=useState('outline');
+  const [left,setLeft]=useState(()=>!nativeAndroid&&window.innerWidth>650),[right,setRight]=useState(!nativeAndroid),[sideTab,setSideTab]=useState('files'),[rightTab,setRightTab]=useState('outline');
   const [expanded,setExpanded]=useState<Set<string>>(new Set(['Guides','Ideas','Projects']));
   const [bookmarks,setBookmarks]=useState<string[]>([]),[recent,setRecent]=useState<string[]>([]);
   const [workspaces,setWorkspaces]=useState<Record<string,Workspace>>({});
@@ -118,6 +123,7 @@ export function App(){
   function pluginSnapshot(manifest?:PluginManifest):PluginSnapshot{
     const s=pluginState.current;
     return readableSnapshot({name:s.vaultName,entries:s.entries,notes:notesRef.current,active:s.active,
+      platform:nativeAndroid?'android':bridge.desktop?'desktop':'browser',isTablet:nativeAndroid&&bridge.formFactor==='tablet',platformOS:navigator.platform,
       editor:s.mode!=='reading'&&isNote(s.active)&&editor.current?.path()===s.active?editor.current.snapshot():null},manifest??{});
   }
   /** Deliver a hover-link event to every registered renderer hover source. */
@@ -237,12 +243,12 @@ export function App(){
       savedContent.current=new Map(all.map(n=>[n.path,n.content]));versions.current=new Map(all.map(n=>[n.path,n.version]));
       updateNotes(all);setEntries(vault.entries);setVaultName(vault.name);setRoot(vault.root);
       const state=vault.state;
-      const pref={...defaults,...state.settings};setSettings(pref);setMode(bridge.desktop?pref.mode:'reading');
+      const pref={...defaults,...state.settings};setSettings(pref);setMode(persistent?pref.mode:'reading');
       setBookmarksFromService(state.bookmarks||[]);setWorkspacesFromService(state.workspaces||{});setRecent(state.recent||[]);setPropertyTypes(readPropertyTypes(state.propertyTypes));
       const path=all.find(n=>n.path==='Welcome.md')?.path||all.find(n=>isNote(n.path))?.path||all[0]?.path||'';
       const layout=readWorkspaceLayout(state.layout,vault.entries.filter(entry=>!entry.folder).map(entry=>entry.path)),initialPath=layout?.active??path;
       setTabs(layout?.tabs??(path?[path]:[]));setActive(initialPath);setSplit(layout?.split??null);
-      if(layout){setLeft(layout.left);setRight(layout.right);setMode(bridge.desktop?layout.mode:'reading');}
+      if(layout){setLeft(layout.left);setRight(layout.right);setMode(persistent?layout.mode:'reading');}
       history.current=initialPath?[initialPath]:[];historyIndex.current=initialPath?0:-1;
       loaded.current=true;await loadPluginPackages(pref.disabledPlugins);
     }catch(e){report(e);}finally{setLoading(false);}
@@ -321,6 +327,38 @@ export function App(){
   const closeHandler=useRef<()=>void>(()=>{}),closing=useRef(false);
   closeHandler.current=()=>{if(closing.current)return;closing.current=true;stopPlugins().then(async()=>{if(loaded.current){await flush();await bridge.state(vaultState.current);}}).then(()=>bridge.closeReady?.()).catch(error=>{closing.current=false;report(error);});};
   useEffect(()=>{if(!loading)return bridge.onBeforeClose?.(()=>closeHandler.current());},[loading]);
+  const suspendHandler=useRef<()=>Promise<void>>(async()=>{});
+  const nativeBackHandler=useRef<()=>Promise<boolean>>(async()=>false);
+  suspendHandler.current=async()=>{
+    if(!loaded.current)return;
+    await flushIndependent([
+      ...[...pluginStops.current.values()].map(controller=>async()=>controller.flushFileViews?.()),
+      ()=>Promise.all([...pluginRequests.current]),()=>flush(),()=>bridge.state(vaultState.current)
+    ]);
+  };
+  nativeBackHandler.current=async()=>{
+    if(dismissTopPluginModal())return true;
+    if(dialog.open){dialog.cancel();return true;}
+    if(context){setContext(null);return true;}
+    if(palette){setPalette(null);return true;}
+    if(recovery){setRecovery(null);return true;}
+    if(showSettings){setShowSettings(false);return true;}
+    if(slides){setSlides(false);return true;}
+    if(right){setRight(false);return true;}
+    if(left){setLeft(false);return true;}
+    if(historyIndex.current>0){
+      await flush();historyIndex.current--;open(history.current[historyIndex.current],false);return true;
+    }
+    return false;
+  };
+  useEffect(()=>{
+    if(loading)return;
+    const offSuspend=bridge.onSuspend?.(()=>suspendHandler.current());
+    const offBack=bridge.onBack?.(()=>nativeBackHandler.current());
+    const failed=(event:Event)=>report((event as CustomEvent).detail);
+    window.addEventListener('engine:native-error',failed);
+    return()=>{offSuspend?.();offBack?.();window.removeEventListener('engine:native-error',failed);};
+  },[loading]);
   useEffect(()=>{
     const unload=(event:BeforeUnloadEvent)=>{if(notesRef.current.some(n=>savedContent.current.get(n.path)!==n.content)){event.preventDefault();event.returnValue='There are unsaved changes.';}};
     window.addEventListener('beforeunload',unload);return()=>window.removeEventListener('beforeunload',unload);
@@ -328,7 +366,8 @@ export function App(){
   const open=useCallback((path:string,track=true)=>{
     setActive(path);setTabs(t=>t.includes(path)?t:[...t,path]);setRecent(r=>[path,...r.filter(p=>p!==path)].slice(0,30));
     if(track){history.current=history.current.slice(0,historyIndex.current+1);history.current.push(path);historyIndex.current=history.current.length-1;}
-    if(window.innerWidth<700)setLeft(false);
+    if(window.innerWidth<700||nativeAndroid)setLeft(false);
+    if(nativeAndroid)setRight(false);
   },[]);
   const openLink=useCallback((target:string)=>{
     const [path,...fragment]=target.split('#');
@@ -450,6 +489,7 @@ export function App(){
   }
   /** Cancel outgoing layout debounce and save the old workspace before selecting a new root. */
   async function chooseVault(create=false){
+    if(nativeAndroid){toast('Android uses app-private storage. Use Export vault ZIP before uninstalling; shared-folder selection is not implemented.');return;}
     switchingVault.current=true;clearTimeout(layoutSaveTimer.current);layoutSaveTimer.current=undefined;
     try{await stopPlugins();await flush();await bridge.state(vaultState.current);if(await bridge.choose(create))await initialize();}catch(e){report(e);}
     finally{switchingVault.current=false;}
@@ -522,14 +562,15 @@ export function App(){
   function loadWorkspace(name:string){const w=workspacesRuntime.current?.service.get(name)??workspaces[name];if(w){setTabs(w.tabs);setActive(w.active);setSplit(w.split);setLeft(w.left);setRight(w.right);setMode(w.mode);}}
   async function exportVault(){
     try{
-      await flush();const {default:JSZip}=await import('jszip');const zip=new JSZip();
-      for(const e of entries.filter(e=>!e.folder)){
-        const note=notesRef.current.find(n=>n.path===e.path);
-        if(note)zip.file(e.path,note.content);
+      await flushIndependent([...pluginStops.current.values()].map(controller=>async()=>controller.flushFileViews?.()));
+      await Promise.all([...pluginRequests.current]);await flush();
+      const {default:JSZip}=await import('jszip');const zip=new JSZip();
+      for(const e of (await bridge.list()).filter(e=>!e.folder)){
+        if(textFile(e.path))zip.file(e.path,(await bridge.read(e.path)).content);
         else {const asset=await bridge.asset(e.path);if(asset.startsWith('data:'))zip.file(e.path,asset.split(',')[1],{base64:true});else if(asset){const response=await fetch(asset);zip.file(e.path,await response.blob());}}
       }
       zip.file('.crafactory/state.json',JSON.stringify({settings,bookmarks,workspaces,recent},null,2));
-      download(vaultName+'.zip',await zip.generateAsync({type:'blob'}),'application/zip');toast('Vault exported.');
+      await download(vaultName+'.zip',await zip.generateAsync({type:'blob'}),'application/zip');toast(nativeAndroid?'Vault sent to Android share sheet.':'Vault exported.');
     }catch(e){report(e);}
   }
   async function importFiles(fileList:FileList|null){
@@ -561,6 +602,7 @@ export function App(){
     try{await service.start();setRecording(true);}catch(e){report(e);}
   }
   async function openWeb(){
+    if(nativeAndroid){toast('Embedded remote pages are unavailable in this Android pilot. Open external links in your system browser.');return;}
     const url=await dialog.ask('Open web viewer','https://example.com','Only HTTPS pages are supported. Some sites block embedded viewing.');
     if(!url)return;try{const viewer=webViewerRuntime.current?.service;const normalized=viewer?viewer.normalize(url):(()=>{const parsed=new URL(url);if(parsed.protocol!=='https:')throw new Error('Use an HTTPS URL');return url;})();open('web:'+normalized);}catch(e){report(e);}
   }
@@ -577,7 +619,7 @@ export function App(){
     const plugin=pluginList.find(p=>p.manifest.id===id);if(!plugin)return;
     const renderer=pluginModes[id]==='renderer';
     if(!await dialog.confirm('Enable '+plugin.manifest.name+'?',renderer?
-      'Trusted renderer mode is NOT sandboxed. This code can access the entire UI and vault bridge, including notes and workspace metadata, during startup, commands and unload. If native Node.js access is enabled for this profile, it also has full filesystem, command execution, credential and network access. It can freeze the application and cannot be forcibly stopped. Only enable code you trust. Back up your vault first.':
+      nativeAndroid?'Android trusted renderer mode is NOT sandboxed. This code shares the entire UI, vault bridge, native Capacitor APIs, app-private files and network access. This grants app-UID trust, not desktop Node.js access or per-plugin isolation. It can freeze the application and cannot be forcibly stopped. Only enable code you trust. Export your vault first.':'Trusted renderer mode is NOT sandboxed. This code can access the entire UI and vault bridge, including notes and workspace metadata, during startup, commands and unload. If native Node.js access is enabled for this profile, it also has full filesystem, command execution, credential and network access. It can freeze the application and cannot be forcibly stopped. Only enable code you trust. Back up your vault first.':
       'This local Worker plugin can read and modify vault notes and save plugin data during startup, commands and unload. Only enable code you trust.'))return;
     const generation=vaultGeneration.current;
     const ensureOpen=()=>{if(generation!==vaultGeneration.current)throw new Error('Plugin belongs to a closed vault');};
@@ -695,8 +737,8 @@ export function App(){
     {id:'audio',label:recording?'Stop audio recording':'Start audio recording',run:audio},
     {id:'import',label:'Import Markdown notes and attachments',run:()=>importInput.current?.click()},
     {id:'export-vault',label:'Export entire vault as ZIP',run:exportVault},
-    {id:'export-markdown',label:'Export current note as Markdown',run:()=>activeNote&&download(active.split('/').pop()!,activeNote.content)},
-    {id:'export-html',label:'Export current note as HTML',run:()=>activeNote&&download(title(active)+'.html',`<!doctype html><meta charset="utf-8"><title>${title(active).replace(/[<>]/g,'')}</title><article>${renderMarkdown(activeNote.content)}</article>`,'text/html')},
+    {id:'export-markdown',label:'Export current note as Markdown',run:()=>{if(activeNote)void download(active.split('/').pop()!,activeNote.content).catch(report);}},
+    {id:'export-html',label:'Export current note as HTML',run:()=>{if(activeNote)void download(title(active)+'.html',`<!doctype html><meta charset="utf-8"><title>${title(active).replace(/[<>]/g,'')}</title><article>${renderMarkdown(activeNote.content)}</article>`,'text/html').catch(report);}},
     {id:'export-pdf',label:'Export current note to PDF',run:async()=>{if(!activeNote)return;setMode('reading');setTimeout(()=>bridge.print().catch(report),100);}},
     {id:'converter',label:'Convert Markdown formatting',run:()=>{if(activeNote){const converter=converterRuntime.current?.service;editNote(active,converter?converter.convert(activeNote.content):activeNote.content.replace(/<mark>([\s\S]*?)<\/mark>/g,'==$1==').replace(/\[([^\]]+)\]\(([^):]+)\.md\)/g,'[[$2|$1]]'));}}},
     {id:'find',label:'Find and replace in current note',run:()=>{setMode('source');setTimeout(()=>editor.current?.find(),100);}},
@@ -819,7 +861,7 @@ export function App(){
     if(customView)return secondary?<PluginViewHost path={path} viewType={customView.viewType} controller={pluginStops.current.get(customView.pluginId)} leafId={customView.leafId}/>:null;
     if(!note){
       if(path&&entries.some(e=>e.path===path&&!e.folder))return <Attachment path={path}/>;
-      return <div className="empty workspace-empty"><Logo/><h1>A place to think</h1><p>Create a note, open a vault, or follow an idea.<br/>Your files stay yours.</p><button className="primary" onClick={()=>createNote()}><Plus size={15}/>Create a note</button><button onClick={()=>chooseVault()}><Folder size={15}/>Open local vault</button><small>{bridge.desktop?'Local-first · Markdown · MIT':'Temporary preview · Install desktop for local files'}</small></div>;
+      return <div className="empty workspace-empty"><Logo/><h1>A place to think</h1><p>Create a note, open a vault, or follow an idea.<br/>Your files stay yours.</p><button className="primary" onClick={()=>createNote()}><Plus size={15}/>Create a note</button>{!nativeAndroid&&<button onClick={()=>chooseVault()}><Folder size={15}/>Open local vault</button>}<small>{persistent?nativeAndroid?'App-private Android vault · Export before uninstalling':'Local-first · Markdown · MIT':'Temporary preview · Install desktop for local files'}</small></div>;
     }
     const activeView=viewType(note.path);
     const allowed=activeView==='markdown'||(activeView==='canvas'&&enabled('canvas'))||(activeView==='base'&&enabled('bases'));
@@ -867,6 +909,7 @@ export function App(){
     <input ref={importInput} type="file" multiple accept=".md,.markdown,.txt,image/*,audio/*,video/*,.pdf,.canvas,.base" className="hidden" aria-label="Import files" onChange={e=>{importFiles(e.target.files);e.target.value='';}}/>
     <input ref={attachmentInput} type="file" multiple className="hidden" aria-label="Add attachment" onChange={e=>{importFiles(e.target.files);e.target.value='';}}/>
     <div className="workspace">
+      {nativeAndroid&&(left||right)&&<div className="sidebar-backdrop" onClick={()=>{setLeft(false);setRight(false);}}/>}
       <nav className="ribbon" aria-label="Workspace tools">
         <div className="ribbon-tools">
           {enabled('explorer')&&<IconButton label="File explorer" onClick={()=>{setLeft(true);setSideTab('files');}} active={left&&sideTab==='files'}><Files size={20}/></IconButton>}
@@ -878,7 +921,7 @@ export function App(){
           {enabled('bookmarks')&&<IconButton label="Bookmarks" onClick={()=>{setLeft(true);setSideTab('bookmarks');}} active={sideTab==='bookmarks'}><Bookmark size={20}/></IconButton>}
           {enabled('tags')&&<IconButton label="Tags" onClick={()=>{setLeft(true);setSideTab('tags');}} active={sideTab==='tags'}><Hash size={20}/></IconButton>}
           {uiRibbon.map(item=><IconButton key={item.id} label={item.label} onClick={item.run}><Sparkles size={20}/></IconButton>)}
-          <div id="plugin-ribbon" aria-label="Plugin ribbon"/>
+          {!nativeAndroid&&<div id="plugin-ribbon" aria-label="Plugin ribbon"/>}
         </div>
         <div>{enabled('audio')&&<IconButton label={recording?'Stop recording':'Record audio'} onClick={audio} active={recording}><Mic size={19}/></IconButton>}<IconButton label="Open another vault" onClick={()=>chooseVault()}><HardDrive size={19}/></IconButton><IconButton label="Settings" onClick={()=>runCommand('settings')}><SettingsIcon size={20}/></IconButton></div>
       </nav>
@@ -920,7 +963,17 @@ export function App(){
         <footer className="context-footer"><div><Network size={15}/><span>Everything connects</span></div><p>Follow a link. Find a new perspective.</p>{enabled('graph')&&activeNote&&<button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button>}</footer>
       </aside>}
     </div>
-    <footer className="statusbar"><span><span className={'status-dot '+(dirtyCount?'pending':'')}/>{dirtyCount?`${dirtyCount} unsaved`:bridge.desktop?'Saved locally':'Preview vault'}</span><span>{uiStatus.map(item=><span key={item.id} title={item.label}>{item.text}</span>)}{activeMarkdown&&enabled('words')?<>{words.toLocaleString()} words<span className="status-divider"/>{characters.toLocaleString()} characters</>:activeNote?active.split('.').pop()?.toUpperCase():''}</span><span>{recording&&<button onClick={audio}><Square size={12}/>Recording · Stop</button>}{mode==='reading'?'Reading':mode==='live'?'Live editing':'Source'}<span className="status-divider"/>{bridge.desktop?'Local-first':'Changes reset on refresh'}</span></footer>
+    <footer className="statusbar"><span><span className={'status-dot '+(dirtyCount?'pending':'')}/>{dirtyCount?`${dirtyCount} unsaved`:persistent?'Saved locally':'Preview vault'}</span><span>{uiStatus.map(item=><span key={item.id} title={item.label}>{item.text}</span>)}{activeMarkdown&&enabled('words')?<>{words.toLocaleString()} words<span className="status-divider"/>{characters.toLocaleString()} characters</>:activeNote?active.split('.').pop()?.toUpperCase():''}</span><span>{recording&&<button onClick={audio}><Square size={12}/>Recording · Stop</button>}{mode==='reading'?'Reading':mode==='live'?'Live editing':'Source'}<span className="status-divider"/>{persistent?'Local-first':'Changes reset on refresh'}</span></footer>
+    {nativeAndroid&&<div className="mobile-plugin-actions" aria-label="Plugin actions">
+      {uiRibbon.map(item=><IconButton key={item.id} label={item.label} onClick={item.run}><Sparkles size={20}/></IconButton>)}
+      <div id="plugin-ribbon" aria-label="Plugin ribbon"/>
+    </div>}
+    {nativeAndroid&&<nav className="mobile-nav" aria-label="Mobile navigation">
+      <button aria-label="Mobile files" aria-pressed={left&&sideTab==='files'} onClick={()=>{setRight(false);setSideTab('files');setLeft(value=>sideTab!=='files'||!value);}}><Files size={21}/><span>Files</span></button>
+      <button aria-label="Mobile search" disabled={!enabled('search')} aria-pressed={left&&sideTab==='search'} onClick={()=>{if(enabled('search')){setRight(false);setSideTab('search');setLeft(true);}}}><Search size={21}/><span>Search</span></button>
+      <button aria-label="Mobile commands" disabled={!enabled('commands')} onClick={()=>{if(enabled('commands')){setLeft(false);setRight(false);setPalette('commands');}}}><Terminal size={21}/><span>Commands</span></button>
+      <button aria-label="Mobile settings" onClick={()=>{setLeft(false);setRight(false);setShowSettings(true);}}><SettingsIcon size={21}/><span>Settings</span></button>
+    </nav>}
     {enabled('graph')&&activeNote&&<nav className="compact-context" aria-label="Compact note context"><button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button></nav>}
     <div id="plugin-views" aria-label="Plugin views"/>
     <div id="plugin-status" aria-label="Plugin status"/>

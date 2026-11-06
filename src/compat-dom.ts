@@ -7,13 +7,19 @@ import {guardCompatibilityObject} from './compat-core';
 import moment from 'moment';
 import {Component,Editor,EditorSuggest,Events,unsupported} from './compat-core';
 import {Keymap,Scope} from './compat-keymap';
+import {platformInfo} from './platform';
 import {addIcon,getIcon,getIconIds,setIcon} from './compat-icons';
 import {MarkdownRenderChild,createMarkdownRenderer,registerPostProcessor,registerCodeProcessor,stopProcessors} from './markdown-plugins';
-export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','SearchComponent','ExtraButtonComponent','MomentFormatComponent','View','ItemView','FileView','TextFileView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','SuggestModal','FuzzySuggestModal','Keymap','Scope','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','Menu','MenuItem','editorLivePreviewField','editorInfoField','Platform','prepareFuzzySearch','addIcon','getIcon','getIconIds','setIcon','setTooltip'] as const;
+export const rendererExports=['Modal','SettingTab','PluginSettingTab','Setting','BaseComponent','ValueComponent','AbstractTextComponent','TextComponent','TextAreaComponent','DropdownComponent','ToggleComponent','ButtonComponent','SliderComponent','SearchComponent','ExtraButtonComponent','MomentFormatComponent','View','ItemView','FileView','TextFileView','WorkspaceLeaf','EditorSuggest','AbstractInputSuggest','SuggestModal','FuzzySuggestModal','Keymap','Scope','BasesView','QueryController','MarkdownRenderChild','MarkdownRenderer','Menu','MenuItem','editorLivePreviewField','editorInfoField','prepareFuzzySearch','addIcon','getIcon','getIconIds','setIcon','setTooltip'] as const;
 /** Bounded editor fields: live preview is always active and no file is exposed. */
 export const editorLivePreviewField=StateField.define<boolean>({create:()=>true,update:value=>value});
 export const editorInfoField=StateField.define<{file:null}>({create:()=>({file:null}),update:value=>value});
 export interface PluginTab {id:string;name:string;containerEl:HTMLElement;display():void;hide():void}
+const openPluginModals:{close():void}[]=[];
+/** Host Android Back dismisses only the top plugin modal, not every Escape listener. */
+export function dismissTopPluginModal(){
+  const modal=openPluginModals.at(-1);if(!modal)return false;modal.close();return true;
+}
 /** Minimal QueryController: config and type only; query data is not implemented. */
 export class QueryController {
   constructor(public app:unknown,public type:string,public config:unknown){}
@@ -266,9 +272,12 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   class ExtraButtonComponent extends ButtonComponent {extraSettingsEl=this.buttonEl;}
   class SliderComponent extends ValueComponent {
-    sliderEl:HTMLInputElement;constructor(parent:HTMLElement){super();this.sliderEl=element('input',parent) as HTMLInputElement;this.sliderEl.type='range';}
-    setLimits(min:number,max:number,step:number){Object.assign(this.sliderEl,{min:String(min),max:String(max),step:String(step)});return this;}
-    setValue(value:number){this.sliderEl.value=String(value);return this;}getValue(){return Number(this.sliderEl.value);}
+    private dynamicTooltip=false;
+    sliderEl:HTMLInputElement;constructor(parent:HTMLElement){super();this.sliderEl=element('input',parent) as HTMLInputElement;this.sliderEl.type='range';this.sliderEl.addEventListener('input',()=>this.updateTooltip());}
+    private updateTooltip(){if(this.dynamicTooltip){const text=String(this.getValue());this.sliderEl.title=text;this.sliderEl.setAttribute('aria-valuetext',text);}}
+    setDynamicTooltip(){this.dynamicTooltip=true;this.updateTooltip();return this;}
+    setLimits(min:number,max:number,step:number){Object.assign(this.sliderEl,{min:String(min),max:String(max),step:String(step)});this.updateTooltip();return this;}
+    setValue(value:number){this.sliderEl.value=String(value);this.updateTooltip();return this;}getValue(){return Number(this.sliderEl.value);}
     onChange(callback:(value:number)=>unknown){this.sliderEl.addEventListener('input',()=>safe(callback)(this.getValue()));return this;}
     setDisabled(disabled:boolean){super.setDisabled(disabled);this.sliderEl.disabled=disabled;return this;}
   }
@@ -288,7 +297,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   /** Match a fuzzy query against text; the bounded version is a case-insensitive contains check. */
   const prepareFuzzySearch=(query:string)=>(text:string)=>{const needle=query.toLowerCase(),haystack=text.toLowerCase(),start=haystack.indexOf(needle);return start<0?null:{score:1/(start+1),matches:[{start,end:start+needle.length}]};};
-  const Platform={isMobile:false,isPhone:false,isTablet:false,isDesktop:true,isDesktopApp:!!window.engine?.desktop,isMobileApp:false,isMacOS:/Mac/i.test(navigator.platform),isWin:/Win/i.test(navigator.platform),isLinux:/Linux/i.test(navigator.platform),isIos:false,isAndroid:false};
+  const Platform=platformInfo(window.engine?.platform==='android'?'android':window.engine?.desktop?'desktop':'browser',window.engine?.formFactor==='tablet',navigator.platform);
 
   class Setting {
     settingEl:HTMLElement;infoEl:HTMLElement;nameEl:HTMLElement;descEl:HTMLElement;controlEl:HTMLElement;components:any[]=[];
@@ -410,8 +419,8 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
     setContent(content:string|DocumentFragment){this.contentEl.replaceChildren(typeof content==='string'?document.createTextNode(content):content);return this;}
     setCloseCallback(callback:()=>void){this.callback=callback;}
     onOpen(){}onClose(){}
-    open(){if(this.containerEl.isConnected)return;this.previous=document.activeElement;document.body.append(this.containerEl);modals.add(this);modalScopes.push(this.scope);safe(()=>this.onOpen())();this.modalEl.setAttribute('aria-label',this.titleEl.textContent||'Plugin modal');this.modalEl.querySelector<HTMLElement>('button,input')?.focus();}
-    close(){if(!modals.delete(this))return;const index=modalScopes.lastIndexOf(this.scope);if(index>=0)modalScopes.splice(index,1);this.containerEl.remove();safe(()=>this.onClose())();safe(()=>this.callback?.())();if(this.shouldRestoreSelection&&(this.previous as HTMLElement)?.isConnected)(this.previous as HTMLElement).focus();}
+    open(){if(this.containerEl.isConnected)return;this.previous=document.activeElement;document.body.append(this.containerEl);modals.add(this);modalScopes.push(this.scope);openPluginModals.push(this);safe(()=>this.onOpen())();this.modalEl.setAttribute('aria-label',this.titleEl.textContent||'Plugin modal');this.modalEl.querySelector<HTMLElement>('button,input')?.focus();}
+    close(){if(!modals.delete(this))return;const top=openPluginModals.lastIndexOf(this);if(top>=0)openPluginModals.splice(top,1);const index=modalScopes.lastIndexOf(this.scope);if(index>=0)modalScopes.splice(index,1);this.containerEl.remove();safe(()=>this.onClose())();safe(()=>this.callback?.())();if(this.shouldRestoreSelection&&(this.previous as HTMLElement)?.isConnected)(this.previous as HTMLElement).focus();}
   }
   class ConfirmationModal extends Modal {
     /** Add a footer action button; confirmation actions close the dialog. */
@@ -785,6 +794,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
       return()=>{for(const extension of normalized)if(extensionViews.get(extension)===viewType)extensionViews.delete(extension);onFileExtensions?.(normalized);};
     },
     /** Freeze input, flush every draft, then expose a no-further-save retirement lease. */
+    async flushFileViews(){await Promise.all([...leaves].filter(leaf=>leaf.view instanceof TextFileView).map(leaf=>(leaf.view as TextFileView).save()));},
     async prepareFileViews(path:string){
       const affected=[...leaves].filter(leaf=>{const file=viewFilePath(leaf);return file===path||file?.startsWith(path+'/');});
       const inert=new Map(affected.map(leaf=>[leaf,leaf.containerEl.inert])),textViews=affected.map(leaf=>leaf.view).filter((view):view is TextFileView=>view instanceof TextFileView);

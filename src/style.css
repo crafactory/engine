@@ -75,6 +75,37 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}h1,
   .document-inner{padding:26px 20px 0}.reading-surface{padding:14px 20px 70px}.editor{padding:0 17px}.note-title h1{font-size:var(--text-lg)}.markdown table{display:block;overflow-x:auto;font-size:var(--text-xs)}.markdown td,.markdown th{padding:8px;min-width:100px}.markdown{line-height:1.8}.statusbar{font-size:var(--text-xs);padding:0 8px}.statusbar>span:last-child{font-size:var(--text-xs)}.statusbar>span:last-child .status-divider{display:none}.statusbar>span:last-child{max-width:210px;overflow:hidden}.split>.secondary-pane{display:none}
   .modal-backdrop{padding:14px}.modal{padding:20px}.palette-backdrop{padding-top:65px}.palette-list{max-height:55vh}.palette footer{gap:12px;padding:12px}.settings-modal{height:90vh;flex-direction:column}.settings-modal>nav{width:100%;display:flex;gap:4px;overflow-x:auto;padding:10px;border-right:0;border-bottom:1px solid var(--border);flex-shrink:0}.settings-label{display:none}.settings-modal>nav>button{width:auto;white-space:nowrap;padding:9px;margin:0;font-size:var(--text-xs)}.settings-modal>nav>button>svg{display:none}.settings-content{padding:20px}.setting-row{gap:12px;flex-wrap:wrap}.setting-row>input:not([type=checkbox]){max-width:160px}.graph-controls{width:170px;top:8px;right:10px}.view-heading{padding:12px 15px;height:auto;flex-wrap:wrap}.graph-svg text{font-size:12px}.canvas-toolbar{padding:0 7px;gap:0;overflow-x:auto}.canvas-toolbar button{padding:6px;font-size:var(--text-xs);white-space:nowrap}.react-flow__minimap{display:none}.bases-toolbar{padding:12px;gap:8px}.base-views{width:100%;flex-basis:100%}.bases-toolbar>.input-icon{flex:1}.view-footer{padding:0 15px;font-size:var(--text-xs)}.toast{width:calc(100% - 32px);font-size:var(--text-xs)}
 }
+@media(max-width:650px){.settings-modal>nav>button{flex:0 0 auto}}
+/* Native identity is installed by Capacitor bootstrap, never inferred from viewport size. */
+.native-android,.native-android #root{height:100dvh}
+.native-android .app{height:100dvh;padding-top:env(safe-area-inset-top)}
+.native-android .ribbon{display:none}
+.native-android .compact-context{display:none}
+.native-android .mobile-plugin-actions{display:flex;flex-shrink:0;gap:4px;max-height:100px;overflow:auto;padding:4px;background:var(--panel);border-top:1px solid var(--border)}
+.native-android .mobile-plugin-actions:not(:has(button)){display:none}
+.native-android #plugin-ribbon{flex-direction:row;gap:4px}
+.native-android .mobile-plugin-actions button{min-width:44px;min-height:44px}
+.native-android .mobile-nav{display:flex;flex-shrink:0;min-height:60px;padding:3px 4px calc(3px + env(safe-area-inset-bottom));background:var(--panel);border-top:1px solid var(--border);gap:4px}
+.native-android .mobile-nav button{flex:1;min-width:0;min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;color:var(--muted)}
+.native-android .mobile-nav button[aria-pressed=true]{color:var(--accent);background:var(--hover)}
+.native-android.native-keyboard-open .mobile-nav{display:none}
+.native-android .icon-button,.native-android .file-row,.native-android .sidebar-nav button,.native-android .settings-modal>nav>button,.native-android .modal footer button,.native-android .plugin-modal-close{min-width:44px;min-height:44px}
+.native-android input:not([type=checkbox]):not([type=radio]),.native-android select{min-height:44px}
+.native-android .checkbox-container{position:relative}
+.native-android .checkbox-container::before{content:"";position:absolute;inset:-12px -4px}
+.native-android .left-sidebar,.native-android .right-sidebar{display:flex;position:fixed;top:env(safe-area-inset-top);bottom:calc(88px + env(safe-area-inset-bottom));width:min(300px,calc(100vw - 44px));z-index:26;box-shadow:var(--shadow);resize:none}
+.native-android .left-sidebar{left:0}
+.native-android .right-sidebar{right:0}
+.native-android.native-keyboard-open .left-sidebar,.native-android.native-keyboard-open .right-sidebar{bottom:28px}
+.native-android .sidebar-backdrop{display:block;position:fixed;inset:0;z-index:24;background:#0005}
+.native-android .note-toolbar{height:auto;min-height:48px;flex-wrap:wrap}
+.native-android .view-modes{margin-left:auto}
+.native-android .tabbar{height:48px}
+.native-android .tabbar>.icon-button{display:flex}
+.native-android .tab{min-width:90px}
+.native-android .toast{bottom:calc(96px + env(safe-area-inset-bottom))}
+.native-android .modal-backdrop{padding:12px}
+.native-android .settings-modal{height:calc(100dvh - 32px);max-height:calc(100dvh - 32px)}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media(max-width:650px){.statusbar>span:last-child .status-divider{display:inline-block;margin:0 2px}.note-toolbar .icon-button{height:40px}}
 @media(max-width:650px){.graph-body{flex-direction:column-reverse}.graph-svg{width:100%;height:0;min-height:0}.graph-controls{align-self:stretch;width:auto;margin:8px 12px;display:flex;gap:10px;flex-wrap:wrap;padding:9px;box-shadow:none}.graph-controls>label{margin-bottom:0}.graph-controls>.input-icon{flex-basis:100%}.graph-controls>label:has(input[type=range]){width:120px}.graph-controls input[type=range]{margin:0}.graph-controls>button{margin-left:auto}}

@@ -6,7 +6,7 @@ export function parseParityLedger(text,coreSource,apiSource){
     if(line.startsWith('## '))section=line.slice(3).trim();
     if(!line.startsWith('|'))continue;
     const cells=line.slice(1,-1).split('|').map(s=>s.trim());
-    if(!['Implemented subset','Not implemented','Excluded'].includes(cells[1]))continue;
+    if(!['Implemented subset','Partial','Not implemented','Excluded'].includes(cells[1]))continue;
     const core=section==='Core plugins';
     items.push({id:(core?'CORE-':'AREA-')+slug(cells[0]),section,title:cells[0],
       status:cells[1]==='Excluded'?'excluded':cells[1]==='Not implemented'?'missing':'partial',

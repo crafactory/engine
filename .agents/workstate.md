@@ -1,4 +1,4 @@
-# Live Editing stability, Android and remaining compatibility gaps
+# Android shared-code implementation and remaining compatibility gaps
 
 ## Current request and baseline
 
@@ -9,49 +9,67 @@ was already emailed; final results go privately in Chinese.
 
 PR #74 is merged at `afe83d439f7b58b42b3182d456614f039316222c`.
 Do not restart it or present its historical test counts as new evidence.
-Current branch: `fix/live-preview-stability`.
+PR #75 is merged at `191e8529c8ba52774eb87c1f3db984bbfa4ee16d`.
+Current branch: `feat/android-shared-app`.
 
 ## Active increment
 
-PR #75 current pushed head `d492918` has effective initial CodeRabbit review `5796123711`.
-Both findings are valid: invisible sanitized Mermaid labels and stale frozen columns on
-container resize. LOCAL UNCOMMITTED fixes now render native SVG text without relaxing
-DOMPurify and track edit-container resize while retaining draft/focus. Original negative
-logs also cover initial table column redistribution, per-build image context closure,
-unrelated-note diagram replacement, invalid root image paths and stale decoded asset bytes.
+PR #75 completed effective review/fixes, both review threads resolved, exact-head Verify
+and three-platform packaging green, independent pinned corpus run `42171152821` green.
+Optional incremental review was quota-limited and was not chased. Its frozen local
+acceptance was 869/49 units, 70 browser, 104 Electron incl. all 22 pinned corpus cases
+without skips, and 23 actual Linux-package vault cases. Those are historical #75 results,
+not Android acceptance.
 
-Source/test implementation is frozen; latest build includes root-image path fix and
-per-asset size/mtime snapshots through App/editor-view props. Fresh full acceptance
-PASSED with `/tmp/engine-live-accept-*`: 869/49 units, 70 browser, 104 Electron incl. all
-22 pinned corpus cases without skips, plus all 23 vault cases against the actual
-`/tmp/engine-live-accept-package`. The actual package screenshot was inspected and saved
-to `docs/images/live-stability.png`. Earlier 69/103 runs are superseded, not final evidence.
+Ready PR #76 implements pinned Capacitor 8.6.0, private filesystem/state/history/assets,
+pre-App bootstrap, native lifecycle/Back/keyboard/share, touch navigation, Platform and
+desktop-only-plugin refusal. Effective CodeRabbit review `5796771964` covered `812b2a7`;
+all 11 findings were repaired and threads resolved. The review allowance is exhausted:
+do not chase optional review; no known blocker/failing exact-head gate may be bypassed.
 
-Local verification and QA docs are aligned. Next: commit (verify identities), push,
-reply/resolve both review threads:
-`PRRT_kwDOVKvdS860Y8uu` (comment 4489340111 labels),
-`PRRT_kwDOVKvdS860Y8u2` (comment 4489340119 resize).
-Optional incremental review may be quota-limited (one/hour; initial around 05:31 UTC).
-Do not chase it after this effective review/fix round, but require green exact-head checks
-and no known blocker before authorized squash merge and clean main sync.
+Frozen desktop acceptance on runtime `fcd3b9d` passes 70 browser, 104 Electron including
+all 22 unchanged corpus scenarios without skips, and 23 actual Linux-package vault cases.
+Expanded unchanged Style Settings verifies five controls, exact plugin data/CSS and restart;
+the missing SliderComponent.setDynamicTooltip was implemented. That freeze passes
+911/56 units; the final visual follow-up raises units to 915/56, with check/build and the
+CSS-only mobile regression/old-shrink negative control passing.
+
+Native run `42184825123` on `a448d11` accepts nine complete groups, including real IME,
+assets/history, rotation/worker/renderer identity, modal/ribbon Back, unchanged pinned
+Style Settings, native save failure/root-Back recovery, isolated background save and
+restart data/trust recovery, real chooser/ZIP bytes, permissions and release-IME exclusion.
+Visual QA then finds canceled-share error banners and native settings-label overlap.
+Both are repaired and now explicit strengthened native assertions, not inherited passes.
+The polished runtime `d608338` passes 915/56, 70 browser, 104 Electron/all 22 corpus/no
+skips, and 23 actual Linux-package vault cases. Its native rerun stops at missing debug
+IME InputConnection (client view not served), before exercising either visual repair.
+Pending debug-only read-only readiness probe/focused interior touch must pass native;
+composition now sends once only after readiness. Failure screenshot/window dump retained.
+Strict original IME parser requires bound input view AND visible window, not request flags,
+and retains complete dumps. Sequential finalqa regression command 13067 completed;
+production runtime unchanged by this subsequent driver/debug-IME repair.
+Require all final-head cloud checks before merge/delivery.
 
 ## Next increments
 
-- Android decision: Capacitor preserves the existing React DOM/CodeMirror/plugin UI. Compare
-  React Native's component rewrite and Tauri's extra Rust/NDK toolchain. Official Obsidian
+- Android decision: Capacitor preserves the existing React DOM/CodeMirror/plugin UI.
+  React Native requires a component rewrite; Tauri adds Rust/NDK tooling. Official Obsidian
   docs confirm WebView and no Node/Electron on mobile, not specifically Capacitor.
-- Use current Capacitor v8 requirements, not stale v7. Implement persistent app storage,
-  keyboard/IME/back/lifecycle and responsive navigation in a separate early PR; attempt
-  an APK and actual emulator/device run. No Android/JDK tools currently on PATH.
+- Hosted emulator pipeline works; no local SDK is needed. Debug-only owned IME uses real InputConnection,
+  is disabled by default/DUMP-protected, and must be absent from the release manifest.
+- Android/parity/verification and single plugin matrix docs are aligned. Require all
+  final-head Verify, three-platform packaging, strengthened Android and independent corpus gates.
+  Merge #76, sync clean main, remove the scratch `ci/android-native-composition` branch,
+  and privately email the accepted matching APK/hash/report and scope limitations.
 - Continue bounded remaining plugin workflows. Keep `docs/PLUGIN-SUPPORT-MATRIX.md` the
   single external-plugin verdict tracker; add an Obsidian host gap/Android decision document.
   Core Canvas, Copilot secrets/inference, authenticated/conflicted Git and many secondary
   workflows remain open; startup or a responsive screenshot is not full compatibility.
 
-Detailed next-increment architecture/CI/native WebView acceptance and bounded Style Settings
-mobile workflow ideas: `/tmp/engine-android-working-notes.md`. Not implemented yet. Critical:
-`bridge.ts` snapshots window.engine at module initialization; bootstrap must install the
-Android bridge BEFORE dynamically importing App, not statically import App first.
+Never overlap dist rebuilds with E2E or reuse concurrent Playwright output directories.
+Native artifacts from failed runs are diagnostic inputs, not final accepted APKs.
+Critical: `bridge.ts` snapshots window.engine at module initialization; bootstrap installs
+the Android bridge BEFORE dynamically importing App, not statically importing App first.
 
 ## Constraints
 

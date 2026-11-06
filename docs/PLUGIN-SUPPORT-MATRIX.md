@@ -11,8 +11,24 @@ The [popular-plugin scope and gap analysis](POPULAR-PLUGIN-COMPATIBILITY.md) exp
 all-time-download target set, added host capabilities, and remaining work before any
 top-ten-wide compatibility claim.
 
-**Last matrix update:** 2026-11-05 UTC. **Runtime:** explicit trusted renderer (not sandboxed) for
-the functional rows unless stated otherwise; pinned default-Worker runs still fail.
+**Last matrix update:** 2026-11-06 UTC. **Runtime:** Linux x64 explicit trusted renderer
+(not sandboxed) for the functional rows unless stated otherwise; pinned default-Worker
+runs still fail. Android has its own native acceptance scope in [ANDROID.md](ANDROID.md);
+desktop results must not be extrapolated to mobile.
+
+## Android is a separate bounded platform
+
+[PR #76](https://github.com/crafactory/engine/pull/76) shares the DOM runtime with
+Capacitor, not Node/Electron. [The first nine-group APK acceptance](https://github.com/crafactory/engine/actions/runs/42184825123)
+used API35 Pixel6/WebView 124.0.6367.219. Its unchanged Style Settings `1.0.9` scope is
+dropdown, number and slider input, exact saved data/computed CSS and restart recovery;
+it does not inherit the five-control desktop verdict or certify other plugins on Android.
+
+Owned probes separately cover worker/renderer mobile flags, orientation, modal/ribbon
+Back, renewed trust and desktop-only refusal. These probes are host regressions, not
+upstream-plugin compatibility evidence. Final-head native checks additionally guard
+cancel-share errors and narrow settings labels; [ANDROID.md](ANDROID.md) records storage,
+debug signing, export/backup and device-matrix limitations.
 
 ## Status legend
 
@@ -45,7 +61,7 @@ It does **not** certify commands, views, rendering, menus, settings behavior or 
 | Excalidraw | `2.29.1` | `BOUNDED_WORKFLOWS_WITH_ERRORS` | Explicit native profile: pointer-drawn rectangle, exact saved scene, document switch and application restart/re-enable/reopen | Private core Canvas integration rejects; additional tools, export and embedding unverified |
 | Git | `2.42.0` | `BOUNDED_WORKFLOWS_PASS` | Explicit native profile: real index stage, specific-message commit, push to disposable local bare remote, peer-commit pull and editor refresh | Authenticated remotes, signing, hooks, diff, backup and conflicts unverified |
 | Copilot | `4.0.17` | `STARTUP_WITH_ERRORS` | None | Background initialization fails at `App.secretStorage`; inference/indexing/chat unverified |
-| Style Settings | `1.0.9` | `BOUNDED_WORKFLOWS_PASS` | Original documented CSS fixture, class-toggle/variable-text controls, computed CSS effects, exact saved JSON, search/clear and restart recovery | Other control kinds, import/export and full theme/snippet management not certified |
+| Style Settings | `1.0.9` | `BOUNDED_WORKFLOWS_PASS` | Original documented CSS fixture; toggle, text, dropdown, number and slider controls; real range Home/ArrowRight input; computed CSS; exact saved JSON; search/clear; restart restores all five controls/data/styles | Remaining control kinds, import/export and full theme/snippet management not certified; Android independently scoped |
 | Kanban | `2.0.51` | `BOUNDED_WORKFLOWS_PASS` | Board/list/card creation, scoped embedded edit, checkbox settings/completion, real frame-paced drag between lists, section ownership and exact Markdown across switch/restart; no recorded runtime/console errors | Other card/list reorder, movement/conversion modes and upstream settings unverified; cross-plugin integrations/focus sharing unsupported |
 | **Dataview** | `0.5.70` / manifest `0.5.68` | ✅ `BOUNDED_WORKFLOWS_PASS` | `TABLE`, `TASK`, `LIST FROM`, `WHERE`, `SORT`/`LIMIT`, `GROUP BY`, `FLATTEN`, inline query, DataviewJS, `dv.view` | Not full query/frontmatter/view semantics; DataviewJS and `dv.view` need 🔒 desktop `unsafe-eval` |
 | **Reading Time** | `1.1.2` | ✅ `BOUNDED_WORKFLOWS_PASS` | 400-word test at 200 wpm; speed setting persists; reading/source transition; editor change 8 min; selected-text modal; disable/re-enable | Format variants, invalid input, timing and multiple leaves remain unverified |

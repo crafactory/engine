@@ -5,6 +5,42 @@
 > plugin status see [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); for API boundaries
 > see [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md).
 
+## Shared-code Android and expanded plugin controls
+
+[PR #76](https://github.com/crafactory/engine/pull/76) adds an actual APK/native WebView
+gate, not responsive-browser certification. Its first complete
+[nine-group native run](https://github.com/crafactory/engine/actions/runs/42184825123)
+on `a448d11` records API35 Pixel6/WebView 124.0.6367.219, exact real InputConnection
+Chinese composition and keyboard/Back, native note/binary overwrite/restart, decoded asset
+replacement, history/long names, drawers/rotation/worker/renderer/modal/ribbon, unchanged
+Style Settings, save failure/root-Back recovery, autosave-isolated background persistence,
+restart data/renewed trust, actual chooser/ZIP/dot-asset bytes, no broad storage permissions
+and release exclusion of the owned debug IME. Missing-path probes and the deliberately
+induced persistence failure remain in logs; this is not a claim of zero console output.
+
+Visual review of that passing run found a red error on normal share cancellation and
+overlapping settings tabs. Follow-up native assertions demand no error after chooser
+cancellation and labels contained inside non-shrinking buttons. Unit tests handle only
+the exact observed Android cancellation, preserve genuine share errors and leave cache
+write/permission checks outside that exception. A browser CSS regression uses native
+touch-target minima plus an explicit old-flex-shrink negative control; it is not native
+runtime evidence. The final PR head must pass these strengthened native gates.
+
+The frozen pre-visual-follow-up `fcd3b9d` runtime passed 911 units/56 files, 70 browser,
+104 Electron including all 22 unchanged corpus cases without skips, and 23 vault cases
+against the actual Linux package, sequentially with isolated output directories.
+The visual follow-up raises units to 915/56; all browser/desktop/package regressions
+and final-head Verify, three-platform packaging, native Android and independent corpus
+remain mandatory merge gates. See the current PR checks for their exact-head results.
+Effective CodeRabbit review `5796771964` produced 11 findings, all repaired and resolved;
+additional optional reviews are not chased after that effective review/fix round.
+
+The single [support matrix](PLUGIN-SUPPORT-MATRIX.md) separates five-control desktop
+Style Settings from its three-control mobile workflow and retains Excalidraw/core Canvas,
+authenticated/conflicted Git and Copilot secrets/inference gaps. [ANDROID.md](ANDROID.md)
+contains the framework comparison, private-vault/uninstall/debug-signature warnings and
+remaining SAF, backup, installer, signing, device/keyboard and iOS exclusions.
+
 ## Live Editing geometry, rendering and native assets
 
 The 2026-11-06 PR #75 increment starts from merged PR #74 and uses original host
@@ -60,8 +96,11 @@ validated profile-local vault-keyed overrides, case-insensitive lookup and resta
 persistence. This is not types.json or a complete property editor.
 
 The unchanged Style Settings bundle parses original documented fixture CSS, exposes
-class-toggle/variable-text controls, changes computed CSS, saves exact plugin JSON,
-filters/clears search and restores effects and values after application restart.
+class-toggle/variable-text/variable-select/variable-number/variable-number-slider controls,
+changes computed CSS, saves exact plugin JSON, filters/clears search and restores all five
+controls, effects and values after application restart. Real range Home/ArrowRight input
+exposed the missing public `SliderComponent.setDynamicTooltip`; its implementation updates
+live tooltips without replacing controls.
 Host-owned Component children no longer collide with plugin-owned configuration trees.
 Other settings kinds, import/export and theme/snippet management remain unverified.
 

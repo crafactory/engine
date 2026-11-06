@@ -6,6 +6,7 @@ import {frontmatter,resolveLink} from './knowledge';
 import type {Entry,Note,PluginManifest} from './types';
 import type {CachedMetadata} from './metadata';
 import {Scope} from './compat-keymap';
+import {platformInfo} from './platform';
 
 const exposedApps:any[]=[];
 /** Expose the latest trusted renderer App globally, matching Obsidian's untyped window.app. */
@@ -26,6 +27,7 @@ function releaseApp(app:any){
 export interface PluginSnapshot {
   name:string;entries:Entry[];notes:Note[];active:string;
   editor:{text:string;from:number;to:number}|null;
+  platform?:'android'|'desktop'|'browser';isTablet?:boolean;platformOS?:string;
 }
 export interface CompatNativeServices {
   /** Resolve a link target through the native notes index. */
@@ -88,7 +90,7 @@ export function guardCompatibilityObject<T extends object>(object:T,label:string
 const guard=guardCompatibilityObject;
 export const supportedExports=[
   'Plugin','Component','Events','Notice','TAbstractFile','TFile','TFolder','Vault','Workspace','Editor','MarkdownView','FileSystemAdapter',
-  'normalizePath','parseYaml','stringifyYaml','parseLinktext','getLinkpath','getAllTags',
+  'Platform','normalizePath','parseYaml','stringifyYaml','parseLinktext','getLinkpath','getAllTags',
   'parseFrontMatterAliases','parseFrontMatterTags','parseFrontMatterEntry','parseFrontMatterStringArray',
   'getFrontMatterInfo','iterateRefs','iterateCacheRefs','debounce','apiVersion','requireApiVersion','moment','getLanguage'
 ] as const;
@@ -599,7 +601,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     executeCommand(command:CompatCommand){const owned=typeof command?.id==='string'?commands.get(commandId(command.id)):undefined;if(!owned)return false;initEditor();if(!available(owned,true))return false;void Promise.resolve(available(owned,false)).then(settle).catch(error=>host.ui?.reportError?host.ui.reportError(error):host.notice(String(error)));return true;},
     executeCommandById(id:string){const command=commands.get(commandId(id));return command?this.executeCommand(command):false;}
   },'CommandManager');
-  const app=guard({appId:'crafactory-engine',isMobile:false,vault,workspace,metadataCache,fileManager,plugins,internalPlugins,foldManager,loadLocalStorage,saveLocalStorage,...(host.ui?{metadataTypeManager,hotkeyManager,commands:commandManager,getAccentColor:()=>{const color=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();return color||unsupported('App.getAccentColor without theme');}}:{}),...(host.ui?.scope?{scope:host.ui.scope}:{}),...(host.ui?.keymap?{keymap:host.ui.keymap}:{}),...(host.ui?.embedRegistry?{embedRegistry:host.ui.embedRegistry}:{})},'App');
+  const app=guard({appId:'crafactory-engine',get isMobile(){return snapshot.platform==='android';},vault,workspace,metadataCache,fileManager,plugins,internalPlugins,foldManager,loadLocalStorage,saveLocalStorage,...(host.ui?{metadataTypeManager,hotkeyManager,commands:commandManager,getAccentColor:()=>{const color=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();return color||unsupported('App.getAccentColor without theme');}}:{}),...(host.ui?.scope?{scope:host.ui.scope}:{}),...(host.ui?.keymap?{keymap:host.ui.keymap}:{}),...(host.ui?.embedRegistry?{embedRegistry:host.ui.embedRegistry}:{})},'App');
   // Some plugins use Obsidian's untyped global instead of the plugin context.
   exposeApp(app);
   /** Reconcile a host snapshot while preserving file identities and emitting requested deltas. */
@@ -720,6 +722,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     registerCliHandler(){return ()=>{};}
   }
   const exports:Record<string,unknown>={Plugin,Component,Events,Notice,TAbstractFile,TFile,TFolder,Vault,Workspace,Editor,MarkdownView,FileSystemAdapter,
+    Platform:platformInfo(snapshot.platform,snapshot.isTablet,snapshot.platformOS),
     normalizePath,parseYaml,stringifyYaml,parseLinktext,getLinkpath:(text:string)=>parseLinktext(text).path,
     getAllTags:(cache:any)=>[...new Set([...(cache?.tags||[]).map((t:any)=>t.tag),...(stringArray(cache?.frontmatter?.tags)||[]).map(t=>t.startsWith('#')?t:'#'+t)])],
     parseFrontMatterAliases:(fm:any)=>stringArray(fm?.aliases??fm?.alias),
@@ -743,7 +746,7 @@ export function createCompatibilityRuntime(manifest:PluginManifest,initial:Plugi
     if(key==='constructor'||typeof descriptor?.value!=='function')continue;
     const method=descriptor.value;Object.defineProperty(constructor.prototype,key,{...descriptor,value:function(this:unknown,...args:unknown[]){host.trace?.(name+'.'+key);return method.apply(this,args);}});
   }
-  if(host.ui)for(const name of ['Keymap','Platform']){const value=exports[name];if(value&&typeof value==='object')exports[name]=guard(value,name);}
+  for(const name of ['Keymap','Platform']){const value=exports[name];if(value&&typeof value==='object')exports[name]=guard(value,name);}
   const api=new Proxy(exports,{get(target,key){if(typeof key==='symbol')return Reflect.get(target,key);if(key==='__esModule')return false;host.trace?.('export.'+key);if(Object.hasOwn(target,key))return target[key];return unsupported('export '+key);}});
   return {
     app,api,settle,
