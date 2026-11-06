@@ -33,6 +33,19 @@ async function fixture(){
 }
 
 describe('app-private native storage contract (Node adapter, not Android certification)',()=>{
+  it('publishes a valid long basename with a bounded same-directory temporary name',async()=>{
+    const {root,bridge}=await fixture(),path='a'.repeat(220)+'.md';
+    const first=await bridge.create(path,'original');await bridge.write(path,'updated',first.version);
+    expect((await bridge.read(path)).content).toBe('updated');
+    expect((await readdir(join(root,'vault'))).some(name=>name.startsWith('.engine-write-'))).toBe(false);
+  });
+  it('lists imported dot-prefixed attachments but never internal plugin directories',async()=>{
+    const {root,bridge}=await fixture(),path=await bridge.attach('.photo.png',[0,1,255]);
+    await mkdir(join(root,'vault/.crafactory/plugins'),{recursive:true});
+    expect((await bridge.list()).map(entry=>entry.path)).toContain(path);
+    expect((await bridge.list()).some(entry=>entry.path.startsWith('.crafactory'))).toBe(false);
+    expect(Array.from(new Uint8Array(await bridge.readBinary!(path)))).toEqual([0,1,255]);
+  });
   it('reports persistence without pretending to be desktop and seeds only once',async()=>{
     const {fs,bridge}=await fixture();
     expect(bridge).toMatchObject({desktop:false,persistent:true,platform:'android'});
@@ -127,6 +140,9 @@ describe('app-private native storage contract (Node adapter, not Android certifi
     const code='module.exports = class OriginalFixture {};',styles='body { --original: 1; }';
     await writeFile(join(folder,'manifest.json'),JSON.stringify({id:'original-fixture',name:'Original fixture',version:'1.0.0',isDesktopOnly:true}));
     await writeFile(join(folder,'main.js'),code);await writeFile(join(folder,'styles.css'),styles);
+    const incomplete=join(root,'vault/.crafactory/plugins/incomplete');
+    await mkdir(incomplete,{recursive:true});
+    await writeFile(join(incomplete,'manifest.json'),JSON.stringify({id:'incomplete',name:'Incomplete',version:'1.0.0'}));
     expect(await bridge.plugins()).toEqual([{manifest:{id:'original-fixture',name:'Original fixture',version:'1.0.0',isDesktopOnly:true},code,styles}]);
     expect((await bridge.list()).some(entry=>entry.path.startsWith('.crafactory'))).toBe(false);
   });

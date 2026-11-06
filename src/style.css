@@ -80,6 +80,10 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}h1,
 .native-android .app{height:100dvh;padding-top:env(safe-area-inset-top)}
 .native-android .ribbon{display:none}
 .native-android .compact-context{display:none}
+.native-android .mobile-plugin-actions{display:flex;flex-shrink:0;gap:4px;max-height:100px;overflow:auto;padding:4px;background:var(--panel);border-top:1px solid var(--border)}
+.native-android .mobile-plugin-actions:not(:has(button)){display:none}
+.native-android #plugin-ribbon{flex-direction:row;gap:4px}
+.native-android .mobile-plugin-actions button{min-width:44px;min-height:44px}
 .native-android .mobile-nav{display:flex;flex-shrink:0;min-height:60px;padding:3px 4px calc(3px + env(safe-area-inset-bottom));background:var(--panel);border-top:1px solid var(--border);gap:4px}
 .native-android .mobile-nav button{flex:1;min-width:0;min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;color:var(--muted)}
 .native-android .mobile-nav button[aria-pressed=true]{color:var(--accent);background:var(--hover)}

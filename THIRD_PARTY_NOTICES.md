@@ -238,7 +238,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ## @capacitor/synapse@1.0.4
 
-License: ISC
+Package metadata license claim: ISC
+
+Conflicting license claims: package metadata declares ISC, but the included license text contains MIT terms. Both claims are preserved; neither is identified here as authoritative. Publisher clarification is outstanding; no external issue or contact has been initiated.
 
 ```text
 MIT License
@@ -3588,7 +3590,9 @@ THIS SOFTWARE.
 
 ## d3-geo@3.1.1
 
-License: ISC
+Package metadata license claim: ISC
+
+Conflicting license claims: package metadata declares ISC, but the included license text contains MIT terms. Both claims are preserved; neither is identified here as authoritative. Publisher clarification is outstanding; no external issue or contact has been initiated.
 
 Project: https://github.com/d3/d3-geo
 

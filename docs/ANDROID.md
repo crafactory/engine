@@ -81,3 +81,15 @@ per-workflow results, screenshots and logcat in the debug/evidence artifact. Ini
 native launch succeeded but CDP attachment failed; full acceptance remains pending.
 The script additionally demands failure/recovery and native-history workflows before
 reporting success. Do not treat its existence as executed evidence.
+
+Debug builds contain an owned, disabled-by-default composition-test IME. The acceptance
+runner selects it explicitly with adb and exercises actual Android `InputConnection`
+composition/update/commit events, then restores the emulator keyboard. Its control
+receiver requires the shell-only DUMP permission. Release source sets exclude the
+fixture; CI builds the release variant too and checks its manifest and debuggable flag.
+This is not certification of every vendor keyboard or Chinese candidate-selection UI.
+
+Explicit share exports retain cache copies for 24 hours so recipients can read them.
+Expired copies are removed before a new export; retained copies are limited to 12 and
+256 MiB total. New exports fail with a visible error at the limit rather than silently
+deleting a still-valid recipient file. Canceled shares obey the same retention policy.

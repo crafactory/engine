@@ -5,6 +5,7 @@ import {Keyboard} from '@capacitor/keyboard';
 import {Share} from '@capacitor/share';
 import type {Bridge} from '../types';
 import {createMobileStorage,encodeBytes,type MobileFilesystem} from './storage';
+import {retainExportCache,type CachedExport} from './export-cache';
 
 /** Must run before importing App or bridge.ts, which snapshots window.engine. */
 export async function bootstrapAndroid():Promise<Bridge>{
@@ -30,7 +31,7 @@ export async function bootstrapAndroid():Promise<Bridge>{
   };
   const bridge=await createMobileStorage(fs);
   const suspend=new Set<()=>Promise<void>>(),back=new Set<()=>Promise<boolean>>();
-  let keyboardOpen=false,handlingBack=false;
+  let keyboardOpen=false,handlingBack=false,exportBusy=false;
   const keyboard=(open:boolean)=>{keyboardOpen=open;document.body.classList.toggle('native-keyboard-open',open);};
   await Keyboard.addListener('keyboardWillShow',()=>keyboard(true));
   await Keyboard.addListener('keyboardDidShow',()=>keyboard(true));
@@ -56,12 +57,26 @@ export async function bootstrapAndroid():Promise<Bridge>{
     onSuspend:handler=>{suspend.add(handler);return()=>suspend.delete(handler);},
     onBack:handler=>{back.add(handler);return()=>back.delete(handler);},
     exportFile:async(name,content)=>{
+      if(exportBusy)throw new Error('An Android export is already in progress');
+      exportBusy=true;
+      try{
       // Only an explicit user export reaches the OS share sheet. Do not publish notes.
+      const exports:CachedExport[]=[];
+      let folders:Awaited<ReturnType<typeof Filesystem.readdir>>['files']=[];
+      try{folders=(await Filesystem.readdir({path:'exports',directory:Directory.Cache})).files;}
+      catch(error){if((error as {code?:string}).code!=='OS-PLUG-FILE-0008')throw error;folders=[];}
+      for(const folder of folders){
+        if(folder.type!=='directory'||!/^[a-f0-9-]{36}$/i.test(folder.name))continue;
+        const path='exports/'+folder.name,files=(await Filesystem.readdir({path,directory:Directory.Cache})).files;
+        exports.push({path,mtime:Math.max(folder.mtime,...files.map(file=>file.mtime)),bytes:files.reduce((sum,file)=>sum+file.size,0)});
+      }
+      await retainExportCache(exports,content.size,async path=>{await Filesystem.rmdir({path,directory:Directory.Cache,recursive:true});});
       const safe=name.replace(/[\\/\u0000-\u001f:]/g,'_')||'vault.zip';
       const path='exports/'+crypto.randomUUID()+'/'+safe;
       await Filesystem.writeFile({path,data:encodeBytes(new Uint8Array(await content.arrayBuffer())),directory:Directory.Cache,recursive:true});
       const {uri}=await Filesystem.getUri({path,directory:Directory.Cache});
       await Share.share({title:safe,dialogTitle:'Export from Crafactory Engine',files:[uri]});
+      }finally{exportBusy=false;}
     }
   };
 }

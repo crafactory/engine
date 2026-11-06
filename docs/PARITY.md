@@ -56,37 +56,37 @@ Reference names below follow the current
 Descriptions of Engine behavior refer to owned implementation and bounded tests, not to
 an inspection or copy of Obsidian implementation.
 
-| Core plugin | Status | Current subset and next gap |
-| --- | --- | --- |
-| Audio recorder | Implemented subset | Desktop browser MediaRecorder inserts a local recording. Device/codec behavior and Android microphone integration are unverified; no Android microphone permission is requested in this pilot. |
-| Backlinks | Implemented subset | Resolved backlinks and unlinked mentions exist. Full reference context, rename/refactor edge cases and large-vault behavior remain incomplete. |
-| Bases | Partial | Local `.base` table/list/cards views and a small extension view hook exist. Full formula, query, grouping, configuration and extension-view APIs do not. |
-| Bookmarks | Implemented subset | Note bookmarks exist. Groups, headings, saved searches and arbitrary URL bookmarks remain missing. |
-| Canvas | Implemented subset | Owned `.canvas` cards, connections, groups, zoom and editing exist. This is not the internal Obsidian Canvas API required by Excalidraw's embedded-canvas path; deep interoperability and mobile touch workflows remain unverified. |
-| Command palette | Implemented subset | Fuzzy commands, keyboard selection and hotkey display exist. Full ranking, pinning/recent behavior and arbitrary plugin command fidelity remain incomplete. |
-| Daily notes | Implemented subset | Configurable date format/folder/template and daily navigation exist. All locale/timezone/template combinations remain unverified. |
-| File explorer | Implemented subset | Files/folders, rename, move, trash and attachments exist with host path/version guards. No cross-process atomic lock, ACL preservation or power-loss guarantee is claimed. Android shared-folder selection is absent. |
-| File recovery | Implemented subset | Prior saved text versions and a recovery UI exist; up to 100 per file are retained. The Android backend has a separate private profile, not the desktop recovery directory. Unsaved-process-kill recovery is not certified. |
-| Footnotes view | Not implemented | Markdown footnotes render, but there is no dedicated current-note footnote list/navigation view. This is a distinct reference core workflow. |
-| Graph view | Implemented subset | Owned global/local force graph, filtering and basic interaction exist. Reference layout, visual controls and large-graph performance are not equivalent. |
-| Note composer | Implemented subset | Merge and selection extraction, including owned link handling, exist. Every reference refactor/metadata/link edge case remains unverified. |
-| Outgoing links | Implemented subset | Indexed outgoing and unresolved links exist. Full reference grouping/context/navigation behavior remains incomplete. |
-| Outline | Implemented subset | Heading navigation exists. Full drag/reorder/reference behavior and all plugin headings remain incomplete. |
-| Page preview | Implemented subset | Owned note-hover previews exist. Complete hover-parent ownership, popover behavior and plugin source integrations remain incomplete. |
-| Properties view | Implemented subset | Owned frontmatter/property editing and property indexing exist. Arbitrary property types, complete metadata-manager semantics and reference layout remain incomplete. |
-| Publish | Excluded | Excluded by project policy; not represented as implemented. |
-| Quick switcher | Implemented subset | Fuzzy note selection exists. Full ranking, context and modifier semantics remain incomplete. |
-| Random note | Implemented subset | Selects an eligible Markdown note. Full option/filter/reference behavior is not certified. |
-| Search | Implemented subset | Indexed text, owned operators and result navigation exist. Complete reference grammar, context, ranking and large-vault performance remain incomplete. |
-| Slash commands | Implemented subset | Shared command discovery/insertion exists. Full cursor, mobile keyboard and plugin-command behavior is not certified. |
-| Slides | Implemented subset | Markdown slide rendering/navigation exists. Complete presenter/export/reference behavior remains incomplete. |
-| Sync | Excluded | Excluded by project policy; not represented as implemented. |
-| Tags view | Implemented subset | Tag listing/filtering exists. Complete reference hierarchy, counts and interaction remain incomplete. |
-| Templates | Implemented subset | Template insertion and owned date/title expansion exist. Full third-party templating APIs/macros are not provided. |
-| Unique note creator | Implemented subset | Creates timestamp-formatted notes in a configured folder. Every collision/template/date-format case remains unverified. |
-| Web viewer | Implemented subset | Desktop embedded web views and owned navigation exist. Android remote frames are deliberately blocked; opening remote pages in a trusted native WebView is not enabled. Complete reference browser integration remains absent. |
-| Word count | Implemented subset | Active-document word/character counts exist. Reference tokenization/selection/locale behavior is not identical. |
-| Workspaces | Implemented subset | Saved layouts restore tabs, split, modes and sidebars. Arbitrary workspace-leaf/view hierarchy, every plugin state and mobile layout fidelity remain incomplete. |
+| Core plugin | Status | Current subset | Remaining boundary |
+| --- | --- | --- | --- |
+| Audio recorder | Implemented subset | Desktop browser MediaRecorder inserts a local recording. | Device/codec behavior and Android microphone integration are unverified; no Android microphone permission is requested in this pilot. |
+| Backlinks | Implemented subset | Resolved backlinks and unlinked mentions exist. | Full reference context, rename/refactor edge cases and large-vault behavior remain incomplete. |
+| Bases | Partial | Local `.base` table/list/cards views and a small extension view hook exist. | Full formula, query, grouping, configuration and extension-view APIs do not. |
+| Bookmarks | Implemented subset | Note bookmarks exist. | Groups, headings, saved searches and arbitrary URL bookmarks remain missing. |
+| Canvas | Implemented subset | Owned `.canvas` cards, connections, groups, zoom and editing exist. | This is not the internal Obsidian Canvas API required by Excalidraw's embedded-canvas path; deep interoperability and mobile touch workflows remain unverified. |
+| Command palette | Implemented subset | Fuzzy commands, keyboard selection and hotkey display exist. | Full ranking, pinning/recent behavior and arbitrary plugin command fidelity remain incomplete. |
+| Daily notes | Implemented subset | Configurable date format/folder/template and daily navigation exist. | All locale/timezone/template combinations remain unverified. |
+| File explorer | Implemented subset | Files/folders, rename, move, trash and attachments exist with host path/version guards. | No cross-process atomic lock, ACL preservation or power-loss guarantee is claimed. Android shared-folder selection is absent. |
+| File recovery | Implemented subset | Prior saved text versions and a recovery UI exist; up to 100 per file are retained. | The Android backend has a separate private profile, not the desktop recovery directory. Unsaved-process-kill recovery is not certified. |
+| Footnotes view | Not implemented | Markdown footnote syntax renders; that is adjacent behavior, not this view. | A dedicated current-note footnote list/navigation view is absent. |
+| Graph view | Implemented subset | Owned global/local force graph, filtering and basic interaction exist. | Reference layout, visual controls and large-graph performance are not equivalent. |
+| Note composer | Implemented subset | Merge and selection extraction, including owned link handling, exist. | Every reference refactor/metadata/link edge case remains unverified. |
+| Outgoing links | Implemented subset | Indexed outgoing and unresolved links exist. | Full reference grouping/context/navigation behavior remains incomplete. |
+| Outline | Implemented subset | Heading navigation exists. | Full drag/reorder/reference behavior and all plugin headings remain incomplete. |
+| Page preview | Implemented subset | Owned note-hover previews exist. | Complete hover-parent ownership, popover behavior and plugin source integrations remain incomplete. |
+| Properties view | Implemented subset | Owned frontmatter/property editing and property indexing exist. | Arbitrary property types, complete metadata-manager semantics and reference layout remain incomplete. |
+| Publish | Excluded | Not in project scope. | Excluded by project policy. |
+| Quick switcher | Implemented subset | Fuzzy note selection exists. | Full ranking, context and modifier semantics remain incomplete. |
+| Random note | Implemented subset | Selects an eligible Markdown note. | Full option/filter/reference behavior is not certified. |
+| Search | Implemented subset | Indexed text, owned operators and result navigation exist. | Complete reference grammar, context, ranking and large-vault performance remain incomplete. |
+| Slash commands | Implemented subset | Shared command discovery/insertion exists. | Full cursor, mobile keyboard and plugin-command behavior is not certified. |
+| Slides | Implemented subset | Markdown slide rendering/navigation exists. | Complete presenter/export/reference behavior remains incomplete. |
+| Sync | Excluded | Not in project scope. | Excluded by project policy. |
+| Tags view | Implemented subset | Tag listing/filtering exists. | Complete reference hierarchy, counts and interaction remain incomplete. |
+| Templates | Implemented subset | Template insertion and owned date/title expansion exist. | Full third-party templating APIs/macros are not provided. |
+| Unique note creator | Implemented subset | Creates timestamp-formatted notes in a configured folder. | Every collision/template/date-format case remains unverified. |
+| Web viewer | Implemented subset | Desktop embedded web views and owned navigation exist. | Android remote frames are deliberately blocked; opening remote pages in a trusted native WebView is not enabled. Complete reference browser integration remains absent. |
+| Word count | Implemented subset | Active-document word/character counts exist. | Reference tokenization/selection/locale behavior is not identical. |
+| Workspaces | Implemented subset | Saved layouts restore tabs, split, modes and sidebars. | Arbitrary workspace-leaf/view hierarchy, every plugin state and mobile layout fidelity remain incomplete. |
 
 Format converter remains an additional/legacy host workflow, not a newly verified current
 reference core plugin. Updating the reference list must not remove Engine's existing

@@ -7,92 +7,92 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 ## Core plugins
 
 - [ ] **CORE-audio-recorder Audio recorder**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Desktop browser MediaRecorder inserts a local recording. Device/codec behavior and Android microphone integration are unverified; no Android microphone permission is requested in this pilot.
-  - Remaining / boundary: Desktop browser MediaRecorder inserts a local recording. Device/codec behavior and Android microphone integration are unverified; no Android microphone permission is requested in this pilot.
+  - Current scope: Desktop browser MediaRecorder inserts a local recording.
+  - Remaining / boundary: Device/codec behavior and Android microphone integration are unverified; no Android microphone permission is requested in this pilot.
 - [ ] **CORE-backlinks Backlinks**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Resolved backlinks and unlinked mentions exist. Full reference context, rename/refactor edge cases and large-vault behavior remain incomplete.
-  - Remaining / boundary: Resolved backlinks and unlinked mentions exist. Full reference context, rename/refactor edge cases and large-vault behavior remain incomplete.
+  - Current scope: Resolved backlinks and unlinked mentions exist.
+  - Remaining / boundary: Full reference context, rename/refactor edge cases and large-vault behavior remain incomplete.
 - [ ] **CORE-bases Bases**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Local `.base` table/list/cards views and a small extension view hook exist. Full formula, query, grouping, configuration and extension-view APIs do not.
-  - Remaining / boundary: Local `.base` table/list/cards views and a small extension view hook exist. Full formula, query, grouping, configuration and extension-view APIs do not.
+  - Current scope: Local `.base` table/list/cards views and a small extension view hook exist.
+  - Remaining / boundary: Full formula, query, grouping, configuration and extension-view APIs do not.
 - [ ] **CORE-bookmarks Bookmarks**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Note bookmarks exist. Groups, headings, saved searches and arbitrary URL bookmarks remain missing.
-  - Remaining / boundary: Note bookmarks exist. Groups, headings, saved searches and arbitrary URL bookmarks remain missing.
+  - Current scope: Note bookmarks exist.
+  - Remaining / boundary: Groups, headings, saved searches and arbitrary URL bookmarks remain missing.
 - [ ] **CORE-canvas Canvas**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Owned `.canvas` cards, connections, groups, zoom and editing exist. This is not the internal Obsidian Canvas API required by Excalidraw's embedded-canvas path; deep interoperability and mobile touch workflows remain unverified.
-  - Remaining / boundary: Owned `.canvas` cards, connections, groups, zoom and editing exist. This is not the internal Obsidian Canvas API required by Excalidraw's embedded-canvas path; deep interoperability and mobile touch workflows remain unverified.
+  - Current scope: Owned `.canvas` cards, connections, groups, zoom and editing exist.
+  - Remaining / boundary: This is not the internal Obsidian Canvas API required by Excalidraw's embedded-canvas path; deep interoperability and mobile touch workflows remain unverified.
 - [ ] **CORE-command-palette Command palette**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Fuzzy commands, keyboard selection and hotkey display exist. Full ranking, pinning/recent behavior and arbitrary plugin command fidelity remain incomplete.
-  - Remaining / boundary: Fuzzy commands, keyboard selection and hotkey display exist. Full ranking, pinning/recent behavior and arbitrary plugin command fidelity remain incomplete.
+  - Current scope: Fuzzy commands, keyboard selection and hotkey display exist.
+  - Remaining / boundary: Full ranking, pinning/recent behavior and arbitrary plugin command fidelity remain incomplete.
 - [ ] **CORE-daily-notes Daily notes**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Configurable date format/folder/template and daily navigation exist. All locale/timezone/template combinations remain unverified.
-  - Remaining / boundary: Configurable date format/folder/template and daily navigation exist. All locale/timezone/template combinations remain unverified.
+  - Current scope: Configurable date format/folder/template and daily navigation exist.
+  - Remaining / boundary: All locale/timezone/template combinations remain unverified.
 - [ ] **CORE-file-explorer File explorer**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Files/folders, rename, move, trash and attachments exist with host path/version guards. No cross-process atomic lock, ACL preservation or power-loss guarantee is claimed. Android shared-folder selection is absent.
-  - Remaining / boundary: Files/folders, rename, move, trash and attachments exist with host path/version guards. No cross-process atomic lock, ACL preservation or power-loss guarantee is claimed. Android shared-folder selection is absent.
+  - Current scope: Files/folders, rename, move, trash and attachments exist with host path/version guards.
+  - Remaining / boundary: No cross-process atomic lock, ACL preservation or power-loss guarantee is claimed. Android shared-folder selection is absent.
 - [ ] **CORE-file-recovery File recovery**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Prior saved text versions and a recovery UI exist; up to 100 per file are retained. The Android backend has a separate private profile, not the desktop recovery directory. Unsaved-process-kill recovery is not certified.
-  - Remaining / boundary: Prior saved text versions and a recovery UI exist; up to 100 per file are retained. The Android backend has a separate private profile, not the desktop recovery directory. Unsaved-process-kill recovery is not certified.
+  - Current scope: Prior saved text versions and a recovery UI exist; up to 100 per file are retained.
+  - Remaining / boundary: The Android backend has a separate private profile, not the desktop recovery directory. Unsaved-process-kill recovery is not certified.
 - [ ] **CORE-footnotes-view Footnotes view**: missing. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Markdown footnotes render, but there is no dedicated current-note footnote list/navigation view. This is a distinct reference core workflow.
-  - Remaining / boundary: Markdown footnotes render, but there is no dedicated current-note footnote list/navigation view. This is a distinct reference core workflow.
+  - Current scope: Markdown footnote syntax renders; that is adjacent behavior, not this view.
+  - Remaining / boundary: A dedicated current-note footnote list/navigation view is absent.
 - [ ] **CORE-graph-view Graph view**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Owned global/local force graph, filtering and basic interaction exist. Reference layout, visual controls and large-graph performance are not equivalent.
-  - Remaining / boundary: Owned global/local force graph, filtering and basic interaction exist. Reference layout, visual controls and large-graph performance are not equivalent.
+  - Current scope: Owned global/local force graph, filtering and basic interaction exist.
+  - Remaining / boundary: Reference layout, visual controls and large-graph performance are not equivalent.
 - [ ] **CORE-note-composer Note composer**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Merge and selection extraction, including owned link handling, exist. Every reference refactor/metadata/link edge case remains unverified.
-  - Remaining / boundary: Merge and selection extraction, including owned link handling, exist. Every reference refactor/metadata/link edge case remains unverified.
+  - Current scope: Merge and selection extraction, including owned link handling, exist.
+  - Remaining / boundary: Every reference refactor/metadata/link edge case remains unverified.
 - [ ] **CORE-outgoing-links Outgoing links**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Indexed outgoing and unresolved links exist. Full reference grouping/context/navigation behavior remains incomplete.
-  - Remaining / boundary: Indexed outgoing and unresolved links exist. Full reference grouping/context/navigation behavior remains incomplete.
+  - Current scope: Indexed outgoing and unresolved links exist.
+  - Remaining / boundary: Full reference grouping/context/navigation behavior remains incomplete.
 - [ ] **CORE-outline Outline**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Heading navigation exists. Full drag/reorder/reference behavior and all plugin headings remain incomplete.
-  - Remaining / boundary: Heading navigation exists. Full drag/reorder/reference behavior and all plugin headings remain incomplete.
+  - Current scope: Heading navigation exists.
+  - Remaining / boundary: Full drag/reorder/reference behavior and all plugin headings remain incomplete.
 - [ ] **CORE-page-preview Page preview**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Owned note-hover previews exist. Complete hover-parent ownership, popover behavior and plugin source integrations remain incomplete.
-  - Remaining / boundary: Owned note-hover previews exist. Complete hover-parent ownership, popover behavior and plugin source integrations remain incomplete.
+  - Current scope: Owned note-hover previews exist.
+  - Remaining / boundary: Complete hover-parent ownership, popover behavior and plugin source integrations remain incomplete.
 - [ ] **CORE-properties-view Properties view**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Owned frontmatter/property editing and property indexing exist. Arbitrary property types, complete metadata-manager semantics and reference layout remain incomplete.
-  - Remaining / boundary: Owned frontmatter/property editing and property indexing exist. Arbitrary property types, complete metadata-manager semantics and reference layout remain incomplete.
+  - Current scope: Owned frontmatter/property editing and property indexing exist.
+  - Remaining / boundary: Arbitrary property types, complete metadata-manager semantics and reference layout remain incomplete.
 - [ ] **CORE-publish Publish**: excluded. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Excluded by project policy; not represented as implemented.
-  - Remaining / boundary: Excluded by project policy; not represented as implemented.
+  - Current scope: Not in project scope.
+  - Remaining / boundary: Excluded by project policy.
 - [ ] **CORE-quick-switcher Quick switcher**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Fuzzy note selection exists. Full ranking, context and modifier semantics remain incomplete.
-  - Remaining / boundary: Fuzzy note selection exists. Full ranking, context and modifier semantics remain incomplete.
+  - Current scope: Fuzzy note selection exists.
+  - Remaining / boundary: Full ranking, context and modifier semantics remain incomplete.
 - [ ] **CORE-random-note Random note**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Selects an eligible Markdown note. Full option/filter/reference behavior is not certified.
-  - Remaining / boundary: Selects an eligible Markdown note. Full option/filter/reference behavior is not certified.
+  - Current scope: Selects an eligible Markdown note.
+  - Remaining / boundary: Full option/filter/reference behavior is not certified.
 - [ ] **CORE-search Search**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Indexed text, owned operators and result navigation exist. Complete reference grammar, context, ranking and large-vault performance remain incomplete.
-  - Remaining / boundary: Indexed text, owned operators and result navigation exist. Complete reference grammar, context, ranking and large-vault performance remain incomplete.
+  - Current scope: Indexed text, owned operators and result navigation exist.
+  - Remaining / boundary: Complete reference grammar, context, ranking and large-vault performance remain incomplete.
 - [ ] **CORE-slash-commands Slash commands**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Shared command discovery/insertion exists. Full cursor, mobile keyboard and plugin-command behavior is not certified.
-  - Remaining / boundary: Shared command discovery/insertion exists. Full cursor, mobile keyboard and plugin-command behavior is not certified.
+  - Current scope: Shared command discovery/insertion exists.
+  - Remaining / boundary: Full cursor, mobile keyboard and plugin-command behavior is not certified.
 - [ ] **CORE-slides Slides**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Markdown slide rendering/navigation exists. Complete presenter/export/reference behavior remains incomplete.
-  - Remaining / boundary: Markdown slide rendering/navigation exists. Complete presenter/export/reference behavior remains incomplete.
+  - Current scope: Markdown slide rendering/navigation exists.
+  - Remaining / boundary: Complete presenter/export/reference behavior remains incomplete.
 - [ ] **CORE-sync Sync**: excluded. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Excluded by project policy; not represented as implemented.
-  - Remaining / boundary: Excluded by project policy; not represented as implemented.
+  - Current scope: Not in project scope.
+  - Remaining / boundary: Excluded by project policy.
 - [ ] **CORE-tags-view Tags view**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Tag listing/filtering exists. Complete reference hierarchy, counts and interaction remain incomplete.
-  - Remaining / boundary: Tag listing/filtering exists. Complete reference hierarchy, counts and interaction remain incomplete.
+  - Current scope: Tag listing/filtering exists.
+  - Remaining / boundary: Complete reference hierarchy, counts and interaction remain incomplete.
 - [ ] **CORE-templates Templates**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Template insertion and owned date/title expansion exist. Full third-party templating APIs/macros are not provided.
-  - Remaining / boundary: Template insertion and owned date/title expansion exist. Full third-party templating APIs/macros are not provided.
+  - Current scope: Template insertion and owned date/title expansion exist.
+  - Remaining / boundary: Full third-party templating APIs/macros are not provided.
 - [ ] **CORE-unique-note-creator Unique note creator**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Creates timestamp-formatted notes in a configured folder. Every collision/template/date-format case remains unverified.
-  - Remaining / boundary: Creates timestamp-formatted notes in a configured folder. Every collision/template/date-format case remains unverified.
+  - Current scope: Creates timestamp-formatted notes in a configured folder.
+  - Remaining / boundary: Every collision/template/date-format case remains unverified.
 - [ ] **CORE-web-viewer Web viewer**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Desktop embedded web views and owned navigation exist. Android remote frames are deliberately blocked; opening remote pages in a trusted native WebView is not enabled. Complete reference browser integration remains absent.
-  - Remaining / boundary: Desktop embedded web views and owned navigation exist. Android remote frames are deliberately blocked; opening remote pages in a trusted native WebView is not enabled. Complete reference browser integration remains absent.
+  - Current scope: Desktop embedded web views and owned navigation exist.
+  - Remaining / boundary: Android remote frames are deliberately blocked; opening remote pages in a trusted native WebView is not enabled. Complete reference browser integration remains absent.
 - [ ] **CORE-word-count Word count**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Active-document word/character counts exist. Reference tokenization/selection/locale behavior is not identical.
-  - Remaining / boundary: Active-document word/character counts exist. Reference tokenization/selection/locale behavior is not identical.
+  - Current scope: Active-document word/character counts exist.
+  - Remaining / boundary: Reference tokenization/selection/locale behavior is not identical.
 - [ ] **CORE-workspaces Workspaces**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Saved layouts restore tabs, split, modes and sidebars. Arbitrary workspace-leaf/view hierarchy, every plugin state and mobile layout fidelity remain incomplete.
-  - Remaining / boundary: Saved layouts restore tabs, split, modes and sidebars. Arbitrary workspace-leaf/view hierarchy, every plugin state and mobile layout fidelity remain incomplete.
+  - Current scope: Saved layouts restore tabs, split, modes and sidebars.
+  - Remaining / boundary: Arbitrary workspace-leaf/view hierarchy, every plugin state and mobile layout fidelity remain incomplete.
 
 ## Workspace, files and Markdown areas
 

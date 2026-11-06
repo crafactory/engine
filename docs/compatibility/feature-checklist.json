@@ -53,8 +53,8 @@
       "title": "Audio recorder",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Desktop browser MediaRecorder inserts a local recording. Device/codec behavior and Android microphone integration are unverified; no Android microphone permission is requested in this pilot.",
-      "remaining": "Desktop browser MediaRecorder inserts a local recording. Device/codec behavior and Android microphone integration are unverified; no Android microphone permission is requested in this pilot.",
+      "implemented": "Desktop browser MediaRecorder inserts a local recording.",
+      "remaining": "Device/codec behavior and Android microphone integration are unverified; no Android microphone permission is requested in this pilot.",
       "evidence": []
     },
     {
@@ -63,8 +63,8 @@
       "title": "Backlinks",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Resolved backlinks and unlinked mentions exist. Full reference context, rename/refactor edge cases and large-vault behavior remain incomplete.",
-      "remaining": "Resolved backlinks and unlinked mentions exist. Full reference context, rename/refactor edge cases and large-vault behavior remain incomplete.",
+      "implemented": "Resolved backlinks and unlinked mentions exist.",
+      "remaining": "Full reference context, rename/refactor edge cases and large-vault behavior remain incomplete.",
       "evidence": []
     },
     {
@@ -73,8 +73,8 @@
       "title": "Bases",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Local `.base` table/list/cards views and a small extension view hook exist. Full formula, query, grouping, configuration and extension-view APIs do not.",
-      "remaining": "Local `.base` table/list/cards views and a small extension view hook exist. Full formula, query, grouping, configuration and extension-view APIs do not.",
+      "implemented": "Local `.base` table/list/cards views and a small extension view hook exist.",
+      "remaining": "Full formula, query, grouping, configuration and extension-view APIs do not.",
       "evidence": []
     },
     {
@@ -83,8 +83,8 @@
       "title": "Bookmarks",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Note bookmarks exist. Groups, headings, saved searches and arbitrary URL bookmarks remain missing.",
-      "remaining": "Note bookmarks exist. Groups, headings, saved searches and arbitrary URL bookmarks remain missing.",
+      "implemented": "Note bookmarks exist.",
+      "remaining": "Groups, headings, saved searches and arbitrary URL bookmarks remain missing.",
       "evidence": []
     },
     {
@@ -93,8 +93,8 @@
       "title": "Canvas",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Owned `.canvas` cards, connections, groups, zoom and editing exist. This is not the internal Obsidian Canvas API required by Excalidraw's embedded-canvas path; deep interoperability and mobile touch workflows remain unverified.",
-      "remaining": "Owned `.canvas` cards, connections, groups, zoom and editing exist. This is not the internal Obsidian Canvas API required by Excalidraw's embedded-canvas path; deep interoperability and mobile touch workflows remain unverified.",
+      "implemented": "Owned `.canvas` cards, connections, groups, zoom and editing exist.",
+      "remaining": "This is not the internal Obsidian Canvas API required by Excalidraw's embedded-canvas path; deep interoperability and mobile touch workflows remain unverified.",
       "evidence": []
     },
     {
@@ -103,8 +103,8 @@
       "title": "Command palette",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Fuzzy commands, keyboard selection and hotkey display exist. Full ranking, pinning/recent behavior and arbitrary plugin command fidelity remain incomplete.",
-      "remaining": "Fuzzy commands, keyboard selection and hotkey display exist. Full ranking, pinning/recent behavior and arbitrary plugin command fidelity remain incomplete.",
+      "implemented": "Fuzzy commands, keyboard selection and hotkey display exist.",
+      "remaining": "Full ranking, pinning/recent behavior and arbitrary plugin command fidelity remain incomplete.",
       "evidence": []
     },
     {
@@ -113,8 +113,8 @@
       "title": "Daily notes",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Configurable date format/folder/template and daily navigation exist. All locale/timezone/template combinations remain unverified.",
-      "remaining": "Configurable date format/folder/template and daily navigation exist. All locale/timezone/template combinations remain unverified.",
+      "implemented": "Configurable date format/folder/template and daily navigation exist.",
+      "remaining": "All locale/timezone/template combinations remain unverified.",
       "evidence": []
     },
     {
@@ -123,8 +123,8 @@
       "title": "File explorer",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Files/folders, rename, move, trash and attachments exist with host path/version guards. No cross-process atomic lock, ACL preservation or power-loss guarantee is claimed. Android shared-folder selection is absent.",
-      "remaining": "Files/folders, rename, move, trash and attachments exist with host path/version guards. No cross-process atomic lock, ACL preservation or power-loss guarantee is claimed. Android shared-folder selection is absent.",
+      "implemented": "Files/folders, rename, move, trash and attachments exist with host path/version guards.",
+      "remaining": "No cross-process atomic lock, ACL preservation or power-loss guarantee is claimed. Android shared-folder selection is absent.",
       "evidence": []
     },
     {
@@ -133,8 +133,8 @@
       "title": "File recovery",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Prior saved text versions and a recovery UI exist; up to 100 per file are retained. The Android backend has a separate private profile, not the desktop recovery directory. Unsaved-process-kill recovery is not certified.",
-      "remaining": "Prior saved text versions and a recovery UI exist; up to 100 per file are retained. The Android backend has a separate private profile, not the desktop recovery directory. Unsaved-process-kill recovery is not certified.",
+      "implemented": "Prior saved text versions and a recovery UI exist; up to 100 per file are retained.",
+      "remaining": "The Android backend has a separate private profile, not the desktop recovery directory. Unsaved-process-kill recovery is not certified.",
       "evidence": []
     },
     {
@@ -143,8 +143,8 @@
       "title": "Footnotes view",
       "status": "missing",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Markdown footnotes render, but there is no dedicated current-note footnote list/navigation view. This is a distinct reference core workflow.",
-      "remaining": "Markdown footnotes render, but there is no dedicated current-note footnote list/navigation view. This is a distinct reference core workflow.",
+      "implemented": "Markdown footnote syntax renders; that is adjacent behavior, not this view.",
+      "remaining": "A dedicated current-note footnote list/navigation view is absent.",
       "evidence": []
     },
     {
@@ -153,8 +153,8 @@
       "title": "Graph view",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Owned global/local force graph, filtering and basic interaction exist. Reference layout, visual controls and large-graph performance are not equivalent.",
-      "remaining": "Owned global/local force graph, filtering and basic interaction exist. Reference layout, visual controls and large-graph performance are not equivalent.",
+      "implemented": "Owned global/local force graph, filtering and basic interaction exist.",
+      "remaining": "Reference layout, visual controls and large-graph performance are not equivalent.",
       "evidence": []
     },
     {
@@ -163,8 +163,8 @@
       "title": "Note composer",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Merge and selection extraction, including owned link handling, exist. Every reference refactor/metadata/link edge case remains unverified.",
-      "remaining": "Merge and selection extraction, including owned link handling, exist. Every reference refactor/metadata/link edge case remains unverified.",
+      "implemented": "Merge and selection extraction, including owned link handling, exist.",
+      "remaining": "Every reference refactor/metadata/link edge case remains unverified.",
       "evidence": []
     },
     {
@@ -173,8 +173,8 @@
       "title": "Outgoing links",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Indexed outgoing and unresolved links exist. Full reference grouping/context/navigation behavior remains incomplete.",
-      "remaining": "Indexed outgoing and unresolved links exist. Full reference grouping/context/navigation behavior remains incomplete.",
+      "implemented": "Indexed outgoing and unresolved links exist.",
+      "remaining": "Full reference grouping/context/navigation behavior remains incomplete.",
       "evidence": []
     },
     {
@@ -183,8 +183,8 @@
       "title": "Outline",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Heading navigation exists. Full drag/reorder/reference behavior and all plugin headings remain incomplete.",
-      "remaining": "Heading navigation exists. Full drag/reorder/reference behavior and all plugin headings remain incomplete.",
+      "implemented": "Heading navigation exists.",
+      "remaining": "Full drag/reorder/reference behavior and all plugin headings remain incomplete.",
       "evidence": []
     },
     {
@@ -193,8 +193,8 @@
       "title": "Page preview",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Owned note-hover previews exist. Complete hover-parent ownership, popover behavior and plugin source integrations remain incomplete.",
-      "remaining": "Owned note-hover previews exist. Complete hover-parent ownership, popover behavior and plugin source integrations remain incomplete.",
+      "implemented": "Owned note-hover previews exist.",
+      "remaining": "Complete hover-parent ownership, popover behavior and plugin source integrations remain incomplete.",
       "evidence": []
     },
     {
@@ -203,8 +203,8 @@
       "title": "Properties view",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Owned frontmatter/property editing and property indexing exist. Arbitrary property types, complete metadata-manager semantics and reference layout remain incomplete.",
-      "remaining": "Owned frontmatter/property editing and property indexing exist. Arbitrary property types, complete metadata-manager semantics and reference layout remain incomplete.",
+      "implemented": "Owned frontmatter/property editing and property indexing exist.",
+      "remaining": "Arbitrary property types, complete metadata-manager semantics and reference layout remain incomplete.",
       "evidence": []
     },
     {
@@ -213,8 +213,8 @@
       "title": "Publish",
       "status": "excluded",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Excluded by project policy; not represented as implemented.",
-      "remaining": "Excluded by project policy; not represented as implemented.",
+      "implemented": "Not in project scope.",
+      "remaining": "Excluded by project policy.",
       "evidence": []
     },
     {
@@ -223,8 +223,8 @@
       "title": "Quick switcher",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Fuzzy note selection exists. Full ranking, context and modifier semantics remain incomplete.",
-      "remaining": "Fuzzy note selection exists. Full ranking, context and modifier semantics remain incomplete.",
+      "implemented": "Fuzzy note selection exists.",
+      "remaining": "Full ranking, context and modifier semantics remain incomplete.",
       "evidence": []
     },
     {
@@ -233,8 +233,8 @@
       "title": "Random note",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Selects an eligible Markdown note. Full option/filter/reference behavior is not certified.",
-      "remaining": "Selects an eligible Markdown note. Full option/filter/reference behavior is not certified.",
+      "implemented": "Selects an eligible Markdown note.",
+      "remaining": "Full option/filter/reference behavior is not certified.",
       "evidence": []
     },
     {
@@ -243,8 +243,8 @@
       "title": "Search",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Indexed text, owned operators and result navigation exist. Complete reference grammar, context, ranking and large-vault performance remain incomplete.",
-      "remaining": "Indexed text, owned operators and result navigation exist. Complete reference grammar, context, ranking and large-vault performance remain incomplete.",
+      "implemented": "Indexed text, owned operators and result navigation exist.",
+      "remaining": "Complete reference grammar, context, ranking and large-vault performance remain incomplete.",
       "evidence": []
     },
     {
@@ -253,8 +253,8 @@
       "title": "Slash commands",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Shared command discovery/insertion exists. Full cursor, mobile keyboard and plugin-command behavior is not certified.",
-      "remaining": "Shared command discovery/insertion exists. Full cursor, mobile keyboard and plugin-command behavior is not certified.",
+      "implemented": "Shared command discovery/insertion exists.",
+      "remaining": "Full cursor, mobile keyboard and plugin-command behavior is not certified.",
       "evidence": []
     },
     {
@@ -263,8 +263,8 @@
       "title": "Slides",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Markdown slide rendering/navigation exists. Complete presenter/export/reference behavior remains incomplete.",
-      "remaining": "Markdown slide rendering/navigation exists. Complete presenter/export/reference behavior remains incomplete.",
+      "implemented": "Markdown slide rendering/navigation exists.",
+      "remaining": "Complete presenter/export/reference behavior remains incomplete.",
       "evidence": []
     },
     {
@@ -273,8 +273,8 @@
       "title": "Sync",
       "status": "excluded",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Excluded by project policy; not represented as implemented.",
-      "remaining": "Excluded by project policy; not represented as implemented.",
+      "implemented": "Not in project scope.",
+      "remaining": "Excluded by project policy.",
       "evidence": []
     },
     {
@@ -283,8 +283,8 @@
       "title": "Tags view",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Tag listing/filtering exists. Complete reference hierarchy, counts and interaction remain incomplete.",
-      "remaining": "Tag listing/filtering exists. Complete reference hierarchy, counts and interaction remain incomplete.",
+      "implemented": "Tag listing/filtering exists.",
+      "remaining": "Complete reference hierarchy, counts and interaction remain incomplete.",
       "evidence": []
     },
     {
@@ -293,8 +293,8 @@
       "title": "Templates",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Template insertion and owned date/title expansion exist. Full third-party templating APIs/macros are not provided.",
-      "remaining": "Template insertion and owned date/title expansion exist. Full third-party templating APIs/macros are not provided.",
+      "implemented": "Template insertion and owned date/title expansion exist.",
+      "remaining": "Full third-party templating APIs/macros are not provided.",
       "evidence": []
     },
     {
@@ -303,8 +303,8 @@
       "title": "Unique note creator",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Creates timestamp-formatted notes in a configured folder. Every collision/template/date-format case remains unverified.",
-      "remaining": "Creates timestamp-formatted notes in a configured folder. Every collision/template/date-format case remains unverified.",
+      "implemented": "Creates timestamp-formatted notes in a configured folder.",
+      "remaining": "Every collision/template/date-format case remains unverified.",
       "evidence": []
     },
     {
@@ -313,8 +313,8 @@
       "title": "Web viewer",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Desktop embedded web views and owned navigation exist. Android remote frames are deliberately blocked; opening remote pages in a trusted native WebView is not enabled. Complete reference browser integration remains absent.",
-      "remaining": "Desktop embedded web views and owned navigation exist. Android remote frames are deliberately blocked; opening remote pages in a trusted native WebView is not enabled. Complete reference browser integration remains absent.",
+      "implemented": "Desktop embedded web views and owned navigation exist.",
+      "remaining": "Android remote frames are deliberately blocked; opening remote pages in a trusted native WebView is not enabled. Complete reference browser integration remains absent.",
       "evidence": []
     },
     {
@@ -323,8 +323,8 @@
       "title": "Word count",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Active-document word/character counts exist. Reference tokenization/selection/locale behavior is not identical.",
-      "remaining": "Active-document word/character counts exist. Reference tokenization/selection/locale behavior is not identical.",
+      "implemented": "Active-document word/character counts exist.",
+      "remaining": "Reference tokenization/selection/locale behavior is not identical.",
       "evidence": []
     },
     {
@@ -333,8 +333,8 @@
       "title": "Workspaces",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Saved layouts restore tabs, split, modes and sidebars. Arbitrary workspace-leaf/view hierarchy, every plugin state and mobile layout fidelity remain incomplete.",
-      "remaining": "Saved layouts restore tabs, split, modes and sidebars. Arbitrary workspace-leaf/view hierarchy, every plugin state and mobile layout fidelity remain incomplete.",
+      "implemented": "Saved layouts restore tabs, split, modes and sidebars.",
+      "remaining": "Arbitrary workspace-leaf/view hierarchy, every plugin state and mobile layout fidelity remain incomplete.",
       "evidence": []
     },
     {

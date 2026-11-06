@@ -13,6 +13,7 @@ describe('cross-platform inventory line endings',()=>{
     const expected=parseParityLedger(lf,core,api),actual=parseParityLedger(windows,core,api);
     expect(actual).toEqual(expected);expect(actual.filter(i=>i.id.startsWith('CORE-'))).toHaveLength(29);
     expect(actual.every(i=>i.remaining&&!i.remaining.endsWith('|'))).toBe(true);
+    expect(actual.filter(i=>i.id.startsWith('CORE-')).every(i=>i.implemented!==i.remaining)).toBe(true);
   });
   it('generated Markdown compares identically in a Windows CRLF checkout',()=>{
     const markdown=normalizeText(fs.readFileSync(new URL('../docs/FEATURE-CHECKLIST.md',import.meta.url),'utf8'));

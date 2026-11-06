@@ -71,9 +71,10 @@ export async function createMobileStorage(fs:MobileFilesystem):Promise<Bridge>{
   /** Native rename-overwrite is exercised in emulator acceptance, not assumed crash-durable. */
   async function publish(path:string,data:string,binary=false){
     await directory(parent(path));
-    const temporary=path+'.engine-'+crypto.randomUUID();
-    try{await fs.write(temporary,data,binary);await fs.rename(temporary,path);}
-    finally{try{await fs.remove(temporary);}catch(error){if(!missing(error))console.error('Temporary file cleanup failed',error);}}
+    const temporary=parent(path)+'/.engine-write-'+crypto.randomUUID();
+    let renamed=false;
+    try{await fs.write(temporary,data,binary);await fs.rename(temporary,path);renamed=true;}
+    finally{if(!renamed)try{await fs.remove(temporary);}catch(error){if(!missing(error))console.error('Temporary file cleanup failed',error);}}
   }
   async function readText(path:string):Promise<Note>{
     relative(path);
@@ -126,7 +127,7 @@ export async function createMobileStorage(fs:MobileFilesystem):Promise<Bridge>{
     const entries:Entry[]=[];
     async function walk(path:string){
       for(const file of await fs.readdir(path)){
-        if(file.name.startsWith('.')||/\.engine-[a-f0-9-]{36}$/i.test(file.name))continue;
+        if((file.name.startsWith('.')&&file.type==='directory')||file.name.startsWith('.engine-write-')||/\.engine-[a-f0-9-]{36}$/i.test(file.name))continue;
         const full=path+'/'+file.name,relativePath=full.slice(VAULT.length+1);
         entries.push({path:relativePath,name:file.name,folder:file.type==='directory',size:file.size,mtime:file.mtime,ctime:file.ctime});
         if(file.type==='directory')await walk(full);
@@ -204,7 +205,8 @@ export async function createMobileStorage(fs:MobileFilesystem):Promise<Bridge>{
         if(item.type!=='directory'||!ID.test(item.name))continue;
         const folder=root+'/'+item.name,manifest=await json<PluginManifest|null>(folder+'/manifest.json',null);
         if(!manifest||manifest.id!==item.name)continue;
-        const codeInfo=await fs.stat(folder+'/main.js');if(codeInfo.size>MAX_TEXT)throw new Error('Oversized plugin package: '+item.name);
+        const codeInfo=await stat(folder+'/main.js');if(!codeInfo||codeInfo.type!=='file')continue;
+        if(codeInfo.size>MAX_TEXT)throw new Error('Oversized plugin package: '+item.name);
         const styleInfo=await stat(folder+'/styles.css');if(styleInfo&&styleInfo.size>4*1024*1024)throw new Error('Oversized plugin stylesheet: '+item.name);
         const code=await fs.read(folder+'/main.js'),styles=styleInfo?await fs.read(folder+'/styles.css'):undefined;
         result.push({manifest,code,...(styles?{styles}:{})});

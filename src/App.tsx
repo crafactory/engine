@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import {bridge,defaults} from './bridge';
 import {renameDestination} from './file-path';
+import {flushIndependent} from './services/flush-independent';
 import {readWorkspaceLayout} from './workspace-layout';
 import {recordPluginDocumentView,retirePluginFileViews,recoverPluginFileViews,type PluginDocumentView} from './plugin-document-views';
 import {title,isNote,frontmatter,setProperties,resolveLink,headings,applyTemplate,rewriteLinks} from './knowledge';
@@ -330,9 +331,10 @@ export function App(){
   const nativeBackHandler=useRef<()=>Promise<boolean>>(async()=>false);
   suspendHandler.current=async()=>{
     if(!loaded.current)return;
-    for(const controller of pluginStops.current.values())await controller.flushFileViews?.();
-    await Promise.all([...pluginRequests.current]);
-    await flush();await bridge.state(vaultState.current);
+    await flushIndependent([
+      ...[...pluginStops.current.values()].map(controller=>async()=>controller.flushFileViews?.()),
+      ()=>Promise.all([...pluginRequests.current]),()=>flush(),()=>bridge.state(vaultState.current)
+    ]);
   };
   nativeBackHandler.current=async()=>{
     if(dismissTopPluginModal())return true;
@@ -560,10 +562,11 @@ export function App(){
   function loadWorkspace(name:string){const w=workspacesRuntime.current?.service.get(name)??workspaces[name];if(w){setTabs(w.tabs);setActive(w.active);setSplit(w.split);setLeft(w.left);setRight(w.right);setMode(w.mode);}}
   async function exportVault(){
     try{
-      await flush();const {default:JSZip}=await import('jszip');const zip=new JSZip();
-      for(const e of entries.filter(e=>!e.folder)){
-        const note=notesRef.current.find(n=>n.path===e.path);
-        if(note)zip.file(e.path,note.content);
+      await flushIndependent([...pluginStops.current.values()].map(controller=>async()=>controller.flushFileViews?.()));
+      await Promise.all([...pluginRequests.current]);await flush();
+      const {default:JSZip}=await import('jszip');const zip=new JSZip();
+      for(const e of (await bridge.list()).filter(e=>!e.folder)){
+        if(textFile(e.path))zip.file(e.path,(await bridge.read(e.path)).content);
         else {const asset=await bridge.asset(e.path);if(asset.startsWith('data:'))zip.file(e.path,asset.split(',')[1],{base64:true});else if(asset){const response=await fetch(asset);zip.file(e.path,await response.blob());}}
       }
       zip.file('.crafactory/state.json',JSON.stringify({settings,bookmarks,workspaces,recent},null,2));
@@ -918,7 +921,7 @@ export function App(){
           {enabled('bookmarks')&&<IconButton label="Bookmarks" onClick={()=>{setLeft(true);setSideTab('bookmarks');}} active={sideTab==='bookmarks'}><Bookmark size={20}/></IconButton>}
           {enabled('tags')&&<IconButton label="Tags" onClick={()=>{setLeft(true);setSideTab('tags');}} active={sideTab==='tags'}><Hash size={20}/></IconButton>}
           {uiRibbon.map(item=><IconButton key={item.id} label={item.label} onClick={item.run}><Sparkles size={20}/></IconButton>)}
-          <div id="plugin-ribbon" aria-label="Plugin ribbon"/>
+          {!nativeAndroid&&<div id="plugin-ribbon" aria-label="Plugin ribbon"/>}
         </div>
         <div>{enabled('audio')&&<IconButton label={recording?'Stop recording':'Record audio'} onClick={audio} active={recording}><Mic size={19}/></IconButton>}<IconButton label="Open another vault" onClick={()=>chooseVault()}><HardDrive size={19}/></IconButton><IconButton label="Settings" onClick={()=>runCommand('settings')}><SettingsIcon size={20}/></IconButton></div>
       </nav>
@@ -961,10 +964,14 @@ export function App(){
       </aside>}
     </div>
     <footer className="statusbar"><span><span className={'status-dot '+(dirtyCount?'pending':'')}/>{dirtyCount?`${dirtyCount} unsaved`:persistent?'Saved locally':'Preview vault'}</span><span>{uiStatus.map(item=><span key={item.id} title={item.label}>{item.text}</span>)}{activeMarkdown&&enabled('words')?<>{words.toLocaleString()} words<span className="status-divider"/>{characters.toLocaleString()} characters</>:activeNote?active.split('.').pop()?.toUpperCase():''}</span><span>{recording&&<button onClick={audio}><Square size={12}/>Recording · Stop</button>}{mode==='reading'?'Reading':mode==='live'?'Live editing':'Source'}<span className="status-divider"/>{persistent?'Local-first':'Changes reset on refresh'}</span></footer>
+    {nativeAndroid&&<div className="mobile-plugin-actions" aria-label="Plugin actions">
+      {uiRibbon.map(item=><IconButton key={item.id} label={item.label} onClick={item.run}><Sparkles size={20}/></IconButton>)}
+      <div id="plugin-ribbon" aria-label="Plugin ribbon"/>
+    </div>}
     {nativeAndroid&&<nav className="mobile-nav" aria-label="Mobile navigation">
       <button aria-label="Mobile files" aria-pressed={left&&sideTab==='files'} onClick={()=>{setRight(false);setSideTab('files');setLeft(value=>sideTab!=='files'||!value);}}><Files size={21}/><span>Files</span></button>
-      <button aria-label="Mobile search" aria-pressed={left&&sideTab==='search'} onClick={()=>{setRight(false);setSideTab('search');setLeft(true);}}><Search size={21}/><span>Search</span></button>
-      <button aria-label="Mobile commands" onClick={()=>{setLeft(false);setRight(false);setPalette('commands');}}><Terminal size={21}/><span>Commands</span></button>
+      <button aria-label="Mobile search" disabled={!enabled('search')} aria-pressed={left&&sideTab==='search'} onClick={()=>{if(enabled('search')){setRight(false);setSideTab('search');setLeft(true);}}}><Search size={21}/><span>Search</span></button>
+      <button aria-label="Mobile commands" disabled={!enabled('commands')} onClick={()=>{if(enabled('commands')){setLeft(false);setRight(false);setPalette('commands');}}}><Terminal size={21}/><span>Commands</span></button>
       <button aria-label="Mobile settings" onClick={()=>{setLeft(false);setRight(false);setShowSettings(true);}}><SettingsIcon size={21}/><span>Settings</span></button>
     </nav>}
     {enabled('graph')&&activeNote&&<nav className="compact-context" aria-label="Compact note context"><button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button></nav>}

@@ -12,7 +12,8 @@ import JSZip from 'jszip';
 const APP='com.crafactory.engine',APK=path.resolve('android/app/build/outputs/apk/debug/app-debug.apk');
 const output=path.resolve('test-results-android');await fs.mkdir(output,{recursive:true});
 const records=[],errors=[],consoleErrors=[],expectedConsoleErrorIndexes=new Set();
-const metadata={testedHead:process.env.ENGINE_TESTED_HEAD||'',apkSha256:'',androidApi:'',webView:''};
+const metadata={testedHead:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),apkSha256:'',androidApi:'',webView:''};
+if(process.env.ENGINE_TESTED_HEAD)assert.equal(metadata.testedHead,process.env.ENGINE_TESTED_HEAD,'Acceptance must run the attributed checkout');
 let browser,page;
 const quote=value=>"'"+value.replaceAll("'","'\\''")+"'";
 const adb=(...args)=>execFileSync('adb',args,{encoding:'utf8',timeout:30000,maxBuffer:16*1024*1024});
@@ -21,6 +22,10 @@ const readNative=relative=>shell(`run-as ${APP} cat ${quote('files/'+relative)}`
 const rawNative=relative=>execFileSync('adb',['exec-out',`run-as ${APP} cat ${quote(relative)}`],{maxBuffer:64*1024*1024});
 const readJSON=relative=>JSON.parse(readNative(relative));
 const resumed=()=>/mResumedActivity:.*com\.crafactory\.engine|topResumedActivity=.*com\.crafactory\.engine/.test(shell('dumpsys activity activities'));
+async function nativeTap(locator){
+  const rect=await locator.boundingBox(),ratio=await page.evaluate(()=>devicePixelRatio);assert(rect);
+  shell(`input tap ${Math.round((rect.x+40)*ratio)} ${Math.round((rect.y+40)*ratio)}`);
+}
 async function writeNative(relative,bytes){
   const full='files/'+relative,command=`mkdir -p ${quote(path.posix.dirname(full))} && cat > ${quote(full)}`;
   execFileSync('adb',['shell','-T',`run-as ${APP} sh -c ${quote(command)}`],{input:bytes,timeout:30000});
@@ -91,10 +96,14 @@ const probe=`const {Plugin,Platform}=require('obsidian');
 module.exports=class NativeProbe extends Plugin {
   async onload(){
     await this.saveData({appMobile:this.app.isMobile,renderer:typeof document!=='undefined',...Platform});
-    if(typeof document!=='undefined')this.addCommand({id:'modal',name:'Open native probe modal',callback:()=>{
+    if(typeof document!=='undefined'){
+      const open=()=>{
       const {Modal}=require('obsidian');const modal=new Modal(this.app);modal.setTitle('Native probe modal');
       modal.contentEl.textContent='Native Back closes only this modal.';modal.open();
-    }});
+      };
+      this.addCommand({id:'modal',name:'Open native probe modal',callback:open});
+      this.addRibbonIcon('check','Native ribbon probe',open);
+    }
   }
 };`;
 function png(width,height){
@@ -136,6 +145,8 @@ try{
     metadata.androidApi=shell('getprop ro.build.version.sdk').trim();
     adb('install','-r',APK);
     await writeNative('vault/'+notePath,initial);await writeNative('vault/pixel.png',png(32,16));
+    await writeNative('vault/.photo.png',png(32,16));
+    await writeNative('vault/.crafactory/plugins/incomplete/manifest.json',JSON.stringify({id:'incomplete',name:'Incomplete',version:'1.0.0'}));
     await writeNative('engine-profile/state.json',JSON.stringify({settings:{mode:'source',css},layout:{tabs:[notePath],active:notePath,split:null,left:false,right:false,mode:'source'}}));
     for(const [id,name,desktop,code]of [
       ['native-probe','Original Native Probe',false,probe],
@@ -221,6 +232,10 @@ try{
   });
   await step('native history restores exact saved bytes after restart',async()=>{
     await page.evaluate(async()=>{
+      const path='a'.repeat(220)+'.md',long=await window.engine.create(path,'first');
+      await window.engine.write(path,'second',long.version);
+      if((await window.engine.read(path)).content!=='second')throw new Error('Long native basename did not persist');
+      await window.engine.trash(path);
       const first=await window.engine.create('Recovery probe.md','Original 中文\n');
       await window.engine.write(first.path,'Replacement\n',first.version);
     });
@@ -239,6 +254,18 @@ try{
     shell('input keyevent 4');await expect(page.locator('.left-sidebar')).toHaveCount(0);
     await page.getByRole('button',{name:'Mobile search',exact:true}).click();await expect(page.locator('.left-sidebar')).toBeVisible();
     shell('input keyevent 4');await expect(page.locator('.left-sidebar')).toHaveCount(0);
+    await page.getByRole('button',{name:'Mobile settings',exact:true}).click();
+    await page.getByRole('button',{name:'Core plugins',exact:true}).click();
+    await page.getByRole('switch',{name:'Enable Search',exact:true}).uncheck();
+    await page.getByRole('switch',{name:'Enable Command palette',exact:true}).uncheck();
+    await closeSettings();
+    await expect(page.getByRole('button',{name:'Mobile search',exact:true})).toBeDisabled();
+    await expect(page.getByRole('button',{name:'Mobile commands',exact:true})).toBeDisabled();
+    await page.getByRole('button',{name:'Mobile settings',exact:true}).click();
+    await page.getByRole('button',{name:'Core plugins',exact:true}).click();
+    await page.getByRole('switch',{name:'Enable Search',exact:true}).check();
+    await page.getByRole('switch',{name:'Enable Command palette',exact:true}).check();
+    await closeSettings();
     await community();
     await expect(page.getByRole('switch',{name:'Enable Desktop-only Probe',exact:true})).toBeDisabled();
     await expect(page.getByRole('switch',{name:'Allow unsafe-eval in trusted renderer',exact:true})).toBeDisabled();
@@ -254,6 +281,9 @@ try{
     await enable('Original Native Probe');
     await expect.poll(()=>readJSON('engine-profile/plugins/native-probe.json'),{timeout:15000}).toMatchObject({appMobile:true,renderer:true,isMobile:true,isPhone:true,isAndroidApp:true,isDesktopApp:false});
     await closeSettings();await command('Open native probe modal');
+    await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toBeVisible();
+    shell('input keyevent 4');await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toHaveCount(0);
+    await page.getByRole('button',{name:'Native ribbon probe',exact:true}).click();
     await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toBeVisible();
     shell('input keyevent 4');await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toHaveCount(0);
     await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible();
@@ -304,10 +334,18 @@ try{
   await step('background flush does not unload plugins; restart keeps values but not trust',async()=>{
     await page.getByRole('button',{name:'Source mode',exact:true}).click();
     await page.locator('.editor .cm-content').first().click();await page.keyboard.press('Control+End');
-    await page.keyboard.insertText('Background save\n');expectedText+='Background save\n';
-    // Background immediately rather than waiting for the ordinary autosave to settle.
-    shell('input keyevent 3');
-    await expect.poll(()=>readNative('vault/'+notePath),{timeout:15000}).toBe(expectedText);
+    // Hold 500ms autosaves beyond this entire assertion window: only native lifecycle
+    // persistence can satisfy the exact-byte check. Restore the timer API afterward.
+    await page.evaluate(()=>{
+      window.__originalTimeout=window.setTimeout;
+      window.setTimeout=(handler,delay,...args)=>window.__originalTimeout(handler,delay===500?60000:delay,...args);
+    });
+    try{
+      await page.keyboard.insertText('Background save\n');expectedText+='Background save\n';
+      assert.notEqual(readNative('vault/'+notePath),expectedText,'Draft must be dirty before background');
+      shell('input keyevent 3');
+      await expect.poll(()=>readNative('vault/'+notePath),{timeout:15000}).toBe(expectedText);
+    }finally{await page.evaluate(()=>{window.setTimeout=window.__originalTimeout;delete window.__originalTimeout;});}
     shell(`am start -n ${APP}/.MainActivity`);
     await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible();
     await expect.poll(effects).toEqual(['wide','14px','18px']);
@@ -327,6 +365,9 @@ try{
     const file=shell(`run-as ${APP} find cache/exports -name '*.zip'`).trim().split('\n')[0];
     const zipBytes=rawNative(file);
     const zip=await JSZip.loadAsync(zipBytes);assert.equal(await zip.file(notePath).async('string'),expectedText);
+    assert.deepEqual(Buffer.from(await zip.file('.photo.png').async('uint8array')),png(32,16));
+    await expect(page.locator('.error-banner')).toHaveCount(0);
+    await expect.poll(()=>shell('dumpsys activity activities'),{timeout:10000}).toMatch(/(?:mResumedActivity:|topResumedActivity=).*ChooserActivity/);
     shell('input keyevent 4'); // dismiss the OS chooser; no content is sent to a recipient
     await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible();
     const sdk=process.env.ANDROID_HOME||process.env.ANDROID_SDK_ROOT;assert(sdk);
@@ -335,8 +376,13 @@ try{
     const permissions=execFileSync(aapt,['dump','permissions',APK],{encoding:'utf8'});
     await fs.writeFile(path.join(output,'permissions.txt'),permissions);
     assert.doesNotMatch(permissions,/android\.permission\.(?:READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA|CAMERA|RECORD_AUDIO|ACCESS_FINE_LOCATION)/);
+    const releaseApk=path.resolve('android/app/build/outputs/apk/release/app-release-unsigned.apk');
+    const releaseManifest=execFileSync(aapt,['dump','xmltree',releaseApk,'AndroidManifest.xml'],{encoding:'utf8'});
+    assert(!/CompositionIme|TEST_COMPOSITION/.test(releaseManifest),'Release must exclude debug IME/receiver');
+    assert(!/application-debuggable/.test(execFileSync(aapt,['dump','badging',releaseApk],{encoding:'utf8'})),'Release must not be debuggable');
+    metadata.releaseApkSha256=crypto.createHash('sha256').update(await fs.readFile(releaseApk)).digest('hex');
     await fs.writeFile(path.join(output,'android-final.png'),execFileSync('adb',['exec-out','screencap','-p']));
-    assert(resumed(),'App must be foreground before final root Back');
+    await expect.poll(resumed,{timeout:10000}).toBe(true);
     shell('input keyevent 4');
     await expect.poll(resumed,{timeout:10000}).toBe(false);
     assert.equal(readNative('vault/'+notePath),expectedText);
