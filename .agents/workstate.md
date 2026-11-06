@@ -33,14 +33,15 @@ Expanded unchanged Style Settings verifies five controls, exact plugin data/CSS 
 the missing SliderComponent.setDynamicTooltip was implemented. `68411f0` adds only a
 driver/static test; 904/55 units and its cloud Verify, packaging and independent corpus pass.
 
-Native run `42182521464` on `fcd3b9d` accepts seven complete groups, including real IME,
+Native run `42183518337` on `0c912cf` accepts eight complete groups, including real IME,
 assets/history, rotation/worker/renderer identity, modal/ribbon Back, unchanged pinned
-Style Settings and native save failure/root-Back recovery. Eighth-group background bytes
-pass, then navigation races restored editor IME. Pending driver explicitly foregrounds/
-focuses and Back-hides observed keyboard before navigating; production behavior unchanged.
+Style Settings, native save failure/root-Back recovery, isolated background save and
+restart data/trust recovery. Final group races the async export before its cache dir exists.
+Pending driver waits for the real Android chooser before reading and byte-checking ZIP.
 Strict original IME parser requires bound input view AND visible window, not request flags,
-and retains complete dumps. Full local frozen regression is running as command 49978.
-No overall Android pass, restart/trust recovery or export group is accepted yet.
+and retains complete dumps. Frozen `fcd3b9d` runtime passes 911/56 units, 70 browser,
+104 Electron including all 22 corpus/no skips, and 23 actual Linux-package vault cases.
+No overall Android pass or export group is accepted yet.
 
 ## Next increments
 

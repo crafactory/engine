@@ -382,13 +382,15 @@ try{
   });
   await step('explicit native ZIP export, no broad storage permissions and root Back',async()=>{
     await command('Export entire vault');
-    await expect.poll(()=>shell(`run-as ${APP} find cache/exports -name '*.zip'`),{timeout:15000}).toContain('.zip');
+    // The command starts an async flush/ZIP/native-write flow. A real chooser can
+    // only appear after its cache file and share URI exist; do not race missing dirs.
+    await expect.poll(()=>shell('dumpsys activity activities'),{timeout:15000}).toMatch(/(?:mResumedActivity:|topResumedActivity=).*ChooserActivity/);
     const file=shell(`run-as ${APP} find cache/exports -name '*.zip'`).trim().split('\n')[0];
+    assert(file.endsWith('.zip'),'Native chooser must reference a retained ZIP');
     const zipBytes=rawNative(file);
     const zip=await JSZip.loadAsync(zipBytes);assert.equal(await zip.file(notePath).async('string'),expectedText);
     assert.deepEqual(Buffer.from(await zip.file('.photo.png').async('uint8array')),png(32,16));
     await expect(page.locator('.error-banner')).toHaveCount(0);
-    await expect.poll(()=>shell('dumpsys activity activities'),{timeout:10000}).toMatch(/(?:mResumedActivity:|topResumedActivity=).*ChooserActivity/);
     shell('input keyevent 4'); // dismiss the OS chooser; no content is sent to a recipient
     await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible();
     const sdk=process.env.ANDROID_HOME||process.env.ANDROID_SDK_ROOT;assert(sdk);
