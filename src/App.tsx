@@ -372,13 +372,14 @@ export function App(){
     return false;
   };
   useEffect(()=>{
-    if(loading)return;
+    // Shell drawers/settings are usable while plugin discovery keeps the editor loading.
+    // Own Back and suspend for the whole mounted shell, not only after discovery ends.
     const offSuspend=bridge.onSuspend?.(()=>suspendHandler.current());
     const offBack=bridge.onBack?.(()=>nativeBackHandler.current());
     const failed=(event:Event)=>report((event as CustomEvent).detail);
     window.addEventListener('engine:native-error',failed);
     return()=>{offSuspend?.();offBack?.();window.removeEventListener('engine:native-error',failed);};
-  },[loading]);
+  },[]);
   useEffect(()=>{
     const unload=(event:BeforeUnloadEvent)=>{if(notesRef.current.some(n=>savedContent.current.get(n.path)!==n.content)){event.preventDefault();event.returnValue='There are unsaved changes.';}};
     window.addEventListener('beforeunload',unload);return()=>window.removeEventListener('beforeunload',unload);

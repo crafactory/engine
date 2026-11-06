@@ -32,6 +32,11 @@ Cloud corpus exposed late Excalidraw release notes; an exact-dialog close-button
 replaces fixed-delay dismissal. Neither change weakens original acceptance assertions.
 Frozen e31b3f7 runtime passes 929/57 units, 74 browser and 105 Electron/all 22 corpus/no skips.
 Three new launcher-recovery parser cases plus static driver checks pass.
+8faf65b passes both cloud Verify runs, three-platform packaging and independent corpus.
+Native replay passes four groups then exposes real startup Back ownership: subscriptions
+were gated on loading even though shell drawers are interactive. Register them for the
+mounted shell; a gated-discovery browser regression fails before and passes after.
+This new production repair needs its own full replay and all exact-head gates.
 The old parity ledger incorrectly retained Mobile "Not implemented" after #76 passed;
 align it with the actual nine-group pilot, without upgrading production/device claims.
 `docs/FOOTNOTES.md` defines contracts, not a passing verdict.

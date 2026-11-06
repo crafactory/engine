@@ -8,11 +8,12 @@
 ## Footnotes list, editing and reference navigation
 
 [PR #77](https://github.com/crafactory/engine/pull/77) adds a real active-note Footnotes
-view, not syntax-rendering-only acceptance. The production runtime frozen at `e31b3f7`
+view, not syntax-rendering-only acceptance. The Worker runtime at historical `e31b3f7`
 passes 929 units/57 files, all 74 browser cases and all 105 Electron cases including
 22 unchanged pinned corpus scenarios with no skips. Cold-cache browser startup and actual
 native desktop source bytes/restart also pass with parsing in a dedicated module Worker.
-The later driver/documentation follow-up does not change production application code.
+The intermediate `8faf65b` driver/documentation follow-up does not change production
+application code, and passes 932 units after three additional driver parser cases.
 The workflow and semantic boundaries are in [FOOTNOTES.md](FOOTNOTES.md).
 
 The [effective CodeRabbit review](https://github.com/crafactory/engine/pull/77#pullrequestreview-5798544205)
@@ -31,6 +32,15 @@ positive parser tests constrain the recovery. Independent Excalidraw acceptance 
 late release-notes dialog intercepting a command: the driver closes that specific visible
 dialog via its normal close button whenever it appears, rather than assuming a 750ms delay
 was sufficient. Original scene, persistence, restart and error assertions remain unchanged.
+
+A subsequent native replay passed composition, assets and history, then exposed a real
+startup defect: the shell allows drawers/settings while plugin discovery is pending, but
+Back ownership was only registered after `loading` ended. The application minimized rather
+than closing the drawer. Native Back/suspend subscriptions now span the mounted shell.
+An owned browser-bridge regression deliberately holds discovery pending: the old application
+returns `false` with its drawer visibly open; the repaired application consumes Back for
+drawers/settings both before and after discovery. This is a reproducible regression, not
+native acceptance. The final runtime requires its own full replay and native gate.
 
 Merge requires the exact final-head Verify, three-platform packaging, independent corpus
 and all ten native Android groups, plus downloaded report/hash and screenshot inspection.
