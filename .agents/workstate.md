@@ -26,14 +26,20 @@ Repairs preserve raw source labels, index literal ranges, parse in a dedicated W
 clean pending jumps when notes change and distinguish historical Android evidence.
 Cold-cache four-case browser replay, check/build and native footnotes disk/restart pass.
 The earlier 773cfb8 full regression is historical, not evidence for the Worker runtime.
-Android attempts on that earlier head failed on launcher ANR/device offline, not a pass.
+Android attempts failed on launcher ANR/device offline, not a pass. Native screenshot and
+window dump justify a bounded, evidence-preserving exact Pixel Launcher recovery only.
+Cloud corpus exposed late Excalidraw release notes; an exact-dialog close-button handler
+replaces fixed-delay dismissal. Neither change weakens original acceptance assertions.
+Frozen e31b3f7 runtime passes 929/57 units, 74 browser and 105 Electron/all 22 corpus/no skips.
+Three new launcher-recovery parser cases plus static driver checks pass.
 The old parity ledger incorrectly retained Mobile "Not implemented" after #76 passed;
 align it with the actual nine-group pilot, without upgrading production/device claims.
 `docs/FOOTNOTES.md` defines contracts, not a passing verdict.
 
 ## Next increments
 
-- Commit review repairs, reply/resolve four threads and run full sequential regression.
+- Commit driver/documentation follow-up and rerun all exact-final-head cloud gates.
+  The initial effective review's four repaired threads are resolved.
 - Require all final-head Verify, three-platform packaging, ten-group Android and independent
   pinned corpus gates; inspect artifacts/screenshots and fix findings before merge.
 - Keep `docs/PLUGIN-SUPPORT-MATRIX.md` the single external-plugin verdict tracker.

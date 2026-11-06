@@ -8,12 +8,12 @@ import {setTimeout as wait} from 'node:timers/promises';
 import {deflateSync} from 'node:zlib';
 import {chromium,expect} from '@playwright/test';
 import JSZip from 'jszip';
-import {imeInputViewVisible} from './android-ime-state.mjs';
+import {imeInputViewVisible,launcherAnrVisible} from './android-ime-state.mjs';
 
 const APP='com.crafactory.engine',APK=path.resolve('android/app/build/outputs/apk/debug/app-debug.apk');
 const output=path.resolve('test-results-android');await fs.mkdir(output,{recursive:true});
 const records=[],errors=[],consoleErrors=[],expectedConsoleErrorIndexes=new Set();
-const metadata={testedHead:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),apkSha256:'',androidApi:'',webView:''};
+const metadata={testedHead:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),apkSha256:'',androidApi:'',webView:'',launcherAnrRecoveries:[]};
 if(process.env.ENGINE_TESTED_HEAD)assert.equal(metadata.testedHead,process.env.ENGINE_TESTED_HEAD,'Acceptance must run the attributed checkout');
 let browser,page;
 const quote=value=>"'"+value.replaceAll("'","'\\''")+"'";
@@ -23,6 +23,17 @@ const readNative=relative=>shell(`run-as ${APP} cat ${quote('files/'+relative)}`
 const rawNative=relative=>execFileSync('adb',['exec-out',`run-as ${APP} cat ${quote(relative)}`],{maxBuffer:64*1024*1024});
 const readJSON=relative=>JSON.parse(readNative(relative));
 const resumed=()=>/mResumedActivity:.*com\.crafactory\.engine|topResumedActivity=.*com\.crafactory\.engine/.test(shell('dumpsys activity activities'));
+async function recoverLauncherAnr(){
+  const dump=shell('dumpsys window windows');
+  if(!launcherAnrVisible(dump))return;
+  assert.equal(metadata.launcherAnrRecoveries.length,0,'Repeated system-launcher ANR is not accepted');
+  await fs.writeFile(path.join(output,'recovered-launcher-anr-window.txt'),dump);
+  await fs.writeFile(path.join(output,'recovered-launcher-anr.png'),execFileSync('adb',['exec-out','screencap','-p']));
+  // The screenshot/window dump identifies Pixel Launcher, never Engine. Preserve it
+  // and close only that system package; application ANRs and all assertions still fail.
+  shell('am force-stop com.google.android.apps.nexuslauncher');
+  metadata.launcherAnrRecoveries.push({package:'com.google.android.apps.nexuslauncher',evidence:'recovered-launcher-anr-window.txt'});
+}
 async function keyboardVisibility(){
   const dump=shell('dumpsys input_method');
   await fs.writeFile(path.join(output,'input-method-latest.txt'),dump);
@@ -201,6 +212,7 @@ try{
     try{
       shell('ime enable '+quote(fixtureIme));shell('ime set '+quote(fixtureIme));
       await expect.poll(async()=>{
+        await recoverLauncherAnr();
         shell(`am start -n ${APP}/.MainActivity`);
         if(shell('settings get secure default_input_method').trim()!==fixtureIme)shell('ime set '+quote(fixtureIme));
         await editor.click();await nativeTap(editor);
@@ -230,6 +242,7 @@ try{
     await restart();
     const keyboardEditor=page.locator('.editor .cm-content').first();
     // A real Android touch focuses the editor and must show the emulator's actual IME.
+    await recoverLauncherAnr();
     const rect=await keyboardEditor.boundingBox(),ratio=await page.evaluate(()=>devicePixelRatio);assert(rect);
     shell(`input tap ${Math.round((rect.x+40)*ratio)} ${Math.round((rect.y+40)*ratio)}`);
     await expect.poll(keyboardVisibility,{timeout:15000}).toEqual({native:true,reported:true});

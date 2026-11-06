@@ -5,6 +5,40 @@
 > plugin status see [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); for API boundaries
 > see [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md).
 
+## Footnotes list, editing and reference navigation
+
+[PR #77](https://github.com/crafactory/engine/pull/77) adds a real active-note Footnotes
+view, not syntax-rendering-only acceptance. The production runtime frozen at `e31b3f7`
+passes 929 units/57 files, all 74 browser cases and all 105 Electron cases including
+22 unchanged pinned corpus scenarios with no skips. Cold-cache browser startup and actual
+native desktop source bytes/restart also pass with parsing in a dedicated module Worker.
+The later driver/documentation follow-up does not change production application code.
+The workflow and semantic boundaries are in [FOOTNOTES.md](FOOTNOTES.md).
+
+The [effective CodeRabbit review](https://github.com/crafactory/engine/pull/77#pullrequestreview-5798544205)
+identified raw-label entity decoding, stale pending-jump cleanup, parser performance and
+historical Android evidence attribution. All four were repaired and their threads resolved.
+Raw labels remain distinct, literal ranges are indexed, comments use chunk joins,
+unterminated prefixes use a bracket stack, and parsing never runs in the editor thread.
+A delayed real-Worker test changes source before parser startup finishes; a separate case
+switches active notes. Host path/content guards remain mandatory.
+
+Cloud failures remain diagnostic evidence, not accepted passes. The initial final-runtime
+Android attempt stopped on a visible Pixel Launcher ANR, captured in a native screenshot
+and window dump. The driver may preserve and close that exact system package once, never
+an Engine ANR or another package; repeated launcher failures still fail. Three negative/
+positive parser tests constrain the recovery. Independent Excalidraw acceptance exposed a
+late release-notes dialog intercepting a command: the driver closes that specific visible
+dialog via its normal close button whenever it appears, rather than assuming a 750ms delay
+was sufficient. Original scene, persistence, restart and error assertions remain unchanged.
+
+Merge requires the exact final-head Verify, three-platform packaging, independent corpus
+and all ten native Android groups, plus downloaded report/hash and screenshot inspection.
+Those run URLs and the final accepted head belong to the
+[PR record](https://github.com/crafactory/engine/pull/77). No failed native run or earlier
+#76 artifact certifies this source. Full reference equivalence, all plugin features,
+production Android signing/shared vaults and broad device acceptance remain unfinished.
+
 ## Shared-code Android and expanded plugin controls
 
 Final #76 source `ab4fbbed7370d8bf4d4a3571536040d7eecbbcac` passed the strengthened

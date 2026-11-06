@@ -58,12 +58,16 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
   let app=await launch();
   try{
     const pageErrors:string[]=[],consoleErrors:string[]=[],orderedErrors:string[]=[];
-    let page=await app.firstWindow();const trackPage=()=>{
+    let page=await app.firstWindow();const trackPage=async()=>{
+      const observed=page;
+      if(plugin.name==='Excalidraw')await observed.addLocatorHandler(observed.locator('.excalidraw-release').first(),async modal=>{
+        await modal.getByRole('button',{name:'Close plugin modal',exact:true}).click();
+      });
       page.on('console',message=>{if(message.text().startsWith('[compat:'))console.log(message.text());});
       page.on('console',message=>{if(message.type()==='error'&&message.text().startsWith('Plugin '))void message.args()[1]?.evaluate(error=>(error as Error)?.stack).then(stack=>console.log('PLUGIN STACK '+plugin.name+': '+stack));});
       page.on('pageerror',error=>{pageErrors.push(error.message);orderedErrors.push(error.message);console.error(plugin.name+' runtime: '+error.stack);});
       page.on('console',message=>{if(message.type()==='error'){consoleErrors.push(message.text());orderedErrors.push(message.text());console.error(plugin.name+' console: '+message.text());}});
-    };trackPage();await page.getByTestId('file-Test.md').click();await expect(page.locator('.note-title h1')).toHaveText('Test');
+    };await trackPage();await page.getByTestId('file-Test.md').click();await expect(page.locator('.note-title h1')).toHaveText('Test');
     if(needsEval)await expect(page).toHaveURL('engine://app/trusted.html');
     const settings=async()=>{await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();};
     await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
@@ -109,7 +113,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await expect(page.getByRole('textbox',{name:'Probe color',exact:true})).toBeVisible();
       await page.getByRole('button',{name:'Clear search',exact:true}).click();
       await expect(page.getByRole('switch',{name:'Probe toggle',exact:true})).toBeVisible();
-      await app.close();app=await launch();page=await app.firstWindow();trackPage();
+      await app.close();app=await launch();page=await app.firstWindow();await trackPage();
       await page.getByTestId('file-Test.md').click();await settings();
       await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
       const restartedControl=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});
@@ -182,7 +186,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await expect.poll(async()=>{try{return JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8')).enabled_templates_hotkeys;}catch{return null;}}).toEqual(['Templates/Template']);
       await page.getByTestId('settings-close').click();
       await app.close();
-      app=await launch();page=await app.firstWindow();trackPage();
+      app=await launch();page=await app.firstWindow();await trackPage();
       await page.getByTestId('file-Test.md').click();await expect(page.locator('.note-title h1')).toHaveText('Test');
       await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
       control=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});
@@ -273,7 +277,6 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
     }
     if(plugin.name==='Reading Time'||plugin.name==='Dataview'||plugin.name==='Templater'||plugin.name==='Advanced Tables'||plugin.name==='Calendar (Beta)'||plugin.name==='Tasks')expect(outcome).toBe('BOUNDED_WORKFLOWS_PASS');
     if(outcome==='STARTUP_ONLY'&&plugin.name==='Excalidraw'){
-      await page.waitForTimeout(750);for(const button of await page.getByRole('button',{name:'Close plugin modal',exact:true}).all())await button.click();
       await page.getByTestId('settings-close').click();
       await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Excalidraw: Create new drawing - IN A NEW TAB');
       await page.locator('.palette-list button').filter({hasText:/^Excalidraw: Create new drawing - IN A NEW TAB$/}).click();
@@ -299,7 +302,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await page.getByRole('tablist',{name:'Open files'}).getByRole('button',{name:drawingPath.split('/').pop()!.replace(/\.md$/,''),exact:true}).click();
       await expect(page.locator('.plugin-view-pane canvas').first()).toBeVisible({timeout:10000});
       await expect.poll(rectangles).toEqual(originalRectangles);
-      await app.close();app=await launch();page=await app.firstWindow();trackPage();
+      await app.close();app=await launch();page=await app.firstWindow();await trackPage();
       await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
       const restartedControl=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});await restartedControl.click();await page.getByTestId('dialog-submit').click();await expect(restartedControl).toBeChecked();await page.getByTestId('settings-close').click();
       await page.waitForFunction(()=>Boolean((window as any).ExcalidrawAutomate));
@@ -389,7 +392,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await expect(page.locator('.plugin-view-pane').getByText('Tasks',{exact:true})).toBeVisible();
       await expect(lanes.nth(1).getByText('Edited compatibility card',{exact:true})).toBeVisible();
       expect(await fs.readFile(path.join(root,boardPath),'utf8')).toBe(savedBoard);
-      await app.close();app=await launch();page=await app.firstWindow();trackPage();
+      await app.close();app=await launch();page=await app.firstWindow();await trackPage();
       await settings();await page.getByLabel('Runtime for '+manifest.name,{exact:true}).selectOption('renderer');
       const restartedControl=page.getByRole('switch',{name:'Enable '+manifest.name,exact:true});await restartedControl.click();await page.getByTestId('dialog-submit').click();await expect(restartedControl).toBeChecked();await page.getByTestId('settings-close').click();
       await page.getByTestId('file-'+boardPath).click();
@@ -407,7 +410,6 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       workflows=['create board and list using real embedded Markdown input','submit a card and verify unchecked Markdown persistence','double-click edit a card through the owned embedded editor','open board settings and enable visible completion checkbox','complete card and create a second list','real frame-paced pointer drag moves completed card between lists','verify section ownership, checked Markdown, saved checkbox configuration and exact bytes across document switch','restart application, re-enable and verify moved card, checked state and exact saved Markdown; other drag/order modes and cross-plugin integrations unverified'];
     }
     if(outcome==='STARTUP_ONLY'){
-      if(plugin.name==='Excalidraw'){await page.waitForTimeout(750);for(const button of await page.getByRole('button',{name:'Close plugin modal',exact:true}).all())await button.click();}
       if(await page.getByTestId('settings-close').isVisible())await page.getByTestId('settings-close').click();
       await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill(manifest.name+':');
       await page.waitForTimeout(2500);
