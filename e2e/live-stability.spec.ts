@@ -66,6 +66,7 @@ test('external note refresh updates embeds without remounting source-only diagra
   await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
   await page.getByTestId('mode-live').click();
   const svg=page.locator('.live-block-diagram .mermaid svg');await expect(svg).toBeVisible();
+  await expect(svg.locator('.nodeLabel')).toHaveText(['A','B']);
   await expect(page.locator('.embedded-note')).toContainText('Original body.');
   const node=await svg.elementHandle(),before=await svg.boundingBox();
   await page.evaluate(()=>(window as any).externalEdit());
@@ -75,6 +76,6 @@ test('external note refresh updates embeds without remounting source-only diagra
   for(const key of ['x','y','width','height'] as const)expect(Math.abs(after![key]-before![key])).toBeLessThanOrEqual(1);
   // The cache must not hide real source changes while retaining unchanged contributions.
   await page.evaluate(()=>(window as any).externalEdit(true));
-  await expect(svg).toContainText('C');
+  await expect(svg.locator('.nodeLabel')).toHaveText(['A','C']);
   expect(await node!.evaluate(el=>el.isConnected)).toBe(false);
 });

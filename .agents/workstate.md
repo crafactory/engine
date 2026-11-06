@@ -13,11 +13,15 @@ Current branch: `fix/live-preview-stability`.
 
 ## Active increment
 
-Original browser regressions in `e2e/live-stability.spec.ts` exercise table column/vertical
-geometry, inline-image mapped click ownership, and Mermaid DOM/geometry continuity during
-typing. Negative baseline is running before implementation; `/tmp/engine-live-negative.log`.
-Open the small PR early, fix reproduced failures, add ownership/lifecycle cases and exact-head
-verification, then obtain effective initial CodeRabbit review and fix actionable findings.
+PR #75 is ready and initial CodeRabbit review has been requested. Implementation `7ae3db5`
+fixes three reproduced causes: intrinsic table-input column sizing; per-build inline-image
+context closures (with mapped ownership retained); and unchanged source-only block previews
+being destroyed by external-note refresh. Negative logs are `/tmp/engine-live-negative.log`,
+`/tmp/engine-live-image-negative.log`, `/tmp/engine-live-diagram-negative.log`.
+All 869 units and production build passed; full-browser acceptance needs a rerun after
+correcting a Mermaid-label test synchronization mistake (matching `C` in stylesheet text).
+The full 102-case Electron/corpus run and Linux package build are running. Obtain effective
+initial CodeRabbit review, repair findings and require green exact-head gates before merge.
 
 ## Next increments
 
