@@ -1,4 +1,4 @@
-import {Capacitor} from '@capacitor/core';
+import {Capacitor,registerPlugin} from '@capacitor/core';
 import {Filesystem,Directory,Encoding} from '@capacitor/filesystem';
 import {App as NativeApp} from '@capacitor/app';
 import {Keyboard} from '@capacitor/keyboard';
@@ -11,12 +11,10 @@ export async function bootstrapAndroid():Promise<Bridge>{
   if(!Capacitor.isNativePlatform()||Capacitor.getPlatform()!=='android')throw new Error('Android native runtime required');
   const policy=document.createElement('meta');policy.httpEquiv='Content-Security-Policy';
   policy.content="default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https: wss: blob: data:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'";
-  document.head.append(policy);document.body.classList.add('native-android','is-mobile');
-  const formFactor=()=>{
-    document.body.classList.toggle('is-phone',window.innerWidth<768);
-    document.body.classList.toggle('is-tablet',window.innerWidth>=768);
-  };
-  formFactor();window.addEventListener('resize',formFactor);
+  const {tablet}=await registerPlugin<{info():Promise<{tablet:boolean}>}>('EngineDevice').info();
+  document.head.append(policy);document.body.classList.add('native-android','is-mobile','is-android');
+  document.body.classList.toggle('is-phone',!tablet);
+  document.body.classList.toggle('is-tablet',tablet);
   const fs:MobileFilesystem={
     stat:async path=>{const info=await Filesystem.stat({path,directory:Directory.Data});return {...info,ctime:info.ctime??info.mtime};},
     readdir:async path=>(await Filesystem.readdir({path,directory:Directory.Data})).files.map(info=>({...info,ctime:info.ctime??info.mtime})),
@@ -54,6 +52,7 @@ export async function bootstrapAndroid():Promise<Bridge>{
   });
   return {
     ...bridge,
+    formFactor:tablet?'tablet':'phone',
     onSuspend:handler=>{suspend.add(handler);return()=>suspend.delete(handler);},
     onBack:handler=>{back.add(handler);return()=>back.delete(handler);},
     exportFile:async(name,content)=>{

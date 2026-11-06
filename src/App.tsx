@@ -122,7 +122,7 @@ export function App(){
   function pluginSnapshot(manifest?:PluginManifest):PluginSnapshot{
     const s=pluginState.current;
     return readableSnapshot({name:s.vaultName,entries:s.entries,notes:notesRef.current,active:s.active,
-      platform:nativeAndroid?'android':bridge.desktop?'desktop':'browser',isTablet:nativeAndroid&&window.innerWidth>=768,platformOS:navigator.platform,
+      platform:nativeAndroid?'android':bridge.desktop?'desktop':'browser',isTablet:nativeAndroid&&bridge.formFactor==='tablet',platformOS:navigator.platform,
       editor:s.mode!=='reading'&&isNote(s.active)&&editor.current?.path()===s.active?editor.current.snapshot():null},manifest??{});
   }
   /** Deliver a hover-link event to every registered renderer hover source. */
@@ -599,6 +599,7 @@ export function App(){
     try{await service.start();setRecording(true);}catch(e){report(e);}
   }
   async function openWeb(){
+    if(nativeAndroid){toast('Embedded remote pages are unavailable in this Android pilot. Open external links in your system browser.');return;}
     const url=await dialog.ask('Open web viewer','https://example.com','Only HTTPS pages are supported. Some sites block embedded viewing.');
     if(!url)return;try{const viewer=webViewerRuntime.current?.service;const normalized=viewer?viewer.normalize(url):(()=>{const parsed=new URL(url);if(parsed.protocol!=='https:')throw new Error('Use an HTTPS URL');return url;})();open('web:'+normalized);}catch(e){report(e);}
   }

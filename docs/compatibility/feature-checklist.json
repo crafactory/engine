@@ -1,6 +1,6 @@
 {
   "baseline": {
-    "documentation_checked_utc": "2026-10-12",
+    "documentation_checked_utc": "2026-11-06",
     "installed_reference_version": null,
     "limitation": "Documentation snapshot, not installed-reference behavioral certification. Recheck documentation and add workflows when reference releases change.",
     "core_source": "https://help.obsidian.md/plugins",
@@ -14,7 +14,7 @@
       "Daily notes",
       "File explorer",
       "File recovery",
-      "Format converter",
+      "Footnotes view",
       "Graph view",
       "Note composer",
       "Outgoing links",
@@ -28,7 +28,7 @@
       "Slash commands",
       "Slides",
       "Sync",
-      "Tags",
+      "Tags view",
       "Templates",
       "Unique note creator",
       "Web viewer",
@@ -48,153 +48,13 @@
   "scope": "Parent areas are incomplete; checked boxes are bounded Engine acceptance checkpoints. No overall parity percentage.",
   "items": [
     {
-      "id": "AREA-desktop-app",
-      "section": "Workspace and file model",
-      "title": "Desktop app",
-      "status": "partial",
-      "reference": "https://help.obsidian.md",
-      "implemented": "Electron desktop shell, local folders, Windows/macOS/Linux build configuration",
-      "remaining": "Windows/macOS runtime verification, signed/notarized installers, automatic updates, multi-window/pop-out parity",
-      "evidence": []
-    },
-    {
-      "id": "AREA-vaults",
-      "section": "Workspace and file model",
-      "title": "Vaults",
-      "status": "partial",
-      "reference": "https://help.obsidian.md",
-      "implemented": "Choose/create folder, last vault, plain files, metadata, file watch",
-      "remaining": "Vault switcher catalog, multiple concurrent windows, reference settings migration",
-      "evidence": []
-    },
-    {
-      "id": "AREA-save-safety",
-      "section": "Workspace and file model",
-      "title": "Save safety",
-      "status": "partial",
-      "reference": "https://help.obsidian.md",
-      "implemented": "Debounced saves, SHA-256 optimistic conflicts, atomic replacement, queued writes, close-time flush",
-      "remaining": "Power-loss/fsync guarantees, cross-process locking, edge-case external-write races, filesystem permission/ACL preservation",
-      "evidence": []
-    },
-    {
-      "id": "AREA-explorer",
-      "section": "Workspace and file model",
-      "title": "Explorer",
-      "status": "partial",
-      "reference": "https://help.obsidian.md",
-      "implemented": "Files/folders, rename/move, drag into folders, sorting, trash",
-      "remaining": "Full context menu parity, bulk selection, attachment renaming in all embed types",
-      "evidence": []
-    },
-    {
-      "id": "AREA-links",
-      "section": "Workspace and file model",
-      "title": "Links",
-      "status": "partial",
-      "reference": "https://help.obsidian.md",
-      "implemented": "Wiki/Markdown links, aliases, relative sibling links, headings/block reads, rename update",
-      "remaining": "Canonical shortest-path disambiguation, `../` resolution, escaped destinations, Canvas/Base references during rename, all ambiguous-name cases",
-      "evidence": []
-    },
-    {
-      "id": "AREA-tabs-layout",
-      "section": "Workspace and file model",
-      "title": "Tabs/layout",
-      "status": "partial",
-      "reference": "https://help.obsidian.md",
-      "implemented": "Tabs, drag reorder, back/forward, one right split, saved layouts",
-      "remaining": "Arbitrary split tree, stacked tabs, pane pinning/pop-outs, full workspace restoration",
-      "evidence": []
-    },
-    {
-      "id": "AREA-import-export",
-      "section": "Workspace and file model",
-      "title": "Import/export",
-      "status": "partial",
-      "reference": "https://help.obsidian.md",
-      "implemented": "Markdown and attachments import; Markdown, HTML, PDF, ZIP exports",
-      "remaining": "Native importers for external products, styled self-contained HTML export, PDF embed parity",
-      "evidence": []
-    },
-    {
-      "id": "AREA-source-editing",
-      "section": "Editing and Markdown",
-      "title": "Source editing",
-      "status": "partial",
-      "reference": "https://help.obsidian.md",
-      "implemented": "CodeMirror 6, Markdown mode, undo/redo, search/replace, selection formatting, spellcheck, line numbers",
-      "remaining": "Vim/Emacs parity, complete editing-shortcut set, table editor, fold/history semantics",
-      "evidence": []
-    },
-    {
-      "id": "AREA-live-preview",
-      "section": "Editing and Markdown",
-      "title": "Live preview",
-      "status": "partial",
-      "reference": "https://help.obsidian.md",
-      "implemented": "Inactive-line formatting and bounded wiki/Markdown link navigation; top-level tables, code, diagrams, callouts/quotes, math, standalone embeds/rules; source reveal; table cell edits, widget reuse on position changes, undo/redo, task toggles",
-      "remaining": "Full inline/nested grammar, nested/escaped Markdown link destinations, list rendering, table row/column operations, all embeds, exact cursor/selection and reference editing behavior, huge-document performance",
-      "evidence": []
-    },
-    {
-      "id": "AREA-reading",
-      "section": "Editing and Markdown",
-      "title": "Reading",
-      "status": "partial",
-      "reference": "https://help.obsidian.md",
-      "implemented": "Markdown-it, tables, tasks, highlights, code, footnotes, comments, callout styling and nested collapsible callouts",
-      "remaining": "HTML-in-note support, complete OFM grammar, syntax highlighting in reading code fences",
-      "evidence": []
-    },
-    {
-      "id": "AREA-math-diagrams",
-      "section": "Editing and Markdown",
-      "title": "Math/diagrams",
-      "status": "partial",
-      "reference": "https://help.obsidian.md",
-      "implemented": "KaTeX inline/display math, Mermaid strict rendering",
-      "remaining": "Full syntax edge cases, editing behavior, complete compatibility/security audit",
-      "evidence": []
-    },
-    {
-      "id": "AREA-embeds",
-      "section": "Editing and Markdown",
-      "title": "Embeds",
-      "status": "partial",
-      "reference": "https://help.obsidian.md",
-      "implemented": "Note/heading/block transclusion, read-only Canvas geometry, image/audio/video attachments, PDF download",
-      "remaining": "Recursive nested embeds, embedded Canvas file-card format parity, interactive PDFs, image-size wiki syntax, embedded Bases, block edit actions",
-      "evidence": []
-    },
-    {
-      "id": "AREA-properties",
-      "section": "Editing and Markdown",
-      "title": "Properties",
-      "status": "partial",
-      "reference": "https://help.obsidian.md",
-      "implemented": "Typed YAML editing, add/remove, property search and vault keys",
-      "remaining": "Reference type registry, date/link widgets, drag/reorder, field auto-completion and multi-file bulk edits",
-      "evidence": []
-    },
-    {
-      "id": "AREA-attachments",
-      "section": "Editing and Markdown",
-      "title": "Attachments",
-      "status": "partial",
-      "reference": "https://help.obsidian.md",
-      "implemented": "Add/import local assets, image/audio/video display, ZIP inclusion",
-      "remaining": "Large-file streaming, PDF annotation/viewing, drag/paste paths, per-folder attachment rules",
-      "evidence": []
-    },
-    {
       "id": "CORE-audio-recorder",
       "section": "Core plugins",
       "title": "Audio recorder",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "MediaRecorder capture into attachment; device permissions and hardware vary, not hardware-tested",
-      "remaining": "MediaRecorder capture into attachment; device permissions and hardware vary, not hardware-tested",
+      "implemented": "Desktop browser MediaRecorder inserts a local recording. Device/codec behavior and Android microphone integration are unverified; no Android microphone permission is requested in this pilot.",
+      "remaining": "Desktop browser MediaRecorder inserts a local recording. Device/codec behavior and Android microphone integration are unverified; no Android microphone permission is requested in this pilot.",
       "evidence": []
     },
     {
@@ -203,8 +63,8 @@
       "title": "Backlinks",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Resolved incoming links and plain-name unlinked mentions; advanced linking/context actions missing",
-      "remaining": "Resolved incoming links and plain-name unlinked mentions; advanced linking/context actions missing",
+      "implemented": "Resolved backlinks and unlinked mentions exist. Full reference context, rename/refactor edge cases and large-vault behavior remain incomplete.",
+      "remaining": "Resolved backlinks and unlinked mentions exist. Full reference context, rename/refactor edge cases and large-vault behavior remain incomplete.",
       "evidence": []
     },
     {
@@ -213,8 +73,8 @@
       "title": "Bases",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "YAML table/cards/list, inline property editing, sort/filter, CSV; full formulas/functions, grouping/summaries/map views missing",
-      "remaining": "YAML table/cards/list, inline property editing, sort/filter, CSV; full formulas/functions, grouping/summaries/map views missing",
+      "implemented": "Local `.base` table/list/cards views and a small extension view hook exist. Full formula, query, grouping, configuration and extension-view APIs do not.",
+      "remaining": "Local `.base` table/list/cards views and a small extension view hook exist. Full formula, query, grouping, configuration and extension-view APIs do not.",
       "evidence": []
     },
     {
@@ -223,8 +83,8 @@
       "title": "Bookmarks",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Notes only; headings, saved searches, groups, arbitrary URLs not implemented",
-      "remaining": "Notes only; headings, saved searches, groups, arbitrary URLs not implemented",
+      "implemented": "Note bookmarks exist. Groups, headings, saved searches and arbitrary URL bookmarks remain missing.",
+      "remaining": "Note bookmarks exist. Groups, headings, saved searches and arbitrary URL bookmarks remain missing.",
       "evidence": []
     },
     {
@@ -233,8 +93,8 @@
       "title": "Canvas",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Text/file/link/group, position/size, connections, minimap, open JSON; richer groups/edges/media and full interaction parity missing",
-      "remaining": "Text/file/link/group, position/size, connections, minimap, open JSON; richer groups/edges/media and full interaction parity missing",
+      "implemented": "Owned `.canvas` cards, connections, groups, zoom and editing exist. This is not the internal Obsidian Canvas API required by Excalidraw's embedded-canvas path; deep interoperability and mobile touch workflows remain unverified.",
+      "remaining": "Owned `.canvas` cards, connections, groups, zoom and editing exist. This is not the internal Obsidian Canvas API required by Excalidraw's embedded-canvas path; deep interoperability and mobile touch workflows remain unverified.",
       "evidence": []
     },
     {
@@ -243,8 +103,8 @@
       "title": "Command palette",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Fuzzy search, arrows/Enter, hotkey display; pinned/recent command ranking not implemented",
-      "remaining": "Fuzzy search, arrows/Enter, hotkey display; pinned/recent command ranking not implemented",
+      "implemented": "Fuzzy commands, keyboard selection and hotkey display exist. Full ranking, pinning/recent behavior and arbitrary plugin command fidelity remain incomplete.",
+      "remaining": "Fuzzy commands, keyboard selection and hotkey display exist. Full ranking, pinning/recent behavior and arbitrary plugin command fidelity remain incomplete.",
       "evidence": []
     },
     {
@@ -253,8 +113,8 @@
       "title": "Daily notes",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Folder and template, local ISO date; full configurable date formats/calendar navigation missing",
-      "remaining": "Folder and template, local ISO date; full configurable date formats/calendar navigation missing",
+      "implemented": "Configurable date format/folder/template and daily navigation exist. All locale/timezone/template combinations remain unverified.",
+      "remaining": "Configurable date format/folder/template and daily navigation exist. All locale/timezone/template combinations remain unverified.",
       "evidence": []
     },
     {
@@ -263,8 +123,8 @@
       "title": "File explorer",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "File/folder operations as above",
-      "remaining": "File/folder operations as above",
+      "implemented": "Files/folders, rename, move, trash and attachments exist with host path/version guards. No cross-process atomic lock, ACL preservation or power-loss guarantee is claimed. Android shared-folder selection is absent.",
+      "remaining": "Files/folders, rename, move, trash and attachments exist with host path/version guards. No cross-process atomic lock, ACL preservation or power-loss guarantee is claimed. Android shared-folder selection is absent.",
       "evidence": []
     },
     {
@@ -273,18 +133,18 @@
       "title": "File recovery",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Up to 100 previous saved versions per text path; reference scheduling/retention behavior differs",
-      "remaining": "Up to 100 previous saved versions per text path; reference scheduling/retention behavior differs",
+      "implemented": "Prior saved text versions and a recovery UI exist; up to 100 per file are retained. The Android backend has a separate private profile, not the desktop recovery directory. Unsaved-process-kill recovery is not certified.",
+      "remaining": "Prior saved text versions and a recovery UI exist; up to 100 per file are retained. The Android backend has a separate private profile, not the desktop recovery directory. Unsaved-process-kill recovery is not certified.",
       "evidence": []
     },
     {
-      "id": "CORE-format-converter",
+      "id": "CORE-footnotes-view",
       "section": "Core plugins",
-      "title": "Format converter",
-      "status": "partial",
+      "title": "Footnotes view",
+      "status": "missing",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Basic HTML highlight and Markdown-link conversion; not a comprehensive importer/converter",
-      "remaining": "Basic HTML highlight and Markdown-link conversion; not a comprehensive importer/converter",
+      "implemented": "Markdown footnotes render, but there is no dedicated current-note footnote list/navigation view. This is a distinct reference core workflow.",
+      "remaining": "Markdown footnotes render, but there is no dedicated current-note footnote list/navigation view. This is a distinct reference core workflow.",
       "evidence": []
     },
     {
@@ -293,8 +153,8 @@
       "title": "Graph view",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "D3 local/global graph, query filter, orphans, unresolved links, zoom/drag/depth/distance; reference groups/layout controls differ",
-      "remaining": "D3 local/global graph, query filter, orphans, unresolved links, zoom/drag/depth/distance; reference groups/layout controls differ",
+      "implemented": "Owned global/local force graph, filtering and basic interaction exist. Reference layout, visual controls and large-graph performance are not equivalent.",
+      "remaining": "Owned global/local force graph, filtering and basic interaction exist. Reference layout, visual controls and large-graph performance are not equivalent.",
       "evidence": []
     },
     {
@@ -303,8 +163,8 @@
       "title": "Note composer",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Extract selected text, merge content, rewrite resolvable links and trash source; metadata/heading conflict resolution missing",
-      "remaining": "Extract selected text, merge content, rewrite resolvable links and trash source; metadata/heading conflict resolution missing",
+      "implemented": "Merge and selection extraction, including owned link handling, exist. Every reference refactor/metadata/link edge case remains unverified.",
+      "remaining": "Merge and selection extraction, including owned link handling, exist. Every reference refactor/metadata/link edge case remains unverified.",
       "evidence": []
     },
     {
@@ -313,8 +173,8 @@
       "title": "Outgoing links",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Linked and unresolved targets; advanced context/link actions missing",
-      "remaining": "Linked and unresolved targets; advanced context/link actions missing",
+      "implemented": "Indexed outgoing and unresolved links exist. Full reference grouping/context/navigation behavior remains incomplete.",
+      "remaining": "Indexed outgoing and unresolved links exist. Full reference grouping/context/navigation behavior remains incomplete.",
       "evidence": []
     },
     {
@@ -323,8 +183,8 @@
       "title": "Outline",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Heading index and jump; complete folding/drag behavior missing",
-      "remaining": "Heading index and jump; complete folding/drag behavior missing",
+      "implemented": "Heading navigation exists. Full drag/reorder/reference behavior and all plugin headings remain incomplete.",
+      "remaining": "Heading navigation exists. Full drag/reorder/reference behavior and all plugin headings remain incomplete.",
       "evidence": []
     },
     {
@@ -333,8 +193,8 @@
       "title": "Page preview",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Hover previews in reading; edit-mode modifier behavior and recursive/scroll handling missing",
-      "remaining": "Hover previews in reading; edit-mode modifier behavior and recursive/scroll handling missing",
+      "implemented": "Owned note-hover previews exist. Complete hover-parent ownership, popover behavior and plugin source integrations remain incomplete.",
+      "remaining": "Owned note-hover previews exist. Complete hover-parent ownership, popover behavior and plugin source integrations remain incomplete.",
       "evidence": []
     },
     {
@@ -343,8 +203,8 @@
       "title": "Properties view",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Inline type-aware editor under the note title (text/number/checkbox/date/date-time/list, type conversion, list chips/suggestions, add/remove) with explicit types persisted per vault (Automatic falls back to inference); default values, structured/nested values and source-mode parity remain",
-      "remaining": "Inline type-aware editor under the note title (text/number/checkbox/date/date-time/list, type conversion, list chips/suggestions, add/remove) with explicit types persisted per vault (Automatic falls back to inference); default values, structured/nested values and source-mode parity remain",
+      "implemented": "Owned frontmatter/property editing and property indexing exist. Arbitrary property types, complete metadata-manager semantics and reference layout remain incomplete.",
+      "remaining": "Owned frontmatter/property editing and property indexing exist. Arbitrary property types, complete metadata-manager semantics and reference layout remain incomplete.",
       "evidence": []
     },
     {
@@ -353,8 +213,8 @@
       "title": "Publish",
       "status": "excluded",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Subscription service, no backend included",
-      "remaining": "Subscription service, no backend included",
+      "implemented": "Excluded by project policy; not represented as implemented.",
+      "remaining": "Excluded by project policy; not represented as implemented.",
       "evidence": []
     },
     {
@@ -363,8 +223,8 @@
       "title": "Quick switcher",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Fuzzy filename/path search, recent order, create-on-no-match; reference ranking/modifier behavior differs",
-      "remaining": "Fuzzy filename/path search, recent order, create-on-no-match; reference ranking/modifier behavior differs",
+      "implemented": "Fuzzy note selection exists. Full ranking, context and modifier semantics remain incomplete.",
+      "remaining": "Fuzzy note selection exists. Full ranking, context and modifier semantics remain incomplete.",
       "evidence": []
     },
     {
@@ -373,8 +233,8 @@
       "title": "Random note",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Random indexed Markdown file",
-      "remaining": "Random indexed Markdown file",
+      "implemented": "Selects an eligible Markdown note. Full option/filter/reference behavior is not certified.",
+      "remaining": "Selects an eligible Markdown note. Full option/filter/reference behavior is not certified.",
       "evidence": []
     },
     {
@@ -383,8 +243,8 @@
       "title": "Search",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "AND/OR, grouping, negation, quotes, regex, file/path/tag/content/case/line/block/section/task/property operators; full parser/ranking/UI parity missing",
-      "remaining": "AND/OR, grouping, negation, quotes, regex, file/path/tag/content/case/line/block/section/task/property operators; full parser/ranking/UI parity missing",
+      "implemented": "Indexed text, owned operators and result navigation exist. Complete reference grammar, context, ranking and large-vault performance remain incomplete.",
+      "remaining": "Indexed text, owned operators and result navigation exist. Complete reference grammar, context, ranking and large-vault performance remain incomplete.",
       "evidence": []
     },
     {
@@ -393,8 +253,8 @@
       "title": "Slash commands",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "A small list of structural insertions; not every command",
-      "remaining": "A small list of structural insertions; not every command",
+      "implemented": "Shared command discovery/insertion exists. Full cursor, mobile keyboard and plugin-command behavior is not certified.",
+      "remaining": "Shared command discovery/insertion exists. Full cursor, mobile keyboard and plugin-command behavior is not certified.",
       "evidence": []
     },
     {
@@ -403,8 +263,8 @@
       "title": "Slides",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Horizontal-rule separation, arrows, exit/fullscreen; complete presentation grammar/theme controls missing",
-      "remaining": "Horizontal-rule separation, arrows, exit/fullscreen; complete presentation grammar/theme controls missing",
+      "implemented": "Markdown slide rendering/navigation exists. Complete presenter/export/reference behavior remains incomplete.",
+      "remaining": "Markdown slide rendering/navigation exists. Complete presenter/export/reference behavior remains incomplete.",
       "evidence": []
     },
     {
@@ -413,18 +273,18 @@
       "title": "Sync",
       "status": "excluded",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Subscription service, no backend included",
-      "remaining": "Subscription service, no backend included",
+      "implemented": "Excluded by project policy; not represented as implemented.",
+      "remaining": "Excluded by project policy; not represented as implemented.",
       "evidence": []
     },
     {
-      "id": "CORE-tags",
+      "id": "CORE-tags-view",
       "section": "Core plugins",
-      "title": "Tags",
+      "title": "Tags view",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Frontmatter/inline Unicode tags and counts; full hierarchy/collapse UI differs",
-      "remaining": "Frontmatter/inline Unicode tags and counts; full hierarchy/collapse UI differs",
+      "implemented": "Tag listing/filtering exists. Complete reference hierarchy, counts and interaction remain incomplete.",
+      "remaining": "Tag listing/filtering exists. Complete reference hierarchy, counts and interaction remain incomplete.",
       "evidence": []
     },
     {
@@ -433,8 +293,8 @@
       "title": "Templates",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Title/date/time interpolation and configured folder; token/date-format set narrower",
-      "remaining": "Title/date/time interpolation and configured folder; token/date-format set narrower",
+      "implemented": "Template insertion and owned date/title expansion exist. Full third-party templating APIs/macros are not provided.",
+      "remaining": "Template insertion and owned date/title expansion exist. Full third-party templating APIs/macros are not provided.",
       "evidence": []
     },
     {
@@ -443,8 +303,8 @@
       "title": "Unique note creator",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Timestamp filename; format/template configuration missing",
-      "remaining": "Timestamp filename; format/template configuration missing",
+      "implemented": "Creates timestamp-formatted notes in a configured folder. Every collision/template/date-format case remains unverified.",
+      "remaining": "Creates timestamp-formatted notes in a configured folder. Every collision/template/date-format case remains unverified.",
       "evidence": []
     },
     {
@@ -453,8 +313,8 @@
       "title": "Web viewer",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "HTTPS iframe and external fallback; sites can block embedding, no browser history/login/clip parity",
-      "remaining": "HTTPS iframe and external fallback; sites can block embedding, no browser history/login/clip parity",
+      "implemented": "Desktop embedded web views and owned navigation exist. Android remote frames are deliberately blocked; opening remote pages in a trusted native WebView is not enabled. Complete reference browser integration remains absent.",
+      "remaining": "Desktop embedded web views and owned navigation exist. Android remote frames are deliberately blocked; opening remote pages in a trusted native WebView is not enabled. Complete reference browser integration remains absent.",
       "evidence": []
     },
     {
@@ -463,8 +323,8 @@
       "title": "Word count",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Unicode word regex and character count; CJK segmentation and reference counting rules not equal",
-      "remaining": "Unicode word regex and character count; CJK segmentation and reference counting rules not equal",
+      "implemented": "Active-document word/character counts exist. Reference tokenization/selection/locale behavior is not identical.",
+      "remaining": "Active-document word/character counts exist. Reference tokenization/selection/locale behavior is not identical.",
       "evidence": []
     },
     {
@@ -473,8 +333,148 @@
       "title": "Workspaces",
       "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Save/restore tabs, active file, sidebars, mode, one split; arbitrary workspace tree missing",
-      "remaining": "Save/restore tabs, active file, sidebars, mode, one split; arbitrary workspace tree missing",
+      "implemented": "Saved layouts restore tabs, split, modes and sidebars. Arbitrary workspace-leaf/view hierarchy, every plugin state and mobile layout fidelity remain incomplete.",
+      "remaining": "Saved layouts restore tabs, split, modes and sidebars. Arbitrary workspace-leaf/view hierarchy, every plugin state and mobile layout fidelity remain incomplete.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-desktop-app",
+      "section": "Workspace, files and Markdown areas",
+      "title": "Desktop app",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Electron shell and Windows/macOS/Linux package configuration; actual Linux-package regressions.",
+      "remaining": "Windows/macOS runtime certification, signing/notarization, automatic updates, multi-window/pop-out equivalence.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-vaults",
+      "section": "Workspace, files and Markdown areas",
+      "title": "Vaults",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Desktop choose/create folder, last vault, file metadata/watch; Android private vault implementation under native test.",
+      "remaining": "Vault catalog, concurrent windows, reference-settings migration and Android shared folders/SAF.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-save-safety",
+      "section": "Workspace, files and Markdown areas",
+      "title": "Save safety",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Queued writes, SHA-256 optimistic conflicts, desktop replacement/close flush; staged Android publication.",
+      "remaining": "Power-loss/fsync, cross-process locking, external-write races, ACL preservation and unsaved-process-kill recovery.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-explorer",
+      "section": "Workspace, files and Markdown areas",
+      "title": "Explorer",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Files/folders, rename/move, folder drag, sorting and trash.",
+      "remaining": "Complete context menus, bulk selection and attachment/refactor handling across every embed type.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-links",
+      "section": "Workspace, files and Markdown areas",
+      "title": "Links",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Wiki/Markdown links, aliases, relative siblings, heading/block reads and owned rename updates.",
+      "remaining": "Complete shortest-path disambiguation, escaped/parent-relative destinations and Canvas/Base/ambiguous rename references.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-tabs-layout",
+      "section": "Workspace, files and Markdown areas",
+      "title": "Tabs/layout",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Tabs/reorder, back/forward, one right split and saved layouts.",
+      "remaining": "Arbitrary split trees, stacked tabs, pane pinning/pop-outs and all plugin workspace states.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-import-export",
+      "section": "Workspace, files and Markdown areas",
+      "title": "Import/export",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Markdown/assets import and note/HTML/PDF/ZIP export on desktop; Android share export implementation under test.",
+      "remaining": "Product-specific importers, self-contained HTML, Android printing/SAF and complete hidden-profile backup/restore.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-source-editing",
+      "section": "Workspace, files and Markdown areas",
+      "title": "Source editing",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "CodeMirror, Markdown, undo/redo, search/replace, selection formatting, spelling/line settings and an owned table editor.",
+      "remaining": "Vim/Emacs mode equivalence, every editing shortcut, folding/history semantics and every input method.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-live-preview",
+      "section": "Workspace, files and Markdown areas",
+      "title": "Live preview",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Source reveal, formatting, tasks, tables with row/column operations, block widgets, approved processor opt-in and repaired geometry/identity.",
+      "remaining": "Complete inline/nested grammar, every list/embed, cursor/selection equivalence and huge-document performance.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-reading",
+      "section": "Workspace, files and Markdown areas",
+      "title": "Reading",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Markdown-it, tables, tasks, highlights, footnotes, comments and nested callout folding.",
+      "remaining": "Complete OFM, HTML-in-note and code-fence highlighting equivalence; no dedicated Footnotes view.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-math-diagrams",
+      "section": "Workspace, files and Markdown areas",
+      "title": "Math/diagrams",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "KaTeX and strict Mermaid with sanitized native SVG text labels.",
+      "remaining": "All syntax/render/editing types and complete compatibility/security certification.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-embeds",
+      "section": "Workspace, files and Markdown areas",
+      "title": "Embeds",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Note/heading/block transclusion, read-only Canvas geometry and image/audio/video; PDF download.",
+      "remaining": "Recursive embeds, Canvas file cards, interactive PDF, full wiki image sizing, embedded Bases and block edit actions.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-properties",
+      "section": "Workspace, files and Markdown areas",
+      "title": "Properties",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Typed YAML editing, add/remove, property search and indexed inference/overrides used by the facade.",
+      "remaining": "Full reference type-manager semantics, date/link widgets, drag/reorder, completion and multi-file bulk edits.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-attachments",
+      "section": "Workspace, files and Markdown areas",
+      "title": "Attachments",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Local asset import/display and ZIP inclusion; root paths and modified decoded assets repaired.",
+      "remaining": "Large-file streaming, PDF viewing/annotation, every drag/paste path and per-folder rules; Android picker flows unverified.",
       "evidence": []
     },
     {
@@ -483,8 +483,8 @@
       "title": "Community plugin API",
       "status": "partial",
       "reference": "https://docs.obsidian.md/Reference/TypeScript+API/index",
-      "implemented": "Default Worker plus explicit trusted renderer with DOM settings/Modal, dedicated views, host CodeMirror extensions, reading post/code processors and MarkdownRenderChild lifecycle. Whole-host context, null section mapping and non-recursive static rendering are bounded, not reference equivalent. Real plugins remain limited; see PLUGIN-COMPATIBILITY.md and per-mode reports. Full member/overload/reference/platform coverage incomplete.",
-      "remaining": "Default Worker plus explicit trusted renderer with DOM settings/Modal, dedicated views, host CodeMirror extensions, reading post/code processors and MarkdownRenderChild lifecycle. Whole-host context, null section mapping and non-recursive static rendering are bounded, not reference equivalent. Real plugins remain limited; see PLUGIN-COMPATIBILITY.md and per-mode reports. Full member/overload/reference/platform coverage incomplete.",
+      "implemented": "Default Worker and explicitly trusted renderer; owned document/workspace/storage/render providers; mobile flags and desktop-only refusal.",
+      "remaining": "Full members, overloads, workspace semantics, platform workflows and plugin compatibility remain incomplete; per-plugin verdicts live only in the support matrix.",
       "evidence": []
     },
     {
@@ -493,8 +493,8 @@
       "title": "Community catalog",
       "status": "missing",
       "reference": "https://help.obsidian.md",
-      "implemented": "No plugin/theme marketplace, unattended installation, updates or signing; local manual install only",
-      "remaining": "No plugin/theme marketplace, unattended installation, updates or signing; local manual install only",
+      "implemented": "Local manually installed packages; Android debug sideload only.",
+      "remaining": "No marketplace, unattended install/update/signing, or Android installation UI.",
       "evidence": []
     },
     {
@@ -503,8 +503,8 @@
       "title": "Themes/snippets",
       "status": "partial",
       "reference": "https://help.obsidian.md",
-      "implemented": "Two original themes, one editable vault CSS snippet; reference themes and CSS-variable API not compatible",
-      "remaining": "Two original themes, one editable vault CSS snippet; reference themes and CSS-variable API not compatible",
+      "implemented": "Original themes, editable custom CSS and bounded Style Settings controls.",
+      "remaining": "Complete theme/snippet management and reference CSS-variable equivalence are unverified.",
       "evidence": []
     },
     {
@@ -513,8 +513,8 @@
       "title": "Hotkeys",
       "status": "partial",
       "reference": "https://help.obsidian.md",
-      "implemented": "Editable application hotkeys; conflicts, editor binding overrides, complete command registration not equal",
-      "remaining": "Editable application hotkeys; conflicts, editor binding overrides, complete command registration not equal",
+      "implemented": "Editable application hotkeys and owned plugin scopes.",
+      "remaining": "Full conflict resolution, arbitrary editor overrides and mobile external-keyboard coverage are incomplete.",
       "evidence": []
     },
     {
@@ -523,8 +523,8 @@
       "title": "Mobile",
       "status": "missing",
       "reference": "https://help.obsidian.md",
-      "implemented": "Responsive preview is not an iOS/Android app and is not counted as mobile parity",
-      "remaining": "Responsive preview is not an iOS/Android app and is not counted as mobile parity",
+      "implemented": "Android source, persistent bridge, shared mobile UI and native acceptance gate are in progress.",
+      "remaining": "No final-head APK/emulator acceptance yet. iOS, SAF, mobile plugin installer and complete device/OEM coverage remain absent.",
       "evidence": []
     },
     {
@@ -533,18 +533,18 @@
       "title": "CLI",
       "status": "partial",
       "reference": "https://help.obsidian.md",
-      "implemented": "Original local file CLI; not command-compatible with the reference CLI",
-      "remaining": "Original local file CLI; not command-compatible with the reference CLI",
+      "implemented": "Owned local-file CLI.",
+      "remaining": "Not command-compatible with the reference CLI.",
       "evidence": []
     },
     {
       "id": "AREA-uri-deep-links",
       "section": "Extensions, themes, and platform surface",
       "title": "URI/deep links",
-      "status": "missing",
+      "status": "partial",
       "reference": "https://help.obsidian.md",
-      "implemented": "No `obsidian://` or `crafactory://` open protocol compatibility",
-      "remaining": "No `obsidian://` or `crafactory://` open protocol compatibility",
+      "implemented": "Owned in-app plugin protocol dispatch exists.",
+      "remaining": "OS `obsidian://`/`crafactory://` registration and Android VIEW/BROWSABLE intents are absent.",
       "evidence": []
     },
     {
@@ -553,8 +553,8 @@
       "title": "Web Clipper",
       "status": "missing",
       "reference": "https://help.obsidian.md",
-      "implemented": "No browser extension; reference first-party free extension remains outstanding",
-      "remaining": "No browser extension; reference first-party free extension remains outstanding",
+      "implemented": "No browser extension.",
+      "remaining": "Reference free-extension interoperability remains outstanding.",
       "evidence": []
     },
     {
@@ -563,8 +563,8 @@
       "title": "Importer / Maps",
       "status": "missing",
       "reference": "https://help.obsidian.md",
-      "implemented": "No equivalent free first-party import or map extension",
-      "remaining": "No equivalent free first-party import or map extension",
+      "implemented": "No equivalent import-format/map extension.",
+      "remaining": "Full importer formats and geospatial workflows remain outstanding.",
       "evidence": []
     },
     {
@@ -573,8 +573,8 @@
       "title": "Localization",
       "status": "missing",
       "reference": "https://help.obsidian.md",
-      "implemented": "UI currently English; Chinese note content and filenames supported, not a translated UI",
-      "remaining": "UI currently English; Chinese note content and filenames supported, not a translated UI",
+      "implemented": "Unicode note content and filenames work.",
+      "remaining": "UI is currently English, not a translated Chinese interface.",
       "evidence": []
     },
     {
@@ -583,8 +583,18 @@
       "title": "Accessibility",
       "status": "partial",
       "reference": "https://help.obsidian.md",
-      "implemented": "Semantic controls, names, focus, reduced motion; comprehensive screen-reader/accessibility audit outstanding",
-      "remaining": "Semantic controls, names, focus, reduced motion; comprehensive screen-reader/accessibility audit outstanding",
+      "implemented": "Named semantic controls, keyboard focus, reduced motion and mobile touch-target work.",
+      "remaining": "Comprehensive screen-reader/device/accessibility audit remains outstanding.",
+      "evidence": []
+    },
+    {
+      "id": "AREA-format-converter",
+      "section": "Extensions, themes, and platform surface",
+      "title": "Format converter",
+      "status": "partial",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Existing legacy format-conversion workflow remains.",
+      "remaining": "Not a current core-index entry; complete conversion interoperability remains unverified.",
       "evidence": []
     },
     {

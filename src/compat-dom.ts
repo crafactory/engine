@@ -272,9 +272,12 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   class ExtraButtonComponent extends ButtonComponent {extraSettingsEl=this.buttonEl;}
   class SliderComponent extends ValueComponent {
-    sliderEl:HTMLInputElement;constructor(parent:HTMLElement){super();this.sliderEl=element('input',parent) as HTMLInputElement;this.sliderEl.type='range';}
-    setLimits(min:number,max:number,step:number){Object.assign(this.sliderEl,{min:String(min),max:String(max),step:String(step)});return this;}
-    setValue(value:number){this.sliderEl.value=String(value);return this;}getValue(){return Number(this.sliderEl.value);}
+    private dynamicTooltip=false;
+    sliderEl:HTMLInputElement;constructor(parent:HTMLElement){super();this.sliderEl=element('input',parent) as HTMLInputElement;this.sliderEl.type='range';this.sliderEl.addEventListener('input',()=>this.updateTooltip());}
+    private updateTooltip(){if(this.dynamicTooltip){const text=String(this.getValue());this.sliderEl.title=text;this.sliderEl.setAttribute('aria-valuetext',text);}}
+    setDynamicTooltip(){this.dynamicTooltip=true;this.updateTooltip();return this;}
+    setLimits(min:number,max:number,step:number){Object.assign(this.sliderEl,{min:String(min),max:String(max),step:String(step)});this.updateTooltip();return this;}
+    setValue(value:number){this.sliderEl.value=String(value);this.updateTooltip();return this;}getValue(){return Number(this.sliderEl.value);}
     onChange(callback:(value:number)=>unknown){this.sliderEl.addEventListener('input',()=>safe(callback)(this.getValue()));return this;}
     setDisabled(disabled:boolean){super.setDisabled(disabled);this.sliderEl.disabled=disabled;return this;}
   }
@@ -294,7 +297,7 @@ export function createDomAdapters(id:string,name:string,onError:(reason:unknown)
   }
   /** Match a fuzzy query against text; the bounded version is a case-insensitive contains check. */
   const prepareFuzzySearch=(query:string)=>(text:string)=>{const needle=query.toLowerCase(),haystack=text.toLowerCase(),start=haystack.indexOf(needle);return start<0?null:{score:1/(start+1),matches:[{start,end:start+needle.length}]};};
-  const Platform=platformInfo(window.engine?.platform==='android'?'android':window.engine?.desktop?'desktop':'browser',window.innerWidth>=768,navigator.platform);
+  const Platform=platformInfo(window.engine?.platform==='android'?'android':window.engine?.desktop?'desktop':'browser',window.engine?.formFactor==='tablet',navigator.platform);
 
   class Setting {
     settingEl:HTMLElement;infoEl:HTMLElement;nameEl:HTMLElement;descEl:HTMLElement;controlEl:HTMLElement;components:any[]=[];

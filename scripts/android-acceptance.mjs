@@ -12,11 +12,13 @@ import JSZip from 'jszip';
 const APP='com.crafactory.engine',APK=path.resolve('android/app/build/outputs/apk/debug/app-debug.apk');
 const output=path.resolve('test-results-android');await fs.mkdir(output,{recursive:true});
 const records=[],errors=[],consoleErrors=[];
+const metadata={testedHead:process.env.ENGINE_TESTED_HEAD||'',apkSha256:'',androidApi:'',webView:''};
 let browser,page;
 const quote=value=>"'"+value.replaceAll("'","'\\''")+"'";
 const adb=(...args)=>execFileSync('adb',args,{encoding:'utf8',timeout:30000,maxBuffer:16*1024*1024});
 const shell=command=>adb('shell','-T',command);
 const readNative=relative=>shell(`run-as ${APP} cat ${quote('files/'+relative)}`);
+const rawNative=relative=>execFileSync('adb',['exec-out',`run-as ${APP} cat ${quote(relative)}`],{maxBuffer:64*1024*1024});
 const readJSON=relative=>JSON.parse(readNative(relative));
 async function writeNative(relative,bytes){
   const full='files/'+relative,command=`mkdir -p ${quote(path.posix.dirname(full))} && cat > ${quote(full)}`;
@@ -26,7 +28,7 @@ async function step(name,action){
   const start=Date.now();console.log('ANDROID '+name);
   try{await action();records.push({name,status:'passed',milliseconds:Date.now()-start});}
   catch(error){records.push({name,status:'failed',error:String(error),milliseconds:Date.now()-start});throw error;}
-  finally{await fs.writeFile(path.join(output,'report.json'),JSON.stringify({records,errors,consoleErrors},null,2));}
+  finally{await fs.writeFile(path.join(output,'report.json'),JSON.stringify({metadata,records,errors,consoleErrors},null,2));}
 }
 async function connect(){
   let last;
@@ -36,7 +38,8 @@ async function connect(){
       const socket='webview_devtools_remote_'+pid;
       if(pid&&shell('cat /proc/net/unix').includes(socket)){
         adb('forward','tcp:9222','localabstract:'+socket);
-        browser=await chromium.connectOverCDP('http://127.0.0.1:9222',{timeout:5000});
+        // A real WebView cannot implement desktop Browser.setDownloadBehavior/context APIs.
+        browser=await chromium.connectOverCDP('http://127.0.0.1:9222',{timeout:5000,noDefaults:true});
         page=browser.contexts()[0]?.pages()[0];if(!page)throw new Error('Native WebView has no page');
         page.on('pageerror',error=>{errors.push(error.stack||error.message);console.error('WEBVIEW ERROR',error);});
         page.on('console',message=>{if(message.type()==='error'){consoleErrors.push(message.text());console.error('WEBVIEW CONSOLE',message.text());}});
@@ -86,7 +89,8 @@ module.exports=class NativeProbe extends Plugin {
   async onload(){
     await this.saveData({appMobile:this.app.isMobile,renderer:typeof document!=='undefined',...Platform});
     if(typeof document!=='undefined')this.addCommand({id:'modal',name:'Open native probe modal',callback:()=>{
-      const {Modal}=require('obsidian');new Modal(this.app).setTitle('Native probe modal').setContent('Native Back closes only this modal.').open();
+      const {Modal}=require('obsidian');const modal=new Modal(this.app);modal.setTitle('Native probe modal');
+      modal.contentEl.textContent='Native Back closes only this modal.';modal.open();
     }});
   }
 };`;
@@ -125,6 +129,8 @@ const notePath='Native Probe.md',initial='# Native Probe\n\nStart\n\n![Native as
 let expectedText=initial;
 try{
   await step('real APK installation and app-private fixtures',async()=>{
+    metadata.apkSha256=crypto.createHash('sha256').update(await fs.readFile(APK)).digest('hex');
+    metadata.androidApi=shell('getprop ro.build.version.sdk').trim();
     adb('install','-r',APK);
     await writeNative('vault/'+notePath,initial);await writeNative('vault/pixel.png',png(32,16));
     await writeNative('engine-profile/state.json',JSON.stringify({settings:{mode:'source',css},layout:{tabs:[notePath],active:notePath,split:null,left:false,right:false,mode:'source'}}));
@@ -147,6 +153,7 @@ try{
     }
     assert.equal(manifest.id,pinned.directory);
     shell(`am start -n ${APP}/.MainActivity`);await connect();
+    metadata.webView=browser.version();
     assert.equal(new URL(page.url()).origin,'https://localhost');
     assert.deepEqual(await page.evaluate(()=>({platform:window.engine.platform,persistent:window.engine.persistent,desktop:window.engine.desktop,node:typeof window.require})),{platform:'android',persistent:true,desktop:false,node:'undefined'});
     await expect(page.locator('.statusbar')).toContainText('Saved locally');
@@ -187,7 +194,7 @@ try{
     assert.match(await image.getAttribute('src'),/^https:\/\/localhost\/_capacitor_file_\//);
     await page.evaluate(bytes=>window.engine.modifyBinary('pixel.png',new Uint8Array(bytes)),[...png(48,16)]);
     await expect.poll(()=>page.locator('.reading-surface img').first().evaluate(img=>img.complete&&img.naturalWidth),{timeout:15000}).toBe(48);
-    assert.equal(Buffer.from(readNative('vault/pixel.png'),'binary').length>0,true);
+    assert.deepEqual(rawNative('files/vault/pixel.png'),png(48,16));
     await page.screenshot({path:path.join(output,'android-reading.png')});
   });
   await step('native drawers, settings and top-modal Back ownership',async()=>{
@@ -199,8 +206,13 @@ try{
     await expect(page.getByRole('switch',{name:'Enable Desktop-only Probe',exact:true})).toBeDisabled();
     await expect(page.getByRole('switch',{name:'Allow unsafe-eval in trusted renderer',exact:true})).toBeDisabled();
     await expect(page.getByRole('switch',{name:'Allow native Node.js plugins',exact:true})).toBeDisabled();
+    shell('settings put system accelerometer_rotation 0');shell('settings put system user_rotation 1');
+    await expect.poll(()=>page.evaluate(()=>innerWidth>innerHeight),{timeout:15000}).toBe(true);
     await enable('Original Native Probe','worker');
-    await expect.poll(()=>readJSON('engine-profile/plugins/native-probe.json'),{timeout:15000}).toMatchObject({appMobile:true,renderer:false,isMobile:true,isAndroidApp:true,isDesktopApp:false});
+    await expect.poll(()=>readJSON('engine-profile/plugins/native-probe.json'),{timeout:15000}).toMatchObject({appMobile:true,renderer:false,isMobile:true,isPhone:true,isTablet:false,isAndroidApp:true,isDesktopApp:false});
+    await page.screenshot({path:path.join(output,'android-landscape.png')});
+    shell('settings put system user_rotation 0');
+    await expect.poll(()=>page.evaluate(()=>innerHeight>innerWidth),{timeout:15000}).toBe(true);
     await page.getByRole('switch',{name:'Enable Original Native Probe',exact:true}).click();
     await enable('Original Native Probe');
     await expect.poll(()=>readJSON('engine-profile/plugins/native-probe.json'),{timeout:15000}).toMatchObject({appMobile:true,renderer:true,isMobile:true,isPhone:true,isAndroidApp:true,isDesktopApp:false});
@@ -216,6 +228,7 @@ try{
     const slider=page.getByRole('slider',{name:'Native slider',exact:true});
     await slider.focus();await slider.press('Home');for(let i=0;i<10;i++)await slider.press('ArrowRight');
     await expect(slider).toHaveValue('18');
+    await expect(slider).toHaveAttribute('title','18');await expect(slider).toHaveAttribute('aria-valuetext','18');
     await expect.poll(effects,{timeout:15000}).toEqual(['wide','14px','18px']);
     await expect.poll(()=>readJSON('engine-profile/plugins/obsidian-style-settings.json'),{timeout:15000}).toMatchObject({
       'android-probe@@android-probe-choice':'wide','android-probe@@android-probe-number':14,'android-probe@@android-probe-slider':18
@@ -227,7 +240,7 @@ try{
     await page.getByRole('button',{name:'Source mode',exact:true}).click();
     await page.locator('.editor .cm-content').first().click();await page.keyboard.press('Control+End');
     await page.keyboard.insertText('Background save\n');expectedText+='Background save\n';
-    // Background immediately, before the ordinary 450ms autosave is sufficient evidence.
+    // Background immediately rather than waiting for the ordinary autosave to settle.
     shell('input keyevent 3');
     await expect.poll(()=>readNative('vault/'+notePath),{timeout:15000}).toBe(expectedText);
     shell(`am start -n ${APP}/.MainActivity`);
@@ -247,7 +260,7 @@ try{
     await command('Export entire vault');
     await expect.poll(()=>shell(`run-as ${APP} find cache/exports -name '*.zip'`),{timeout:15000}).toContain('.zip');
     const file=shell(`run-as ${APP} find cache/exports -name '*.zip'`).trim().split('\n')[0];
-    const zipBytes=execFileSync('adb',['exec-out','run-as',APP,'cat',file]);
+    const zipBytes=rawNative(file);
     const zip=await JSZip.loadAsync(zipBytes);assert.equal(await zip.file(notePath).async('string'),expectedText);
     shell('input keyevent 4'); // dismiss the OS chooser; no content is sent to a recipient
     await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible();
@@ -272,6 +285,6 @@ try{
   process.exitCode=1;
 }finally{
   try{await fs.writeFile(path.join(output,'logcat.txt'),adb('logcat','-d','-v','threadtime'));}catch{}
-  await fs.writeFile(path.join(output,'report.json'),JSON.stringify({records,errors,consoleErrors},null,2));
+  await fs.writeFile(path.join(output,'report.json'),JSON.stringify({metadata,records,errors,consoleErrors},null,2));
   await browser?.close();
 }

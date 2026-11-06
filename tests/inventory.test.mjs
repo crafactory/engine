@@ -4,6 +4,10 @@ import {normalizeText,parseParityLedger} from '../scripts/inventory-model.mjs';
 const ledger=fs.readFileSync(new URL('../docs/PARITY.md',import.meta.url),'utf8');
 const core='https://help.obsidian.md/plugins',api='https://docs.obsidian.md/Reference/TypeScript+API/index';
 describe('cross-platform inventory line endings',()=>{
+  it('keeps explicit partial core rows rather than silently dropping a documented gap',()=>{
+    const parsed=parseParityLedger('## Core plugins\n| Bases | Partial | Table subset | Formula/query gaps |\n',core,api);
+    expect(parsed).toEqual([{id:'CORE-bases',section:'Core plugins',title:'Bases',status:'partial',reference:core,implemented:'Table subset',remaining:'Formula/query gaps',evidence:[]}]);
+  });
   it('CRLF parses all 29 core rows exactly like LF without losing the final table cell',()=>{
     const lf=normalizeText(ledger),windows=lf.replace(/\n/g,'\r\n');
     const expected=parseParityLedger(lf,core,api),actual=parseParityLedger(windows,core,api);

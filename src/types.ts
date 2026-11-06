@@ -16,6 +16,7 @@ export interface Bridge {
   /** Persisted storage does not imply desktop/Node capabilities. */
   persistent?:boolean;
   platform?:'android';
+  formFactor?:'phone'|'tablet';
   exportFile?(name:string,content:Blob,type:string):Promise<void>;
   onSuspend?(fn:()=>Promise<void>):()=>void;
   onBack?(fn:()=>Promise<boolean>):()=>void;

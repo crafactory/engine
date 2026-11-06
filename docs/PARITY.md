@@ -1,111 +1,183 @@
-# Functional parity ledger
+# Functional parity and current gaps
 
-This file distinguishes implementation from completeness. The requested target is all non-subscription Obsidian functionality, independently implemented under MIT. **That target is not reached in 0.6.0.** No overall parity percentage is given because there is no comprehensive behavioral test corpus or fixed reference build. `FEATURE-CHECKLIST.md` and its machine-readable JSON preserve unfinished areas and bounded test evidence; they are not an exhaustive reference specification. The native all-plugin architecture in `NATIVE-PLUGIN-ARCHITECTURE.md` has its assembly kernel (with a dependency-lifecycle `disable`/`enable` flow), storage/documents/commands providers, render/workspace view-slot contracts, an editor provider contract (CodeMirror plus a plain replacement), first migrated core features (bookmarks; templates + daily notes), a notes index consumed by the reader panels/search/graph and the inline properties editor, a navigation service (quick switch + random note), a named-workspace service, unique-note, word-count, slides and format-converter services, an explorer service over storage, a note-composer service, web-viewer, slash-command, page-preview and audio-recorder services, a bridge-backed storage/documents/explorer runtime consumed by file recovery and the compatibility facade's read/write/plugin-data path, and a compatibility facade that resolves links, routes read/write/rename/trash/plugin-data through native storage/documents and reports editor-extension differences through native services, a view-contribution service whose built-in Markdown/Canvas/Bases/graph/editor views with a Bases table/cards/list renderer registry and split Canvas card/toolbar/editor components and left-slot files/search/bookmarks/recent/tags panels and right-slot outline/backlinks/outgoing panels register as lazy component loaders, a native compatibility-loader service for local Obsidian-compatible packages (Worker/trusted renderer, native plugin/core-plugin switch), a native UI contribution service for ribbon buttons, status-bar text, settings sections and opt-in block previews (with Editor settings and Mermaid as built-in consumers), plus plugin package validation, declared-permission host checks and renderer-only ribbon/status/settings/view compatibility hooks with a custom view/extension host, an editor-suggest bridge, protocol handler dispatch, hover-link event transport, renderer-only custom Bases view registration, and metadata-cache change/delete/resolve events (`KERNEL-SPEC.md`, `SERVICES-SPEC.md`), and a click-to-edit Live Preview with in-block table/code scrolling, inline image/tag rendering, inline type-aware property editing, but the rest of the product surface is not yet migrated to them.
+This is a workflow comparison, not a parity percentage or a claim of reference-equivalent
+behavior. The official core-plugin index was checked on 2026-11-06 UTC; it currently lists
+Footnotes view and Tags view, and no longer lists Format converter as a core plugin
+([Obsidian core plugins](https://help.obsidian.md/plugins)).
+Sync and Publish remain excluded by project policy; free extensions, Android, editing
+behavior and community-plugin compatibility remain in scope.
 
-The reference inventory comes from [Obsidian's public core-plugin list](https://help.obsidian.md/plugins) and [help home](https://help.obsidian.md). Public behavior was consulted; application source was not used. Core plugin names alone are not an exhaustive specification, and third-party community-plugin functionality is not equivalent to the core feature set.
+The generated [feature checklist](FEATURE-CHECKLIST.md) is the acceptance ledger.
+[PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md) is the single per-plugin verdict tracker;
+do not copy its verdicts into a second matrix. [VERIFICATION.md](VERIFICATION.md) records
+frozen executions, not permanently valid counts. [ANDROID.md](ANDROID.md) records the
+framework decision, native acceptance and Android-specific limitations.
 
-## Baseline
+## Status meanings and evidence boundaries
 
-Reference documentation inspected on 2026-10-11. This is a documentation-based inventory, not certification against an installed reference version. Subscription Sync and Publish are excluded because they are [documented add-on services](https://help.obsidian.md). Mobile apps and free first-party extensions remain in scope for eventual parity; they are not excluded just because they are separate distributions.
+- **Implemented subset**: a bounded owned workflow exists; missing behavior is explicit.
+- **Partial**: only part of the reference workflow exists, or an integration boundary remains.
+- **Not implemented**: the named workflow is absent; adjacent syntax/UI is not a substitute.
+- **Excluded**: only the two project-policy exclusions below.
+- **Unverified**: source or startup success is not evidence that the named operation works.
 
-### Status definitions
+The shared frontend uses CodeMirror, a Markdown renderer and owned document/workspace/
+storage/render services. The optional Obsidian facade consumes those services rather than
+replacing the host. Desktop persistence uses the Electron bridge; browser preview remains
+temporary. Android implementation is being tested against a real native filesystem and
+WebView; responsive browser rendering alone does not count as Android acceptance.
+Service boundaries and remaining migration details are in
+[NATIVE-PLUGIN-ARCHITECTURE.md](NATIVE-PLUGIN-ARCHITECTURE.md).
 
-- **Implemented subset:** a working Engine flow exists, but some reference behaviors are missing or not verified.
-- **Not implemented:** no equivalent Engine flow exists.
-- **Excluded:** a subscription service intentionally outside the request.
+## Editing and document stability
 
-No row is labeled "complete" without a full behavioral comparison.
+Obsidian distinguishes Reading view from Editing view, with Live Preview and Source
+editing modes. Live Preview reveals syntax when the cursor enters formatted content
+([official editing documentation](https://raw.githubusercontent.com/obsidianmd/obsidian-help/master/en/Editing%20and%20formatting/Views%20and%20editing%20mode.md)).
+Engine provides those three visible modes, but that does not certify identical selection,
+layout, undo, input-method or plugin behavior.
 
-## Workspace and file model
+| Workflow | Current Engine evidence | Remaining boundary |
+| --- | --- | --- |
+| Live tables | Measured columns and edit-control heights survive entering/exiting edits. An edit-owned ResizeObserver adapts the grid to container changes without discarding the draft/focus. | Arbitrary nested syntax, every theme/font/zoom, assistive technology and all touch/IME workflows are not certified. |
+| Live images and diagrams | Unchanged image/diagram DOM survives typing and unrelated-note refresh. Real source changes still invalidate. Root-note assets resolve; modified asset metadata selectively refreshes decoded bytes. | External writers with indistinguishable metadata, every image format and all plugin renderers are unverified. |
+| Mermaid labels | Native SVG text renders labels under mandatory DOMPurify; HTML-label output is not restored by weakening sanitization. | Every Mermaid diagram type and visual equivalence remain unverified. |
+| Source/live continuity | Shared editor document, selection, history compartments and original live-stability regressions are retained. Browser, Electron and actual Linux-package regressions cover the named geometry/identity failures. | Finite regressions do not prove that all geometry shifts or all editor bugs are fixed. See [QA-CANVAS-LIVE-EDIT.md](QA-CANVAS-LIVE-EDIT.md). |
+| Footnote syntax | Existing `markdown-it-footnote` rendering supports footnote syntax in rendered Markdown. | A dedicated footnote list/navigation view is absent. Do not describe footnote syntax itself as missing. |
 
-| Area | Status | Working behavior | Missing or unverified |
-|---|---|---|---|
-| Desktop app | Implemented subset | Electron desktop shell, local folders, Windows/macOS/Linux build configuration | Windows/macOS runtime verification, signed/notarized installers, automatic updates, multi-window/pop-out parity |
-| Vaults | Implemented subset | Choose/create folder, last vault, plain files, metadata, file watch | Vault switcher catalog, multiple concurrent windows, reference settings migration |
-| Save safety | Implemented subset | Debounced saves, SHA-256 optimistic conflicts, atomic replacement, queued writes, close-time flush | Power-loss/fsync guarantees, cross-process locking, edge-case external-write races, filesystem permission/ACL preservation |
-| Explorer | Implemented subset | Files/folders, rename/move, drag into folders, sorting, trash | Full context menu parity, bulk selection, attachment renaming in all embed types |
-| Links | Implemented subset | Wiki/Markdown links, aliases, relative sibling links, headings/block reads, rename update | Canonical shortest-path disambiguation, `../` resolution, escaped destinations, Canvas/Base references during rename, all ambiguous-name cases |
-| Tabs/layout | Implemented subset | Tabs, drag reorder, back/forward, one right split, saved layouts | Arbitrary split tree, stacked tabs, pane pinning/pop-outs, full workspace restoration |
-| Import/export | Implemented subset | Markdown and attachments import; Markdown, HTML, PDF, ZIP exports | Native importers for external products, styled self-contained HTML export, PDF embed parity |
-
-## Editing and Markdown
-
-Public formatting behavior is described in [Basic formatting syntax](https://help.obsidian.md/syntax). Engine implements a tested subset rather than copying the reference renderer.
-
-| Area | Status | Working behavior | Missing or unverified |
-|---|---|---|---|
-| Source editing | Implemented subset | CodeMirror 6, Markdown mode, undo/redo, search/replace, selection formatting, spellcheck, line numbers | Vim/Emacs parity, complete editing-shortcut set, table editor, fold/history semantics |
-| Live preview | Implemented subset | Inactive-line formatting and bounded wiki/Markdown link navigation; top-level tables, code, diagrams, callouts/quotes, math, standalone embeds/rules; source reveal; table cell edits, widget reuse on position changes, undo/redo, task toggles | Full inline/nested grammar, nested/escaped Markdown link destinations, list rendering, table row/column operations, all embeds, exact cursor/selection and reference editing behavior, huge-document performance |
-| Reading | Implemented subset | Markdown-it, tables, tasks, highlights, code, footnotes, comments, callout styling and nested collapsible callouts | HTML-in-note support, complete OFM grammar, syntax highlighting in reading code fences |
-| Math/diagrams | Implemented subset | KaTeX inline/display math, Mermaid strict rendering | Full syntax edge cases, editing behavior, complete compatibility/security audit |
-| Embeds | Implemented subset | Note/heading/block transclusion, read-only Canvas geometry, image/audio/video attachments, PDF download | Recursive nested embeds, embedded Canvas file-card format parity, interactive PDFs, image-size wiki syntax, embedded Bases, block edit actions |
-| Properties | Implemented subset | Typed YAML editing, add/remove, property search and vault keys | Reference type registry, date/link widgets, drag/reorder, field auto-completion and multi-file bulk edits |
-| Attachments | Implemented subset | Add/import local assets, image/audio/video display, ZIP inclusion | Large-file streaming, PDF annotation/viewing, drag/paste paths, per-folder attachment rules |
+The accepted Live Editing repair is
+[PR #75](https://github.com/crafactory/engine/pull/75). Its tests and historical acceptance
+remain distinct from subsequent native Android tests.
 
 ## Core plugins
 
-The following inventory follows the [public core-plugin list](https://help.obsidian.md/plugins). "Implemented subset" is explicitly not full feature equivalence.
+Reference names below follow the current
+[official core-plugin index](https://help.obsidian.md/plugins).
+Descriptions of Engine behavior refer to owned implementation and bounded tests, not to
+an inspection or copy of Obsidian implementation.
 
-| Core plugin | Status | Engine behavior and limitations |
-|---|---|---|
-| Audio recorder | Implemented subset | MediaRecorder capture into attachment; device permissions and hardware vary, not hardware-tested |
-| Backlinks | Implemented subset | Resolved incoming links and plain-name unlinked mentions; advanced linking/context actions missing |
-| Bases | Implemented subset | YAML table/cards/list, inline property editing, sort/filter, CSV; full formulas/functions, grouping/summaries/map views missing |
-| Bookmarks | Implemented subset | Notes only; headings, saved searches, groups, arbitrary URLs not implemented |
-| Canvas | Implemented subset | Text/file/link/group, position/size, connections, minimap, open JSON; richer groups/edges/media and full interaction parity missing |
-| Command palette | Implemented subset | Fuzzy search, arrows/Enter, hotkey display; pinned/recent command ranking not implemented |
-| Daily notes | Implemented subset | Folder and template, local ISO date; full configurable date formats/calendar navigation missing |
-| File explorer | Implemented subset | File/folder operations as above |
-| File recovery | Implemented subset | Up to 100 previous saved versions per text path; reference scheduling/retention behavior differs |
-| Format converter | Implemented subset | Basic HTML highlight and Markdown-link conversion; not a comprehensive importer/converter |
-| Graph view | Implemented subset | D3 local/global graph, query filter, orphans, unresolved links, zoom/drag/depth/distance; reference groups/layout controls differ |
-| Note composer | Implemented subset | Extract selected text, merge content, rewrite resolvable links and trash source; metadata/heading conflict resolution missing |
-| Outgoing links | Implemented subset | Linked and unresolved targets; advanced context/link actions missing |
-| Outline | Implemented subset | Heading index and jump; complete folding/drag behavior missing |
-| Page preview | Implemented subset | Hover previews in reading; edit-mode modifier behavior and recursive/scroll handling missing |
-| Properties view | Implemented subset | Inline type-aware editor under the note title (text/number/checkbox/date/date-time/list, type conversion, list chips/suggestions, add/remove) with explicit types persisted per vault (Automatic falls back to inference); default values, structured/nested values and source-mode parity remain |
-| Publish | Excluded | Subscription service, no backend included |
-| Quick switcher | Implemented subset | Fuzzy filename/path search, recent order, create-on-no-match; reference ranking/modifier behavior differs |
-| Random note | Implemented subset | Random indexed Markdown file |
-| Search | Implemented subset | AND/OR, grouping, negation, quotes, regex, file/path/tag/content/case/line/block/section/task/property operators; full parser/ranking/UI parity missing |
-| Slash commands | Implemented subset | A small list of structural insertions; not every command |
-| Slides | Implemented subset | Horizontal-rule separation, arrows, exit/fullscreen; complete presentation grammar/theme controls missing |
-| Sync | Excluded | Subscription service, no backend included |
-| Tags | Implemented subset | Frontmatter/inline Unicode tags and counts; full hierarchy/collapse UI differs |
-| Templates | Implemented subset | Title/date/time interpolation and configured folder; token/date-format set narrower |
-| Unique note creator | Implemented subset | Timestamp filename; format/template configuration missing |
-| Web viewer | Implemented subset | HTTPS iframe and external fallback; sites can block embedding, no browser history/login/clip parity |
-| Word count | Implemented subset | Unicode word regex and character count; CJK segmentation and reference counting rules not equal |
-| Workspaces | Implemented subset | Save/restore tabs, active file, sidebars, mode, one split; arbitrary workspace tree missing |
+| Core plugin | Status | Current subset and next gap |
+| --- | --- | --- |
+| Audio recorder | Implemented subset | Desktop browser MediaRecorder inserts a local recording. Device/codec behavior and Android microphone integration are unverified; no Android microphone permission is requested in this pilot. |
+| Backlinks | Implemented subset | Resolved backlinks and unlinked mentions exist. Full reference context, rename/refactor edge cases and large-vault behavior remain incomplete. |
+| Bases | Partial | Local `.base` table/list/cards views and a small extension view hook exist. Full formula, query, grouping, configuration and extension-view APIs do not. |
+| Bookmarks | Implemented subset | Note bookmarks exist. Groups, headings, saved searches and arbitrary URL bookmarks remain missing. |
+| Canvas | Implemented subset | Owned `.canvas` cards, connections, groups, zoom and editing exist. This is not the internal Obsidian Canvas API required by Excalidraw's embedded-canvas path; deep interoperability and mobile touch workflows remain unverified. |
+| Command palette | Implemented subset | Fuzzy commands, keyboard selection and hotkey display exist. Full ranking, pinning/recent behavior and arbitrary plugin command fidelity remain incomplete. |
+| Daily notes | Implemented subset | Configurable date format/folder/template and daily navigation exist. All locale/timezone/template combinations remain unverified. |
+| File explorer | Implemented subset | Files/folders, rename, move, trash and attachments exist with host path/version guards. No cross-process atomic lock, ACL preservation or power-loss guarantee is claimed. Android shared-folder selection is absent. |
+| File recovery | Implemented subset | Prior saved text versions and a recovery UI exist; up to 100 per file are retained. The Android backend has a separate private profile, not the desktop recovery directory. Unsaved-process-kill recovery is not certified. |
+| Footnotes view | Not implemented | Markdown footnotes render, but there is no dedicated current-note footnote list/navigation view. This is a distinct reference core workflow. |
+| Graph view | Implemented subset | Owned global/local force graph, filtering and basic interaction exist. Reference layout, visual controls and large-graph performance are not equivalent. |
+| Note composer | Implemented subset | Merge and selection extraction, including owned link handling, exist. Every reference refactor/metadata/link edge case remains unverified. |
+| Outgoing links | Implemented subset | Indexed outgoing and unresolved links exist. Full reference grouping/context/navigation behavior remains incomplete. |
+| Outline | Implemented subset | Heading navigation exists. Full drag/reorder/reference behavior and all plugin headings remain incomplete. |
+| Page preview | Implemented subset | Owned note-hover previews exist. Complete hover-parent ownership, popover behavior and plugin source integrations remain incomplete. |
+| Properties view | Implemented subset | Owned frontmatter/property editing and property indexing exist. Arbitrary property types, complete metadata-manager semantics and reference layout remain incomplete. |
+| Publish | Excluded | Excluded by project policy; not represented as implemented. |
+| Quick switcher | Implemented subset | Fuzzy note selection exists. Full ranking, context and modifier semantics remain incomplete. |
+| Random note | Implemented subset | Selects an eligible Markdown note. Full option/filter/reference behavior is not certified. |
+| Search | Implemented subset | Indexed text, owned operators and result navigation exist. Complete reference grammar, context, ranking and large-vault performance remain incomplete. |
+| Slash commands | Implemented subset | Shared command discovery/insertion exists. Full cursor, mobile keyboard and plugin-command behavior is not certified. |
+| Slides | Implemented subset | Markdown slide rendering/navigation exists. Complete presenter/export/reference behavior remains incomplete. |
+| Sync | Excluded | Excluded by project policy; not represented as implemented. |
+| Tags view | Implemented subset | Tag listing/filtering exists. Complete reference hierarchy, counts and interaction remain incomplete. |
+| Templates | Implemented subset | Template insertion and owned date/title expansion exist. Full third-party templating APIs/macros are not provided. |
+| Unique note creator | Implemented subset | Creates timestamp-formatted notes in a configured folder. Every collision/template/date-format case remains unverified. |
+| Web viewer | Implemented subset | Desktop embedded web views and owned navigation exist. Android remote frames are deliberately blocked; opening remote pages in a trusted native WebView is not enabled. Complete reference browser integration remains absent. |
+| Word count | Implemented subset | Active-document word/character counts exist. Reference tokenization/selection/locale behavior is not identical. |
+| Workspaces | Implemented subset | Saved layouts restore tabs, split, modes and sidebars. Arbitrary workspace-leaf/view hierarchy, every plugin state and mobile layout fidelity remain incomplete. |
 
-Search behavior was informed by [Search documentation](https://help.obsidian.md/plugins/search). Bases parsing was informed by [Bases syntax](https://help.obsidian.md/bases/syntax); the expression interpreter deliberately refuses unsupported operations instead of running arbitrary JavaScript.
+Format converter remains an additional/legacy host workflow, not a newly verified current
+reference core plugin. Updating the reference list must not remove Engine's existing
+format-conversion functionality.
+
+## Workspace, files and Markdown areas
+
+These retain the existing host-area inventory identities while updating the boundaries;
+their overlaps with core-plugin rows are not additional units of parity.
+
+| Area | Status | Current subset | Remaining boundary |
+| --- | --- | --- | --- |
+| Desktop app | Implemented subset | Electron shell and Windows/macOS/Linux package configuration; actual Linux-package regressions. | Windows/macOS runtime certification, signing/notarization, automatic updates, multi-window/pop-out equivalence. |
+| Vaults | Implemented subset | Desktop choose/create folder, last vault, file metadata/watch; Android private vault implementation under native test. | Vault catalog, concurrent windows, reference-settings migration and Android shared folders/SAF. |
+| Save safety | Implemented subset | Queued writes, SHA-256 optimistic conflicts, desktop replacement/close flush; staged Android publication. | Power-loss/fsync, cross-process locking, external-write races, ACL preservation and unsaved-process-kill recovery. |
+| Explorer | Implemented subset | Files/folders, rename/move, folder drag, sorting and trash. | Complete context menus, bulk selection and attachment/refactor handling across every embed type. |
+| Links | Implemented subset | Wiki/Markdown links, aliases, relative siblings, heading/block reads and owned rename updates. | Complete shortest-path disambiguation, escaped/parent-relative destinations and Canvas/Base/ambiguous rename references. |
+| Tabs/layout | Implemented subset | Tabs/reorder, back/forward, one right split and saved layouts. | Arbitrary split trees, stacked tabs, pane pinning/pop-outs and all plugin workspace states. |
+| Import/export | Implemented subset | Markdown/assets import and note/HTML/PDF/ZIP export on desktop; Android share export implementation under test. | Product-specific importers, self-contained HTML, Android printing/SAF and complete hidden-profile backup/restore. |
+| Source editing | Implemented subset | CodeMirror, Markdown, undo/redo, search/replace, selection formatting, spelling/line settings and an owned table editor. | Vim/Emacs mode equivalence, every editing shortcut, folding/history semantics and every input method. |
+| Live preview | Implemented subset | Source reveal, formatting, tasks, tables with row/column operations, owned fenced-block previews and repaired geometry/identity. | Obsidian Markdown processors still run only in reading mode; complete inline/nested grammar, every list/embed, cursor/selection equivalence and huge-document performance remain incomplete. |
+| Reading | Implemented subset | Markdown-it, tables, tasks, highlights, footnotes, comments and nested callout folding. | Complete OFM, HTML-in-note and code-fence highlighting equivalence; no dedicated Footnotes view. |
+| Math/diagrams | Implemented subset | KaTeX and strict Mermaid with sanitized native SVG text labels. | All syntax/render/editing types and complete compatibility/security certification. |
+| Embeds | Implemented subset | Note/heading/block transclusion, read-only Canvas geometry and image/audio/video; PDF download. | Recursive embeds, Canvas file cards, interactive PDF, full wiki image sizing, embedded Bases and block edit actions. |
+| Properties | Implemented subset | Typed YAML editing, add/remove, property search and indexed inference/overrides used by the facade. | Full reference type-manager semantics, date/link widgets, drag/reorder, completion and multi-file bulk edits. |
+| Attachments | Implemented subset | Local asset import/display and ZIP inclusion; root paths and modified decoded assets repaired. | Large-file streaming, PDF viewing/annotation, every drag/paste path and per-folder rules; Android picker flows unverified. |
+
+## Host capabilities beyond the core list
+
+| Area | Current subset | Important gaps |
+| --- | --- | --- |
+| Formatting and tables | Owned formatting, checklists, links, Mermaid/math, editable tables and row/column insertion/reordering exist. | Do not repeat the stale claim that table row/column operations are entirely missing. Advanced nested Markdown and full editing equivalence remain unverified. |
+| Tabs, layout and focus | Tabs, history, a split view, sidebars and owned leaf hosting exist. | Full reference pane tree, arbitrary view-state serialization, all keyboard/focus transitions and cross-window behavior remain incomplete. |
+| CSS/themes | Appearance settings, custom CSS and bounded plugin setting controls exist. | Complete theme/snippet discovery/management, every CSS variable and mobile theme equivalence remain incomplete. |
+| URI/plugin protocols | An owned in-app protocol dispatch and plugin protocol-handler registration subset exist. | No OS `obsidian://` registration is claimed; Android VIEW/BROWSABLE intent integration is absent. |
+| Import/export | Local import, note export and vault ZIP export exist. Android export uses an explicit OS share sheet. | Android SAF/shared-folder vaults and a complete backup/restore including hidden profile/history/plugin data are not provided. Opening a share sheet does not prove another app retained a backup. |
+| File observations | Desktop host watching and own mutation notifications refresh indexes/assets. | Android pilot has no general native filesystem watcher for external/direct native writers. Metadata equality is not a content-hash guarantee. |
+| Free extensions | Importer, Web Clipper and Maps remain comparison targets, not policy exclusions. | Complete importer formats, browser-extension integration and Maps/geospatial behavior remain absent or unverified. |
+| Security | Sanitized Markdown, least-privilege defaults and explicit profile-wide renderer/native trust remain distinct from sandboxing. Compatible production dependency patches are included in the Android increment. | Trusted renderer code can access the whole host. Android native APIs are app-UID trust, not desktop OS-user Node privilege or per-plugin isolation. Dependency audit results are scoped, not a general security certification. |
+
+## Community plugins and native integration
+
+The facade exposes only a subset of the public API. Worker is the default; trusted
+renderer is explicitly confirmed, not sandboxed and cannot be forcibly interrupted.
+Desktop native Node integration is a separate profile-wide opt-in with full OS-user
+trust; it is unavailable on Android. Binary APIs and serialized process operations exist
+in their documented providers, so older blanket descriptions of them as entirely refused
+are stale. No permission boundary should be inferred from DOM code executing successfully.
+
+Finite unchanged-package workflows, API member boundaries, public release fingerprints
+and remaining per-plugin gaps are recorded in
+[PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md),
+[PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md) and
+[API-COVERAGE.md](API-COVERAGE.md). Excalidraw's core Canvas dependency, Copilot secure
+secret storage/inference, authenticated/conflicted Git, deep Kanban workflows and the
+unexercised Style Settings kinds remain explicit targets until tested. A successful startup,
+settings screen or drag interaction is not full plugin compatibility.
 
 ## Extensions, themes, and platform surface
 
-| Area | Status | Boundary |
-|---|---|---|
-| Community plugin API | Implemented subset | Default Worker plus explicit trusted renderer with DOM settings/Modal, dedicated views, host CodeMirror extensions, reading post/code processors and MarkdownRenderChild lifecycle. Whole-host context, null section mapping and non-recursive static rendering are bounded, not reference equivalent. Real plugins remain limited; see PLUGIN-COMPATIBILITY.md and per-mode reports. Full member/overload/reference/platform coverage incomplete. |
-| Community catalog | Not implemented | No plugin/theme marketplace, unattended installation, updates or signing; local manual install only |
-| Themes/snippets | Implemented subset | Two original themes, one editable vault CSS snippet; reference themes and CSS-variable API not compatible |
-| Hotkeys | Implemented subset | Editable application hotkeys; conflicts, editor binding overrides, complete command registration not equal |
-| Mobile | Not implemented | Responsive preview is not an iOS/Android app and is not counted as mobile parity |
-| CLI | Implemented subset | Original local file CLI; not command-compatible with the reference CLI |
-| URI/deep links | Not implemented | No `obsidian://` or `crafactory://` open protocol compatibility |
-| Web Clipper | Not implemented | No browser extension; reference first-party free extension remains outstanding |
-| Importer / Maps | Not implemented | No equivalent free first-party import or map extension |
-| Localization | Not implemented | UI currently English; Chinese note content and filenames supported, not a translated UI |
-| Accessibility | Implemented subset | Semantic controls, names, focus, reduced motion; comprehensive screen-reader/accessibility audit outstanding |
+| Area | Status | Current subset | Remaining boundary |
+| --- | --- | --- | --- |
+| Community plugin API | Implemented subset | Default Worker and explicitly trusted renderer; owned document/workspace/storage/render providers; mobile flags and desktop-only refusal. | Full members, overloads, workspace semantics, platform workflows and plugin compatibility remain incomplete; per-plugin verdicts live only in the support matrix. |
+| Community catalog | Not implemented | Local manually installed packages; Android debug sideload only. | No marketplace, unattended install/update/signing, or Android installation UI. |
+| Themes/snippets | Implemented subset | Original themes, editable custom CSS and bounded Style Settings controls. | Complete theme/snippet management and reference CSS-variable equivalence are unverified. |
+| Hotkeys | Implemented subset | Editable application hotkeys and owned plugin scopes. | Full conflict resolution, arbitrary editor overrides and mobile external-keyboard coverage are incomplete. |
+| Mobile | Not implemented | Android source, persistent bridge, shared mobile UI and native acceptance gate are in progress. | No final-head APK/emulator acceptance yet. iOS, SAF, mobile plugin installer and complete device/OEM coverage remain absent. |
+| CLI | Implemented subset | Owned local-file CLI. | Not command-compatible with the reference CLI. |
+| URI/deep links | Implemented subset | Owned in-app plugin protocol dispatch exists. | OS `obsidian://`/`crafactory://` registration and Android VIEW/BROWSABLE intents are absent. |
+| Web Clipper | Not implemented | No browser extension. | Reference free-extension interoperability remains outstanding. |
+| Importer / Maps | Not implemented | No equivalent import-format/map extension. | Full importer formats and geospatial workflows remain outstanding. |
+| Localization | Not implemented | Unicode note content and filenames work. | UI is currently English, not a translated Chinese interface. |
+| Accessibility | Implemented subset | Named semantic controls, keyboard focus, reduced motion and mobile touch-target work. | Comprehensive screen-reader/device/accessibility audit remains outstanding. |
+| Format converter | Implemented subset | Existing legacy format-conversion workflow remains. | Not a current core-index entry; complete conversion interoperability remains unverified. |
 
-## Acceptance gate for a future "1:1" claim
+## Android acceptance boundary
 
-1. Fix a reference application version and enumerate every non-subscription built-in workflow, setting, format, command, and supported platform.
-2. Add black-box fixture tests for behavior, persistence, interoperability, shortcuts, and error handling, without importing proprietary code.
-3. Implement the outstanding surfaces above, including mobile and the chosen extension-compatibility policy.
-4. Verify macOS, Windows, Linux, mobile, large vaults, external editors, Unicode paths, permissions, crashes, and upgrade/migration behavior.
-5. Run security/dependency/license reviews and publish the exact pass/fail evidence.
+The Android increment uses Capacitor while sharing React DOM/CodeMirror and the
+compatibility layer. React Native's native-component model and Tauri's extra native
+toolchain were evaluated in [ANDROID.md](ANDROID.md); the choice is an architectural
+fit assessment, not a performance ranking.
 
-Until those gates pass, describe Engine as an independently implemented workspace under development, not as a full clone.
+The in-progress native gate builds a real APK and uses the native WebView, app-private
+file bytes, keyboard/back, restart and unchanged pinned Style Settings controls. Until
+that gate passes at the final head, implementation presence is not an accepted Android
+workflow. A debug APK is not release signing, Play publication, physical-device/OEM
+certification or full mobile parity. iOS is not implemented in this Android-only increment.
 
-## Workspace and Live Preview revision
-
-The 0.2.0 revision removes the custom application/vault-name top bar. Vault switching remains available in the ribbon/sidebar; the OS window frame is not changed. Added behavior follows the public [views and editing-mode description](https://help.obsidian.md/edit-and-read), implemented independently. See `QA-LIVE-PREVIEW.md` for explicit test boundaries. No feature row is upgraded to full equivalence.
+Android-specific remaining gaps include shared folders/SAF, multi-vault selection,
+community-plugin installation UI, complete profile backup/restore, OS deep links,
+notifications/background jobs, microphone/camera integration, desktop-only plugins,
+Node/Electron and unsafe-eval/WASM opt-in. Capacitor supports API24+, but only the tested
+API35 emulator may be reported as exercised; WebView111+ is an application requirement,
+not an assertion that all supported Android devices were tested.

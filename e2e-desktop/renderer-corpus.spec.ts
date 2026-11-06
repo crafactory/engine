@@ -76,7 +76,7 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await expect(control).not.toBeChecked();await expect(page.locator('.plugin-status-item')).toHaveCount(0);
     }else if(plugin.name==='Style Settings'){
       // Original fixture CSS follows the public @settings format; upstream bytes stay untouched.
-      const css='/* @settings\nname: Engine Probe\nid: engine-probe\nsettings:\n  - id: engine-probe-toggle\n    title: Probe toggle\n    type: class-toggle\n  - id: engine-probe-color\n    title: Probe color\n    type: variable-text\n    default: red\n*/\nbody { --engine-probe-color: red; }\nbody.engine-probe-toggle { --engine-visible-probe: 1; }';
+      const css='/* @settings\nname: Engine Probe\nid: engine-probe\nsettings:\n  - id: engine-probe-toggle\n    title: Probe toggle\n    type: class-toggle\n  - id: engine-probe-color\n    title: Probe color\n    type: variable-text\n    default: red\n  - id: engine-probe-choice\n    title: Probe choice\n    type: variable-select\n    default: narrow\n    options:\n      - narrow\n      - wide\n  - id: engine-probe-number\n    title: Probe number\n    type: variable-number\n    default: 10\n    format: px\n  - id: engine-probe-slider\n    title: Probe slider\n    type: variable-number-slider\n    default: 12\n    min: 8\n    max: 24\n    step: 1\n    format: px\n*/\nbody { --engine-probe-color: red; --engine-probe-choice: narrow; --engine-probe-number: 10px; --engine-probe-slider: 12px; }\nbody.engine-probe-toggle { --engine-visible-probe: 1; }';
       const openStyleSettings=async()=>{
         await page.addStyleTag({content:css});
         await page.evaluate(()=>(window as any).app.workspace.trigger('parse-style-settings'));
@@ -87,13 +87,22 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
         document.body.classList.contains('engine-probe-toggle'),
         getComputedStyle(document.body).getPropertyValue('--engine-probe-color').trim(),
         getComputedStyle(document.body).getPropertyValue('--engine-visible-probe').trim(),
+        getComputedStyle(document.body).getPropertyValue('--engine-probe-choice').trim(),
+        getComputedStyle(document.body).getPropertyValue('--engine-probe-number').trim(),
+        getComputedStyle(document.body).getPropertyValue('--engine-probe-slider').trim(),
       ]);
       await openStyleSettings();
       await page.getByRole('switch',{name:'Probe toggle',exact:true}).check();
       await page.getByRole('textbox',{name:'Probe color',exact:true}).fill('#123456');
       await page.getByRole('textbox',{name:'Probe color',exact:true}).press('Tab');
-      await expect.poll(effects).toEqual([true,'#123456','1']);
-      const saved={'engine-probe@@engine-probe-toggle':true,'engine-probe@@engine-probe-color':'#123456'};
+      await page.getByLabel('Probe choice',{exact:true}).selectOption('wide');
+      await page.getByLabel('Probe number',{exact:true}).fill('14');await page.getByLabel('Probe number',{exact:true}).press('Tab');
+      const slider=page.getByRole('slider',{name:'Probe slider',exact:true});await slider.focus();await slider.press('Home');
+      for(let i=0;i<10;i++)await slider.press('ArrowRight');
+      await expect(slider).toHaveValue('18');
+      await expect(slider).toHaveAttribute('title','18');await expect(slider).toHaveAttribute('aria-valuetext','18');
+      await expect.poll(effects).toEqual([true,'#123456','1','wide','14px','18px']);
+      const saved={'engine-probe@@engine-probe-toggle':true,'engine-probe@@engine-probe-color':'#123456','engine-probe@@engine-probe-choice':'wide','engine-probe@@engine-probe-number':14,'engine-probe@@engine-probe-slider':18};
       await expect.poll(async()=>JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8'))).toEqual(saved);
       const search=page.locator('.plugin-settings-content').getByRole('searchbox');
       await search.fill('Probe color');await expect(page.getByRole('switch',{name:'Probe toggle',exact:true})).not.toBeVisible();
@@ -108,9 +117,12 @@ for(const plugin of corpus.plugins)test(`trusted renderer real plugin: ${plugin.
       await openStyleSettings();
       await expect(page.getByRole('switch',{name:'Probe toggle',exact:true})).toBeChecked();
       await expect(page.getByRole('textbox',{name:'Probe color',exact:true})).toHaveValue('#123456');
-      await expect.poll(effects).toEqual([true,'#123456','1']);
+      await expect(page.getByLabel('Probe choice',{exact:true})).toHaveValue('wide');
+      await expect(page.getByLabel('Probe number',{exact:true})).toHaveValue('14');
+      await expect(page.getByRole('slider',{name:'Probe slider',exact:true})).toHaveValue('18');
+      await expect.poll(effects).toEqual([true,'#123456','1','wide','14px','18px']);
       expect(JSON.parse(await fs.readFile(path.join(dir,'data.json'),'utf8'))).toEqual(saved);
-      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['parse original @settings CSS using the documented rescan event','expand real class-toggle and variable-text settings','UI changes affect computed CSS and persist exact plugin data','search filters controls and clear restores them','application restart and re-enable restore controls, computed CSS and persisted values; theme/snippet management and other setting kinds unverified'];
+      outcome='BOUNDED_WORKFLOWS_PASS';workflows=['parse original @settings CSS using the documented rescan event','expand real class-toggle, variable-text, variable-select, variable-number and variable-number-slider settings','UI changes affect computed CSS and persist exact plugin data','range Home/ArrowRight events update slider and formatted CSS','search filters controls and clear restores them','application restart and re-enable restore all five controls, computed CSS and persisted values; theme/snippet management and other setting kinds unverified'];
     }else if(plugin.name==='Tasks'){
       expect(await page.evaluate(()=>(window as any).app.metadataTypeManager.getAllProperties().tq_explain.type)).toBe('checkbox');
       await page.getByTestId('settings-close').click();await page.getByTestId('mode-reading').click();
