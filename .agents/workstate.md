@@ -27,32 +27,32 @@ desktop-only-plugin refusal. Effective CodeRabbit review `5796771964` covered `8
 all 11 findings were repaired and threads resolved. The review allowance is exhausted:
 do not chase optional review; no known blocker/failing exact-head gate may be bypassed.
 
-Frozen desktop acceptance on runtime `5932466` passes 70 browser, 104 Electron including
+Frozen desktop acceptance on runtime `fcd3b9d` passes 70 browser, 104 Electron including
 all 22 unchanged corpus scenarios without skips, and 23 actual Linux-package vault cases.
 Expanded unchanged Style Settings verifies five controls, exact plugin data/CSS and restart;
-the missing SliderComponent.setDynamicTooltip was implemented. `68411f0` adds only a
-driver/static test; 904/55 units and its cloud Verify, packaging and independent corpus pass.
+the missing SliderComponent.setDynamicTooltip was implemented. That freeze passes
+911/56 units; the final visual follow-up raises units to 915/56, with check/build and the
+CSS-only mobile regression/old-shrink negative control passing.
 
-Native run `42183518337` on `0c912cf` accepts eight complete groups, including real IME,
+Native run `42184825123` on `a448d11` accepts nine complete groups, including real IME,
 assets/history, rotation/worker/renderer identity, modal/ribbon Back, unchanged pinned
 Style Settings, native save failure/root-Back recovery, isolated background save and
-restart data/trust recovery. Final group races the async export before its cache dir exists.
-Pending driver waits for the real Android chooser before reading and byte-checking ZIP.
+restart data/trust recovery, real chooser/ZIP bytes, permissions and release-IME exclusion.
+Visual QA then finds canceled-share error banners and native settings-label overlap.
+Both are repaired and now explicit strengthened native assertions, not inherited passes.
 Strict original IME parser requires bound input view AND visible window, not request flags,
-and retains complete dumps. Frozen `fcd3b9d` runtime passes 911/56 units, 70 browser,
-104 Electron including all 22 corpus/no skips, and 23 actual Linux-package vault cases.
-No overall Android pass or export group is accepted yet.
+and retains complete dumps. Final sequential full regression is command 13067; use
+its completed finalqa logs and all final-head cloud checks before merge/delivery.
 
 ## Next increments
 
 - Android decision: Capacitor preserves the existing React DOM/CodeMirror/plugin UI.
   React Native requires a component rewrite; Tauri adds Rust/NDK tooling. Official Obsidian
   docs confirm WebView and no Node/Electron on mobile, not specifically Capacitor.
-- Finish the asset repair, then all nine actual APK workflow groups. No local SDK is
-  needed: hosted emulator pipeline works. Debug-only owned IME uses real InputConnection,
+- Hosted emulator pipeline works; no local SDK is needed. Debug-only owned IME uses real InputConnection,
   is disabled by default/DUMP-protected, and must be absent from the release manifest.
-- Finalize Android/parity/verification and single plugin matrix docs, then require all
-  final-head Verify, three-platform packaging, Android and independent corpus gates.
+- Android/parity/verification and single plugin matrix docs are aligned. Require all
+  final-head Verify, three-platform packaging, strengthened Android and independent corpus gates.
   Merge #76, sync clean main, remove the scratch `ci/android-native-composition` branch,
   and privately email the accepted matching APK/hash/report and scope limitations.
 - Continue bounded remaining plugin workflows. Keep `docs/PLUGIN-SUPPORT-MATRIX.md` the

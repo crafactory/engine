@@ -1,4 +1,12 @@
 export interface CachedExport {path:string;mtime:number;bytes:number}
+export async function shareWithCancellation(share:()=>Promise<unknown>):Promise<void>{
+  try{await share();}
+  catch(error){
+    // Exact cancellation observed from Android Share. Never hide other failures,
+    // or apply this exception to cache writes and permission/path checks.
+    if(!error||typeof error!=='object'||!('message'in error)||error.message!=='Share canceled')throw error;
+  }
+}
 /** Retain recipient access for 24h, then prune; reject new exports at a bounded budget. */
 export async function retainExportCache(entries:CachedExport[],incoming:number,remove:(path:string)=>Promise<void>,now=Date.now()){
   const retained:CachedExport[]=[];

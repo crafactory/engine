@@ -1,6 +1,8 @@
 # Shared-code Android pilot
 
-Status: implementation in progress, not yet an accepted Android build. This increment
+Status: Android development pilot with bounded native acceptance, not a production release.
+Current-head verdicts and APK/report artifacts are in [PR #76](https://github.com/crafactory/engine/pull/76).
+This increment
 follows the merged [Live Editing repairs](https://github.com/crafactory/engine/pull/75).
 The current plugin verdicts remain in [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md);
 host-wide gaps remain in [PARITY.md](PARITY.md).
@@ -82,10 +84,15 @@ disposable test device with `adb install -r` or open the native project with
 The dedicated Android workflow builds and installs that APK in an API35 Pixel6 emulator.
 Its original acceptance script exercises the actual native filesystem and WebView, not
 a responsive browser preview. It records tested commit, APK SHA256, API/WebView version,
-per-workflow results, screenshots and logcat in the debug/evidence artifact. Initial
-native launch succeeded but CDP attachment failed; full acceptance remains pending.
-The script additionally demands failure/recovery and native-history workflows before
-reporting success. Do not treat its existence as executed evidence.
+per-workflow results, screenshots and logcat in the debug/evidence artifact.
+[The first nine-group native pass](https://github.com/crafactory/engine/actions/runs/42184825123)
+exercised API35 Pixel6/WebView 124.0.6367.219, real Chinese composition, decoded binary
+replacement, history, rotation/worker/renderer identity, unchanged Style Settings,
+save-failure/root-Back recovery, isolated background/restart/trust, and actual chooser/ZIP
+bytes/permissions/release-fixture exclusion. Screenshot review then found two additional
+UI defects: normal share cancellation displayed an error, and narrow settings tabs
+overlapped. Follow-up guards require no cancellation error and non-overlapping labels;
+the current PR head must pass the complete native workflow, not inherit that earlier verdict.
 
 Debug builds contain an owned, disabled-by-default composition-test IME. The acceptance
 runner selects it explicitly with adb and exercises actual Android `InputConnection`
@@ -98,6 +105,12 @@ System bars use `insetsHandling:'native'` with the same initial `cover` viewport
 the HTML entry point. This preserves native padding on older WebViews and env-based
 safe areas on newer ones without early CSS-injection warnings; insets are not disabled
 ([SystemBars configuration](https://capacitorjs.com/docs/apis/system-bars)).
+
+Mobile navigation uses horizontal, non-shrinking settings tabs rather than overlapping
+labels. Canceling the OS share sheet is normal; only the exact observed Android
+`Share canceled` response is handled as cancellation, while storage/permission and
+other native share failures remain visible. System-bar/theme polish, tablet layouts,
+font scaling, accessibility and vendor-keyboard/device matrices still need broader acceptance.
 
 Explicit share exports retain cache copies for 24 hours so recipients can read them.
 Expired copies are removed before a new export; retained copies are limited to 12 and

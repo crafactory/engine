@@ -270,6 +270,7 @@ try{
     await expect(page.locator('.left-sidebar')).toBeVisible();
     shell('input keyevent 4');await expect(page.locator('.left-sidebar')).toHaveCount(0);
     await page.getByRole('button',{name:'Mobile settings',exact:true}).click();
+    assert(await page.locator('.settings-modal>nav>button').evaluateAll(buttons=>buttons.every(button=>button.scrollWidth<=button.clientWidth+1)),'Mobile settings labels must not overlap');
     await page.getByRole('button',{name:'Core plugins',exact:true}).click();
     await page.getByRole('switch',{name:'Enable Search',exact:true}).uncheck();
     await page.getByRole('switch',{name:'Enable Command palette',exact:true}).uncheck();
@@ -393,6 +394,7 @@ try{
     await expect(page.locator('.error-banner')).toHaveCount(0);
     shell('input keyevent 4'); // dismiss the OS chooser; no content is sent to a recipient
     await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible();
+    await expect(page.locator('.error-banner')).toHaveCount(0);
     const sdk=process.env.ANDROID_HOME||process.env.ANDROID_SDK_ROOT;assert(sdk);
     const versions=(await fs.readdir(path.join(sdk,'build-tools'))).sort().reverse();
     const aapt=path.join(sdk,'build-tools',versions[0],'aapt');

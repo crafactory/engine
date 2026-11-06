@@ -169,10 +169,13 @@ compatibility layer. React Native's native-component model and Tauri's extra nat
 toolchain were evaluated in [ANDROID.md](ANDROID.md); the choice is an architectural
 fit assessment, not a performance ranking.
 
-The in-progress native gate builds a real APK and uses the native WebView, app-private
-file bytes, keyboard/back, restart and unchanged pinned Style Settings controls. Until
-that gate passes at the final head, implementation presence is not an accepted Android
-workflow. A debug APK is not release signing, Play publication, physical-device/OEM
+The native gate builds a real APK and uses the native WebView, app-private file bytes,
+keyboard/back, restart and unchanged pinned Style Settings controls.
+[The first complete native run](https://github.com/crafactory/engine/actions/runs/42184825123)
+passed nine bounded groups on API35 Pixel6/WebView 124; subsequent visual-review
+regressions additionally guard canceled sharing and settings-tab overlap.
+Current-head checks must pass rather than inheriting an older run's verdict.
+A debug APK is not release signing, Play publication, physical-device/OEM
 certification or full mobile parity. iOS is not implemented in this Android-only increment.
 
 Android-specific remaining gaps include shared folders/SAF, multi-vault selection,

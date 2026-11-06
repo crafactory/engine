@@ -16,6 +16,20 @@ top-ten-wide compatibility claim.
 runs still fail. Android has its own native acceptance scope in [ANDROID.md](ANDROID.md);
 desktop results must not be extrapolated to mobile.
 
+## Android is a separate bounded platform
+
+[PR #76](https://github.com/crafactory/engine/pull/76) shares the DOM runtime with
+Capacitor, not Node/Electron. [The first nine-group APK acceptance](https://github.com/crafactory/engine/actions/runs/42184825123)
+used API35 Pixel6/WebView 124.0.6367.219. Its unchanged Style Settings `1.0.9` scope is
+dropdown, number and slider input, exact saved data/computed CSS and restart recovery;
+it does not inherit the five-control desktop verdict or certify other plugins on Android.
+
+Owned probes separately cover worker/renderer mobile flags, orientation, modal/ribbon
+Back, renewed trust and desktop-only refusal. These probes are host regressions, not
+upstream-plugin compatibility evidence. Final-head native checks additionally guard
+cancel-share errors and narrow settings labels; [ANDROID.md](ANDROID.md) records storage,
+debug signing, export/backup and device-matrix limitations.
+
 ## Status legend
 
 [PR #72](https://github.com/crafactory/engine/pull/72) merged after effective review/fix rounds

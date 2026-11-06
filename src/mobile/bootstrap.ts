@@ -5,7 +5,7 @@ import {Keyboard} from '@capacitor/keyboard';
 import {Share} from '@capacitor/share';
 import type {Bridge} from '../types';
 import {createMobileStorage,encodeBytes,type MobileFilesystem} from './storage';
-import {retainExportCache,type CachedExport} from './export-cache';
+import {retainExportCache,shareWithCancellation,type CachedExport} from './export-cache';
 
 /** Must run before importing App or bridge.ts, which snapshots window.engine. */
 export async function bootstrapAndroid():Promise<Bridge>{
@@ -75,7 +75,7 @@ export async function bootstrapAndroid():Promise<Bridge>{
       const path='exports/'+crypto.randomUUID()+'/'+safe;
       await Filesystem.writeFile({path,data:encodeBytes(new Uint8Array(await content.arrayBuffer())),directory:Directory.Cache,recursive:true});
       const {uri}=await Filesystem.getUri({path,directory:Directory.Cache});
-      await Share.share({title:safe,dialogTitle:'Export from Crafactory Engine',files:[uri]});
+      await shareWithCancellation(()=>Share.share({title:safe,dialogTitle:'Export from Crafactory Engine',files:[uri]}));
       }finally{exportBusy=false;}
     }
   };
