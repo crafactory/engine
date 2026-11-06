@@ -39,9 +39,53 @@ test('native renderer opens under secure app protocol and writes real Markdown',
   await page.getByTestId('mode-reading').click();await expect(page.locator('.markdown')).toContainText('Saved by desktop.');
   const records=await fs.readdir(path.join(root,'.crafactory/recovery'));expect(records.length).toBeGreaterThan(0);
 });
+test('native live editing retains table geometry, decoded local images and diagram identity',async()=>{
+  await page.getByTestId('mode-source').click();
+  await fs.writeFile(path.join(root,'pixel.svg'),'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect width="24" height="24"/></svg>');
+  await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\nLead.\n\n| A | Longer header |\n| --- | --- |\n| Short | Value |\n\nBefore ![pixel](pixel.svg) after.\n\n```mermaid\nflowchart LR\nA-->B\n```\n\nTail');
+  await expect(page.getByTestId('note-editor')).toContainText('Tail');
+  await page.getByTestId('mode-live').click();
+  const svg=page.locator('.live-block-diagram .mermaid svg'),image=page.locator('.live-inline-image');
+  await expect(svg.locator('g.node text')).toHaveText(['A','B']);
+  await expect(image).toBeVisible();
+  await expect.poll(()=>image.evaluate(el=>(el as HTMLImageElement).naturalWidth)).toBe(24);
+  const widths=await page.locator('.live-table th').evaluateAll(nodes=>nodes.map(el=>el.getBoundingClientRect().width)),before=await svg.boundingBox();
+  await page.getByRole('button',{name:'Edit cell row 2 column 1',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Cell row 2 column 1',exact:true})).toBeFocused();
+  const during=await page.locator('.live-table th').evaluateAll(nodes=>nodes.map(el=>el.getBoundingClientRect().width));
+  for(let i=0;i<widths.length;i++)expect(Math.abs(during[i]-widths[i])).toBeLessThanOrEqual(1);
+  expect(Math.abs((await svg.boundingBox())!.y-before!.y)).toBeLessThanOrEqual(1);
+  await page.keyboard.press('Escape');
+  const imageNode=await image.elementHandle(),diagramNode=await svg.elementHandle();
+  await page.getByTestId('note-editor').press('Control+Home');await page.keyboard.insertText('Inserted prefix ');
+  expect(await imageNode!.evaluate(el=>el.isConnected)).toBe(true);
+  expect(await diagramNode!.evaluate(el=>el.isConnected)).toBe(true);
+  await fs.writeFile(path.join(root,'Other.md'),'# Unrelated external note\n');
+  await expect(page.getByTestId('file-Other.md')).toBeVisible();
+  expect(await diagramNode!.evaluate(el=>el.isConnected)).toBe(true);
+  await page.screenshot({path:test.info().outputPath('live-stability.png')});
+  await image.click();await expect(image).toHaveCount(0);
+  await expect(page.getByTestId('note-editor')).toContainText('![pixel](pixel.svg)');
+  await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('Inserted prefix # Persist');
+});
 test('native watcher reloads external edits',async()=>{
   await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\nEdited externally.\n');
   await expect(page.getByTestId('note-editor')).toContainText('Edited externally.');
+});
+test('native inline image reuse still reloads changed asset bytes',async()=>{
+  await page.getByTestId('mode-source').click();
+  const pixel=(width:number)=>`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="24"><rect width="${width}" height="24"/></svg>`;
+  await fs.writeFile(path.join(root,'pixel.svg'),pixel(24));
+  await fs.writeFile(path.join(root,'Other.svg'),pixel(12));
+  await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\nBefore ![bare](pixel.svg) ![relative](./pixel.svg) ![absolute](/pixel.svg) ![unrelated](Other.svg) after.\n\nTail');
+  await expect(page.getByTestId('note-editor')).toContainText('Tail');
+  await page.getByTestId('mode-live').click();
+  const image=page.locator('.live-inline-image');
+  await expect.poll(()=>image.evaluateAll(nodes=>nodes.map(el=>(el as HTMLImageElement).naturalWidth))).toEqual([24,24,24,12]);
+  const other=await image.last().elementHandle();
+  await fs.writeFile(path.join(root,'pixel.svg'),pixel(48));
+  await expect.poll(()=>image.evaluateAll(nodes=>nodes.map(el=>(el as HTMLImageElement).naturalWidth))).toEqual([48,48,48,12]);
+  expect(await other!.evaluate(el=>el.isConnected)).toBe(true);
 });
 test('native embedded tasks cannot mutate a different host task or embedded source',async()=>{
   const canvas=JSON.stringify({nodes:[{id:'task',type:'text',x:0,y:0,width:260,height:160,text:'- [ ] Canvas task'}],edges:[]},null,2);

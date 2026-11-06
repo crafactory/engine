@@ -95,7 +95,7 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}h1,
 .live-table-shell:hover>.live-table-add,.live-table-add:focus-visible{opacity:1}.live-table-add:hover{transform:scale(1.08)}
 .live-table th,.live-table td{border:1px solid var(--border);padding:0;min-width:100px;vertical-align:top}
 .live-table th{background:var(--panel);text-align:left}.live-table button{display:block;width:100%;min-height:44px;padding:var(--space-2) var(--space-3);color:var(--text);font-size:inherit;text-align:left;border-radius:0;white-space:normal}
-.live-table button p{margin:0}.live-table input{width:100%;min-height:44px;background:var(--bg);border-radius:0!important}.live-empty-cell{color:var(--faint);font-size:var(--text-xs)}
+.live-table button p{margin:0}.live-table input{display:block;width:100%;min-width:0;min-height:44px;padding:var(--space-2) var(--space-3);font:inherit;background:var(--bg);border-radius:0!important}.live-empty-cell{color:var(--faint);font-size:var(--text-xs)}
 .live-task-checkbox{vertical-align:middle;margin-right:var(--space-2)}.live-inline-math{white-space:normal}
 .markdown details.callout{background:var(--panel);padding:var(--space-3) var(--space-4);border-radius:var(--radius-sm);margin:var(--space-4) 0}
 .markdown details.callout>summary{cursor:pointer;display:list-item;list-style-position:inside;color:var(--accent);font-weight:600;padding:var(--space-1) 0}

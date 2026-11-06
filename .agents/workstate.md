@@ -1,104 +1,69 @@
-# Mainstream plugin workflow gaps
+# Live Editing stability, Android and remaining compatibility gaps
 
-## Current acceptance checkpoint
+## Current request and baseline
 
-PR: https://github.com/crafactory/engine/pull/74 .
-Frozen implementation: `e2eddc25eebc44fd107b18aa5266f1f1e021fb05`.
-Local inventory/build, 869 units, 64 browser and 102 desktop tests pass; all 22 pinned
-cases execute. Only the complete fresh `/tmp/engine-gaps-accept2-{worker,renderer}` pair
-was published. Renderer: nine bounded passes, Excalidraw core Canvas refusal, Copilot
-startup error. Actual Linux package passes all 11 targeted cases.
-Initial effective review 5781526190 at `6fab5fb`; both threads and the event follow-up
-were repaired in `e2eddc2`. Both threads are resolved. One incremental request was rate
-limited (6653128941); do not repeat optional review requests.
-Current matrix/API/popular-gap/report/verification documentation is aligned.
-Read live PR state for final documentation-head Verify, three-platform builds, explicit
-pinned-corpus eligibility and merge outcome. If already merged, sync main rather than
-reopening this increment. Otherwise require those exact-head gates, no unresolved blocker,
-record acceptance and use the authorized match-head squash merge, then sync main and email
-the owner privately in Chinese with the verified outcome. No issue creation, agents or
-upstream implementation inspection is authorized.
-All earlier notes below are historical candidate observations, not the current verdict.
+Owner authorizes implementation: continue unverified plugin workflows; compare Obsidian
+gaps; fix severe Live Editing geometry/retriggering; evaluate shared-code Android options
+and actually build/run the chosen framework. Android only. The private acknowledgment
+was already emailed; final results go privately in Chinese.
 
-## Historical in-progress notes
+PR #74 is merged at `afe83d439f7b58b42b3182d456614f039316222c`.
+Do not restart it or present its historical test counts as new evidence.
+Current branch: `fix/live-preview-stability`.
 
-## Baseline and scope
+## Active increment
 
-PR #73 merged at `7d2ea5a`; its card creation/save/switch/restart and owned-runtime focus
-evidence is historical baseline, not completion/move/drag acceptance.
-The owner now authorizes continuing Kanban and checking other plugins' real workflows,
-recording observed gaps and implementing their original host fixes.
+PR #75 current pushed head `d492918` has effective initial CodeRabbit review `5796123711`.
+Both findings are valid: invisible sanitized Mermaid labels and stale frozen columns on
+container resize. LOCAL UNCOMMITTED fixes now render native SVG text without relaxing
+DOMPurify and track edit-container resize while retaining draft/focus. Original negative
+logs also cover initial table column redistribution, per-build image context closure,
+unrelated-note diagram replacement, invalid root image paths and stale decoded asset bytes.
 
-Branch: `compat/plugin-workflow-gaps`. Open an early draft PR and push small commits.
-Use one or two effective CodeRabbit review/fix rounds; do not chase optional repeats.
-No known blocking issue or failing exact-head checks may be bypassed. See CONTRIBUTING.
-Do not spawn agents, create issues, inspect/copy upstream plugin implementations or rewrite
-their pinned bundles/styles. Runtime DOM/API/exception observations and public docs are allowed.
-Native profile is full OS-user trust, not isolation; use disposable vaults and allowlisted env.
-The accepted narrow binary rename recreation race remains unchanged.
+Source/test implementation is frozen; latest build includes root-image path fix and
+per-asset size/mtime snapshots through App/editor-view props. Fresh full acceptance
+PASSED with `/tmp/engine-live-accept-*`: 869/49 units, 70 browser, 104 Electron incl. all
+22 pinned corpus cases without skips, plus all 23 vault cases against the actual
+`/tmp/engine-live-accept-package`. The actual package screenshot was inspected and saved
+to `docs/images/live-stability.png`. Earlier 69/103 runs are superseded, not final evidence.
 
-## Current increment
+Local verification and QA docs are aligned. Next: commit (verify identities), push,
+reply/resolve both review threads:
+`PRRT_kwDOVKvdS860Y8uu` (comment 4489340111 labels),
+`PRRT_kwDOVKvdS860Y8u2` (comment 4489340119 resize).
+Optional incremental review may be quota-limited (one/hour; initial around 05:31 UTC).
+Do not chase it after this effective review/fix round, but require green exact-head checks
+and no known blocker before authorized squash merge and clean main sync.
 
-Expand black-box Kanban coverage to edits, completion, movement and pointer dragging.
-Recheck all eleven existing pinned inputs in the full corpus; probe concrete Tasks and
-Style Settings workflows instead of treating startup as compatibility. Copilot secret storage,
-Excalidraw core Canvas, authenticated Git and cross-plugin context remain known gaps, not
-promises of completion in this increment. Implement only observed, testable host contracts.
+## Next increments
 
-Draft [PR #74](https://github.com/crafactory/engine/pull/74) is open.
-Four targeted Electron cases pass: Tasks query/completion without the old property-type
-error, actual search/extra controls, property-type restart persistence and fourteen UIEvent
-target/cross-window checks. The live type registry is profile-backed and vault-keyed, not
-Obsidian types.json or a property editing UI. Only observed getAllProperties/setType are added.
-Seven targeted cases now pass, additionally covering DOM factories, date previews and
-large modal reachability after a plugin replaces its root CSS classes. A separate eighth
-owned-suggestion-registry test passes against actual registrations, with no synthetic registry.
-32 renderer contract units pass. Logs: `/tmp/engine-gaps-target3.log`,
-`/tmp/engine-gaps-units3.log`, `/tmp/engine-gaps-suggest-test.log`.
-The old PR #73 package fails search/property/UIEvent and DOM/modal regression cases.
-The date-format probe initially hung because Playwright assimilated a fluent component's
-then method; correcting the harness passed, not evidence of a product deadlock.
-Style Settings probe18 falsified the proposed loaded-flag-only explanation; do not ship a
-speculative flag refactor. Kanban probe13 edited/completed a card and created a second lane,
-but its drag selector was wrong (no item-grip exists); no drag success is established.
-Reports must only be regenerated from one accepted complete Worker/renderer pair; preserve
-failed candidates and baseline evidence. Kanban settings and Style Settings remain probes.
+- Android decision: Capacitor preserves the existing React DOM/CodeMirror/plugin UI. Compare
+  React Native's component rewrite and Tauri's extra Rust/NDK toolchain. Official Obsidian
+  docs confirm WebView and no Node/Electron on mobile, not specifically Capacitor.
+- Use current Capacitor v8 requirements, not stale v7. Implement persistent app storage,
+  keyboard/IME/back/lifecycle and responsive navigation in a separate early PR; attempt
+  an APK and actual emulator/device run. No Android/JDK tools currently on PATH.
+- Continue bounded remaining plugin workflows. Keep `docs/PLUGIN-SUPPORT-MATRIX.md` the
+  single external-plugin verdict tracker; add an Obsidian host gap/Android decision document.
+  Core Canvas, Copilot secrets/inference, authenticated/conflicted Git and many secondary
+  workflows remain open; startup or a responsive screenshot is not full compatibility.
 
-Style Settings now passes an actual corpus workflow (4.9s): class-toggle, variable-text,
-computed CSS, exact plugin JSON, search/clear and application restart/re-enable.
-Root cause was host Component child ownership colliding with plugin-owned `children` data.
-Symbol-backed ownership preserves guarded/proxy receivers; an initial #private-field
-candidate fixed Style but broke guarded Kanban embeds and was replaced, not accepted.
-The original isolated lifecycle regression fails on PR #73 and passes in the candidate.
-Full units: 869 passed (`/tmp/engine-gaps-units4.log`); seven current UI contracts also pass
-(`/tmp/engine-gaps-contract-final.log`). Style: `/tmp/engine-gaps-style-target.log`.
-Kanban still fails genuine pointer dragging with a null dataset in dragStart. Runtime
-exception/local-variable/DOM metadata only are being observed, never bundle bodies.
-Initial CodeRabbit review was requested after marking PR #74 ready at `6fab5fb`; await
-effective results. Current reports still intentionally retain the historical PR #73 pair.
+Detailed next-increment architecture/CI/native WebView acceptance and bounded Style Settings
+mobile workflow ideas: `/tmp/engine-android-working-notes.md`. Not implemented yet. Critical:
+`bridge.ts` snapshots window.engine at module initialization; bootstrap must install the
+Android bridge BEFORE dynamically importing App, not statically import App first.
 
-08:14 UTC: initial effective review completed at `6fab5fb`, review 5781526190.
-Fixed both actionable threads (4477918348 foreign factory chaining, 4477918357 own __proto__
-assertion) and the follow-up viewless event construction-realm finding with original tests.
-Foreign realms now install their own helpers; UIEvent type checks use the actual prototype
-chain. Exposed the three already-implemented public search/extra/date control constructors.
-Kanban root drag gap was onNodeInserted being registered after connection without an initial
-delivery. Added cancellable initial microtask, once/reinsert coverage and public Node.detach
-(cleanup had thrown after successful movement). Do not accept the earlier cleanup-error run.
-Clean source acceptance now passes all 11 targeted cases, including real Kanban
-edit/checkbox completion/frame-paced pointer movement/section ownership/exact saved bytes/
-document switch/restart, plus Tasks, Style and eight host contracts.
-Log: `/tmp/engine-gaps-target-final3.log`. Build16 is current runtime.
-Frozen-source full verification is running: desktop2 with fresh accept2 Worker/renderer
-report directories; units-final3/browser-final3; package `/tmp/engine-gaps-package`.
-The preliminary desktop1 run is not final acceptance (runtime was changing); never use its
-reports. Current tracked reports still intentionally retain PR #73 until accept2 completes.
+## Constraints
 
-## Environment and delivery
+No agents or issue creation. Never inspect/copy upstream plugin implementations or change
+pinned bundles/styles. Public declarations/docs and runtime black-box observations only.
+Use feature branches/early PRs, verified author/committer before every commit, effective
+initial CodeRabbit review and no known blocker/failing exact-head checks at merge. After
+one or two effective review/fix rounds, optional review quota limits do not block delivery.
+The narrow binary check/rename race remains explicitly accepted, not fixed.
 
-Node 22: `/tmp/engine-node/node_modules/node/bin`.
-Pinned corpus: `/tmp/engine-plugin-corpus`. Main checkout: `/home/user/workspace/engine`.
-Require source inventory/build/unit/browser/desktop, all pinned corpus cases without skips,
-targeted packaged Linux behavior, effective review and exact-head cloud Verify/three-platform
-packages/explicit corpus before authorized squash merge. Email results privately in Chinese.
-The owner has received the starting acknowledgment; no results email has been sent.
+## References
+
+Project: `CONTRIBUTING.md`, `docs/REPLICATION-PLAYBOOK.md`; log `.agents/worklog/2026-11-06.md`.
+Corpus `/tmp/engine-plugin-corpus`; Node 22 `/tmp/engine-node/node_modules/node/bin`.
+Prior request history: read-only `~/.perplexity/sessions/6cd27721-c736-5d46-b8cf-1f89aa2c3cbe/`.

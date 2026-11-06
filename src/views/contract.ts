@@ -41,6 +41,8 @@ export interface EditorViewProps {
   note: Note;
   notes: Note[];
   settings: Settings;
+  /** Attachment metadata identity, independent of current-document typing. */
+  assetVersions?: ReadonlyMap<string,string>;
   pluginExtensions?: Extension[];
   session?: EditorSession;
   slashCommands?: SlashCommandsService;

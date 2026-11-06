@@ -242,7 +242,9 @@ export function Markdown({content,notes,path,onOpen,onChange,depth=0,pluginProce
       for(const code of root.querySelectorAll<HTMLElement>('code.language-mermaid')) {
         try {
           const {default:mermaid}=await import('mermaid');
-          mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:document.documentElement.dataset.theme==='light'?'default':'dark'});
+          // Keep labels in SVG text: the mandatory sanitizer correctly rejects SVG
+          // foreignObject/embedded HTML, which otherwise silently removes node labels.
+          mermaid.initialize({startOnLoad:false,securityLevel:'strict',htmlLabels:false,flowchart:{htmlLabels:false},theme:document.documentElement.dataset.theme==='light'?'default':'dark'});
           const {svg}=await mermaid.render('mermaid-'+crypto.randomUUID().replaceAll('-',''),code.textContent||'');
           if(!disposed){const div=document.createElement('div');div.className='mermaid';div.innerHTML=DOMPurify.sanitize(svg);code.parentElement?.replaceWith(div);}
         }catch{if(!disposed)code.dataset.error='Invalid diagram';}
