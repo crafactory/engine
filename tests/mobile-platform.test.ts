@@ -3,9 +3,15 @@ import {platformInfo} from '../src/platform';
 import {createCompatibilityRuntime} from '../src/compat-core';
 import {createCompatService} from '../src/compat/service';
 import type {CompatHost} from '../src/services/compat';
+import capacitorConfig from '../capacitor.config';
 
 const manifest={id:'original-mobile-probe',name:'Original mobile probe',version:'1.0.0'};
 describe('native mobile identity, not viewport/user-agent spoofing',()=>{
+  it('uses native safe-area handling with the same initial cover viewport',()=>{
+    expect(capacitorConfig.plugins?.SystemBars).toMatchObject({
+      insetsHandling:'native',initialViewportFitValueHint:'cover'
+    });
+  });
   it('exports Android identity without desktop/Node identity',()=>{
     expect(platformInfo('android',false,'Linux armv8')).toMatchObject({
       isMobile:true,isMobileApp:true,isAndroid:true,isAndroidApp:true,isPhone:true,isTablet:false,

@@ -387,6 +387,7 @@ try{
     assert.equal(readNative('vault/'+notePath),expectedText);
   });
   assert.deepEqual(errors,[],'Native page errors');
+  assert(!consoleErrors.some(error=>error.startsWith('Error injecting safe area CSS')),'Native safe-area initialization');
   assert(!consoleErrors.some((error,index)=>!expectedConsoleErrorIndexes.has(index)&&/^Plugin .* failed|Unsupported Obsidian capability|Android lifecycle save failed/.test(error)),'Unexpected native plugin/lifecycle errors');
   console.log('ANDROID ACCEPTANCE PASSED '+records.length+' native workflow groups, no skips');
 }catch(error){
