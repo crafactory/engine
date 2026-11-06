@@ -216,7 +216,6 @@ try{
     shell('input keyevent 4');
     await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible({timeout:10000});
     await expect(page.locator('.note-title h1')).toHaveText('Native Probe');
-    await client.detach();
   });
   await step('restart retains exact native bytes and decodes a local asset',async()=>{
     await restart();assert.equal(readNative('vault/'+notePath),expectedText);
