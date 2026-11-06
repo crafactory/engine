@@ -33,13 +33,14 @@ Expanded unchanged Style Settings verifies five controls, exact plugin data/CSS 
 the missing SliderComponent.setDynamicTooltip was implemented. `68411f0` adds only a
 driver/static test; 904/55 units and its cloud Verify, packaging and independent corpus pass.
 
-Native run `42180409664` on `a57ab92` accepts its first four groups, including real
-InputConnection Chinese bytes, native asset replacement and history/near-limit names.
-Stable size/mtime URL versions repair the stale decoded asset; native SystemBars insets
-remove early CSS warnings. Group five stops because search correctly consumes one Back
-for its keyboard. Pending driver assertions now demand keyboard-first, then drawer close;
-production Back behavior is unchanged. Full units pass 906/55. No later Android groups
-or mobile plugin controls are accepted yet.
+Native run `42182521464` on `fcd3b9d` accepts seven complete groups, including real IME,
+assets/history, rotation/worker/renderer identity, modal/ribbon Back, unchanged pinned
+Style Settings and native save failure/root-Back recovery. Eighth-group background bytes
+pass, then navigation races restored editor IME. Pending driver explicitly foregrounds/
+focuses and Back-hides observed keyboard before navigating; production behavior unchanged.
+Strict original IME parser requires bound input view AND visible window, not request flags,
+and retains complete dumps. Full local frozen regression is running as command 49978.
+No overall Android pass, restart/trust recovery or export group is accepted yet.
 
 ## Next increments
 

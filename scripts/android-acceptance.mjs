@@ -362,6 +362,12 @@ try{
       await expect.poll(()=>readNative('vault/'+notePath),{timeout:15000}).toBe(expectedText);
     }finally{await page.evaluate(()=>{window.setTimeout=window.__originalTimeout;delete window.__originalTimeout;});}
     shell(`am start -n ${APP}/.MainActivity`);
+    await expect.poll(resumed,{timeout:10000}).toBe(true);
+    // Resuming a focused native editor may reopen the IME after the first frame.
+    // Explicit user focus and keyboard-first Back make the next navigation stable.
+    await page.locator('.editor .cm-content').first().click();
+    await expect.poll(keyboardVisibility,{timeout:10000}).toEqual({native:true,reported:true});
+    shell('input keyevent 4');await expect.poll(keyboardVisibility).toEqual({native:false,reported:false});
     await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible();
     await expect.poll(effects).toEqual(['wide','14px','18px']);
     await community();await expect(page.getByRole('switch',{name:'Enable Style Settings',exact:true})).toBeChecked();await closeSettings();
