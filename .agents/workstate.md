@@ -40,9 +40,15 @@ Style Settings, native save failure/root-Back recovery, isolated background save
 restart data/trust recovery, real chooser/ZIP bytes, permissions and release-IME exclusion.
 Visual QA then finds canceled-share error banners and native settings-label overlap.
 Both are repaired and now explicit strengthened native assertions, not inherited passes.
+The polished runtime `d608338` passes 915/56, 70 browser, 104 Electron/all 22 corpus/no
+skips, and 23 actual Linux-package vault cases. Its native rerun stops at missing debug
+IME InputConnection (client view not served), before exercising either visual repair.
+Pending debug-only read-only readiness probe/focused interior touch must pass native;
+composition now sends once only after readiness. Failure screenshot/window dump retained.
 Strict original IME parser requires bound input view AND visible window, not request flags,
-and retains complete dumps. Final sequential full regression is command 13067; use
-its completed finalqa logs and all final-head cloud checks before merge/delivery.
+and retains complete dumps. Sequential finalqa regression command 13067 completed;
+production runtime unchanged by this subsequent driver/debug-IME repair.
+Require all final-head cloud checks before merge/delivery.
 
 ## Next increments
 

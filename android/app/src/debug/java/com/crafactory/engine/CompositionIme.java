@@ -29,12 +29,17 @@ public class CompositionIme extends InputMethodService {
     /** Shell-only ordered broadcast; the production manifest contains no receiver or IME. */
     public static class Run extends BroadcastReceiver {
         @Override public void onReceive(Context context, Intent intent) {
-            if (!"com.crafactory.engine.TEST_COMPOSITION".equals(intent.getAction())) {
+            boolean probe = "com.crafactory.engine.TEST_COMPOSITION_READY".equals(intent.getAction());
+            if (!probe && !"com.crafactory.engine.TEST_COMPOSITION".equals(intent.getAction())) {
                 setResultCode(1); return;
             }
             CompositionIme service = current;
             InputConnection connection = service == null ? null : service.getCurrentInputConnection();
-            if (connection == null) { setResultCode(1); return; }
+            if (connection == null || service.getCurrentInputEditorInfo() == null
+                || !"com.crafactory.engine".equals(service.getCurrentInputEditorInfo().packageName)) {
+                setResultCode(1); return;
+            }
+            if (probe) { setResultCode(0); return; }
             connection.setComposingText("中", 1);
             Handler handler = new Handler(Looper.getMainLooper());
             handler.postDelayed(() -> {

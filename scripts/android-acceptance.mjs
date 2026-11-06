@@ -33,7 +33,7 @@ async function keyboardVisibility(){
 }
 async function nativeTap(locator){
   const rect=await locator.boundingBox(),ratio=await page.evaluate(()=>devicePixelRatio);assert(rect);
-  shell(`input tap ${Math.round((rect.x+40)*ratio)} ${Math.round((rect.y+40)*ratio)}`);
+  shell(`input tap ${Math.round((rect.x+Math.min(rect.width/2,100))*ratio)} ${Math.round((rect.y+Math.min(rect.height/2,100))*ratio)}`);
 }
 async function writeNative(relative,bytes){
   const full='files/'+relative,command=`mkdir -p ${quote(path.posix.dirname(full))} && cat > ${quote(full)}`;
@@ -200,15 +200,22 @@ try{
     metadata.compositionDriver='Android InputConnection (owned debug IME)';
     try{
       shell('ime enable '+quote(fixtureIme));shell('ime set '+quote(fixtureIme));
-      await nativeTap(editor);
-      await page.keyboard.press('Control+End');
+      await expect.poll(async()=>{
+        shell(`am start -n ${APP}/.MainActivity`);
+        if(shell('settings get secure default_input_method').trim()!==fixtureIme)shell('ime set '+quote(fixtureIme));
+        await editor.click();await nativeTap(editor);
+        await page.keyboard.press('Control+End');
+        const ready=shell(`am broadcast -a ${APP}.TEST_COMPOSITION_READY -n '${APP}/.CompositionIme$Run'`);
+        await fs.writeFile(path.join(output,'input-method-ready.txt'),shell('dumpsys input_method'));
+        return ready;
+      },{timeout:15000}).toContain('result=0');
       await editor.evaluate(element=>{
         window.__nativeComposition=[];
         for(const type of ['compositionstart','compositionupdate','compositionend']){
           element.addEventListener(type,event=>window.__nativeComposition.push({type,data:event.data}));
         }
       });
-      await expect.poll(()=>shell(`am broadcast -a ${APP}.TEST_COMPOSITION -n '${APP}/.CompositionIme$Run'`),{timeout:15000}).toContain('result=0');
+      assert(shell(`am broadcast -a ${APP}.TEST_COMPOSITION -n '${APP}/.CompositionIme$Run'`).includes('result=0'),'Ready native InputConnection accepts one composition');
       await expect.poll(()=>page.evaluate(()=>window.__nativeComposition.some(event=>event.type==='compositionend')),{timeout:15000}).toBe(true);
       await expect(editor).toContainText('中文');
       metadata.compositionEvents=await page.evaluate(()=>window.__nativeComposition);
@@ -422,6 +429,10 @@ try{
   try{await fs.writeFile(path.join(output,'failure-native.png'),execFileSync('adb',['exec-out','screencap','-p']));}catch{}
   process.exitCode=1;
 }finally{
+  if(records.some(record=>record.status==='failed')){
+    try{await fs.writeFile(path.join(output,'failure-native.png'),execFileSync('adb',['exec-out','screencap','-p']));}catch{}
+    try{await fs.writeFile(path.join(output,'window-final.txt'),shell('dumpsys window windows'));}catch{}
+  }
   try{await fs.writeFile(path.join(output,'input-method-final.txt'),shell('dumpsys input_method'));}catch{}
   try{await fs.writeFile(path.join(output,'logcat.txt'),adb('logcat','-d','-v','threadtime'));}catch{}
   await fs.writeFile(path.join(output,'report.json'),JSON.stringify({metadata,records,errors,consoleErrors,expectedConsoleErrorIndexes:[...expectedConsoleErrorIndexes]},null,2));
