@@ -1,6 +1,6 @@
 # Feature checklist
 
-Documentation baseline: 2026-10-12 UTC. Installed reference version: **not fixed or tested**. This is a traceable starting inventory, not an exhaustive specification or a 1:1 claim.
+Documentation baseline: 2026-11-06 UTC. Installed reference version: **not fixed or tested**. This is a traceable starting inventory, not an exhaustive specification or a 1:1 claim.
 
 Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked until all reference workflows pass. Exclusions are only Sync and Publish; free extensions, mobile and plugins remain in scope. Add new cases when workflows are discovered. Test evidence is checked for existence by `npm run inventory:check` and exercised by the normal test suites; the inventory checker itself does not run tests.
 
@@ -121,8 +121,8 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
   - Current scope: CodeMirror, Markdown, undo/redo, search/replace, selection formatting, spelling/line settings and an owned table editor.
   - Remaining / boundary: Vim/Emacs mode equivalence, every editing shortcut, folding/history semantics and every input method.
 - [ ] **AREA-live-preview Live preview**: partial. Reference: [public documentation](https://help.obsidian.md).
-  - Current scope: Source reveal, formatting, tasks, tables with row/column operations, block widgets, approved processor opt-in and repaired geometry/identity.
-  - Remaining / boundary: Complete inline/nested grammar, every list/embed, cursor/selection equivalence and huge-document performance.
+  - Current scope: Source reveal, formatting, tasks, tables with row/column operations, owned fenced-block previews and repaired geometry/identity.
+  - Remaining / boundary: Obsidian Markdown processors still run only in reading mode; complete inline/nested grammar, every list/embed, cursor/selection equivalence and huge-document performance remain incomplete.
 - [ ] **AREA-reading Reading**: partial. Reference: [public documentation](https://help.obsidian.md).
   - Current scope: Markdown-it, tables, tasks, highlights, footnotes, comments and nested callout folding.
   - Remaining / boundary: Complete OFM, HTML-in-note and code-fence highlighting equivalence; no dedicated Footnotes view.

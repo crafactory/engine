@@ -423,8 +423,8 @@
       "title": "Live preview",
       "status": "partial",
       "reference": "https://help.obsidian.md",
-      "implemented": "Source reveal, formatting, tasks, tables with row/column operations, block widgets, approved processor opt-in and repaired geometry/identity.",
-      "remaining": "Complete inline/nested grammar, every list/embed, cursor/selection equivalence and huge-document performance.",
+      "implemented": "Source reveal, formatting, tasks, tables with row/column operations, owned fenced-block previews and repaired geometry/identity.",
+      "remaining": "Obsidian Markdown processors still run only in reading mode; complete inline/nested grammar, every list/embed, cursor/selection equivalence and huge-document performance remain incomplete.",
       "evidence": []
     },
     {
