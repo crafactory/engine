@@ -8,7 +8,7 @@ import {setTimeout as wait} from 'node:timers/promises';
 import {deflateSync} from 'node:zlib';
 import {chromium,expect} from '@playwright/test';
 import JSZip from 'jszip';
-import {imeInputViewVisible,launcherAnrVisible} from './android-ime-state.mjs';
+import {imeInputViewVisible,launcherAnrVisible,imeCompositionReady} from './android-ime-state.mjs';
 
 const APP='com.crafactory.engine',APK=path.resolve('android/app/build/outputs/apk/debug/app-debug.apk');
 const output=path.resolve('test-results-android');await fs.mkdir(output,{recursive:true});
@@ -217,9 +217,10 @@ try{
         if(shell('settings get secure default_input_method').trim()!==fixtureIme)shell('ime set '+quote(fixtureIme));
         await editor.click();await nativeTap(editor);
         await page.keyboard.press('Control+End');
-        const ready=shell(`am broadcast -a ${APP}.TEST_COMPOSITION_READY -n '${APP}/.CompositionIme$Run'`);
-        await fs.writeFile(path.join(output,'input-method-ready.txt'),shell('dumpsys input_method'));
-        return ready;
+        const dump=shell('dumpsys input_method');
+        await fs.writeFile(path.join(output,'input-method-ready.txt'),dump);
+        if(!imeCompositionReady(dump))return 'text editor connection pending';
+        return shell(`am broadcast -a ${APP}.TEST_COMPOSITION_READY -n '${APP}/.CompositionIme$Run'`);
       },{timeout:15000}).toContain('result=0');
       await editor.evaluate(element=>{
         window.__nativeComposition=[];

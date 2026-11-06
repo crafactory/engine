@@ -42,6 +42,11 @@ ce1d47b production replay passes 932/57 units, 75 browser, 105 Electron/all corp
 driver trashing of the history fixture races startup snapshot reads and surfaces a
 correct missing-file banner. Retain the fixture until emulator teardown; no banner
 dismissal, error filtering or weaker assertions. Driver-only follow-up needs native replay.
+8aac727 native boot exposes a readiness false positive: broadcast returns ready for
+TYPE_NULL fallback, but no started editor connection/composition events. Compare its
+actual dump with ce1d47b's successful text-editor dump. Require visible owned IME,
+started connection and text-class EditorInfo before broadcasting; no composition retry
+or weaker text/event/disk assertion. Three new predicate cases and captured-dump replay.
 The old parity ledger incorrectly retained Mobile "Not implemented" after #76 passed;
 align it with the actual nine-group pilot, without upgrading production/device claims.
 `docs/FOOTNOTES.md` defines contracts, not a passing verdict.

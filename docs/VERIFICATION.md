@@ -47,6 +47,13 @@ Its native replay gets past drawer/settings Back, then correctly fails on an unr
 missing-file banner: the driver trashed its history fixture while startup was still
 reading that snapshot. Keep the read-only fixture until emulator teardown instead.
 Do not dismiss or whitelist the banner; the normal no-error assertion remains.
+The next native attempt exposed an IME readiness false positive: the shell broadcast
+returned ready for a TYPE_NULL fallback connection, with no started editor connection.
+Its native dump differs from the earlier successful text-editor dump. Require the owned
+IME's visible input view, started text-class editor and connection before broadcasting;
+do not resend composition or relax compositionstart/update/end, text or disk assertions.
+Three parser cases constrain this stricter predicate; replay the captured successful
+and fallback dumps as positive/negative diagnostic evidence.
 
 Merge requires the exact final-head Verify, three-platform packaging, independent corpus
 and all ten native Android groups, plus downloaded report/hash and screenshot inspection.

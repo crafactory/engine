@@ -14,3 +14,15 @@ export function launcherAnrVisible(dump){
     /^\s*Window #\d+ Window\{[^\n]* Application Not Responding: com\.google\.android\.apps\.nexuslauncher\}:\s*$/m.test(block)&&
     /^\s*isVisible=true\s*$/m.test(block));
 }
+
+/** A non-null IME connection may be the WebView's TYPE_NULL fallback, not its editor. */
+export function imeCompositionReady(dump){
+  const state=/^Input method service state for com\.crafactory\.engine\.CompositionIme@[^\n]*:\r?\n((?:[ \t][^\n]*(?:\n|$)|\r?\n)*)/m.exec(dump)?.[1];
+  if(!state)return false;
+  const inputType=/^\s*mInputEditorInfo:\r?\n\s*inputType=0x([0-9a-f]+)/mi.exec(state)?.[1];
+  if(!(inputType!==undefined&&(parseInt(inputType,16)&15)===1&&
+    /^\s*packageName=com\.crafactory\.engine(?:\s|$)/m.test(state)&&
+    /^\s*mStartedInputConnection=(?!null(?:\s|$))\S+/m.test(state)&&
+    /^\s*mInputStarted=true mInputViewStarted=true(?:\s|$)/m.test(state)))return false;
+  try{return imeInputViewVisible(state);}catch{return false;}
+}
