@@ -8,6 +8,7 @@ import {setTimeout as wait} from 'node:timers/promises';
 import {deflateSync} from 'node:zlib';
 import {chromium,expect} from '@playwright/test';
 import JSZip from 'jszip';
+import {imeInputViewVisible} from './android-ime-state.mjs';
 
 const APP='com.crafactory.engine',APK=path.resolve('android/app/build/outputs/apk/debug/app-debug.apk');
 const output=path.resolve('test-results-android');await fs.mkdir(output,{recursive:true});
@@ -23,8 +24,10 @@ const rawNative=relative=>execFileSync('adb',['exec-out',`run-as ${APP} cat ${qu
 const readJSON=relative=>JSON.parse(readNative(relative));
 const resumed=()=>/mResumedActivity:.*com\.crafactory\.engine|topResumedActivity=.*com\.crafactory\.engine/.test(shell('dumpsys activity activities'));
 async function keyboardVisibility(){
+  const dump=shell('dumpsys input_method');
+  await fs.writeFile(path.join(output,'input-method-latest.txt'),dump);
   return {
-    native:/mInputShown=true|mIsInputViewShown=true|isInputViewShown=true/.test(shell('dumpsys input_method')),
+    native:imeInputViewVisible(dump),
     reported:await page.locator('body').evaluate(body=>body.classList.contains('native-keyboard-open'))
   };
 }
@@ -220,7 +223,7 @@ try{
     shell(`input tap ${Math.round((rect.x+40)*ratio)} ${Math.round((rect.y+40)*ratio)}`);
     await expect(page.locator('body')).toHaveClass(/native-keyboard-open/,{timeout:15000});
     const ime=shell('dumpsys input_method');await fs.writeFile(path.join(output,'keyboard.txt'),ime);
-    assert.match(ime,/mInputShown=true|mIsInputViewShown=true|isInputViewShown=true/);
+    assert(imeInputViewVisible(ime),'Real bound Android input view must be shown');
     await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeHidden();
     await fs.writeFile(path.join(output,'android-keyboard.png'),execFileSync('adb',['exec-out','screencap','-p']));
     shell('input keyevent 4');
@@ -409,6 +412,7 @@ try{
   try{await fs.writeFile(path.join(output,'failure-native.png'),execFileSync('adb',['exec-out','screencap','-p']));}catch{}
   process.exitCode=1;
 }finally{
+  try{await fs.writeFile(path.join(output,'input-method-final.txt'),shell('dumpsys input_method'));}catch{}
   try{await fs.writeFile(path.join(output,'logcat.txt'),adb('logcat','-d','-v','threadtime'));}catch{}
   await fs.writeFile(path.join(output,'report.json'),JSON.stringify({metadata,records,errors,consoleErrors,expectedConsoleErrorIndexes:[...expectedConsoleErrorIndexes]},null,2));
   await browser?.close();
