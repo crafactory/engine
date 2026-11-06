@@ -19,6 +19,7 @@ export const corePlugins=[
   ['explorer','File explorer','Browse your local files and folders.'],
   ['recovery','File recovery','Recover previous versions from local snapshots.'],
   ['converter','Format converter','Convert common links and highlights to Markdown.'],
+  ['footnotes','Footnotes view','List, edit, and navigate footnotes in the active note.'],
   ['graph','Graph view','Explore global and local note relationships.'],
   ['composer','Note composer','Merge notes and extract selected text.'],
   ['outgoing','Outgoing links','See where the active note leads.'],

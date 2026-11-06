@@ -7,6 +7,20 @@
 
 ## Shared-code Android and expanded plugin controls
 
+Final #76 source `ab4fbbed7370d8bf4d4a3571536040d7eecbbcac` passed the strengthened
+[nine-group native workflow](https://github.com/crafactory/engine/actions/runs/42188594088);
+downloaded report and APK SHA256 both equal
+`73b19843de83dd17bad912b424ac1ec53c2edc98ddf675eeed1b447c9de98f12`.
+Screenshots confirm normal chooser cancellation has no red error and narrow settings
+labels do not overlap. Both [Verify](https://github.com/crafactory/engine/actions/runs/42188594080)
+and [push Verify](https://github.com/crafactory/engine/actions/runs/42188587060),
+[three-platform packaging](https://github.com/crafactory/engine/actions/runs/42188594094)
+and [independent corpus](https://github.com/crafactory/engine/actions/runs/42188586390)
+passed that exact head. The accepted production runtime passed 915/56 units, 70 browser,
+104 Electron including all 22 pinned corpus cases/no skips, and 23 actual Linux-package
+vault cases. #76 merged as `fffc30e`; all 11 review threads were resolved. The chronology
+below preserves earlier intermediate evidence rather than replacing it with later results.
+
 [PR #76](https://github.com/crafactory/engine/pull/76) adds an actual APK/native WebView
 gate, not responsive-browser certification. Its first complete
 [nine-group native run](https://github.com/crafactory/engine/actions/runs/42184825123)

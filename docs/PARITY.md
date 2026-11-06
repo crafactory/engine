@@ -24,8 +24,9 @@ framework decision, native acceptance and Android-specific limitations.
 The shared frontend uses CodeMirror, a Markdown renderer and owned document/workspace/
 storage/render services. The optional Obsidian facade consumes those services rather than
 replacing the host. Desktop persistence uses the Electron bridge; browser preview remains
-temporary. Android implementation is being tested against a real native filesystem and
-WebView; responsive browser rendering alone does not count as Android acceptance.
+temporary. Android's development pilot passed nine actual filesystem/WebView workflow
+groups on the final accepted #76 head ([native run](https://github.com/crafactory/engine/actions/runs/42188594088));
+responsive browser rendering alone does not count as Android acceptance.
 Service boundaries and remaining migration details are in
 [NATIVE-PLUGIN-ARCHITECTURE.md](NATIVE-PLUGIN-ARCHITECTURE.md).
 
@@ -43,7 +44,7 @@ layout, undo, input-method or plugin behavior.
 | Live images and diagrams | Unchanged image/diagram DOM survives typing and unrelated-note refresh. Real source changes still invalidate. Root-note assets resolve; modified asset metadata selectively refreshes decoded bytes. | External writers with indistinguishable metadata, every image format and all plugin renderers are unverified. |
 | Mermaid labels | Native SVG text renders labels under mandatory DOMPurify; HTML-label output is not restored by weakening sanitization. | Every Mermaid diagram type and visual equivalence remain unverified. |
 | Source/live continuity | Shared editor document, selection, history compartments and original live-stability regressions are retained. Browser, Electron and actual Linux-package regressions cover the named geometry/identity failures. | Finite regressions do not prove that all geometry shifts or all editor bugs are fixed. See [QA-CANVAS-LIVE-EDIT.md](QA-CANVAS-LIVE-EDIT.md). |
-| Footnote syntax | Existing `markdown-it-footnote` rendering supports footnote syntax in rendered Markdown. | A dedicated footnote list/navigation view is absent. Do not describe footnote syntax itself as missing. |
+| Footnote syntax and view | Existing `markdown-it-footnote` rendering plus a lazy native panel listing named, repeated, inline and unreferenced footnotes, with exact-source editing/navigation. See [workflow contract](FOOTNOTES.md). | Source presence is not final-head acceptance; current increment adds browser, desktop-byte/restart and Android checks. Installed-reference visual/interaction comparison remains outstanding. |
 
 The accepted Live Editing repair is
 [PR #75](https://github.com/crafactory/engine/pull/75). Its tests and historical acceptance
@@ -67,7 +68,7 @@ an inspection or copy of Obsidian implementation.
 | Daily notes | Implemented subset | Configurable date format/folder/template and daily navigation exist. | All locale/timezone/template combinations remain unverified. |
 | File explorer | Implemented subset | Files/folders, rename, move, trash and attachments exist with host path/version guards. | No cross-process atomic lock, ACL preservation or power-loss guarantee is claimed. Android shared-folder selection is absent. |
 | File recovery | Implemented subset | Prior saved text versions and a recovery UI exist; up to 100 per file are retained. | The Android backend has a separate private profile, not the desktop recovery directory. Unsaved-process-kill recovery is not certified. |
-| Footnotes view | Not implemented | Markdown footnote syntax renders; that is adjacent behavior, not this view. | A dedicated current-note footnote list/navigation view is absent. |
+| Footnotes view | Implemented subset | Native current-note list, inline/named/repeated/unreferenced entries, source editing, per-reference navigation, live updates and core toggle; [contract and tests](FOOTNOTES.md). | Editing deliberately opens Source mode rather than a separate rich-text editor; complete installed-reference comparison and every syntax/device combination remain unverified. |
 | Graph view | Implemented subset | Owned global/local force graph, filtering and basic interaction exist. | Reference layout, visual controls and large-graph performance are not equivalent. |
 | Note composer | Implemented subset | Merge and selection extraction, including owned link handling, exist. | Every reference refactor/metadata/link edge case remains unverified. |
 | Outgoing links | Implemented subset | Indexed outgoing and unresolved links exist. | Full reference grouping/context/navigation behavior remains incomplete. |
@@ -108,7 +109,7 @@ their overlaps with core-plugin rows are not additional units of parity.
 | Import/export | Implemented subset | Markdown/assets import and note/HTML/PDF/ZIP export on desktop; Android share export implementation under test. | Product-specific importers, self-contained HTML, Android printing/SAF and complete hidden-profile backup/restore. |
 | Source editing | Implemented subset | CodeMirror, Markdown, undo/redo, search/replace, selection formatting, spelling/line settings and an owned table editor. | Vim/Emacs mode equivalence, every editing shortcut, folding/history semantics and every input method. |
 | Live preview | Implemented subset | Source reveal, formatting, tasks, tables with row/column operations, owned fenced-block previews and repaired geometry/identity. | Obsidian Markdown processors still run only in reading mode; complete inline/nested grammar, every list/embed, cursor/selection equivalence and huge-document performance remain incomplete. |
-| Reading | Implemented subset | Markdown-it, tables, tasks, highlights, footnotes, comments and nested callout folding. | Complete OFM, HTML-in-note and code-fence highlighting equivalence; no dedicated Footnotes view. |
+| Reading | Implemented subset | Markdown-it, tables, tasks, highlights, footnotes, comments and nested callout folding; dedicated Footnotes view can reveal editable source. | Complete OFM, HTML-in-note and code-fence highlighting equivalence remain unverified. |
 | Math/diagrams | Implemented subset | KaTeX and strict Mermaid with sanitized native SVG text labels. | All syntax/render/editing types and complete compatibility/security certification. |
 | Embeds | Implemented subset | Note/heading/block transclusion, read-only Canvas geometry and image/audio/video; PDF download. | Recursive embeds, Canvas file cards, interactive PDF, full wiki image sizing, embedded Bases and block edit actions. |
 | Properties | Implemented subset | Typed YAML editing, add/remove, property search and indexed inference/overrides used by the facade. | Full reference type-manager semantics, date/link widgets, drag/reorder, completion and multi-file bulk edits. |
@@ -153,7 +154,7 @@ settings screen or drag interaction is not full plugin compatibility.
 | Community catalog | Not implemented | Local manually installed packages; Android debug sideload only. | No marketplace, unattended install/update/signing, or Android installation UI. |
 | Themes/snippets | Implemented subset | Original themes, editable custom CSS and bounded Style Settings controls. | Complete theme/snippet management and reference CSS-variable equivalence are unverified. |
 | Hotkeys | Implemented subset | Editable application hotkeys and owned plugin scopes. | Full conflict resolution, arbitrary editor overrides and mobile external-keyboard coverage are incomplete. |
-| Mobile | Not implemented | Android source, persistent bridge, shared mobile UI and native acceptance gate are in progress. | No final-head APK/emulator acceptance yet. iOS, SAF, mobile plugin installer and complete device/OEM coverage remain absent. |
+| Mobile | Implemented subset | Capacitor Android private-vault pilot: final #76 APK passed nine actual API35 workflows, including Chinese IME, keyboard/Back, persistence/failure recovery, plugins and OS chooser; [native evidence](https://github.com/crafactory/engine/actions/runs/42188594088). | iOS, SAF/shared vault selection, mobile plugin installer, full profile backup, production signing/upgrades and complete device/OEM coverage remain absent. New-head source changes require their own native gate. |
 | CLI | Implemented subset | Owned local-file CLI. | Not command-compatible with the reference CLI. |
 | URI/deep links | Implemented subset | Owned in-app plugin protocol dispatch exists. | OS `obsidian://`/`crafactory://` registration and Android VIEW/BROWSABLE intents are absent. |
 | Web Clipper | Not implemented | No browser extension. | Reference free-extension interoperability remains outstanding. |

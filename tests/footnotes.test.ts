@@ -1,0 +1,56 @@
+import {describe,it,expect} from 'vitest';
+import {footnotes} from '../src/footnotes';
+
+describe('source-positioned footnotes',()=>{
+  it('lists named, repeated, inline and unreferenced footnotes in source order',()=>{
+    const text='中文😀[^a] again[^a]. Inline ^[with **bold** and [link](target)].\n\n[^a]: A definition\n\n[^orphan]: Not referenced';
+    const items=footnotes(text);
+    expect(items.map(item=>[item.label,item.text,item.references.length])).toEqual([['a','A definition',2],['Inline','with bold and link',1],['orphan','Not referenced',0]]);
+    expect(items[0].references.map(ref=>text.slice(ref.from,ref.to))).toEqual(['[^a]','[^a]']);
+    expect(items[0].editOffset).toBe(text.indexOf('A definition'));
+    expect(items[1].editOffset).toBe(text.indexOf('with **bold**'));
+  });
+  it('preserves full-file UTF-16 offsets with CRLF frontmatter and multiline definitions',()=>{
+    const text='---\r\nexample: "[^fake]"\r\n---\r\n😀[^中]\r\n\r\n[^中]: first\r\n    second\r\n\r\n    third';
+    const [item]=footnotes(text);
+    expect(item.label).toBe('中');expect(item.text).toBe('first\nsecond\nthird');
+    expect(item.references[0].from).toBe(text.indexOf('[^中]'));
+    expect(text.slice(item.definition.from,item.definition.to)).toBe('[^中]: first\r\n    second\r\n\r\n    third');
+    expect(item.editOffset).toBe(text.indexOf('first'));
+  });
+  it('ignores frontmatter, comments, code, escaped markers and unresolved references',()=>{
+    const text='---\nfake: "[^fake]"\n---\n`literal ^[inline] [^a] %%`\n\n```md\n[^fake]: fenced\n^[fenced]\n%%\n```\n\n    ^[indented]\n\n%% ^[comment] [^a]\n[^fake]: comment\n%%\n\n\\^[escaped] \\[^a] [^missing]. Real[^a].\n\n[^a]: body';
+    const items=footnotes(text);
+    expect(items).toHaveLength(1);expect(items[0].label).toBe('a');
+    expect(items[0].references).toHaveLength(1);
+    expect(items[0].references[0].from).toBe(text.indexOf('Real[^a]')+4);
+  });
+  it('does not let code percent signs hide later actual comments',()=>{
+    const text='`%%` literal.\n\n%% ^[hidden] %% Visible ^[shown].';
+    expect(footnotes(text).map(item=>item.text)).toEqual(['shown']);
+  });
+  it('handles inline nested brackets, escaped closers and code-span brackets',()=>{
+    const text='One ^[a [link](https://example.com) and `]` and \\] literal]. Next ^[two].';
+    const items=footnotes(text);
+    expect(items).toHaveLength(2);expect(items[0].text).toBe('a link and ] and ] literal');
+    expect(text.slice(items[0].definition.from,items[0].definition.to)).toBe('^[a [link](https://example.com) and `]` and \\] literal]');
+    expect(items[1].text).toBe('two');
+  });
+  it('does not interpret image alt text, HTML attributes or link destinations as inline notes',()=>{
+    expect(footnotes('![^[alt]](pixel.png) [label](https://example.com/^[url]) <img alt="^[html]">')).toEqual([]);
+  });
+  it('keeps renderer-compatible exact label matching and last-definition precedence',()=>{
+    const items=footnotes('Real[^a], mismatch[^A].\n\n[^a]: first\n\n[^a]: last');
+    expect(items).toHaveLength(1);expect(items[0].text).toBe('last');expect(items[0].references).toHaveLength(1);
+  });
+  it('finds definitions in blockquotes and lists without losing their source location',()=>{
+    const text='Ref[^quote] and[^list].\n\n> [^quote]: quoted\n>     continued\n\n- [^list]: listed';
+    const items=footnotes(text);
+    expect(items.map(item=>item.label)).toEqual(['quote','list']);
+    expect(items[0].editOffset).toBe(text.indexOf('quoted'));
+    expect(items[1].editOffset).toBe(text.indexOf('listed'));
+  });
+  it('does not capture malformed or empty inline notes across separate blocks',()=>{
+    expect(footnotes('Broken ^[unterminated\n\nlater ] and ^[]')).toEqual([]);
+  });
+});

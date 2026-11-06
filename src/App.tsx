@@ -72,6 +72,8 @@ export function App(){
   const [,refreshPluginDocumentViews]=useState(0);
   const layoutSaveTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined),switchingVault=useRef(false);
   const [left,setLeft]=useState(()=>!nativeAndroid&&window.innerWidth>650),[right,setRight]=useState(!nativeAndroid),[sideTab,setSideTab]=useState('files'),[rightTab,setRightTab]=useState('outline');
+  const [sourceJump,setSourceJump]=useState<{path:string;offset:number}|null>(null);
+  const pendingSourceJump=useRef<{path:string;offset:number}|null>(null);
   const [expanded,setExpanded]=useState<Set<string>>(new Set(['Guides','Ideas','Projects']));
   const [bookmarks,setBookmarks]=useState<string[]>([]),[recent,setRecent]=useState<string[]>([]);
   const [workspaces,setWorkspaces]=useState<Record<string,Workspace>>({});
@@ -141,7 +143,25 @@ export function App(){
     return null;
   },[]);
   /** Keep the App editor handle pointing at the registered editor view. */
-  const setEditorHandle=useCallback((handle:EditorHandle|null)=>{editor.current=handle;},[]);
+  const setEditorHandle=useCallback((handle:EditorHandle|null)=>{
+    editor.current=handle;
+    const target=pendingSourceJump.current;
+    if(handle&&target&&handle.path()===target.path&&pluginState.current.active===target.path&&pluginState.current.mode!=='reading'){
+      handle.jump(target.offset);pendingSourceJump.current=null;setSourceJump(null);
+    }
+  },[]);
+  useEffect(()=>{
+    if(!sourceJump)return;
+    if(active!==sourceJump.path){pendingSourceJump.current=null;setSourceJump(null);return;}
+    if(mode==='reading')return;
+    if(editor.current?.path()===sourceJump.path){editor.current.jump(sourceJump.offset);pendingSourceJump.current=null;setSourceJump(null);}
+  },[sourceJump,active,mode]);
+  /** Footnote offsets are usable only for the exact note/content the panel rendered. */
+  function jumpFootnote(path:string,base:string,offset:number){
+    if(pluginState.current.active!==path||notesRef.current.find(note=>note.path===path)?.content!==base){toast('The note changed. Select the footnote again.');return;}
+    if(nativeAndroid){setLeft(false);setRight(false);}
+    pendingSourceJump.current={path,offset};setSourceJump({path,offset});setMode('source');
+  }
   /** Resolve a file path to a compatibility plugin view registered for its extension. */
   function pluginViewFor(path:string):{viewType:string;pluginId:string;leafId?:string}|undefined{
     const documentView=pluginDocumentViews.current.get(path);if(documentView)return documentView;
@@ -716,6 +736,7 @@ export function App(){
     {id:'random-note',label:'Open a random note',run:()=>{const path=indexRuntime.current?.navigation.randomNote();if(path){open(path);return;}const n=notes.filter(n=>isNote(n.path));if(n.length)open(n[Math.floor(Math.random()*n.length)].path);}},
     {id:'insert-template',label:'Insert template',run:()=>setPalette('templates')},
     {id:'bookmark',label:'Toggle bookmark for current note',run:toggleBookmark},
+    {id:'footnotes',label:'Show footnotes view',run:()=>{setLeft(nativeAndroid?false:left);setRight(true);setRightTab('footnotes');}},
     {id:'toggle-mode',label:'Toggle reading and editing',shortcut:'⌘ E',run:toggleMode},
     {id:'source-mode',label:'Switch to source mode',run:()=>setMode('source')},
     {id:'live-mode',label:'Switch to live editing',run:()=>setMode('live')},
@@ -749,7 +770,7 @@ export function App(){
     ...pluginCommands
   ].filter(c=>{
     const group:Record<string,string>={'graph':'graph','local-graph':'graph','daily-note':'daily','unique-note':'unique','new-canvas':'canvas','new-base':'bases','random-note':'random','insert-template':'templates','bookmark':'bookmarks','merge-note':'composer','extract-note':'composer','recovery':'recovery','save-workspace':'workspaces','load-workspace':'workspaces','slides':'slides','web-viewer':'web','audio':'audio','converter':'converter','search':'search','quick-switcher':'switcher','command-palette':'commands'};
-    return !group[c.id]||enabled(group[c.id]);
+    return (c.id!=='footnotes'||enabled('footnotes'))&&(!group[c.id]||enabled(group[c.id]));
   });
   const commandsRef=useRef(commands);commandsRef.current=commands;
   /** Publish the application command set into the native command service. */
@@ -890,7 +911,7 @@ export function App(){
   if(palette==='merge')paletteItems=notes.filter(n=>isNote(n.path)&&n.path!==active).map(n=>({id:n.path,label:title(n.path),description:n.path,run:()=>mergeInto(n.path)}));
 
   const headingJump=(heading:{level:number;text:string;offset:number})=>{if(mode!=='reading')editor.current?.jump(heading.offset);else document.getElementById('heading-'+heading.text.toLowerCase().replace(/\s+/g,'-'))?.scrollIntoView({behavior:'smooth'});};
-  const panelBase={notes,bookmarks,recent,tags:tagCounts,headings:hs,incoming,mentions,activeTitle:title(active),active,outgoing,onOpen:open,onOpenLink:openLink,onRemoveBookmark:removeBookmarkPath,onSelectTag:(tag:string)=>{setQuery('tag:#'+tag);setSideTab('search');},onJumpHeading:headingJump};
+  const panelBase={notes,bookmarks,recent,tags:tagCounts,headings:hs,incoming,mentions,activeTitle:title(active),active,outgoing,onOpen:open,onOpenLink:openLink,onRemoveBookmark:removeBookmarkPath,onSelectTag:(tag:string)=>{setQuery('tag:#'+tag);setSideTab('search');},onJumpHeading:headingJump,onJumpFootnote:jumpFootnote};
   const panelType:SidePanelTab|undefined=sideTab==='bookmarks'||sideTab==='recent'||sideTab==='tags'?sideTab:undefined;
   const SidePanel=panelType?panelComponent(panelType,'left'):undefined;
   const panelProps=panelType?{sideTab:panelType,...panelBase}:undefined;
@@ -904,6 +925,7 @@ export function App(){
   const filesProps=FilesView?{...panelBase,sideTab:'files' as const,entries,activePath:active,fileSort,expanded,loading,childrenFor:treeChildren,onToggleFolder:(path:string)=>setExpanded(current=>{const next=new Set(current);next.has(path)?next.delete(path):next.add(path);return next;}),onOpenFile:open,onFileContextMenu:(path:string,x:number,y:number)=>{const menu=new ContextMenu();for(const controller of pluginStops.current.values())controller.triggerWorkspaceEvent?.('file-menu',[menu,path,'file-explorer']);setContext({path,x:Math.min(x,window.innerWidth-225),y:Math.min(y,window.innerHeight-260),menu});},onDropFile:(from:string,folder:string)=>renamePath(from,folder+'/'+from.split('/').pop()),onCollapseAll:()=>setExpanded(new Set()),onFileSortChange:setFileSort,onCreateNote:()=>createNote()}:undefined;
   const OutgoingView=rightTab==='outgoing'?panelComponent('outgoing','right'):undefined;
   const outgoingProps=OutgoingView?{sideTab:'outgoing' as const,...panelBase}:undefined;
+  const FootnotesView=rightTab==='footnotes'&&enabled('footnotes')?panelComponent('footnotes','right'):undefined;
   return <div className="app app-container" onClick={()=>context&&setContext(null)}>
     <style>{settings.css}</style>
     <input ref={importInput} type="file" multiple accept=".md,.markdown,.txt,image/*,audio/*,video/*,.pdf,.canvas,.base" className="hidden" aria-label="Import files" onChange={e=>{importFiles(e.target.files);e.target.value='';}}/>
@@ -956,10 +978,11 @@ export function App(){
         {loading?<div className="workspace-loading"><div className="skeleton-list"><i/><i/><i/></div><p>Opening vault…</p></div>:<Suspense fallback={<div className="workspace-loading"><p>Opening view…</p></div>}><div className={'panes '+(split?'split':'')}><section className="workspace-pane">{tabs.map(path=>{const view=pluginViewFor(path);return view?<div key={path} className="retained-plugin-view" hidden={path!==active}><PluginViewHost path={path} viewType={view.viewType} controller={pluginStops.current.get(view.pluginId)} leafId={view.leafId}/></div>:null;})}{showNote(active)}</section>{split&&<section className="workspace-pane secondary-pane"><header><span>{title(split)}</span><button aria-label="Close split pane" onClick={()=>setSplit(null)}><X size={15}/></button></header>{showNote(split,true)}</section>}</div></Suspense>}
       </main>
       {right&&<aside className="right-sidebar" aria-label="Note context">
-        <div className="sidebar-tabs"><IconButton label="Outline tab" onClick={()=>setRightTab('outline')} active={rightTab==='outline'}><List size={17}/></IconButton><IconButton label="Backlinks tab" onClick={()=>setRightTab('backlinks')} active={rightTab==='backlinks'}><Link2 size={17}/></IconButton><IconButton label="Outgoing links tab" onClick={()=>setRightTab('outgoing')} active={rightTab==='outgoing'}><ArrowRight size={17}/></IconButton></div>
+        <div className="sidebar-tabs"><IconButton label="Outline tab" onClick={()=>setRightTab('outline')} active={rightTab==='outline'}><List size={17}/></IconButton><IconButton label="Backlinks tab" onClick={()=>setRightTab('backlinks')} active={rightTab==='backlinks'}><Link2 size={17}/></IconButton><IconButton label="Outgoing links tab" onClick={()=>setRightTab('outgoing')} active={rightTab==='outgoing'}><ArrowRight size={17}/></IconButton>{enabled('footnotes')&&<IconButton label="Footnotes tab" onClick={()=>setRightTab('footnotes')} active={rightTab==='footnotes'}><BookOpen size={17}/></IconButton>}</div>
         {rightTab==='outline'&&enabled('outline')&&<><div className="section-heading"><span>Outline</span><List size={13}/></div>{OutlineView&&outlineProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><OutlineView {...outlineProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Outline unavailable.</p>}</>}
         {(rightTab==='outline'||rightTab==='backlinks')&&enabled('backlinks')&&(BacklinksView&&backlinksProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><BacklinksView {...backlinksProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Backlinks unavailable.</p>)}
         {rightTab==='outgoing'&&enabled('outgoing')&&(OutgoingView&&outgoingProps?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={rightTab}><OutgoingView {...outgoingProps}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Outgoing links unavailable.</p>)}
+        {rightTab==='footnotes'&&(FootnotesView?<Suspense fallback={<div className="skeleton-list"><i/><i/></div>}><ViewBoundary resetKey={active}><FootnotesView sideTab="footnotes" {...panelBase}/></ViewBoundary></Suspense>:<p className="sidebar-hint">Footnotes view is disabled or unavailable.</p>)}
         <footer className="context-footer"><div><Network size={15}/><span>Everything connects</span></div><p>Follow a link. Find a new perspective.</p>{enabled('graph')&&activeNote&&<button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button>}</footer>
       </aside>}
     </div>

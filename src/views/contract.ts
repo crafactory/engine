@@ -58,7 +58,7 @@ export interface EditorViewProps {
 export interface GraphViewProps {notes:Note[];index:IndexService;active:string;local:boolean;onOpen:(path:string)=>void}
 
 /** Props for a sidebar/panel view contribution. */
-export type SidePanelTab = 'files' | 'search' | 'bookmarks' | 'recent' | 'tags' | 'outline' | 'backlinks' | 'outgoing';
+export type SidePanelTab = 'files' | 'search' | 'bookmarks' | 'recent' | 'tags' | 'outline' | 'backlinks' | 'outgoing' | 'footnotes';
 
 export interface PanelHeading {level: number; text: string; offset: number}
 
@@ -102,6 +102,8 @@ export interface PanelViewProps {
   onSelectTag(tag: string): void;
   onJumpHeading(heading: PanelHeading): void;
   onOpenLink(target: string): void;
+  /** The host rejects stale content/path before revealing a source position. */
+  onJumpFootnote?(path:string,base:string,offset:number):void;
 }
 
 export type PanelComponent = ComponentType<PanelViewProps>;

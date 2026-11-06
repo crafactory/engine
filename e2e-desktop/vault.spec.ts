@@ -72,6 +72,36 @@ test('native watcher reloads external edits',async()=>{
   await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\nEdited externally.\n');
   await expect(page.getByTestId('note-editor')).toContainText('Edited externally.');
 });
+test('native footnotes edit exact source bytes and restore after process restart',async()=>{
+  const content='# Persist\n\n中文😀 first[^a] repeated[^a]. Inline ^[inline **bold**].\n\n[^a]: original content\n    continued\n\n[^orphan]: unused text\n';
+  await page.getByTestId('mode-source').click();
+  await fs.writeFile(path.join(root,'Persist.md'),content);
+  await expect(page.getByTestId('note-editor')).toContainText('original content');
+  await page.getByRole('button',{name:'Footnotes tab',exact:true}).click();
+  await expect(page.locator('.footnotes-list li')).toHaveCount(3);
+  await page.getByTestId('mode-reading').click();
+  await page.getByRole('button',{name:'Edit footnote a',exact:true}).click();
+  await expect(page.getByTestId('note-editor')).toBeFocused();await page.keyboard.insertText('Edited ');
+  let expected=content.replace('[^a]: original','[^a]: Edited original');
+  await expect.poll(()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toBe(expected);
+  await page.getByRole('button',{name:'Go to reference 2 of footnote a',exact:true}).click();await page.keyboard.insertText('REF ');
+  expected=expected.replace('repeated[^a]','repeatedREF [^a]');
+  await expect.poll(()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toBe(expected);
+  await page.getByRole('button',{name:'Edit footnote inline 2',exact:true}).click();await page.keyboard.insertText('Changed ');
+  expected=expected.replace('^[inline','^[Changed inline');
+  await expect.poll(()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toBe(expected);
+  await app.close();
+  const executablePath=process.env.E2E_EXECUTABLE_PATH;
+  app=await electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+userData],timeout:45000,env:{...process.env,ENGINE_DEV:'0'}});
+  page=await app.firstWindow();await expect(page.locator('.note-title h1')).toHaveText('Persist');
+  await page.getByRole('button',{name:'Footnotes tab',exact:true}).click();
+  await expect(page.locator('.footnotes-list li')).toHaveCount(3);
+  await expect(page.getByRole('button',{name:'Edit footnote a',exact:true})).toContainText('Edited original content');
+  await expect(page.getByRole('button',{name:'Edit footnote inline 2',exact:true})).toContainText('Changed inline bold');
+  await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\nNo footnotes remain.\n');
+  await expect(page.getByRole('region',{name:'Footnotes',exact:true})).toContainText('This note has no footnotes.');
+  await page.screenshot({path:test.info().outputPath('native-footnotes.png')});
+});
 test('native inline image reuse still reloads changed asset bytes',async()=>{
   await page.getByTestId('mode-source').click();
   const pixel=(width:number)=>`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="24"><rect width="${width}" height="24"/></svg>`;
