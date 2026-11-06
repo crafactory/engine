@@ -37,6 +37,11 @@ Native replay passes four groups then exposes real startup Back ownership: subsc
 were gated on loading even though shell drawers are interactive. Register them for the
 mounted shell; a gated-discovery browser regression fails before and passes after.
 This new production repair needs its own full replay and all exact-head gates.
+ce1d47b production replay passes 932/57 units, 75 browser, 105 Electron/all corpus,
+24 Linux-package vault cases. Native drawer/settings Back now succeeds, but premature
+driver trashing of the history fixture races startup snapshot reads and surfaces a
+correct missing-file banner. Retain the fixture until emulator teardown; no banner
+dismissal, error filtering or weaker assertions. Driver-only follow-up needs native replay.
 The old parity ledger incorrectly retained Mobile "Not implemented" after #76 passed;
 align it with the actual nine-group pilot, without upgrading production/device claims.
 `docs/FOOTNOTES.md` defines contracts, not a passing verdict.

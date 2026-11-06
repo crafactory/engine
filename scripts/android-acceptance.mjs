@@ -284,7 +284,9 @@ try{
     });
     assert.equal(restored.content,'Original 中文\n');
     assert.equal(readNative('vault/Recovery probe.md'),'Original 中文\n');
-    await page.evaluate(()=>window.engine.trash('Recovery probe.md'));
+    // Keep the fixture until emulator teardown. connect() proves visible shell
+    // readiness, not completion of every startup read: trashing here races the
+    // active boot snapshot and creates an unrelated missing-file error banner.
   });
   await step('native drawers, settings and top-modal Back ownership',async()=>{
     await page.getByRole('button',{name:'Mobile files',exact:true}).click();await expect(page.locator('.left-sidebar')).toBeVisible();

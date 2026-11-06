@@ -41,6 +41,12 @@ An owned browser-bridge regression deliberately holds discovery pending: the old
 returns `false` with its drawer visibly open; the repaired application consumes Back for
 drawers/settings both before and after discovery. This is a reproducible regression, not
 native acceptance. The final runtime requires its own full replay and native gate.
+The repaired production runtime at `ce1d47b` passes all 932 units/57 files, 75 browser,
+105 Electron/all 22 corpus/no skips and 24 actual Linux-package vault cases.
+Its native replay gets past drawer/settings Back, then correctly fails on an unrelated
+missing-file banner: the driver trashed its history fixture while startup was still
+reading that snapshot. Keep the read-only fixture until emulator teardown instead.
+Do not dismiss or whitelist the banner; the normal no-error assertion remains.
 
 Merge requires the exact final-head Verify, three-platform packaging, independent corpus
 and all ten native Android groups, plus downloaded report/hash and screenshot inspection.
