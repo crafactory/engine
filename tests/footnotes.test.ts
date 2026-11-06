@@ -1,5 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import {footnotes} from '../src/footnotes';
+import MarkdownIt from 'markdown-it';
+import renderFootnotes from 'markdown-it-footnote';
 
 describe('source-positioned footnotes',()=>{
   it('lists named, repeated, inline and unreferenced footnotes in source order',()=>{
@@ -41,7 +43,7 @@ describe('source-positioned footnotes',()=>{
     expect(items[1].text).toBe('two');
   });
   it('does not interpret image alt text, HTML attributes or link destinations as inline notes',()=>{
-    expect(footnotes('![^[alt]](pixel.png) [label](https://example.com/^[url]) <img alt="^[html]">')).toEqual([]);
+    expect(footnotes('![^[alt]](pixel.png) [label](https://example.com/^[url]) <https://example.com/^[autolink]> <img alt="^[html]">')).toEqual([]);
   });
   it('keeps renderer-compatible exact label matching and last-definition precedence',()=>{
     const items=footnotes('Real[^a], mismatch[^A].\n\n[^a]: first\n\n[^a]: last');
@@ -61,5 +63,23 @@ describe('source-positioned footnotes',()=>{
     const text='Ref[^a\\]b].\n\n[^a\\]b]: first  \n    second';
     const [item]=footnotes(text);expect(item.text).toBe('first\nsecond');
     expect(item.editOffset).toBe(text.indexOf('first'));
+  });
+  it('preserves distinct raw entity labels, checked against black-box renderer tokens',()=>{
+    const text='One[^a&amp;b], two[^a&b], unmatched[^a&#38;b].\n\n[^a&amp;b]: encoded\n\n[^a&b]: literal';
+    const items=footnotes(text);
+    expect(items.map(item=>[item.label,item.text,item.references.length])).toEqual([['a&amp;b','encoded',1],['a&b','literal',1]]);
+    const rendered=new MarkdownIt().use(renderFootnotes).parse(text,{});
+    expect(rendered.filter(token=>token.type==='footnote_open').map(token=>token.meta.label)).toEqual(items.map(item=>item.label));
+  });
+  it('handles many unterminated outer prefixes without losing the valid inner note',()=>{
+    const items=footnotes('^['.repeat(2000)+'valid]');
+    expect(items).toHaveLength(1);expect(items[0].text).toBe('valid');
+  });
+  it('indexes many literal ranges and retains a long inline body and percent comments',()=>{
+    const prefix=Array.from({length:500},(_,i)=>'`code '+i+' %%`').join(' ');
+    const body='long '.repeat(2000);
+    const text=prefix+' %% ^[hidden] %% ^['+body+']',items=footnotes(text);
+    expect(items).toHaveLength(1);expect(items[0].text).toBe(body.trimEnd());
+    expect(text.slice(items[0].editOffset,items[0].definition.to-1)).toBe(body);
   });
 });

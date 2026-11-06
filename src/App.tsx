@@ -155,7 +155,7 @@ export function App(){
     if(active!==sourceJump.path||notesRef.current.find(note=>note.path===sourceJump.path)?.content!==sourceJump.base){pendingSourceJump.current=null;setSourceJump(null);return;}
     if(mode==='reading')return;
     if(editor.current?.path()===sourceJump.path){editor.current.jump(sourceJump.offset);pendingSourceJump.current=null;setSourceJump(null);}
-  },[sourceJump,active,mode]);
+  },[sourceJump,active,mode,notes]);
   /** Footnote offsets are usable only for the exact note/content the panel rendered. */
   function jumpFootnote(path:string,base:string,offset:number){
     if(pluginState.current.active!==path||notesRef.current.find(note=>note.path===path)?.content!==base||!Number.isInteger(offset)||offset<0||offset>base.length){toast('The note changed. Select the footnote again.');return;}

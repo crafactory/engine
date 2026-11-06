@@ -21,15 +21,19 @@ Implement the missing core Footnotes view from public behavior: current-note lis
 to edit, per-reference navigation. Native lazy view uses AST positions and original inline
 scanning, with no plugin body reading. Editing delegates to the actual source editor,
 retaining normal undo/save/conflict behavior; mobile closes its covering drawer first.
-Unit/parser and lifecycle tests are present. Browser, exact native disk/restart and actual
-Android acceptance are added but must run; first static check caught nullable AST fields.
+PR #77 is open and has completed effective CodeRabbit review (four minor findings).
+Repairs preserve raw source labels, index literal ranges, parse in a dedicated Worker,
+clean pending jumps when notes change and distinguish historical Android evidence.
+Cold-cache four-case browser replay, check/build and native footnotes disk/restart pass.
+The earlier 773cfb8 full regression is historical, not evidence for the Worker runtime.
+Android attempts on that earlier head failed on launcher ANR/device offline, not a pass.
 The old parity ledger incorrectly retained Mobile "Not implemented" after #76 passed;
 align it with the actual nine-group pilot, without upgrading production/device claims.
 `docs/FOOTNOTES.md` defines contracts, not a passing verdict.
 
 ## Next increments
 
-- Open an early PR, complete targeted and full regressions, and perform effective review.
+- Commit review repairs, reply/resolve four threads and run full sequential regression.
 - Require all final-head Verify, three-platform packaging, ten-group Android and independent
   pinned corpus gates; inspect artifacts/screenshots and fix findings before merge.
 - Keep `docs/PLUGIN-SUPPORT-MATRIX.md` the single external-plugin verdict tracker.

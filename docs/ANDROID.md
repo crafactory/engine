@@ -1,7 +1,9 @@
 # Shared-code Android pilot
 
 Status: Android development pilot with bounded native acceptance, not a production release.
-Current-head verdicts and APK/report artifacts are in [PR #76](https://github.com/crafactory/engine/pull/76).
+[PR #76 artifacts](https://github.com/crafactory/engine/pull/76) are historical baseline
+evidence. Use [VERIFICATION.md](VERIFICATION.md) and the current PR's exact-head Android
+check, currently [PR #77](https://github.com/crafactory/engine/pull/77), for later changes.
 This increment
 follows the merged [Live Editing repairs](https://github.com/crafactory/engine/pull/75).
 The current plugin verdicts remain in [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md);

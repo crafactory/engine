@@ -28,10 +28,16 @@ inputs, not copied implementation. Frontmatter/comments are masked without shift
 offsets; inline/fenced/indented code, image alt text, HTML attributes and link destinations
 cannot create inline notes. Unicode and CRLF input offsets retain their full-file meaning.
 
+Labels are extracted from original source slices, not entity-decoded AST label fields.
 Named labels are exact and the last duplicate definition wins, matching observations of
 Engine's existing unchanged Markdown renderer, rather than pretending the normalized GFM
 identifier rules are its behavior. The panel displays plain text through React, not raw
-note HTML. Opening/navigation does not mutate the note. No installed Obsidian version has
+note HTML. Parsing runs in an owned module Worker; merged literal ranges have indexed
+lookup, comment masking joins chunks once, and balanced inline scanning avoids repeated
+unterminated-prefix searches. Request IDs plus path/content guards discard stale results.
+The build explicitly selects the entity decoder's public Worker/default export instead
+of its DOM-only browser condition; dev prebundling avoids a first-use full-page reload.
+Opening/navigation does not mutate the note. No installed Obsidian version has
 been pinned for pixel-level or exhaustive semantic comparison.
 
 ## Verification

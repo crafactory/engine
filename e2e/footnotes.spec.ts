@@ -10,7 +10,10 @@ async function create(page:Page,name:string){
   await page.getByTestId('dialog-input').fill(name);await page.getByTestId('dialog-submit').click();
   await page.getByTestId('mode-source').click();
 }
-test.beforeEach(async({page})=>{await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');});
+test.beforeEach(async({page})=>{
+  page.on('console',message=>{if(message.text().startsWith('FOOTNOTES_WORKER:'))console.log(message.text());});
+  await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
+});
 test('footnotes view lists, edits and navigates actual named and inline source',async({page})=>{
   await create(page,'Footnotes.md');
   await page.getByTestId('note-editor').click();await page.keyboard.insertText(content);
@@ -68,4 +71,23 @@ test('footnotes core toggle gates the view and command and can be re-enabled',as
   await page.getByRole('button',{name:'Close settings',exact:true}).click();
   await command(page,'Show footnotes view');
   await expect(page.getByRole('region',{name:'Footnotes',exact:true})).toBeVisible();
+});
+test('delayed real parser worker discards old note results and edits only current source',async({page})=>{
+  let release!:()=>void,requested!:()=>void;
+  const gate=new Promise<void>(resolve=>{release=resolve;}),started=new Promise<void>(resolve=>{requested=resolve;});
+  await page.route('**/*footnotes.worker*',async route=>{requested();await gate;await route.continue();});
+  await create(page,'Worker Footnotes.md');
+  await page.getByTestId('note-editor').click();await page.keyboard.insertText('Old[^old].\n\n[^old]: old body\n');
+  await page.getByRole('button',{name:'Footnotes tab',exact:true}).click();
+  try{
+    await started;
+    await expect(page.getByRole('status')).toHaveText('Loading footnotes...');
+    await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.insertText('New[^new&amp;id].\n\n[^new&amp;id]: new &amp; body\n');
+  }finally{release();}
+  await expect(page.locator('.footnotes-list li')).toHaveCount(1);
+  await expect(page.getByRole('button',{name:'Edit footnote old',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Edit footnote new&amp;id',exact:true})).toContainText('new & body');
+  await page.getByRole('button',{name:'Edit footnote new&amp;id',exact:true}).click();await page.keyboard.insertText('Edited ');
+  await expect(page.getByTestId('note-editor')).toContainText('[^new&amp;id]: Edited new &amp; body');
 });
