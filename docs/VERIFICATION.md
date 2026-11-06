@@ -5,7 +5,45 @@
 > plugin status see [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); for API boundaries
 > see [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md).
 
-## Multi-plugin gaps and Kanban pointer persistence
+## Live Editing geometry, rendering and native assets
+
+The 2026-11-06 PR #75 increment starts from merged PR #74 and uses original host
+regressions, not upstream plugin implementation. Its negative baselines reproduce
+186px of table column redistribution, inline-image DOM replacement during prose edits,
+unchanged diagram replacement on external-note refresh, 750px of excess table overflow
+after resizing an open cell, missing sanitized Mermaid labels, invalid root-note image
+paths and a decoded image remaining at 24px after the asset changed to 48px.
+
+Fixes retain measured cell geometry and mapped image ownership, reflow the active edit
+grid on container resize without committing its draft, keep source-only contributions
+mounted across unrelated document refreshes, emit native SVG text under unchanged mandatory
+sanitization, preserve native path guards and selectively invalidate changed image assets
+from size/mtime snapshots. Unchanged images retain DOM; real diagram source changes and
+external transclusions still update. This is not a guarantee that legitimate content,
+font or viewport changes never alter layout, nor a complete image-path/asset-watch contract.
+
+Frozen local acceptance passed:
+
+- 869 unit tests across 49 files, TypeScript and the production build.
+- All 70 browser cases, including six new Live stability cases at 1440px/390px,
+  unchanged diagram identity/geometry, source ownership, draft-preserving container resize,
+  external transclusion refresh and actual rendered-label/source invalidation.
+- All 104 Electron cases, with all 22 hash-pinned Worker/renderer corpus scenarios
+  executed and no skips. Passing a boundary test is not plugin feature compatibility.
+- All 23 vault cases against a newly built actual Linux executable, including decoded
+  local asset bytes, geometry/identity continuity, bare/`./`/root image references, changed
+  bytes refreshing while an unrelated decoded image retains DOM, and exact persisted text.
+
+The [initial effective CodeRabbit review](https://github.com/crafactory/engine/pull/75#pullrequestreview-5796123711)
+identified the label and container-resize defects; both were repaired with original
+negative/positive regressions, without weakening sanitizer or storage boundaries.
+Exact-head cloud gates and final review resolution are recorded in
+[PR #75](https://github.com/crafactory/engine/pull/75). Windows/macOS packages remain build
+checks, not native runtime acceptance. Android is a subsequent increment, not evidence
+from these responsive browser screenshots. No broader external-plugin verdict is promoted
+by this editor-only increment.
+
+## Historical multi-plugin gaps and Kanban pointer persistence
 
 On 2026-11-05 UTC, implementation `e2eddc25eebc44fd107b18aa5266f1f1e021fb05`
 in [PR #74](https://github.com/crafactory/engine/pull/74) passed inventory validation,

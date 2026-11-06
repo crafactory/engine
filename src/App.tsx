@@ -53,6 +53,10 @@ function download(name:string,content:string|Blob,type='text/plain'){
 /** Compose the local-first vault workspace and explicitly authorized plugin controllers. */
 export function App(){
   const [notes,setNotes]=useState<Note[]>([]),[entries,setEntries]=useState<Entry[]>([]);
+  const imageEntries=entries.filter(e=>!e.folder&&/\.(png|jpe?g|gif|webp|svg|bmp|ico|avif|apng)$/i.test(e.path));
+  const assetRevision=imageEntries.map(e=>e.path+'\0'+e.size+'\0'+e.mtime).join('\0');
+  // Keep metadata identity stable when only a Markdown autosave updates the file listing.
+  const assetVersions=useMemo(()=>new Map(imageEntries.map(e=>[e.path,`${e.size}:${e.mtime}`])),[assetRevision]);
   const [vaultName,setVaultName]=useState('Crafactory Vault'),[root,setRoot]=useState('');
   const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [settings,setSettings]=useState<Preferences>(defaults),[mode,setMode]=useState<Preferences['mode']>('reading');
@@ -832,7 +836,7 @@ export function App(){
       </div>
       {mode==='reading'&&isNote(note.path)&&<div className={'reading-surface '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>{View?<ViewBoundary resetKey={note.path}><View {...viewProps}/></ViewBoundary>:<Markdown content={note.content} notes={notes} path={note.path} previews={pagePreviewRuntime.current?.service} onOpen={openLink} onChange={content=>editNote(note.path,content)}/>}</div>}
       <div className={'editor-host'+(mode==='reading'&&isNote(note.path)?' editor-hidden':'')}>
-        {EditorView?<EditorView note={note} notes={notes} settings={{...settings,mode:mode==='reading'?'source':mode}} pluginExtensions={secondary?undefined:allPluginExtensions} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} blocks={uiBlocks} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={suggestEditor} onHandle={secondary?undefined:setEditorHandle}/>:<Editor ref={secondary?undefined:editor} note={note} notes={notes} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} blocks={uiBlocks} pluginExtensions={secondary?undefined:allPluginExtensions} settings={{...settings,mode:mode==='reading'?'source':mode}} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={suggestEditor}/>}
+        {EditorView?<EditorView note={note} notes={notes} assetVersions={assetVersions} settings={{...settings,mode:mode==='reading'?'source':mode}} pluginExtensions={secondary?undefined:allPluginExtensions} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} blocks={uiBlocks} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={suggestEditor} onHandle={secondary?undefined:setEditorHandle}/>:<Editor ref={secondary?undefined:editor} note={note} notes={notes} assetVersions={assetVersions} session={secondary?undefined:editorSession(note.path)} slashCommands={slashRuntime.current?.service} blocks={uiBlocks} pluginExtensions={secondary?undefined:allPluginExtensions} settings={{...settings,mode:mode==='reading'?'source':mode}} onChange={content=>editNote(note.path,content)} onOpen={openLink} onCommand={runCommand} suggest={suggestEditor}/>}
       </div>
     </div>;
   }

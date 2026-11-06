@@ -37,6 +37,20 @@ test('typing before an inline image retains its DOM and reveals the mapped sourc
   await expect(page.locator('.live-inline-image')).toHaveCount(0);
   await expect(page.getByTestId('note-editor')).toContainText('![pixel]');
 });
+test('an open table cell reflows on container resize without committing or losing its draft',async({page})=>{
+  await prepare(page,'# Top\n\n| A | Longer column |\n| --- | --- |\n| Short | Value |\n\nTail');
+  await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+  await page.getByRole('button',{name:'Edit cell row 2 column 1',exact:true}).click();
+  const input=page.getByRole('textbox',{name:'Cell row 2 column 1',exact:true});
+  await input.fill('Uncommitted draft');
+  await page.setViewportSize({width:390,height:940});
+  await expect.poll(()=>page.locator('.live-table-scroll').evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
+  await expect(input).toBeFocused();await expect(input).toHaveValue('Uncommitted draft');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button',{name:'Edit cell row 2 column 1',exact:true})).toHaveText('Short');
+  await page.setViewportSize({width:1440,height:940});
+  await expect(input).toHaveCount(0);
+});
 test('typing prose preserves diagram identity, dimensions and following-block position',async({page})=>{
   await prepare(page,'# Top\n\nLead paragraph.\n\n```mermaid\nflowchart LR\nA-->B\n```\n\n| A | B |\n| --- | --- |\n| One | Two |\n\nTail');
   const svg=page.locator('.live-block-diagram .mermaid svg');await expect(svg).toBeVisible();
@@ -66,7 +80,8 @@ test('external note refresh updates embeds without remounting source-only diagra
   await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
   await page.getByTestId('mode-live').click();
   const svg=page.locator('.live-block-diagram .mermaid svg');await expect(svg).toBeVisible();
-  await expect(svg.locator('.nodeLabel')).toHaveText(['A','B']);
+  await expect(svg.locator('g.node text')).toHaveText(['A','B']);
+  await expect(svg.locator('foreignObject')).toHaveCount(0);
   await expect(page.locator('.embedded-note')).toContainText('Original body.');
   const node=await svg.elementHandle(),before=await svg.boundingBox();
   await page.evaluate(()=>(window as any).externalEdit());
@@ -76,6 +91,6 @@ test('external note refresh updates embeds without remounting source-only diagra
   for(const key of ['x','y','width','height'] as const)expect(Math.abs(after![key]-before![key])).toBeLessThanOrEqual(1);
   // The cache must not hide real source changes while retaining unchanged contributions.
   await page.evaluate(()=>(window as any).externalEdit(true));
-  await expect(svg.locator('.nodeLabel')).toHaveText(['A','C']);
+  await expect(svg.locator('g.node text')).toHaveText(['A','C']);
   expect(await node!.evaluate(el=>el.isConnected)).toBe(false);
 });

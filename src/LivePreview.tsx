@@ -1,4 +1,4 @@
-import {useState,useLayoutEffect,useRef} from 'react';
+import {useState,useEffect,useLayoutEffect,useRef} from 'react';
 import {createRoot,type Root} from 'react-dom/client';
 import {StateField,StateEffect,RangeSetBuilder,type EditorState} from '@codemirror/state';
 import {EditorView,Decoration,WidgetType,type DecorationSet} from '@codemirror/view';
@@ -16,7 +16,7 @@ import {BlockPreviewHost} from './ui/blocks/BlockPreviewHost';
 import type {BlockContribution} from './services/ui';
 
 export const refreshLivePreview=StateEffect.define<null>();
-interface Context {path:string;notes:Note[];onOpen:(target:string)=>void;blocks?:()=>BlockContribution[]}
+interface Context {path:string;notes:Note[];assetVersions?:ReadonlyMap<string,string>;onOpen:(target:string)=>void;blocks?:()=>BlockContribution[]}
 const roots=new WeakMap<HTMLElement,Root>();
 const blockOwners=new WeakMap<HTMLElement,BlockWidget>();
 const imageOwners=new WeakMap<HTMLElement,InlineImageWidget>();
@@ -34,7 +34,19 @@ function LiveTable({content,onChange,onMeasure}:{content:string;onChange:(value:
       button?.focus({preventScroll:true});button?.scrollIntoView({block:'nearest',inline:'nearest'});
     }
     onMeasure();
-  },[content,onMeasure,!!edit]);
+  },[content,onMeasure,edit?.columns]);
+  useEffect(()=>{
+    if(!edit||edit.base!==content)return;
+    const scroll=host.current?.querySelector<HTMLElement>('.live-table-scroll');if(!scroll)return;
+    let previous=scroll.clientWidth,active=true;
+    const observer=new ResizeObserver(()=>{
+      const next=scroll.clientWidth;if(!active||next<=0||previous<=0||Math.abs(next-previous)<1)return;
+      const ratio=next/previous;previous=next;
+      // Keep the draft/input node, but adapt its measured grid to drawer/viewport changes.
+      setEdit(current=>current?.base===content?{...current,columns:current.columns.map(width=>Math.max(100,width*ratio))}:current);
+    });
+    observer.observe(scroll);return()=>{active=false;observer.disconnect();};
+  },[edit?.base,edit?.row,edit?.col,content]);
   const rows=tableRows(content),alignments=tableAlignments(content);
   const columns=rows[0]?.cells.length??1,lastRow=rows.length-1;
   /** Commit the active cell and optionally move focus to another cell. */
@@ -204,10 +216,19 @@ class TagWidget extends WidgetType {
   ignoreEvent(){return true;}
 }
 class InlineImageWidget extends WidgetType {
+  readonly target:string;
+  readonly assetVersion:string|undefined;
   /** Bind an immutable safe image token to the current editor context. */
-  constructor(readonly image:InlineImage,readonly from:number,readonly context:()=>Context){super();}
+  constructor(readonly image:InlineImage,readonly from:number,readonly context:()=>Context){
+    super();const ctx=context(),dir=ctx.path.split('/').slice(0,-1).join('/');
+    const relative=(name:string)=>dir?`${dir}/${name}`:name;
+    this.target=image.src.startsWith('/')?image.src.slice(1):image.src.startsWith('./')?relative(image.src.slice(2)):image.src.includes('/')?image.src:relative(image.src);
+    // Snapshot metadata: asking the live context during equality would compare the new
+    // revision on both widgets and incorrectly retain stale decoded bytes.
+    this.assetVersion=image.external?undefined:ctx.assetVersions?.get(this.target);
+  }
   /** Compare visual identity independently of the source offset mapped by the editor. */
-  sameImage(other:InlineImageWidget){return this.image.src===other.image.src&&this.image.alt===other.image.alt&&this.context===other.context;}
+  sameImage(other:InlineImageWidget){return this.image.src===other.image.src&&this.image.alt===other.image.alt&&this.context===other.context&&this.assetVersion===other.assetVersion;}
   /** Rebind source gestures when coordinates move, without reloading the image. */
   eq(other:InlineImageWidget){return this.from===other.from&&this.sameImage(other);}
   /** Retain the decoded image and bind its existing listener to the newest source owner. */
@@ -220,9 +241,8 @@ class InlineImageWidget extends WidgetType {
     img.onload=()=>{if(imageOwners.has(wrap)&&wrap.isConnected)view.requestMeasure();};
     if(this.image.external){img.src=this.image.src;}
     else {
-      const path=this.context().path,dir=path.split('/').slice(0,-1).join('/');
-      const target=this.image.src.startsWith('/')?this.image.src.slice(1):this.image.src.startsWith('./')?`${dir}/${this.image.src.slice(2)}`:this.image.src.includes('/')?this.image.src:`${dir}/${this.image.src}`;
-      bridge.asset(target).then(url=>{if(!imageOwners.has(wrap))return;if(url){img.src=url;}else img.alt='Missing image: '+this.image.alt;}).catch(()=>{if(imageOwners.has(wrap))img.alt='Missing image: '+this.image.alt;});
+      const target=this.target;
+      bridge.asset(target).then(url=>{if(!imageOwners.has(wrap))return;if(url){img.src=url;}else{img.alt='Missing image: '+this.image.alt;img.title='Missing asset: '+target;}}).catch(error=>{if(imageOwners.has(wrap)){img.alt='Missing image: '+this.image.alt;img.title='Asset error: '+target+': '+String(error);}});
     }
     img.onclick=event=>{event.preventDefault();event.stopPropagation();const owner=imageOwners.get(wrap);if(!owner)return;view.dispatch({selection:{anchor:owner.from},scrollIntoView:true});view.focus();};
     wrap.append(img);return wrap;

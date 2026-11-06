@@ -26,10 +26,26 @@ stable image context and rebind mapped source ownership without replacing decode
 DOM; and exclude external-note snapshots from source/path-only block-contribution
 identity. Embeds remain dependent on external notes. Changed diagram source still
 invalidates its rendered result, and a replaced/unloaded contribution cannot reuse the
-old component. The tests cover 1440px and 390px tables, image identity/click ownership,
+old component. Container resize while editing refreshes the measured grid without
+committing the draft, and resize tracking ends with the edit. The tests cover 1440px and 390px tables, image identity/click ownership,
 unchanged diagram geometry while typing, external transclusion refresh and actual
 diagram-source invalidation. Full-suite, package and review gates are recorded in
 `VERIFICATION.md`; this section is a regression inventory, not a full compatibility claim.
+
+Strengthened rendered-label and real native-asset tests also found missing diagram labels,
+root-relative inline-image paths refused by native guards, and stale decoded image bytes
+after external modification. Mermaid now uses sanitized native SVG text rather than
+HTML foreignObject labels. Root-path construction is corrected without relaxing the
+native vault boundary. Per-asset size/mtime snapshots reload a changed inline image while
+leaving unrelated decoded images intact; these are metadata-driven invalidations, not a
+claim of content-digest monitoring or complete attachment/path parity.
+
+All six new browser cases, both new native cases, the complete 70-case browser suite,
+104-case Electron suite and 23-case actual Linux-package vault suite passed. The screenshot
+below is from that packaged executable; identity, measurement and saved-byte assertions,
+not the screenshot alone, establish the bounded stability claims.
+
+![Actual Linux package: stable edited table, decoded local image and visible sanitized diagram labels](images/live-stability.png)
 
 ## Historical executed candidate coverage
 

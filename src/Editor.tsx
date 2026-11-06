@@ -1,20 +1,19 @@
 import {forwardRef,useEffect,useImperativeHandle,useLayoutEffect,useRef} from 'react';
-import {EditorState,Compartment,type Extension} from '@codemirror/state';
+import {EditorState,Compartment} from '@codemirror/state';
 import {EditorView,keymap,lineNumbers,highlightActiveLine,drawSelection} from '@codemirror/view';
 import {markdown,markdownKeymap} from '@codemirror/lang-markdown';
 import {defaultKeymap,history,historyKeymap,indentWithTab,redo} from '@codemirror/commands';
 import {searchKeymap,highlightSelectionMatches} from '@codemirror/search';
-import {autocompletion,CompletionContext,type CompletionResult} from '@codemirror/autocomplete';
+import {autocompletion,CompletionContext} from '@codemirror/autocomplete';
 import {syntaxHighlighting,HighlightStyle} from '@codemirror/language';
 import {tags as syntaxTags} from '@lezer/highlight';
 import {frontmatter,isNote,tags,title} from './knowledge';
-import type {Note,Settings} from './types';
+import type {Settings} from './types';
 import {livePreview,refreshLivePreview} from './LivePreview';
 import {inlineLinks} from './inline-links';
 import {liveRegions} from './live-model';
-import type {EditorChange,EditorSession} from './services/editor';
-import type {SlashCommandsService} from './services/slash-commands';
-import type {BlockContribution} from './services/ui';
+import type {EditorChange} from './services/editor';
+import type {EditorViewProps} from './views/contract';
 export interface EditorHandle {path():string;insert(text:string):void;selection():string;replaceSelection(text:string):void;jump(offset:number):void;focus():void;find():void;snapshot():{text:string;from:number;to:number};applyPluginEdit(base:string,text:string,from:number,to:number):boolean}
 const engineHighlight=HighlightStyle.define([
   {tag:syntaxTags.heading,fontWeight:'600',color:'var(--text)'},
@@ -37,18 +36,18 @@ function viewportTop(v:EditorView){const rect=v.scrollDOM.getBoundingClientRect(
 const contentAttributes=(spellcheck:boolean)=>EditorView.contentAttributes.of({spellcheck:String(spellcheck),'aria-label':'Note editor','data-testid':'note-editor'});
 const editorTheme=(settings:Settings)=>EditorView.theme({'&':{height:'100%',fontSize:settings.fontSize+'px'},'.cm-scroller':{overflow:'auto',fontFamily:'inherit'},'.cm-content':{padding:'24px 0 100px'},'.cm-line':{padding:'0 4px'},'.cm-gutters':{background:'transparent',border:'none',color:'var(--muted)'},'.cm-activeLine':{background:'var(--hover)'},'.cm-cursor':{borderLeftColor:'var(--accent)'},'.cm-selectionBackground':{background:'var(--selection) !important'},'.cm-tooltip':{background:'var(--panel)',color:'var(--text)',border:'1px solid var(--border)'},'.cm-panels':{background:'var(--panel)',color:'var(--text)'}},{dark:settings.theme==='dark'});
 
-export const Editor=forwardRef<EditorHandle,{note:Note;notes:Note[];settings:Settings;pluginExtensions?:Extension[];session?:EditorSession;slashCommands?:SlashCommandsService;blocks?:BlockContribution[];onChange:(content:string)=>void;onOpen:(target:string)=>void;onCommand:(command:string)=>void;suggest?:(context:CompletionContext)=>CompletionResult|null|Promise<CompletionResult|null>}>(
+export const Editor=forwardRef<EditorHandle,Omit<EditorViewProps,'onHandle'>>(
 /** Maintain the current CodeMirror document and independently refresh only external preview dependencies. */
-function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,blocks=[],onChange,onOpen,onCommand,suggest},handle) {
+function Editor({note,notes,settings,assetVersions,pluginExtensions=[],session,slashCommands,blocks=[],onChange,onOpen,onCommand,suggest},handle) {
   const container=useRef<HTMLDivElement>(null),view=useRef<EditorView>();
   const pluginCompartment=useRef(new Compartment()),lineNumbersCompartment=useRef(new Compartment()),themeCompartment=useRef(new Compartment()),spellcheckCompartment=useRef(new Compartment()),modeCompartment=useRef(new Compartment());
   const sessionRef=useRef(session);
   // Commit the session reference before the setup effect so handlers never use an abandoned render's session.
   useLayoutEffect(()=>{sessionRef.current=session;},[session]);
-  const callbacks=useRef({onChange,onOpen,onCommand,notes,suggest,blocks,mode:settings.mode,slashEnabled:!settings.disabledPlugins.includes('slash')});callbacks.current={onChange,onOpen,onCommand,notes,suggest,blocks,mode:settings.mode,slashEnabled:!settings.disabledPlugins.includes('slash')};
+  const callbacks=useRef({onChange,onOpen,onCommand,notes,suggest,blocks,assetVersions,mode:settings.mode,slashEnabled:!settings.disabledPlugins.includes('slash')});callbacks.current={onChange,onOpen,onCommand,notes,suggest,blocks,assetVersions,mode:settings.mode,slashEnabled:!settings.disabledPlugins.includes('slash')};
   const external=useRef(false);
   const notePath=useRef(note.path);notePath.current=note.path;
-  const livePreviewExtension=()=>livePreview(()=>({path:note.path,notes:callbacks.current.notes,onOpen:target=>callbacks.current.onOpen(target),blocks:()=>callbacks.current.blocks}));
+  const livePreviewExtension=()=>livePreview(()=>({path:note.path,notes:callbacks.current.notes,assetVersions:callbacks.current.assetVersions,onOpen:target=>callbacks.current.onOpen(target),blocks:()=>callbacks.current.blocks}));
   useImperativeHandle(handle,()=>({
     path(){return notePath.current;},
     snapshot(){const v=view.current!;const r=v.state.selection.main;return {text:v.state.doc.toString(),from:r.anchor,to:r.head};},
@@ -134,7 +133,7 @@ function Editor({note,notes,settings,pluginExtensions=[],session,slashCommands,b
   useEffect(()=>{const v=view.current;if(v&&v.state.doc.toString()!==note.content){external.current=true;v.dispatch({changes:{from:0,to:v.state.doc.length,insert:note.content}});external.current=false;}},[note.content]);
   // Current-document edits already rebuild the field in their CM transaction.
   const linkedRevision=notes.filter(n=>n.path!==note.path).map(n=>n.path+'\0'+n.content).join('\0');
-  useEffect(()=>{if(settings.mode==='live')view.current?.dispatch({effects:refreshLivePreview.of(null)});},[linkedRevision,settings.mode,blocks]);
+  useEffect(()=>{if(settings.mode==='live')view.current?.dispatch({effects:refreshLivePreview.of(null)});},[linkedRevision,settings.mode,blocks,assetVersions]);
   useEffect(()=>{view.current?.dispatch({effects:pluginCompartment.current.reconfigure(pluginExtensions)});},[pluginExtensions]);
   return <div ref={container} className={'editor '+(settings.readableWidth?'readable':'')} data-testid="editor-surface"/>;
 });

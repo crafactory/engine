@@ -13,15 +13,27 @@ Current branch: `fix/live-preview-stability`.
 
 ## Active increment
 
-PR #75 is ready and initial CodeRabbit review has been requested. Implementation `7ae3db5`
-fixes three reproduced causes: intrinsic table-input column sizing; per-build inline-image
-context closures (with mapped ownership retained); and unchanged source-only block previews
-being destroyed by external-note refresh. Negative logs are `/tmp/engine-live-negative.log`,
-`/tmp/engine-live-image-negative.log`, `/tmp/engine-live-diagram-negative.log`.
-All 869 units and production build passed; full-browser acceptance needs a rerun after
-correcting a Mermaid-label test synchronization mistake (matching `C` in stylesheet text).
-The full 102-case Electron/corpus run and Linux package build are running. Obtain effective
-initial CodeRabbit review, repair findings and require green exact-head gates before merge.
+PR #75 current pushed head `d492918` has effective initial CodeRabbit review `5796123711`.
+Both findings are valid: invisible sanitized Mermaid labels and stale frozen columns on
+container resize. LOCAL UNCOMMITTED fixes now render native SVG text without relaxing
+DOMPurify and track edit-container resize while retaining draft/focus. Original negative
+logs also cover initial table column redistribution, per-build image context closure,
+unrelated-note diagram replacement, invalid root image paths and stale decoded asset bytes.
+
+Source/test implementation is frozen; latest build includes root-image path fix and
+per-asset size/mtime snapshots through App/editor-view props. Fresh full acceptance
+PASSED with `/tmp/engine-live-accept-*`: 869/49 units, 70 browser, 104 Electron incl. all
+22 pinned corpus cases without skips, plus all 23 vault cases against the actual
+`/tmp/engine-live-accept-package`. The actual package screenshot was inspected and saved
+to `docs/images/live-stability.png`. Earlier 69/103 runs are superseded, not final evidence.
+
+Local verification and QA docs are aligned. Next: commit (verify identities), push,
+reply/resolve both review threads:
+`PRRT_kwDOVKvdS860Y8uu` (comment 4489340111 labels),
+`PRRT_kwDOVKvdS860Y8u2` (comment 4489340119 resize).
+Optional incremental review may be quota-limited (one/hour; initial around 05:31 UTC).
+Do not chase it after this effective review/fix round, but require green exact-head checks
+and no known blocker before authorized squash merge and clean main sync.
 
 ## Next increments
 
@@ -35,6 +47,11 @@ initial CodeRabbit review, repair findings and require green exact-head gates be
   single external-plugin verdict tracker; add an Obsidian host gap/Android decision document.
   Core Canvas, Copilot secrets/inference, authenticated/conflicted Git and many secondary
   workflows remain open; startup or a responsive screenshot is not full compatibility.
+
+Detailed next-increment architecture/CI/native WebView acceptance and bounded Style Settings
+mobile workflow ideas: `/tmp/engine-android-working-notes.md`. Not implemented yet. Critical:
+`bridge.ts` snapshots window.engine at module initialization; bootstrap must install the
+Android bridge BEFORE dynamically importing App, not statically import App first.
 
 ## Constraints
 
