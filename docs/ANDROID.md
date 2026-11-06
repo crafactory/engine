@@ -46,7 +46,7 @@ The public Filesystem contract does not promise rename-overwrite or crash durabi
 Acceptance must observe normal native overwrite/restart; do not claim power-loss safety
 from those tests ([Filesystem API](https://capacitorjs.com/docs/apis/filesystem)).
 
-The planned native bridge uses guarded vault-relative paths, serialized host mutations,
+The native bridge uses guarded vault-relative paths, serialized host mutations,
 optimistic versions and staged publication. This is not a per-plugin sandbox or an
 atomic cross-process lock. Trusted renderer plugins share the app's JavaScript/native
 Capacitor capabilities and app-UID access, not desktop OS-user Node access.
@@ -62,11 +62,22 @@ desktop's separately confirmed unsafe-eval policy.
 
 Capacitor 8 requires Node 22+ and Android Studio 2025.2.1+; Studio supplies a suitable JDK
 ([environment setup](https://capacitorjs.com/docs/getting-started/environment-setup)).
-CI will use JDK 21 and the Android SDK. The application imposes WebView 111+ for its modern
+CI uses JDK 21 and the Android SDK. The application imposes WebView 111+ for its modern
 editor/CSS, stricter than Capacitor's default minimum of 60; `android.minWebViewVersion`
 is the documented configuration key ([Capacitor configuration](https://capacitorjs.com/docs/config)).
 
 This pilot does not include iOS, Play publication, release signing, OEM/device-wide
 certification, authenticated Git, desktop-only plugins, SAF, or full mobile parity.
-Build/runtime commands and exact acceptance evidence will replace this in-progress
-status after verification.
+Build with `npm ci && npm run build && npx cap sync android`, then
+`cd android && bash gradlew assembleDebug` with JDK 21 and the Android SDK installed.
+The output is `android/app/build/outputs/apk/debug/app-debug.apk`; install it on a
+disposable test device with `adb install -r` or open the native project with
+`npx cap open android` from the repository root.
+
+The dedicated Android workflow builds and installs that APK in an API35 Pixel6 emulator.
+Its original acceptance script exercises the actual native filesystem and WebView, not
+a responsive browser preview. It records tested commit, APK SHA256, API/WebView version,
+per-workflow results, screenshots and logcat in the debug/evidence artifact. Initial
+native launch succeeded but CDP attachment failed; full acceptance remains pending.
+The script additionally demands failure/recovery and native-history workflows before
+reporting success. Do not treat its existence as executed evidence.

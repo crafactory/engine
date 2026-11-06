@@ -11,7 +11,7 @@ import JSZip from 'jszip';
 
 const APP='com.crafactory.engine',APK=path.resolve('android/app/build/outputs/apk/debug/app-debug.apk');
 const output=path.resolve('test-results-android');await fs.mkdir(output,{recursive:true});
-const records=[],errors=[],consoleErrors=[];
+const records=[],errors=[],consoleErrors=[],expectedConsoleErrorIndexes=new Set();
 const metadata={testedHead:process.env.ENGINE_TESTED_HEAD||'',apkSha256:'',androidApi:'',webView:''};
 let browser,page;
 const quote=value=>"'"+value.replaceAll("'","'\\''")+"'";
@@ -20,6 +20,7 @@ const shell=command=>adb('shell','-T',command);
 const readNative=relative=>shell(`run-as ${APP} cat ${quote('files/'+relative)}`);
 const rawNative=relative=>execFileSync('adb',['exec-out',`run-as ${APP} cat ${quote(relative)}`],{maxBuffer:64*1024*1024});
 const readJSON=relative=>JSON.parse(readNative(relative));
+const resumed=()=>/mResumedActivity:.*com\.crafactory\.engine|topResumedActivity=.*com\.crafactory\.engine/.test(shell('dumpsys activity activities'));
 async function writeNative(relative,bytes){
   const full='files/'+relative,command=`mkdir -p ${quote(path.posix.dirname(full))} && cat > ${quote(full)}`;
   execFileSync('adb',['shell','-T',`run-as ${APP} sh -c ${quote(command)}`],{input:bytes,timeout:30000});
@@ -28,11 +29,11 @@ async function step(name,action){
   const start=Date.now();console.log('ANDROID '+name);
   try{await action();records.push({name,status:'passed',milliseconds:Date.now()-start});}
   catch(error){records.push({name,status:'failed',error:String(error),milliseconds:Date.now()-start});throw error;}
-  finally{await fs.writeFile(path.join(output,'report.json'),JSON.stringify({metadata,records,errors,consoleErrors},null,2));}
+  finally{await fs.writeFile(path.join(output,'report.json'),JSON.stringify({metadata,records,errors,consoleErrors,expectedConsoleErrorIndexes:[...expectedConsoleErrorIndexes]},null,2));}
 }
 async function connect(){
-  let last;
-  for(let attempt=0;attempt<90;attempt++){
+  let last;const deadline=Date.now()+90000;
+  while(Date.now()<deadline){
     try{
       const pid=shell('pidof '+APP).trim().split(/\s+/)[0];
       const socket='webview_devtools_remote_'+pid;
@@ -46,7 +47,9 @@ async function connect(){
         await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible({timeout:20000});
         return;
       }
-    }catch(error){last=error;}
+    }catch(error){
+      last=error;await browser?.close().catch(()=>{});browser=undefined;
+    }
     // Bounded readiness polling of the external emulator, not a fixed startup sleep.
     await wait(500);
   }
@@ -197,6 +200,21 @@ try{
     assert.deepEqual(rawNative('files/vault/pixel.png'),png(48,16));
     await page.screenshot({path:path.join(output,'android-reading.png')});
   });
+  await step('native history restores exact saved bytes after restart',async()=>{
+    await page.evaluate(async()=>{
+      const first=await window.engine.create('Recovery probe.md','Original 中文\n');
+      await window.engine.write(first.path,'Replacement\n',first.version);
+    });
+    await restart();
+    const restored=await page.evaluate(async()=>{
+      const records=await window.engine.snapshots('Recovery probe.md');
+      if(records.length!==1)throw new Error('Expected one native recovery snapshot');
+      return window.engine.restore(records[0].id);
+    });
+    assert.equal(restored.content,'Original 中文\n');
+    assert.equal(readNative('vault/Recovery probe.md'),'Original 中文\n');
+    await page.evaluate(()=>window.engine.trash('Recovery probe.md'));
+  });
   await step('native drawers, settings and top-modal Back ownership',async()=>{
     await page.getByRole('button',{name:'Mobile files',exact:true}).click();await expect(page.locator('.left-sidebar')).toBeVisible();
     shell('input keyevent 4');await expect(page.locator('.left-sidebar')).toHaveCount(0);
@@ -236,6 +254,34 @@ try{
     await page.screenshot({path:path.join(output,'android-style-settings.png')});
     await closeSettings();
   });
+  await step('native save failure retains draft and refuses root Back until recovery',async()=>{
+    await page.getByRole('button',{name:'Source mode',exact:true}).click();
+    const editor=page.locator('.editor .cm-content').first();
+    await editor.click();await page.keyboard.press('Control+End');
+    shell(`run-as ${APP} mv ${quote('files/vault/'+notePath)} ${quote('files/vault/'+notePath+'.blocked')}`);
+    shell(`run-as ${APP} mkdir ${quote('files/vault/'+notePath)}`);
+    await page.keyboard.insertText('Recovered after failure\n');
+    expectedText+='Recovered after failure\n';
+    await expect(page.locator('.error-banner')).toContainText('Not a file',{timeout:15000});
+    assert.equal(readNative('vault/'+notePath+'.blocked'),expectedText.replace(/Recovered after failure\n$/,''));
+    if(await page.locator('body').evaluate(body=>body.classList.contains('native-keyboard-open'))){
+      shell('input keyevent 4');
+      await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible();
+    }
+    assert(resumed(),'App must be foreground before root Back');
+    const firstError=consoleErrors.length;
+    shell('input keyevent 4');
+    await expect.poll(()=>consoleErrors.slice(firstError).filter(error=>error.startsWith('Android lifecycle save failed')).length,{timeout:10000}).toBe(1);
+    expectedConsoleErrorIndexes.add(consoleErrors.findIndex((error,index)=>index>=firstError&&error.startsWith('Android lifecycle save failed')));
+    assert(resumed(),'Failed flush must not minimize the app');
+    await expect(editor).toContainText('Recovered after failure');
+    shell(`run-as ${APP} rmdir ${quote('files/vault/'+notePath)}`);
+    shell(`run-as ${APP} mv ${quote('files/vault/'+notePath+'.blocked')} ${quote('files/vault/'+notePath)}`);
+    await command('Save all pending changes');
+    await expect.poll(()=>readNative('vault/'+notePath),{timeout:15000}).toBe(expectedText);
+    await page.getByRole('button',{name:'Dismiss error',exact:true}).click();
+    await expect(page.locator('.error-banner')).toHaveCount(0);
+  });
   await step('background flush does not unload plugins; restart keeps values but not trust',async()=>{
     await page.getByRole('button',{name:'Source mode',exact:true}).click();
     await page.locator('.editor .cm-content').first().click();await page.keyboard.press('Control+End');
@@ -271,12 +317,13 @@ try{
     await fs.writeFile(path.join(output,'permissions.txt'),permissions);
     assert.doesNotMatch(permissions,/android\.permission\.(?:READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA|CAMERA|RECORD_AUDIO|ACCESS_FINE_LOCATION)/);
     await fs.writeFile(path.join(output,'android-final.png'),execFileSync('adb',['exec-out','screencap','-p']));
+    assert(resumed(),'App must be foreground before final root Back');
     shell('input keyevent 4');
-    await expect.poll(()=>shell('dumpsys activity activities'),{timeout:10000}).not.toMatch(new RegExp('mResumedActivity:.*'+APP));
+    await expect.poll(resumed,{timeout:10000}).toBe(false);
     assert.equal(readNative('vault/'+notePath),expectedText);
   });
   assert.deepEqual(errors,[],'Native page errors');
-  assert(!consoleErrors.some(error=>/^Plugin .* failed|Unsupported Obsidian capability|Android lifecycle save failed/.test(error)),'Native plugin/lifecycle errors');
+  assert(!consoleErrors.some((error,index)=>!expectedConsoleErrorIndexes.has(index)&&/^Plugin .* failed|Unsupported Obsidian capability|Android lifecycle save failed/.test(error)),'Unexpected native plugin/lifecycle errors');
   console.log('ANDROID ACCEPTANCE PASSED '+records.length+' native workflow groups, no skips');
 }catch(error){
   console.error(error);
@@ -285,6 +332,6 @@ try{
   process.exitCode=1;
 }finally{
   try{await fs.writeFile(path.join(output,'logcat.txt'),adb('logcat','-d','-v','threadtime'));}catch{}
-  await fs.writeFile(path.join(output,'report.json'),JSON.stringify({metadata,records,errors,consoleErrors},null,2));
+  await fs.writeFile(path.join(output,'report.json'),JSON.stringify({metadata,records,errors,consoleErrors,expectedConsoleErrorIndexes:[...expectedConsoleErrorIndexes]},null,2));
   await browser?.close();
 }

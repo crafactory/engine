@@ -1,7 +1,7 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import {mkdtemp,mkdir,readFile,writeFile,readdir,stat,rename,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {join,dirname,basename} from 'node:path';
 import {createMobileStorage,type MobileFilesystem} from '../src/mobile/storage';
 import type {VaultState} from '../src/types';
 
@@ -12,7 +12,13 @@ async function fixture(){
   async function native<T>(action:()=>Promise<T>):Promise<T>{
     try{return await action();}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')throw Object.assign(new Error('Missing native file'),{code:'OS-PLUG-FILE-0008'});throw error;}
   }
-  const info=async(path:string)=>{const value=await stat(join(root,path));return {type:value.isDirectory()?'directory' as const:'file' as const,size:value.size,mtime:value.mtimeMs,ctime:value.birthtimeMs};};
+  // Android's app-private filesystem is case-sensitive, unlike default macOS/Windows
+  // test volumes. Reject aliases explicitly in this adapter rather than changing guards.
+  const info=async(path:string)=>{
+    const full=join(root,path);
+    if(!(await readdir(dirname(full))).includes(basename(full)))throw Object.assign(new Error('Missing exact-case native file'),{code:'ENOENT'});
+    const value=await stat(full);return {type:value.isDirectory()?'directory' as const:'file' as const,size:value.size,mtime:value.mtimeMs,ctime:value.birthtimeMs};
+  };
   const fs:MobileFilesystem={
     stat:path=>native(()=>info(path)),
     readdir:path=>native(async()=>Promise.all((await readdir(join(root,path))).map(async name=>({name,...await info(path+'/'+name)})))),
@@ -21,7 +27,7 @@ async function fixture(){
     mkdir:async path=>{await mkdir(join(root,path),{recursive:true});},
     rename:(from,to)=>native(()=>rename(join(root,from),join(root,to))),
     remove:(path,directory=false)=>native(()=>rm(join(root,path),{recursive:directory})),
-    asset:async path=>'https://localhost/_capacitor_file_/'+join(root,path)
+    asset:async path=>'https://localhost/_capacitor_file_/app-private/'+path
   };
   return {root,fs,bridge:await createMobileStorage(fs)};
 }

@@ -37,7 +37,26 @@ npm run dist -- --publish never
 npx electron . --vault /absolute/path/to/vault
 ```
 
-The browser preview has no durable storage and is not the desktop product. It intentionally resets when reloaded. Native vault operations are available only through Electron's restricted preload bridge.
+The browser preview has no durable storage and is not the desktop product. It intentionally resets when reloaded. Desktop vault operations use Electron's restricted preload bridge; the Android pilot uses a separate app-private Capacitor bridge.
+
+### Android pilot
+
+Android reuses the React DOM editor and plugin UI through Capacitor, rather than a React
+Native rewrite. See [the Android decision, build instructions and boundaries](docs/ANDROID.md)
+before testing; native acceptance is tracked there, not inferred from desktop tests.
+
+```sh
+npm ci
+npm run build
+npx cap sync android
+# Requires JDK 21 and an installed Android SDK
+cd android && bash gradlew assembleDebug
+# Alternatively: npx cap open android, from the repository root
+```
+
+This pilot stores notes privately inside the app, not in a shared-folder vault. Export
+before uninstalling; Android removes app-private notes on uninstall. Desktop-only/Node
+plugins are unavailable, and desktop plugin verdicts do not certify Android compatibility.
 
 ## Included workflows
 
