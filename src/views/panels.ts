@@ -37,6 +37,12 @@ export const outgoingPanelPlugin: PluginDefinition = {
   setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'outgoing', slot: 'right', label: 'Outgoing', load: () => import('./OutgoingPanel')})); }
 };
 
+/** Source-positioned footnote editing/navigation contribution for the right slot. */
+export const footnotesPanelPlugin: PluginDefinition = {
+  manifest: {id:'engine.view.footnotes',name:'Footnotes view',version:'1.0.0',scopes:['runtime'],consumes:[{contract:VIEWS_CONTRACT,range:'^1.0.0'}]},
+  setup(context){context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType:'footnotes',slot:'right',label:'Footnotes',load:()=>import('./FootnotesPanel')}));}
+};
+
 
 /** Vault file tree contribution for the left slot. */
 export const filesPanelPlugin: PluginDefinition = {

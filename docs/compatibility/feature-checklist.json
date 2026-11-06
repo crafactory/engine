@@ -141,10 +141,10 @@
       "id": "CORE-footnotes-view",
       "section": "Core plugins",
       "title": "Footnotes view",
-      "status": "missing",
+      "status": "partial",
       "reference": "https://help.obsidian.md/plugins",
-      "implemented": "Markdown footnote syntax renders; that is adjacent behavior, not this view.",
-      "remaining": "A dedicated current-note footnote list/navigation view is absent.",
+      "implemented": "Native current-note list, inline/named/repeated/unreferenced entries, source editing, per-reference navigation, live updates and core toggle; [contract and tests](FOOTNOTES.md).",
+      "remaining": "Editing deliberately opens Source mode rather than a separate rich-text editor; complete installed-reference comparison and every syntax/device combination remain unverified.",
       "evidence": []
     },
     {
@@ -433,8 +433,8 @@
       "title": "Reading",
       "status": "partial",
       "reference": "https://help.obsidian.md",
-      "implemented": "Markdown-it, tables, tasks, highlights, footnotes, comments and nested callout folding.",
-      "remaining": "Complete OFM, HTML-in-note and code-fence highlighting equivalence; no dedicated Footnotes view.",
+      "implemented": "Markdown-it, tables, tasks, highlights, footnotes, comments and nested callout folding; dedicated Footnotes view can reveal editable source.",
+      "remaining": "Complete OFM, HTML-in-note and code-fence highlighting equivalence remain unverified.",
       "evidence": []
     },
     {
@@ -521,10 +521,10 @@
       "id": "AREA-mobile",
       "section": "Extensions, themes, and platform surface",
       "title": "Mobile",
-      "status": "missing",
+      "status": "partial",
       "reference": "https://help.obsidian.md",
-      "implemented": "Android source, persistent bridge, shared mobile UI and native acceptance gate are in progress.",
-      "remaining": "No final-head APK/emulator acceptance yet. iOS, SAF, mobile plugin installer and complete device/OEM coverage remain absent.",
+      "implemented": "Capacitor Android private-vault pilot: final #76 APK passed nine actual API35 workflows, including Chinese IME, keyboard/Back, persistence/failure recovery, plugins and OS chooser; [native evidence](https://github.com/crafactory/engine/actions/runs/42188594088).",
+      "remaining": "iOS, SAF/shared vault selection, mobile plugin installer, full profile backup, production signing/upgrades and complete device/OEM coverage remain absent. New-head source changes require their own native gate.",
       "evidence": []
     },
     {
@@ -1464,6 +1464,66 @@
         {
           "file": "e2e-desktop/vault.spec.ts",
           "test": "native embedded tasks cannot mutate a different host task or embedded source"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-footnotes-source",
+      "section": "Bounded acceptance checks",
+      "title": "Footnotes list, body editing and per-reference source navigation",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Footnotes list, body editing and per-reference source navigation",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/footnotes.spec.ts",
+          "test": "footnotes view lists, edits and navigates actual named and inline source"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-footnotes-scope",
+      "section": "Bounded acceptance checks",
+      "title": "Footnotes track the active note, source changes and undo",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Footnotes track the active note, source changes and undo",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/footnotes.spec.ts",
+          "test": "footnotes view follows the active note and updates after source definitions change"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-footnotes-toggle",
+      "section": "Bounded acceptance checks",
+      "title": "Footnotes core disable/re-enable gates view and command",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Footnotes core disable/re-enable gates view and command",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e/footnotes.spec.ts",
+          "test": "footnotes core toggle gates the view and command and can be re-enabled"
+        }
+      ]
+    },
+    {
+      "id": "ACCEPT-footnotes-native",
+      "section": "Bounded acceptance checks",
+      "title": "Footnote edits preserve exact native file bytes and survive restart",
+      "status": "verified-subset",
+      "reference": "https://help.obsidian.md",
+      "implemented": "Footnote edits preserve exact native file bytes and survive restart",
+      "remaining": "This checked checkpoint does not complete its parent parity area.",
+      "evidence": [
+        {
+          "file": "e2e-desktop/vault.spec.ts",
+          "test": "native footnotes edit exact source bytes and restore after process restart"
         }
       ]
     },

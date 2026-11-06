@@ -8,12 +8,12 @@ import {setTimeout as wait} from 'node:timers/promises';
 import {deflateSync} from 'node:zlib';
 import {chromium,expect} from '@playwright/test';
 import JSZip from 'jszip';
-import {imeInputViewVisible} from './android-ime-state.mjs';
+import {imeInputViewVisible,launcherAnrVisible,imeCompositionReady} from './android-ime-state.mjs';
 
 const APP='com.crafactory.engine',APK=path.resolve('android/app/build/outputs/apk/debug/app-debug.apk');
 const output=path.resolve('test-results-android');await fs.mkdir(output,{recursive:true});
 const records=[],errors=[],consoleErrors=[],expectedConsoleErrorIndexes=new Set();
-const metadata={testedHead:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),apkSha256:'',androidApi:'',webView:''};
+const metadata={testedHead:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),apkSha256:'',androidApi:'',webView:'',launcherAnrRecoveries:[]};
 if(process.env.ENGINE_TESTED_HEAD)assert.equal(metadata.testedHead,process.env.ENGINE_TESTED_HEAD,'Acceptance must run the attributed checkout');
 let browser,page;
 const quote=value=>"'"+value.replaceAll("'","'\\''")+"'";
@@ -23,6 +23,17 @@ const readNative=relative=>shell(`run-as ${APP} cat ${quote('files/'+relative)}`
 const rawNative=relative=>execFileSync('adb',['exec-out',`run-as ${APP} cat ${quote(relative)}`],{maxBuffer:64*1024*1024});
 const readJSON=relative=>JSON.parse(readNative(relative));
 const resumed=()=>/mResumedActivity:.*com\.crafactory\.engine|topResumedActivity=.*com\.crafactory\.engine/.test(shell('dumpsys activity activities'));
+async function recoverLauncherAnr(){
+  const dump=shell('dumpsys window windows');
+  if(!launcherAnrVisible(dump))return;
+  assert.equal(metadata.launcherAnrRecoveries.length,0,'Repeated system-launcher ANR is not accepted');
+  await fs.writeFile(path.join(output,'recovered-launcher-anr-window.txt'),dump);
+  await fs.writeFile(path.join(output,'recovered-launcher-anr.png'),execFileSync('adb',['exec-out','screencap','-p']));
+  // The screenshot/window dump identifies Pixel Launcher, never Engine. Preserve it
+  // and close only that system package; application ANRs and all assertions still fail.
+  shell('am force-stop com.google.android.apps.nexuslauncher');
+  metadata.launcherAnrRecoveries.push({package:'com.google.android.apps.nexuslauncher',evidence:'recovered-launcher-anr-window.txt'});
+}
 async function keyboardVisibility(){
   const dump=shell('dumpsys input_method');
   await fs.writeFile(path.join(output,'input-method-latest.txt'),dump);
@@ -201,13 +212,15 @@ try{
     try{
       shell('ime enable '+quote(fixtureIme));shell('ime set '+quote(fixtureIme));
       await expect.poll(async()=>{
+        await recoverLauncherAnr();
         shell(`am start -n ${APP}/.MainActivity`);
         if(shell('settings get secure default_input_method').trim()!==fixtureIme)shell('ime set '+quote(fixtureIme));
         await editor.click();await nativeTap(editor);
         await page.keyboard.press('Control+End');
-        const ready=shell(`am broadcast -a ${APP}.TEST_COMPOSITION_READY -n '${APP}/.CompositionIme$Run'`);
-        await fs.writeFile(path.join(output,'input-method-ready.txt'),shell('dumpsys input_method'));
-        return ready;
+        const dump=shell('dumpsys input_method');
+        await fs.writeFile(path.join(output,'input-method-ready.txt'),dump);
+        if(!imeCompositionReady(dump))return 'text editor connection pending';
+        return shell(`am broadcast -a ${APP}.TEST_COMPOSITION_READY -n '${APP}/.CompositionIme$Run'`);
       },{timeout:15000}).toContain('result=0');
       await editor.evaluate(element=>{
         window.__nativeComposition=[];
@@ -230,6 +243,7 @@ try{
     await restart();
     const keyboardEditor=page.locator('.editor .cm-content').first();
     // A real Android touch focuses the editor and must show the emulator's actual IME.
+    await recoverLauncherAnr();
     const rect=await keyboardEditor.boundingBox(),ratio=await page.evaluate(()=>devicePixelRatio);assert(rect);
     shell(`input tap ${Math.round((rect.x+40)*ratio)} ${Math.round((rect.y+40)*ratio)}`);
     await expect.poll(keyboardVisibility,{timeout:15000}).toEqual({native:true,reported:true});
@@ -271,7 +285,9 @@ try{
     });
     assert.equal(restored.content,'Original 中文\n');
     assert.equal(readNative('vault/Recovery probe.md'),'Original 中文\n');
-    await page.evaluate(()=>window.engine.trash('Recovery probe.md'));
+    // Keep the fixture until emulator teardown. connect() proves visible shell
+    // readiness, not completion of every startup read: trashing here races the
+    // active boot snapshot and creates an unrelated missing-file error banner.
   });
   await step('native drawers, settings and top-modal Back ownership',async()=>{
     await page.getByRole('button',{name:'Mobile files',exact:true}).click();await expect(page.locator('.left-sidebar')).toBeVisible();
@@ -423,6 +439,36 @@ try{
     shell('input keyevent 4');
     await expect.poll(resumed,{timeout:10000}).toBe(false);
     assert.equal(readNative('vault/'+notePath),expectedText);
+  });
+  await step('footnotes list, source editing, reference navigation and restart bytes',async()=>{
+    const file='Footnotes.md',text='# Footnotes\n\n中文😀 first[^a] repeated[^a]. Inline ^[inline **bold**].\n\n[^a]: body\n    continued\n';
+    await writeNative('vault/'+file,text);await restart();
+    await page.getByRole('button',{name:'Mobile files',exact:true}).click();
+    await page.getByTestId('file-'+file).click();
+    await expect(page.locator('.note-title h1')).toHaveText('Footnotes');
+    await command('Show footnotes view');
+    await expect(page.locator('.footnotes-list li')).toHaveCount(2);
+    await page.getByRole('button',{name:'Edit footnote a',exact:true}).click();
+    await expect(page.locator('.right-sidebar')).toHaveCount(0);
+    await expect(page.getByTestId('note-editor')).toBeFocused();await page.keyboard.insertText('Native ');
+    let expected=text.replace('[^a]: body','[^a]: Native body');
+    await expect.poll(()=>readNative('vault/'+file),{timeout:15000}).toBe(expected);
+    await restart();await command('Show footnotes view');
+    await expect(page.getByRole('button',{name:'Edit footnote a',exact:true})).toContainText('Native body');
+    await page.getByRole('button',{name:'Go to reference 2 of footnote a',exact:true}).click();
+    await expect(page.getByTestId('note-editor')).toBeFocused();await page.keyboard.insertText('REF ');
+    expected=expected.replace('repeated[^a]','repeatedREF [^a]');
+    await expect.poll(()=>readNative('vault/'+file),{timeout:15000}).toBe(expected);
+    await restart();await command('Show footnotes view');
+    await page.getByRole('button',{name:'Edit footnote inline 2',exact:true}).click();
+    await expect(page.getByTestId('note-editor')).toBeFocused();await page.keyboard.insertText('Changed ');
+    expected=expected.replace('^[inline','^[Changed inline');
+    await expect.poll(()=>readNative('vault/'+file),{timeout:15000}).toBe(expected);
+    await restart();await command('Show footnotes view');
+    await expect(page.locator('.footnotes-list li')).toHaveCount(2);
+    await expect(page.getByRole('button',{name:'Edit footnote inline 2',exact:true})).toContainText('Changed inline bold');
+    await page.screenshot({path:path.join(output,'android-footnotes.png')});
+    assert.equal(readNative('vault/'+notePath),expectedText,'Footnote edits must not touch the other note');
   });
   assert.deepEqual(errors,[],'Native page errors');
   assert(!consoleErrors.some(error=>error.startsWith('Error injecting safe area CSS')),'Native safe-area initialization');

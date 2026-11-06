@@ -78,7 +78,11 @@ const accepted=[
   ['ACCEPT-long-table-caret','Typing after a 100-row table keeps caret in editor viewport','e2e/regressions.spec.ts','long document with a tall table keeps the typing caret in the editor viewport'],
   ['ACCEPT-plugin-status-layout','Plugin status occupies normal-flow space, not an overlay','e2e/regressions.spec.ts','plugin status occupies reserved space instead of overlaying workspace'],
   ['ACCEPT-tall-table-cell-viewport','Bottom-cell editing and commit retain focused input and visible cell','e2e/regressions.spec.ts','editing a cell near the bottom of a tall table keeps the focused input and committed cell visible'],
-  ['ACCEPT-embedded-task-ownership','Embedded Canvas/Markdown tasks cannot acquire host-source write ownership','e2e-desktop/vault.spec.ts','native embedded tasks cannot mutate a different host task or embedded source']
+  ['ACCEPT-embedded-task-ownership','Embedded Canvas/Markdown tasks cannot acquire host-source write ownership','e2e-desktop/vault.spec.ts','native embedded tasks cannot mutate a different host task or embedded source'],
+  ['ACCEPT-footnotes-source','Footnotes list, body editing and per-reference source navigation','e2e/footnotes.spec.ts','footnotes view lists, edits and navigates actual named and inline source'],
+  ['ACCEPT-footnotes-scope','Footnotes track the active note, source changes and undo','e2e/footnotes.spec.ts','footnotes view follows the active note and updates after source definitions change'],
+  ['ACCEPT-footnotes-toggle','Footnotes core disable/re-enable gates view and command','e2e/footnotes.spec.ts','footnotes core toggle gates the view and command and can be re-enabled'],
+  ['ACCEPT-footnotes-native','Footnote edits preserve exact native file bytes and survive restart','e2e-desktop/vault.spec.ts','native footnotes edit exact source bytes and restore after process restart']
 ];
 for(const [id,title,file,test]of accepted){
   assert((await read(file)).includes(test),`Missing evidence for ${id}: ${file} / ${test}`);

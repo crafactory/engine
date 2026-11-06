@@ -33,9 +33,9 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [ ] **CORE-file-recovery File recovery**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
   - Current scope: Prior saved text versions and a recovery UI exist; up to 100 per file are retained.
   - Remaining / boundary: The Android backend has a separate private profile, not the desktop recovery directory. Unsaved-process-kill recovery is not certified.
-- [ ] **CORE-footnotes-view Footnotes view**: missing. Reference: [public documentation](https://help.obsidian.md/plugins).
-  - Current scope: Markdown footnote syntax renders; that is adjacent behavior, not this view.
-  - Remaining / boundary: A dedicated current-note footnote list/navigation view is absent.
+- [ ] **CORE-footnotes-view Footnotes view**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
+  - Current scope: Native current-note list, inline/named/repeated/unreferenced entries, source editing, per-reference navigation, live updates and core toggle; [contract and tests](FOOTNOTES.md).
+  - Remaining / boundary: Editing deliberately opens Source mode rather than a separate rich-text editor; complete installed-reference comparison and every syntax/device combination remain unverified.
 - [ ] **CORE-graph-view Graph view**: partial. Reference: [public documentation](https://help.obsidian.md/plugins).
   - Current scope: Owned global/local force graph, filtering and basic interaction exist.
   - Remaining / boundary: Reference layout, visual controls and large-graph performance are not equivalent.
@@ -124,8 +124,8 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
   - Current scope: Source reveal, formatting, tasks, tables with row/column operations, owned fenced-block previews and repaired geometry/identity.
   - Remaining / boundary: Obsidian Markdown processors still run only in reading mode; complete inline/nested grammar, every list/embed, cursor/selection equivalence and huge-document performance remain incomplete.
 - [ ] **AREA-reading Reading**: partial. Reference: [public documentation](https://help.obsidian.md).
-  - Current scope: Markdown-it, tables, tasks, highlights, footnotes, comments and nested callout folding.
-  - Remaining / boundary: Complete OFM, HTML-in-note and code-fence highlighting equivalence; no dedicated Footnotes view.
+  - Current scope: Markdown-it, tables, tasks, highlights, footnotes, comments and nested callout folding; dedicated Footnotes view can reveal editable source.
+  - Remaining / boundary: Complete OFM, HTML-in-note and code-fence highlighting equivalence remain unverified.
 - [ ] **AREA-math-diagrams Math/diagrams**: partial. Reference: [public documentation](https://help.obsidian.md).
   - Current scope: KaTeX and strict Mermaid with sanitized native SVG text labels.
   - Remaining / boundary: All syntax/render/editing types and complete compatibility/security certification.
@@ -153,9 +153,9 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [ ] **AREA-hotkeys Hotkeys**: partial. Reference: [public documentation](https://help.obsidian.md).
   - Current scope: Editable application hotkeys and owned plugin scopes.
   - Remaining / boundary: Full conflict resolution, arbitrary editor overrides and mobile external-keyboard coverage are incomplete.
-- [ ] **AREA-mobile Mobile**: missing. Reference: [public documentation](https://help.obsidian.md).
-  - Current scope: Android source, persistent bridge, shared mobile UI and native acceptance gate are in progress.
-  - Remaining / boundary: No final-head APK/emulator acceptance yet. iOS, SAF, mobile plugin installer and complete device/OEM coverage remain absent.
+- [ ] **AREA-mobile Mobile**: partial. Reference: [public documentation](https://help.obsidian.md).
+  - Current scope: Capacitor Android private-vault pilot: final #76 APK passed nine actual API35 workflows, including Chinese IME, keyboard/Back, persistence/failure recovery, plugins and OS chooser; [native evidence](https://github.com/crafactory/engine/actions/runs/42188594088).
+  - Remaining / boundary: iOS, SAF/shared vault selection, mobile plugin installer, full profile backup, production signing/upgrades and complete device/OEM coverage remain absent. New-head source changes require their own native gate.
 - [ ] **AREA-cli CLI**: partial. Reference: [public documentation](https://help.obsidian.md).
   - Current scope: Owned local-file CLI.
   - Remaining / boundary: Not command-compatible with the reference CLI.
@@ -354,6 +354,18 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
 - [x] **ACCEPT-embedded-task-ownership Embedded Canvas/Markdown tasks cannot acquire host-source write ownership**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
   - Acceptance: Embedded Canvas/Markdown tasks cannot acquire host-source write ownership
   - Evidence: `e2e-desktop/vault.spec.ts` / `native embedded tasks cannot mutate a different host task or embedded source`.
+- [x] **ACCEPT-footnotes-source Footnotes list, body editing and per-reference source navigation**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Footnotes list, body editing and per-reference source navigation
+  - Evidence: `e2e/footnotes.spec.ts` / `footnotes view lists, edits and navigates actual named and inline source`.
+- [x] **ACCEPT-footnotes-scope Footnotes track the active note, source changes and undo**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Footnotes track the active note, source changes and undo
+  - Evidence: `e2e/footnotes.spec.ts` / `footnotes view follows the active note and updates after source definitions change`.
+- [x] **ACCEPT-footnotes-toggle Footnotes core disable/re-enable gates view and command**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Footnotes core disable/re-enable gates view and command
+  - Evidence: `e2e/footnotes.spec.ts` / `footnotes core toggle gates the view and command and can be re-enabled`.
+- [x] **ACCEPT-footnotes-native Footnote edits preserve exact native file bytes and survive restart**: verified-subset. Reference: [public documentation](https://help.obsidian.md).
+  - Acceptance: Footnote edits preserve exact native file bytes and survive restart
+  - Evidence: `e2e-desktop/vault.spec.ts` / `native footnotes edit exact source bytes and restore after process restart`.
 
 ## Unfinished parity gates
 

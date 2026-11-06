@@ -1,70 +1,67 @@
-# Android shared-code implementation and remaining compatibility gaps
+# Functional-parity completion: Footnotes view
 
 ## Current request and baseline
 
-Owner authorizes implementation: continue unverified plugin workflows; compare Obsidian
-gaps; fix severe Live Editing geometry/retriggering; evaluate shared-code Android options
-and actually build/run the chosen framework. Android only. The private acknowledgment
-was already emailed; final results go privately in Chinese.
+Owner asks to continue completing partial/missing workflows after seeing new PRs merge,
+and reports not receiving messages. A private Chinese acknowledgment was queued;
+delivery is not confirmed. Continue real implementation, not a plan-only answer. No agents.
 
 PR #74 is merged at `afe83d439f7b58b42b3182d456614f039316222c`.
 Do not restart it or present its historical test counts as new evidence.
 PR #75 is merged at `191e8529c8ba52774eb87c1f3db984bbfa4ee16d`.
-Current branch: `feat/android-shared-app`.
+PR #76 merged at `fffc30e`; final accepted source `ab4fbbe`, all exact-head cloud gates green,
+nine-group native run `42188594088`, matching APK/report emailed privately. Its production
+runtime freeze passes 915/56 units, 70 browser, 104 Electron including all 22 pinned corpus
+cases/no skips, and 23 actual Linux-package vault cases. Those are historical results.
+Current branch: `feat/footnotes-core-view`.
 
 ## Active increment
 
-PR #75 completed effective review/fixes, both review threads resolved, exact-head Verify
-and three-platform packaging green, independent pinned corpus run `42171152821` green.
-Optional incremental review was quota-limited and was not chased. Its frozen local
-acceptance was 869/49 units, 70 browser, 104 Electron incl. all 22 pinned corpus cases
-without skips, and 23 actual Linux-package vault cases. Those are historical #75 results,
-not Android acceptance.
-
-Ready PR #76 implements pinned Capacitor 8.6.0, private filesystem/state/history/assets,
-pre-App bootstrap, native lifecycle/Back/keyboard/share, touch navigation, Platform and
-desktop-only-plugin refusal. Effective CodeRabbit review `5796771964` covered `812b2a7`;
-all 11 findings were repaired and threads resolved. The review allowance is exhausted:
-do not chase optional review; no known blocker/failing exact-head gate may be bypassed.
-
-Frozen desktop acceptance on runtime `fcd3b9d` passes 70 browser, 104 Electron including
-all 22 unchanged corpus scenarios without skips, and 23 actual Linux-package vault cases.
-Expanded unchanged Style Settings verifies five controls, exact plugin data/CSS and restart;
-the missing SliderComponent.setDynamicTooltip was implemented. That freeze passes
-911/56 units; the final visual follow-up raises units to 915/56, with check/build and the
-CSS-only mobile regression/old-shrink negative control passing.
-
-Native run `42184825123` on `a448d11` accepts nine complete groups, including real IME,
-assets/history, rotation/worker/renderer identity, modal/ribbon Back, unchanged pinned
-Style Settings, native save failure/root-Back recovery, isolated background save and
-restart data/trust recovery, real chooser/ZIP bytes, permissions and release-IME exclusion.
-Visual QA then finds canceled-share error banners and native settings-label overlap.
-Both are repaired and now explicit strengthened native assertions, not inherited passes.
-The polished runtime `d608338` passes 915/56, 70 browser, 104 Electron/all 22 corpus/no
-skips, and 23 actual Linux-package vault cases. Its native rerun stops at missing debug
-IME InputConnection (client view not served), before exercising either visual repair.
-Pending debug-only read-only readiness probe/focused interior touch must pass native;
-composition now sends once only after readiness. Failure screenshot/window dump retained.
-Strict original IME parser requires bound input view AND visible window, not request flags,
-and retains complete dumps. Sequential finalqa regression command 13067 completed;
-production runtime unchanged by this subsequent driver/debug-IME repair.
-Require all final-head cloud checks before merge/delivery.
+Implement the missing core Footnotes view from public behavior: current-note list, click
+to edit, per-reference navigation. Native lazy view uses AST positions and original inline
+scanning, with no plugin body reading. Editing delegates to the actual source editor,
+retaining normal undo/save/conflict behavior; mobile closes its covering drawer first.
+PR #77 is open and has completed effective CodeRabbit review (four minor findings).
+Repairs preserve raw source labels, index literal ranges, parse in a dedicated Worker,
+clean pending jumps when notes change and distinguish historical Android evidence.
+Cold-cache four-case browser replay, check/build and native footnotes disk/restart pass.
+The earlier 773cfb8 full regression is historical, not evidence for the Worker runtime.
+Android attempts failed on launcher ANR/device offline, not a pass. Native screenshot and
+window dump justify a bounded, evidence-preserving exact Pixel Launcher recovery only.
+Cloud corpus exposed late Excalidraw release notes; an exact-dialog close-button handler
+replaces fixed-delay dismissal. Neither change weakens original acceptance assertions.
+Frozen e31b3f7 runtime passes 929/57 units, 74 browser and 105 Electron/all 22 corpus/no skips.
+Three new launcher-recovery parser cases plus static driver checks pass.
+8faf65b passes both cloud Verify runs, three-platform packaging and independent corpus.
+Native replay passes four groups then exposes real startup Back ownership: subscriptions
+were gated on loading even though shell drawers are interactive. Register them for the
+mounted shell; a gated-discovery browser regression fails before and passes after.
+This new production repair needs its own full replay and all exact-head gates.
+ce1d47b production replay passes 932/57 units, 75 browser, 105 Electron/all corpus,
+24 Linux-package vault cases. Native drawer/settings Back now succeeds, but premature
+driver trashing of the history fixture races startup snapshot reads and surfaces a
+correct missing-file banner. Retain the fixture until emulator teardown; no banner
+dismissal, error filtering or weaker assertions. Driver-only follow-up needs native replay.
+8aac727 native boot exposes a readiness false positive: broadcast returns ready for
+TYPE_NULL fallback, but no started editor connection/composition events. Compare its
+actual dump with ce1d47b's successful text-editor dump. Require visible owned IME,
+started connection and text-class EditorInfo before broadcasting; no composition retry
+or weaker text/event/disk assertion. Three new predicate cases and captured-dump replay.
+The old parity ledger incorrectly retained Mobile "Not implemented" after #76 passed;
+align it with the actual nine-group pilot, without upgrading production/device claims.
+`docs/FOOTNOTES.md` defines contracts, not a passing verdict.
 
 ## Next increments
 
-- Android decision: Capacitor preserves the existing React DOM/CodeMirror/plugin UI.
-  React Native requires a component rewrite; Tauri adds Rust/NDK tooling. Official Obsidian
-  docs confirm WebView and no Node/Electron on mobile, not specifically Capacitor.
-- Hosted emulator pipeline works; no local SDK is needed. Debug-only owned IME uses real InputConnection,
-  is disabled by default/DUMP-protected, and must be absent from the release manifest.
-- Android/parity/verification and single plugin matrix docs are aligned. Require all
-  final-head Verify, three-platform packaging, strengthened Android and independent corpus gates.
-  Merge #76, sync clean main, remove the scratch `ci/android-native-composition` branch,
-  and privately email the accepted matching APK/hash/report and scope limitations.
-- Continue bounded remaining plugin workflows. Keep `docs/PLUGIN-SUPPORT-MATRIX.md` the
-  single external-plugin verdict tracker; add an Obsidian host gap/Android decision document.
-  Core Canvas, Copilot secrets/inference, authenticated/conflicted Git and many secondary
-  workflows remain open; startup or a responsive screenshot is not full compatibility.
+- Commit driver/documentation follow-up and rerun all exact-final-head cloud gates.
+  The initial effective review's four repaired threads are resolved.
+- Require all final-head Verify, three-platform packaging, ten-group Android and independent
+  pinned corpus gates; inspect artifacts/screenshots and fix findings before merge.
+- Keep `docs/PLUGIN-SUPPORT-MATRIX.md` the single external-plugin verdict tracker.
+  Bookmark grouping, advanced search, core Canvas, Copilot secure secrets/inference,
+  authenticated/conflicted Git and SAF/shared vaults remain separate unfinished workflows.
+- Email concrete merged results privately in Chinese; distinguish queued from delivered mail,
+  and completed bounded workflows from full installed-reference equivalence.
 
 Never overlap dist rebuilds with E2E or reuse concurrent Playwright output directories.
 Native artifacts from failed runs are diagnostic inputs, not final accepted APKs.

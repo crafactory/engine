@@ -1,7 +1,9 @@
 # Shared-code Android pilot
 
 Status: Android development pilot with bounded native acceptance, not a production release.
-Current-head verdicts and APK/report artifacts are in [PR #76](https://github.com/crafactory/engine/pull/76).
+[PR #76 artifacts](https://github.com/crafactory/engine/pull/76) are historical baseline
+evidence. Use [VERIFICATION.md](VERIFICATION.md) and the current PR's exact-head Android
+check, currently [PR #77](https://github.com/crafactory/engine/pull/77), for later changes.
 This increment
 follows the merged [Live Editing repairs](https://github.com/crafactory/engine/pull/75).
 The current plugin verdicts remain in [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md);
@@ -91,8 +93,10 @@ replacement, history, rotation/worker/renderer identity, unchanged Style Setting
 save-failure/root-Back recovery, isolated background/restart/trust, and actual chooser/ZIP
 bytes/permissions/release-fixture exclusion. Screenshot review then found two additional
 UI defects: normal share cancellation displayed an error, and narrow settings tabs
-overlapped. Follow-up guards require no cancellation error and non-overlapping labels;
-the current PR head must pass the complete native workflow, not inherit that earlier verdict.
+overlapped. The final accepted #76 source `ab4fbbe` passed the complete strengthened
+[nine-group native workflow](https://github.com/crafactory/engine/actions/runs/42188594088),
+including both visual guards; the downloaded APK hash matches its report. This is
+historical acceptance for that source, not an inherited verdict for later changes.
 
 Debug builds contain an owned, disabled-by-default composition-test IME. The acceptance
 runner selects it explicitly with adb and exercises actual Android `InputConnection`

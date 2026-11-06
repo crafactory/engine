@@ -5,7 +5,78 @@
 > plugin status see [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md); for API boundaries
 > see [PLUGIN-COMPATIBILITY.md](PLUGIN-COMPATIBILITY.md).
 
+## Footnotes list, editing and reference navigation
+
+[PR #77](https://github.com/crafactory/engine/pull/77) adds a real active-note Footnotes
+view, not syntax-rendering-only acceptance. The Worker runtime at historical `e31b3f7`
+passes 929 units/57 files, all 74 browser cases and all 105 Electron cases including
+22 unchanged pinned corpus scenarios with no skips. Cold-cache browser startup and actual
+native desktop source bytes/restart also pass with parsing in a dedicated module Worker.
+The intermediate `8faf65b` driver/documentation follow-up does not change production
+application code, and passes 932 units after three additional driver parser cases.
+The workflow and semantic boundaries are in [FOOTNOTES.md](FOOTNOTES.md).
+
+The [effective CodeRabbit review](https://github.com/crafactory/engine/pull/77#pullrequestreview-5798544205)
+identified raw-label entity decoding, stale pending-jump cleanup, parser performance and
+historical Android evidence attribution. All four were repaired and their threads resolved.
+Raw labels remain distinct, literal ranges are indexed, comments use chunk joins,
+unterminated prefixes use a bracket stack, and parsing never runs in the editor thread.
+A delayed real-Worker test changes source before parser startup finishes; a separate case
+switches active notes. Host path/content guards remain mandatory.
+
+Cloud failures remain diagnostic evidence, not accepted passes. The initial final-runtime
+Android attempt stopped on a visible Pixel Launcher ANR, captured in a native screenshot
+and window dump. The driver may preserve and close that exact system package once, never
+an Engine ANR or another package; repeated launcher failures still fail. Three negative/
+positive parser tests constrain the recovery. Independent Excalidraw acceptance exposed a
+late release-notes dialog intercepting a command: the driver closes that specific visible
+dialog via its normal close button whenever it appears, rather than assuming a 750ms delay
+was sufficient. Original scene, persistence, restart and error assertions remain unchanged.
+
+A subsequent native replay passed composition, assets and history, then exposed a real
+startup defect: the shell allows drawers/settings while plugin discovery is pending, but
+Back ownership was only registered after `loading` ended. The application minimized rather
+than closing the drawer. Native Back/suspend subscriptions now span the mounted shell.
+An owned browser-bridge regression deliberately holds discovery pending: the old application
+returns `false` with its drawer visibly open; the repaired application consumes Back for
+drawers/settings both before and after discovery. This is a reproducible regression, not
+native acceptance. The final runtime requires its own full replay and native gate.
+The repaired production runtime at `ce1d47b` passes all 932 units/57 files, 75 browser,
+105 Electron/all 22 corpus/no skips and 24 actual Linux-package vault cases.
+Its native replay gets past drawer/settings Back, then correctly fails on an unrelated
+missing-file banner: the driver trashed its history fixture while startup was still
+reading that snapshot. Keep the read-only fixture until emulator teardown instead.
+Do not dismiss or whitelist the banner; the normal no-error assertion remains.
+The next native attempt exposed an IME readiness false positive: the shell broadcast
+returned ready for a TYPE_NULL fallback connection, with no started editor connection.
+Its native dump differs from the earlier successful text-editor dump. Require the owned
+IME's visible input view, started text-class editor and connection before broadcasting;
+do not resend composition or relax compositionstart/update/end, text or disk assertions.
+Three parser cases constrain this stricter predicate; replay the captured successful
+and fallback dumps as positive/negative diagnostic evidence.
+
+Merge requires the exact final-head Verify, three-platform packaging, independent corpus
+and all ten native Android groups, plus downloaded report/hash and screenshot inspection.
+Those run URLs and the final accepted head belong to the
+[PR record](https://github.com/crafactory/engine/pull/77). No failed native run or earlier
+#76 artifact certifies this source. Full reference equivalence, all plugin features,
+production Android signing/shared vaults and broad device acceptance remain unfinished.
+
 ## Shared-code Android and expanded plugin controls
+
+Final #76 source `ab4fbbed7370d8bf4d4a3571536040d7eecbbcac` passed the strengthened
+[nine-group native workflow](https://github.com/crafactory/engine/actions/runs/42188594088);
+downloaded report and APK SHA256 both equal
+`73b19843de83dd17bad912b424ac1ec53c2edc98ddf675eeed1b447c9de98f12`.
+Screenshots confirm normal chooser cancellation has no red error and narrow settings
+labels do not overlap. Both [Verify](https://github.com/crafactory/engine/actions/runs/42188594080)
+and [push Verify](https://github.com/crafactory/engine/actions/runs/42188587060),
+[three-platform packaging](https://github.com/crafactory/engine/actions/runs/42188594094)
+and [independent corpus](https://github.com/crafactory/engine/actions/runs/42188586390)
+passed that exact head. The accepted production runtime passed 915/56 units, 70 browser,
+104 Electron including all 22 pinned corpus cases/no skips, and 23 actual Linux-package
+vault cases. #76 merged as `fffc30e`; all 11 review threads were resolved. The chronology
+below preserves earlier intermediate evidence rather than replacing it with later results.
 
 [PR #76](https://github.com/crafactory/engine/pull/76) adds an actual APK/native WebView
 gate, not responsive-browser certification. Its first complete
