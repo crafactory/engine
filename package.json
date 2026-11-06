@@ -26,6 +26,11 @@
     "cli": "node bin/engine.mjs"
   },
   "dependencies": {
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/filesystem": "8.1.5",
+    "@capacitor/keyboard": "8.0.6",
+    "@capacitor/share": "8.0.3",
     "@codemirror/autocomplete": "^6.18.0",
     "@codemirror/commands": "^6.8.0",
     "@codemirror/lang-markdown": "^6.3.0",
@@ -56,6 +61,8 @@
     "yaml": "^2.6.0"
   },
   "devDependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/cli": "8.6.0",
     "@playwright/test": "^1.50.0",
     "@types/d3": "^7.4.0",
     "@types/katex": "^0.16.7",
