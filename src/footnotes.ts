@@ -17,12 +17,19 @@ export interface Footnote {
 }
 const parse=(content:string):Node=>fromMarkdown(content,{extensions:[gfmFootnote()],mdastExtensions:[gfmFootnoteFromMarkdown()]});
 const range=(node:Node):Range=>({from:node.position?.start.offset??0,to:node.position?.end.offset??0});
+function linkTail(node:Node,source:string):Range|undefined{
+  if(node.type!=='link'&&node.type!=='linkReference')return;
+  const labelEnd=node.children?.at(-1)?.position?.end.offset??range(node).from;
+  const close=source.indexOf(']',labelEnd);
+  if(close>=0&&close<range(node).to)return {from:close+1,to:range(node).to};
+}
 const walk=(node:Node,visit:(node:Node)=>void)=>{visit(node);for(const child of node.children??[])walk(child,visit);};
 const blank=(text:string)=>text.replace(/[^\r\n]/g,' ');
 const escaped=(text:string,index:number)=>{let slashes=0;while(index>0&&text[--index]==='\\')slashes++;return slashes%2===1;};
 /** Plain display text only; the panel never injects note-authored HTML. */
 function display(node:Node):string{
   if(node.value!==undefined)return node.value.replace(/\r\n?/g,'\n').replace(/\u200B/g,'');
+  if(node.type==='break')return '\n';
   if(node.type==='image')return node.alt??'';
   if(node.type==='footnoteReference')return '[^'+(node.label??node.identifier)+']';
   const block=['root','footnoteDefinition','blockquote','list','listItem'].includes(node.type);
@@ -34,10 +41,14 @@ function proseSource(content:string):string{
   const prefix=frontmatter(content).raw.length;
   let source=blank(content.slice(0,prefix))+content.slice(prefix);
   const code:Range[]=[];
-  walk(parse(source),node=>{if(node.type==='code'||node.type==='inlineCode')code.push(range(node));});
+  walk(parse(source),node=>{
+    if(['code','inlineCode','image','html'].includes(node.type))code.push(range(node));
+    const tail=linkTail(node,source);if(tail)code.push(tail);
+  });
   let cursor=0;
   while(cursor<source.length){
     const from=source.indexOf('%%',cursor);if(from<0)break;
+    if(escaped(source,from)){cursor=from+2;continue;}
     const literal=code.find(item=>from>=item.from&&from<item.to);
     if(literal){cursor=literal.to;continue;}
     const close=source.indexOf('%%',from+2),to=close<0?source.length:close+2;
@@ -55,7 +66,7 @@ export function footnotes(content:string):Footnote[]{
   const references:{label:string;span:Range}[]=[],paragraphs:Range[]=[],literal:Range[]=[];
   walk(tree,node=>{
     if(node.type==='footnoteDefinition'){
-      const span=range(node),head=content.slice(span.from,span.to).match(/^\[\^[^\]]+\]:[ \t]*/);
+      const span=range(node),head=content.slice(span.from,span.to).match(/^\[\^(?:\\.|[^\]\\])+\]:[ \t]*/);
       // Keep label matching/duplicate winner consistent with Engine's Markdown renderer:
       // exact labels, last definition wins. AST-normalized identifiers are not used.
       const label=node.label??node.identifier??'';
@@ -64,11 +75,7 @@ export function footnotes(content:string):Footnote[]{
     }else if(node.type==='footnoteReference')references.push({label:node.label??node.identifier??'',span:range(node)});
     if(node.type==='paragraph'||node.type==='heading')paragraphs.push(range(node));
     if(['code','inlineCode','image','html','definition','footnoteReference'].includes(node.type))literal.push(range(node));
-    if(node.type==='link'||node.type==='linkReference'){
-      const labelEnd=node.children?.at(-1)?.position?.end.offset??range(node).from;
-      const close=source.indexOf(']',labelEnd);
-      if(close>=0&&close<range(node).to)literal.push({from:close+1,to:range(node).to});
-    }
+    const tail=linkTail(node,source);if(tail)literal.push(tail);
   });
   for(const reference of references)definitions.get(reference.label)?.references.push(reference.span);
   const result=[...definitions.values()];

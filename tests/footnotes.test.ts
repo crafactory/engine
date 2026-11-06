@@ -29,6 +29,10 @@ describe('source-positioned footnotes',()=>{
     const text='`%%` literal.\n\n%% ^[hidden] %% Visible ^[shown].';
     expect(footnotes(text).map(item=>item.text)).toEqual(['shown']);
   });
+  it('treats escaped and link/image/HTML percent signs as literal context',()=>{
+    const text='\\%% literal. [link](https://example.com/a%%b) ![%%](pixel.png) <i title="%%">x</i>. ^[visible].';
+    expect(footnotes(text).map(item=>item.text)).toEqual(['visible']);
+  });
   it('handles inline nested brackets, escaped closers and code-span brackets',()=>{
     const text='One ^[a [link](https://example.com) and `]` and \\] literal]. Next ^[two].';
     const items=footnotes(text);
@@ -52,5 +56,10 @@ describe('source-positioned footnotes',()=>{
   });
   it('does not capture malformed or empty inline notes across separate blocks',()=>{
     expect(footnotes('Broken ^[unterminated\n\nlater ] and ^[]')).toEqual([]);
+  });
+  it('displays hard line breaks and keeps escaped definition-label offsets',()=>{
+    const text='Ref[^a\\]b].\n\n[^a\\]b]: first  \n    second';
+    const [item]=footnotes(text);expect(item.text).toBe('first\nsecond');
+    expect(item.editOffset).toBe(text.indexOf('first'));
   });
 });

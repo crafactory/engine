@@ -72,8 +72,8 @@ export function App(){
   const [,refreshPluginDocumentViews]=useState(0);
   const layoutSaveTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined),switchingVault=useRef(false);
   const [left,setLeft]=useState(()=>!nativeAndroid&&window.innerWidth>650),[right,setRight]=useState(!nativeAndroid),[sideTab,setSideTab]=useState('files'),[rightTab,setRightTab]=useState('outline');
-  const [sourceJump,setSourceJump]=useState<{path:string;offset:number}|null>(null);
-  const pendingSourceJump=useRef<{path:string;offset:number}|null>(null);
+  const [sourceJump,setSourceJump]=useState<{path:string;base:string;offset:number}|null>(null);
+  const pendingSourceJump=useRef<{path:string;base:string;offset:number}|null>(null);
   const [expanded,setExpanded]=useState<Set<string>>(new Set(['Guides','Ideas','Projects']));
   const [bookmarks,setBookmarks]=useState<string[]>([]),[recent,setRecent]=useState<string[]>([]);
   const [workspaces,setWorkspaces]=useState<Record<string,Workspace>>({});
@@ -146,21 +146,21 @@ export function App(){
   const setEditorHandle=useCallback((handle:EditorHandle|null)=>{
     editor.current=handle;
     const target=pendingSourceJump.current;
-    if(handle&&target&&handle.path()===target.path&&pluginState.current.active===target.path&&pluginState.current.mode!=='reading'){
+    if(handle&&target&&handle.path()===target.path&&pluginState.current.active===target.path&&notesRef.current.find(note=>note.path===target.path)?.content===target.base&&pluginState.current.mode!=='reading'){
       handle.jump(target.offset);pendingSourceJump.current=null;setSourceJump(null);
     }
   },[]);
   useEffect(()=>{
     if(!sourceJump)return;
-    if(active!==sourceJump.path){pendingSourceJump.current=null;setSourceJump(null);return;}
+    if(active!==sourceJump.path||notesRef.current.find(note=>note.path===sourceJump.path)?.content!==sourceJump.base){pendingSourceJump.current=null;setSourceJump(null);return;}
     if(mode==='reading')return;
     if(editor.current?.path()===sourceJump.path){editor.current.jump(sourceJump.offset);pendingSourceJump.current=null;setSourceJump(null);}
   },[sourceJump,active,mode]);
   /** Footnote offsets are usable only for the exact note/content the panel rendered. */
   function jumpFootnote(path:string,base:string,offset:number){
-    if(pluginState.current.active!==path||notesRef.current.find(note=>note.path===path)?.content!==base){toast('The note changed. Select the footnote again.');return;}
+    if(pluginState.current.active!==path||notesRef.current.find(note=>note.path===path)?.content!==base||!Number.isInteger(offset)||offset<0||offset>base.length){toast('The note changed. Select the footnote again.');return;}
     if(nativeAndroid){setLeft(false);setRight(false);}
-    pendingSourceJump.current={path,offset};setSourceJump({path,offset});setMode('source');
+    pendingSourceJump.current={path,base,offset};setSourceJump({path,base,offset});setMode('source');
   }
   /** Resolve a file path to a compatibility plugin view registered for its extension. */
   function pluginViewFor(path:string):{viewType:string;pluginId:string;leafId?:string}|undefined{
@@ -736,7 +736,7 @@ export function App(){
     {id:'random-note',label:'Open a random note',run:()=>{const path=indexRuntime.current?.navigation.randomNote();if(path){open(path);return;}const n=notes.filter(n=>isNote(n.path));if(n.length)open(n[Math.floor(Math.random()*n.length)].path);}},
     {id:'insert-template',label:'Insert template',run:()=>setPalette('templates')},
     {id:'bookmark',label:'Toggle bookmark for current note',run:toggleBookmark},
-    {id:'footnotes',label:'Show footnotes view',run:()=>{setLeft(nativeAndroid?false:left);setRight(true);setRightTab('footnotes');}},
+    {id:'footnotes',label:'Show footnotes view',run:()=>{if(nativeAndroid)setLeft(false);setRight(true);setRightTab('footnotes');}},
     {id:'toggle-mode',label:'Toggle reading and editing',shortcut:'⌘ E',run:toggleMode},
     {id:'source-mode',label:'Switch to source mode',run:()=>setMode('source')},
     {id:'live-mode',label:'Switch to live editing',run:()=>setMode('live')},
