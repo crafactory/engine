@@ -74,6 +74,8 @@ export function createCompatService(deps: {
       return valid;
     },
     start({package: pkg, mode, callbacks}) {
+      if(pkg.manifest.isDesktopOnly===true&&callbacks.snapshot().platform==='android')
+        throw new Error('Desktop-only plugin is unavailable on Android: '+pkg.manifest.id);
       const mapOperation = operationFor(pkg.manifest, callbacks.host);
       const operation = (name: string, args: unknown[]) => {
         const promise = mapOperation(name, args);

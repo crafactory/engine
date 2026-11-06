@@ -17,5 +17,5 @@ export function useDialog() {
     {dialog.value!==undefined&&<input autoFocus aria-label={dialog.title} data-testid="dialog-input" value={dialog.value} onChange={e=>setDialog({...dialog,value:e.target.value})} onFocus={e=>e.target.select()} onKeyDown={e=>{if(e.key==='Escape')finish(null);}}/>}
     <footer><button type="button" onClick={()=>finish(null)}>Cancel</button><button type="submit" className={dialog.danger?'danger':'primary'} data-testid="dialog-submit">{dialog.submit}</button></footer>
   </form></div>:null;
-  return {ask,confirm,ui};
+  return {ask,confirm,ui,open:dialog!==null,cancel:()=>finish(null)};
 }

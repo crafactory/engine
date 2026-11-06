@@ -10,9 +10,15 @@ export interface Settings {
 export type PropertyType = 'text' | 'number' | 'checkbox' | 'date' | 'datetime' | 'list';
 export interface Workspace {tabs: string[]; active: string; split: string | null; left: boolean; right: boolean; mode: Settings['mode']}
 export interface VaultState {settings: Settings; bookmarks: string[]; workspaces: Record<string,Workspace>; recent: string[]; propertyTypes?: Record<string, PropertyType>;layout?:Workspace}
-export interface PluginManifest {id: string; name: string; version: string; description?: string; engine?: string; permissions?: string[]}
+export interface PluginManifest {id: string; name: string; version: string; description?: string; engine?: string; permissions?: string[];isDesktopOnly?:boolean}
 export interface Bridge {
   desktop: boolean;
+  /** Persisted storage does not imply desktop/Node capabilities. */
+  persistent?:boolean;
+  platform?:'android';
+  exportFile?(name:string,content:Blob,type:string):Promise<void>;
+  onSuspend?(fn:()=>Promise<void>):()=>void;
+  onBack?(fn:()=>Promise<boolean>):()=>void;
   vault(): Promise<{name: string; root: string; entries: Entry[]; state: Partial<VaultState>}>;
   choose(create?: boolean): Promise<boolean>;
   list(): Promise<Entry[]>;

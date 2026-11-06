@@ -1,6 +1,6 @@
 # Public API export coverage
 
-Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 30 bounded runtime symbols. Explicit opt-in trusted renderer: 72 bounded runtime symbols (42 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
+Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/index): 271 names; 154 runtime symbols; 117 type-only names. Default Worker: 31 bounded runtime symbols. Explicit opt-in trusted renderer: 72 bounded runtime symbols (41 additional UI exports). **Export inventory does not establish member behavior or full real-plugin compatibility.** Renderer is not sandboxed. See PLUGIN-COMPATIBILITY.md and compatibility/member-contracts.json (Worker baseline); renderer-specific contracts and limits are in PLUGIN-COMPATIBILITY.md.
 
 | Symbol | Kind | Default Worker | Trusted renderer | Public documentation |
 |---|---|---|---|---|
@@ -249,7 +249,7 @@ Pinned [public API index](https://docs.obsidian.md/Reference/TypeScript+API/inde
 | editorViewField | Variables | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [editorViewField](https://docs.obsidian.md/Reference/TypeScript+API/editorViewField) |
 | livePreviewState | Variables | Unsupported; explicit CompatibilityError | Unsupported; explicit CompatibilityError | [livePreviewState](https://docs.obsidian.md/Reference/TypeScript+API/livePreviewState) |
 | moment | Variables | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [moment](https://docs.obsidian.md/Reference/TypeScript+API/moment) |
-| Platform | Variables | Unsupported; explicit CompatibilityError | Implemented subset, not full equivalence | [Platform](https://docs.obsidian.md/Reference/TypeScript+API/Platform) |
+| Platform | Variables | Implemented subset, not full equivalence | Implemented subset, not full equivalence | [Platform](https://docs.obsidian.md/Reference/TypeScript+API/Platform) |
 | BasesAllOptions | Type Aliases | Type only; runtime access rejected | Type only; runtime access rejected | [BasesAllOptions](https://docs.obsidian.md/Reference/TypeScript+API/BasesAllOptions) |
 | BasesConfigFileFilter | Type Aliases | Type only; runtime access rejected | Type only; runtime access rejected | [BasesConfigFileFilter](https://docs.obsidian.md/Reference/TypeScript+API/BasesConfigFileFilter) |
 | BasesOptions | Type Aliases | Type only; runtime access rejected | Type only; runtime access rejected | [BasesOptions](https://docs.obsidian.md/Reference/TypeScript+API/BasesOptions) |
