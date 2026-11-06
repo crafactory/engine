@@ -9,8 +9,10 @@ async function prepare(page:Page,source:string){
   await page.keyboard.press('ControlOrMeta+a');await page.keyboard.insertText(source);
   await page.getByTestId('mode-live').click();
 }
-test('opening and cancelling a table cell preserves column and following-block geometry',async({page})=>{
+for(const width of [1440,390])test(`opening and cancelling a table cell preserves geometry at ${width}px`,async({page})=>{
   await prepare(page,'# Top\n\n| A | Longer column name |\n| --- | --- |\n| Short | Value |\n\n```js\nconst following = 1;\n```\n\nTail');
+  await page.setViewportSize({width,height:940});
+  if(width<650)await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
   const table=page.locator('.live-table'),following=page.locator('.live-block-code');
   await expect(table).toBeVisible();await expect(following.locator('pre')).toBeVisible();
   const columns=await table.locator('th').evaluateAll(nodes=>nodes.map(el=>el.getBoundingClientRect().width));
@@ -24,10 +26,11 @@ test('opening and cancelling a table cell preserves column and following-block g
   expect(Math.abs((await following.boundingBox())!.y-before!.y)).toBeLessThanOrEqual(1);
 });
 test('typing before an inline image retains its DOM and reveals the mapped source',async({page})=>{
-  const image='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="24" height="24"%3E%3Crect width="24" height="24"/%3E%3C/svg%3E';
+  const image='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect width="24" height="24"/></svg>');
   await prepare(page,`# Top\n\nBefore ![pixel](${image}) after.\n\nTail`);
-  const node=await page.locator('.live-inline-image').elementHandle();await expect(page.locator('.live-inline-image')).toBeVisible();
+  await expect(page.locator('.live-inline-image')).toBeVisible();
   await page.getByTestId('note-editor').press('ControlOrMeta+Home');
+  const node=await page.locator('.live-inline-image').elementHandle();
   await page.keyboard.insertText('An inserted prefix that is longer than the original first line ');
   expect(await node!.evaluate(el=>el.isConnected)).toBe(true);
   await page.locator('.live-inline-image').click();
@@ -44,4 +47,34 @@ test('typing prose preserves diagram identity, dimensions and following-block po
   const after=await svg.boundingBox();
   for(const key of ['x','y','width','height'] as const)expect(Math.abs(after![key]-before![key])).toBeLessThanOrEqual(1);
   expect(Math.abs((await page.locator('.live-block-table').boundingBox())!.y-table!.y)).toBeLessThanOrEqual(1);
+});
+test('external note refresh updates embeds without remounting source-only diagram contributions',async({page})=>{
+  await page.addInitScript(()=>{
+    const files=new Map([['Welcome.md','# Welcome\n\n```mermaid\nflowchart LR\nA-->B\n```\n\n![[Other]]\n\nTail'],['Other.md','# Other\n\nOriginal body.']]);
+    const listeners=new Set<()=>void>();
+    const list=async()=>[...files].map(([path,content])=>({path,name:path,folder:false,size:content.length,mtime:1,ctime:1}));
+    const read=async(path:string)=>({path,content:files.get(path)!,version:files.get(path)});
+    (window as any).engine={desktop:false,vault:async()=>({name:'Stability fixture',root:'fixture',entries:await list(),state:{}}),
+      list,read,plugins:async()=>[],pluginData:async()=>null,state:async()=>{},
+      onChange:(listener:()=>void)=>{listeners.add(listener);return()=>listeners.delete(listener);}};
+    (window as any).externalEdit=(diagram=false)=>{
+      if(diagram)files.set('Welcome.md',files.get('Welcome.md')!.replace('A-->B','A-->C'));
+      else files.set('Other.md','# Other\n\nUpdated external body.');
+      for(const listener of listeners)listener();
+    };
+  });
+  await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
+  await page.getByTestId('mode-live').click();
+  const svg=page.locator('.live-block-diagram .mermaid svg');await expect(svg).toBeVisible();
+  await expect(page.locator('.embedded-note')).toContainText('Original body.');
+  const node=await svg.elementHandle(),before=await svg.boundingBox();
+  await page.evaluate(()=>(window as any).externalEdit());
+  await expect(page.locator('.embedded-note')).toContainText('Updated external body.');
+  expect(await node!.evaluate(el=>el.isConnected)).toBe(true);
+  const after=await svg.boundingBox();
+  for(const key of ['x','y','width','height'] as const)expect(Math.abs(after![key]-before![key])).toBeLessThanOrEqual(1);
+  // The cache must not hide real source changes while retaining unchanged contributions.
+  await page.evaluate(()=>(window as any).externalEdit(true));
+  await expect(svg).toContainText('C');
+  expect(await node!.evaluate(el=>el.isConnected)).toBe(false);
 });

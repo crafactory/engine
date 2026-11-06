@@ -19,10 +19,11 @@ export const refreshLivePreview=StateEffect.define<null>();
 interface Context {path:string;notes:Note[];onOpen:(target:string)=>void;blocks?:()=>BlockContribution[]}
 const roots=new WeakMap<HTMLElement,Root>();
 const blockOwners=new WeakMap<HTMLElement,BlockWidget>();
+const imageOwners=new WeakMap<HTMLElement,InlineImageWidget>();
 
 /** Edit bounded Markdown cells while retaining source delimiter and literal-pipe semantics. */
 function LiveTable({content,onChange,onMeasure}:{content:string;onChange:(value:string)=>void;onMeasure:()=>void}){
-  const [edit,setEdit]=useState<{cell:TableCell;row:number;col:number;value:string;base:string}|null>(null);
+  const [edit,setEdit]=useState<{cell:TableCell;row:number;col:number;value:string;base:string;columns:number[];height:number}|null>(null);
   const [selected,setSelected]=useState<{row:number;col:number}|null>(null);
   const host=useRef<HTMLDivElement>(null),pendingFocus=useRef<string|null>(null);
   // Measure after reconciliation; a cell is valid only for the source version that opened it.
@@ -58,8 +59,11 @@ function LiveTable({content,onChange,onMeasure}:{content:string;onChange:(value:
     if(col<0){row=Math.max(0,row-1);col=columns-1;}
     commit(row+':'+col);
   }
+  const sizing=edit?.base===content?edit:null;
   return <div ref={host} className="live-table-shell">
-    <div className="live-table-scroll"><table className="live-table"><thead>{rows.filter(r=>r.header).map((row,r)=><tr key={r}>{row.cells.map((cell,c)=><th key={c} style={{textAlign:alignments[c]??undefined}}>{cellUI(cell,0,c)}</th>)}</tr>)}</thead>
+    <div className="live-table-scroll"><table className="live-table" style={sizing?{tableLayout:'fixed',width:sizing.columns.reduce((total,width)=>total+width,0)}:undefined}>
+      {sizing&&<colgroup>{sizing.columns.map((width,col)=><col key={col} style={{width}}/>)}</colgroup>}
+      <thead>{rows.filter(r=>r.header).map((row,r)=><tr key={r}>{row.cells.map((cell,c)=><th key={c} style={{textAlign:alignments[c]??undefined}}>{cellUI(cell,0,c)}</th>)}</tr>)}</thead>
       <tbody>{rows.filter(r=>!r.header).map((row,r)=><tr key={r}>{row.cells.map((cell,c)=><td key={c} style={{textAlign:alignments[c]??undefined}}>{cellUI(cell,r+1,c)}</td>)}</tr>)}</tbody></table></div>
     <button type="button" className="live-table-add live-table-add-row" aria-label="Add row below" title="Add row below" onClick={()=>onChange(appendTableRow(content,columns))}>+</button>
     <button type="button" className="live-table-add live-table-add-column" aria-label="Add column right" title="Add column right" onClick={()=>onChange(appendTableColumn(content))}>+</button>
@@ -74,10 +78,15 @@ function LiveTable({content,onChange,onMeasure}:{content:string;onChange:(value:
   </div>;
   /** Expose either a focusable cell button or its temporary text input. */
   function cellUI(cell:TableCell,row:number,col:number){
-    if(edit?.base===content&&edit.row===row&&edit.col===col)return <input autoFocus aria-label={`Cell row ${row+1} column ${col+1}`} value={edit.value}
+    if(edit?.base===content&&edit.row===row&&edit.col===col)return <input autoFocus aria-label={`Cell row ${row+1} column ${col+1}`} value={edit.value} style={{height:edit.height}}
       onChange={e=>setEdit({...edit,value:e.target.value})} onBlur={()=>commit()}
       onKeyDown={e=>{if(e.key==='Tab'){e.preventDefault();move(e.shiftKey?-1:1);}else if(e.key==='Enter'){e.preventDefault();commit(row+':'+col);}else if(e.key==='Escape'){e.preventDefault();pendingFocus.current=row+':'+col;setEdit(null);}}}/>;
-    return <button data-live-cell={row+':'+col} aria-label={`Edit cell row ${row+1} column ${col+1}`} onMouseEnter={()=>setSelected({row,col})} onFocus={()=>setSelected({row,col})} onClick={()=>{setSelected({row,col});setEdit({cell,row,col,value:cell.value,base:content});}}
+    return <button data-live-cell={row+':'+col} aria-label={`Edit cell row ${row+1} column ${col+1}`} onMouseEnter={()=>setSelected({row,col})} onFocus={()=>setSelected({row,col})} onClick={event=>{
+      // Inputs have a different intrinsic width from rendered Markdown. Freeze the measured
+      // grid for this edit session instead of letting the browser redistribute every column.
+      const button=event.currentTarget,columns=[...button.closest('table')!.querySelectorAll('thead th')].map(el=>el.getBoundingClientRect().width);
+      setSelected({row,col});setEdit({cell,row,col,value:cell.value,base:content,columns,height:button.getBoundingClientRect().height});
+    }}
       dangerouslySetInnerHTML={{__html:renderMarkdown(cell.value)||'<span class="live-empty-cell">Empty</span>'}}/>;
   }
 }
@@ -87,13 +96,15 @@ class BlockWidget extends WidgetType {
   /** Snapshot external documents without treating current-document typing as a dependency refresh. */
   readonly contribution:BlockContribution|undefined;
   constructor(readonly block:LiveBlock,readonly context:()=>Context){super();const ctx=context();this.notes=ctx.notes.filter(n=>n.path!==ctx.path);this.contribution=this.block.kind==='code'||this.block.kind==='diagram'?ctx.blocks?.().find(entry=>entry.language===fenceLanguage(this.block.content)):undefined;}
-  /** Compare linked-note content rather than the array replaced by each current-note keystroke. */
-  sameContent(other:BlockWidget){return this.block.kind===other.block.kind&&this.block.content===other.block.content&&this.context===other.context&&this.notes.length===other.notes.length&&this.notes.every((n,i)=>n.path===other.notes[i].path&&n.content===other.notes[i].content);}
+  /** Contributions take source/path only; transclusions still depend on external documents. */
+  sameContent(other:BlockWidget){return this.block.kind===other.block.kind&&this.block.content===other.block.content&&this.context===other.context&&(
+    !!this.contribution||(this.notes.length===other.notes.length&&this.notes.every((n,i)=>n.path===other.notes[i].path&&n.content===other.notes[i].content))
+  );}
   /** Let CodeMirror reuse a widget only when both its content and source coordinates match. */
   eq(other:BlockWidget){return this.block.from===other.block.from&&this.block.to===other.block.to&&this.contribution===other.contribution&&this.sameContent(other);}
   /** Reuse measured DOM while rebinding edit callbacks to newly mapped source positions. */
   updateDOM(host:HTMLElement,view:EditorView){
-    const old=blockOwners.get(host);if(!old)return false;
+    const old=blockOwners.get(host);if(!old||this.contribution!==old.contribution)return false;
     if(this.block.kind==='table'&&old.block.kind==='table'&&this.context===old.context){
       blockOwners.set(host,this);
       if(this.block.content!==old.block.content)this.renderBody(host,view);
@@ -195,24 +206,31 @@ class TagWidget extends WidgetType {
 class InlineImageWidget extends WidgetType {
   /** Bind an immutable safe image token to the current editor context. */
   constructor(readonly image:InlineImage,readonly from:number,readonly context:()=>Context){super();}
-  /** Reuse an image node while its source and alt text are unchanged. */
-  eq(other:InlineImageWidget){return this.image.src===other.image.src&&this.image.alt===other.image.alt&&this.context===other.context;}
+  /** Compare visual identity independently of the source offset mapped by the editor. */
+  sameImage(other:InlineImageWidget){return this.image.src===other.image.src&&this.image.alt===other.image.alt&&this.context===other.context;}
+  /** Rebind source gestures when coordinates move, without reloading the image. */
+  eq(other:InlineImageWidget){return this.from===other.from&&this.sameImage(other);}
+  /** Retain the decoded image and bind its existing listener to the newest source owner. */
+  updateDOM(dom:HTMLElement){const old=imageOwners.get(dom);if(!old||!this.sameImage(old))return false;imageOwners.set(dom,this);return true;}
   /** Render a local asset through the bridge or a safe external URL. */
   toDOM(view:EditorView){
     const wrap=document.createElement('span');wrap.className='live-inline-image-wrap';
+    imageOwners.set(wrap,this);
     const img=document.createElement('img');img.className='live-inline-image';img.alt=this.image.alt;img.title=this.image.alt;img.loading='lazy';
-    const show=()=>{img.onload=()=>view.requestMeasure();};
-    if(this.image.external){img.src=this.image.src;show();}
+    img.onload=()=>{if(imageOwners.has(wrap)&&wrap.isConnected)view.requestMeasure();};
+    if(this.image.external){img.src=this.image.src;}
     else {
       const path=this.context().path,dir=path.split('/').slice(0,-1).join('/');
       const target=this.image.src.startsWith('/')?this.image.src.slice(1):this.image.src.startsWith('./')?`${dir}/${this.image.src.slice(2)}`:this.image.src.includes('/')?this.image.src:`${dir}/${this.image.src}`;
-      bridge.asset(target).then(url=>{if(url){img.src=url;show();}else img.alt='Missing image: '+this.image.alt;}).catch(()=>{img.alt='Missing image: '+this.image.alt;});
+      bridge.asset(target).then(url=>{if(!imageOwners.has(wrap))return;if(url){img.src=url;}else img.alt='Missing image: '+this.image.alt;}).catch(()=>{if(imageOwners.has(wrap))img.alt='Missing image: '+this.image.alt;});
     }
-    img.onclick=event=>{event.preventDefault();event.stopPropagation();view.dispatch({selection:{anchor:this.from},scrollIntoView:true});view.focus();};
+    img.onclick=event=>{event.preventDefault();event.stopPropagation();const owner=imageOwners.get(wrap);if(!owner)return;view.dispatch({selection:{anchor:owner.from},scrollIntoView:true});view.focus();};
     wrap.append(img);return wrap;
   }
   /** Let the image own clicks rather than translating them into source selection. */
   ignoreEvent(){return true;}
+  /** Ignore late asset completion after the widget is no longer owned by the editor. */
+  destroy(dom:HTMLElement){imageOwners.delete(dom);}
 }
 class InlineMathWidget extends WidgetType {
   /** Capture the expression rendered by this immutable inline widget. */
@@ -329,7 +347,7 @@ function build(state:EditorState,context:()=>Context):DecorationSet {
       if(links.some(link=>from<line.from+link.to&&to>line.from+link.from))continue;
       if(touchesRange(from,to,selected))continue;
       occupied.push({from,to});
-      ranges.push({from,to,dec:Decoration.replace({widget:new InlineImageWidget(image,from,()=>context())})});
+      ranges.push({from,to,dec:Decoration.replace({widget:new InlineImageWidget(image,from,context)})});
     }
     for(const match of line.text.matchAll(/(^|[\s([{])#([A-Za-z0-9_/-]+)/g)){
       const index=match.index!+match[1].length,from=line.from+index,to=from+match[0].length-match[1].length;
