@@ -21,38 +21,45 @@ acceptance was 869/49 units, 70 browser, 104 Electron incl. all 22 pinned corpus
 without skips, and 23 actual Linux-package vault cases. Those are historical #75 results,
 not Android acceptance.
 
-Draft PR #76 implements pinned Capacitor 8.6.0, private filesystem/state/history/assets,
+Ready PR #76 implements pinned Capacitor 8.6.0, private filesystem/state/history/assets,
 pre-App bootstrap, native lifecycle/Back/keyboard/share, touch navigation, Platform and
-desktop-only-plugin refusal. First API35 emulator run `42173462905` built, installed and
-launched the real APK, but accepted no workflow groups: Playwright CDP defaults called
-unsupported desktop Browser.setDownloadBehavior. The next commit uses documented
-`noDefaults:true` and adds native phone/tablet identity independent of rotation.
+desktop-only-plugin refusal. Effective CodeRabbit review `5796771964` covered `812b2a7`;
+all 11 findings were repaired and threads resolved. The review allowance is exhausted:
+do not chase optional review; no known blocker/failing exact-head gate may be bypassed.
 
-Expanded unchanged Style Settings desktop controls exposed a real missing
-SliderComponent.setDynamicTooltip; implemented and targeted desktop scenario passed.
-Android controls are still unverified. Fresh local check/build/inventory and 893/51
-units pass; inventory has 125 entries, 29 reference core plugins, 58 bounded checkpoints,
-not 58 completed parent features. Production dependency audit was zero after targeted
-DOMPurify/markdown-it/moment updates; development advisories remain.
+Frozen desktop acceptance on runtime `5932466` passes 70 browser, 104 Electron including
+all 22 unchanged corpus scenarios without skips, and 23 actual Linux-package vault cases.
+Expanded unchanged Style Settings verifies five controls, exact plugin data/CSS and restart;
+the missing SliderComponent.setDynamicTooltip was implemented. `68411f0` adds only a
+driver/static test; 904/55 units and its cloud Verify, packaging and independent corpus pass.
+
+Native run `42179342429` accepts installation and real InputConnection Chinese bytes,
+keyboard visibility/hide and Back. Group three then fails decoded binary asset refresh:
+32px remains instead of 48px despite changed bytes. A pending stable metadata-versioned
+native asset URL repair and original regression must pass actual native acceptance;
+no later Android groups or mobile plugin controls are accepted yet.
 
 ## Next increments
 
 - Android decision: Capacitor preserves the existing React DOM/CodeMirror/plugin UI.
   React Native requires a component rewrite; Tauri adds Rust/NDK tooling. Official Obsidian
   docs confirm WebView and no Node/Electron on mobile, not specifically Capacitor.
-- Use current Capacitor v8 requirements, not stale v7. Implement persistent app storage,
-  keyboard/IME/back/lifecycle and responsive navigation are implemented, not natively
-  accepted. Push current repairs, run actual APK acceptance and request effective initial
-  CodeRabbit review. No local SDK is needed: hosted emulator pipeline works.
+- Finish the asset repair, then all nine actual APK workflow groups. No local SDK is
+  needed: hosted emulator pipeline works. Debug-only owned IME uses real InputConnection,
+  is disabled by default/DUMP-protected, and must be absent from the release manifest.
+- Finalize Android/parity/verification and single plugin matrix docs, then require all
+  final-head Verify, three-platform packaging, Android and independent corpus gates.
+  Merge #76, sync clean main, remove the scratch `ci/android-native-composition` branch,
+  and privately email the accepted matching APK/hash/report and scope limitations.
 - Continue bounded remaining plugin workflows. Keep `docs/PLUGIN-SUPPORT-MATRIX.md` the
   single external-plugin verdict tracker; add an Obsidian host gap/Android decision document.
   Core Canvas, Copilot secrets/inference, authenticated/conflicted Git and many secondary
   workflows remain open; startup or a responsive screenshot is not full compatibility.
 
-Detailed next-increment architecture/CI/native WebView acceptance and bounded Style Settings
-mobile workflow ideas: `/tmp/engine-android-working-notes.md`. Not implemented yet. Critical:
-`bridge.ts` snapshots window.engine at module initialization; bootstrap must install the
-Android bridge BEFORE dynamically importing App, not statically import App first.
+Never overlap dist rebuilds with E2E or reuse concurrent Playwright output directories.
+Native artifacts from failed runs are diagnostic inputs, not final accepted APKs.
+Critical: `bridge.ts` snapshots window.engine at module initialization; bootstrap installs
+the Android bridge BEFORE dynamically importing App, not statically importing App first.
 
 ## Constraints
 

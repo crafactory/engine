@@ -33,6 +33,21 @@ async function fixture(){
 }
 
 describe('app-private native storage contract (Node adapter, not Android certification)',()=>{
+  it('versions native asset URLs on replacement without churning unchanged resources',async()=>{
+    const {bridge,fs}=await fixture();
+    await bridge.createBinary!('Assets/picture.png',new Uint8Array([1,2]));
+    const first=await bridge.asset('Assets/picture.png');
+    expect(new URL(first).searchParams.get('engine-version')).toMatch(/^2:/);
+    expect(await bridge.asset('Assets/picture.png')).toBe(first);
+    await bridge.create('Unrelated.md','No asset change');
+    expect(await bridge.asset('Assets/picture.png')).toBe(first);
+    await bridge.modifyBinary!('Assets/picture.png',new Uint8Array([3,4,5]));
+    const updated=await bridge.asset('Assets/picture.png');
+    expect(updated).not.toBe(first);
+    expect(new URL(updated).searchParams.get('engine-version')).toMatch(/^3:/);
+    expect(await (await createMobileStorage(fs)).asset('Assets/picture.png')).toBe(updated);
+    await expect(bridge.asset('Assets')).rejects.toThrow('Not a file');
+  });
   it('publishes a valid long basename with a bounded same-directory temporary name',async()=>{
     const {root,bridge}=await fixture(),path='a'.repeat(220)+'.md';
     const first=await bridge.create(path,'original');await bridge.write(path,'updated',first.version);

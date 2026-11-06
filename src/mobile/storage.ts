@@ -182,7 +182,15 @@ export async function createMobileStorage(fs:MobileFilesystem):Promise<Bridge>{
       if(write){const encoded=JSON.stringify(data);if(encoded===undefined)throw new Error('Invalid plugin data');await publish(path,encoded);return;}
       return json<unknown>(path,null);
     }),
-    asset:async path=>{await queue;const full=await target(path);await fs.stat(full);return fs.asset(full);},
+    asset:async path=>{
+      await queue;const full=await target(path),info=await fs.stat(full);
+      if(info.type!=='file')throw new Error('Not a file');
+      // Native WebView caches the file route too. Keep unchanged URLs stable while
+      // invalidating a replaced asset, with the same metadata boundary as live widgets.
+      const url=new URL(await fs.asset(full));
+      url.searchParams.set('engine-version',`${info.size}:${info.mtime}`);
+      return url.href;
+    },
     attach:(name,data)=>serialize(async()=>{
       if(typeof name!=='string'||!Array.isArray(data)||data.length>MAX_BINARY||data.some(n=>!Number.isInteger(n)||n<0||n>255))throw new Error('Invalid attachment');
       const state=await json<Partial<VaultState>>(PROFILE+'/state.json',{}),folder=state.settings?.attachmentFolder||'Attachments';
