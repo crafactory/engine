@@ -4,13 +4,17 @@
  * formats; consumers resolve a path to a format without importing any editor, Canvas or
  * Bases implementation.
  */
-import type {PluginDefinition} from '../kernel';
-import {storageExtension} from './storage';
+import type { PluginDefinition } from '../kernel';
+import { storageExtension } from './storage';
 
 export const RENDER_CONTRACT = 'engine.render/v1';
 export const RENDER_VERSION = '1.0.0';
 
-export interface FormatRegistration {extension: string; viewType: string; label?: string}
+export interface FormatRegistration {
+  extension: string;
+  viewType: string;
+  label?: string;
+}
 
 /** Resolve a vault path to the format that should render it. */
 export interface RenderService {
@@ -19,7 +23,8 @@ export interface RenderService {
   list(): FormatRegistration[];
 }
 
-const normalizeExtension = (extension: string): string => extension.replace(/^\./, '').toLowerCase();
+const normalizeExtension = (extension: string): string =>
+  extension.replace(/^\./, '').toLowerCase();
 
 /** Format registry keyed by case-insensitive extension. */
 export class FormatRegistry implements RenderService {
@@ -29,36 +34,56 @@ export class FormatRegistry implements RenderService {
 
   /** Register or replace a format; the returned disposer restores the previous state. */
   registerFormat(registration: FormatRegistration): () => void {
-    if (!registration || typeof registration.extension !== 'string' || typeof registration.viewType !== 'string' || !registration.extension || !registration.viewType) throw new Error('Invalid format registration');
+    if (
+      !registration ||
+      typeof registration.extension !== 'string' ||
+      typeof registration.viewType !== 'string' ||
+      !registration.extension ||
+      !registration.viewType
+    )
+      throw new Error('Invalid format registration');
     const extension = normalizeExtension(registration.extension);
-    const normalized: FormatRegistration = {...registration, extension};
-    const index = this.formats.findIndex(candidate => candidate.extension === extension);
+    const normalized: FormatRegistration = { ...registration, extension };
+    const index = this.formats.findIndex((candidate) => candidate.extension === extension);
     this.previous.set(normalized, index >= 0 ? this.formats[index] : undefined);
-    if (index >= 0) this.formats[index] = normalized; else this.formats.push(normalized);
+    if (index >= 0) this.formats[index] = normalized;
+    else this.formats.push(normalized);
     return () => {
       this.revoked.add(normalized);
-      const current = this.formats.findIndex(candidate => candidate.extension === extension);
+      const current = this.formats.findIndex((candidate) => candidate.extension === extension);
       if (current < 0 || this.formats[current] !== normalized) return;
       let replacement = this.previous.get(normalized);
-      while (replacement && this.revoked.has(replacement)) replacement = this.previous.get(replacement);
-      if (replacement) this.formats[current] = replacement; else this.formats.splice(current, 1);
+      while (replacement && this.revoked.has(replacement))
+        replacement = this.previous.get(replacement);
+      if (replacement) this.formats[current] = replacement;
+      else this.formats.splice(current, 1);
     };
   }
 
   /** Resolve a path by its lowercase extension, or undefined when no format matches. */
   resolve(path: string): FormatRegistration | undefined {
     const extension = normalizeExtension(storageExtension(path));
-    return this.formats.find(format => format.extension === extension);
+    return this.formats.find((format) => format.extension === extension);
   }
 
   /** List registered formats in registration order. */
-  list(): FormatRegistration[] { return [...this.formats]; }
+  list(): FormatRegistration[] {
+    return [...this.formats];
+  }
 }
 
 /** Wrap a render service as a runtime-scoped native plugin that provides the contract. */
 export function renderPlugin(service: RenderService): PluginDefinition {
   return {
-    manifest: {id: 'engine.render', name: 'Render', version: RENDER_VERSION, scopes: ['runtime'], provides: [{contract: RENDER_CONTRACT, version: RENDER_VERSION}]},
-    setup(context) { context.provide(RENDER_CONTRACT, RENDER_VERSION, service); }
+    manifest: {
+      id: 'engine.render',
+      name: 'Render',
+      version: RENDER_VERSION,
+      scopes: ['runtime'],
+      provides: [{ contract: RENDER_CONTRACT, version: RENDER_VERSION }],
+    },
+    setup(context) {
+      context.provide(RENDER_CONTRACT, RENDER_VERSION, service);
+    },
   };
 }

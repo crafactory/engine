@@ -1,5 +1,5 @@
-import {describe,it,expect} from 'vitest';
-import {BasesViewRegistry,builtinBasesViews,displayValue} from '../src/views/bases/registry';
+import { describe, it, expect } from 'vitest';
+import { BasesViewRegistry, builtinBasesViews, displayValue } from '../src/views/bases/registry';
 
 describe('built-in Bases views', () => {
   it('registers table, cards and list renderers', () => {

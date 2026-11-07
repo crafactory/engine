@@ -1,72 +1,233 @@
-import type {PluginDefinition} from '../kernel';
-import {VIEWS_CONTRACT, type ViewsService} from '../services/views';
+import type { PluginDefinition } from '../kernel';
+import { VIEWS_CONTRACT, type ViewsService } from '../services/views';
 
 /** Bookmarks panel contribution for the left slot. */
 export const bookmarksPanelPlugin: PluginDefinition = {
-  manifest: {id: 'engine.view.bookmarks', name: 'Bookmarks panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
-  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'bookmarks', slot: 'left', label: 'Bookmarks', load: () => import('./BookmarksPanel')})); }
+  manifest: {
+    id: 'engine.view.bookmarks',
+    name: 'Bookmarks panel',
+    version: '1.0.0',
+    scopes: ['runtime'],
+    consumes: [{ contract: VIEWS_CONTRACT, range: '^1.0.0' }],
+  },
+  setup(context) {
+    context.effect(
+      context.service<ViewsService>(VIEWS_CONTRACT).register({
+        viewType: 'bookmarks',
+        slot: 'left',
+        label: 'Bookmarks',
+        load: () => import('./BookmarksPanel'),
+      }),
+    );
+  },
 };
 
 /** Recent-notes panel contribution for the left slot. */
 export const recentPanelPlugin: PluginDefinition = {
-  manifest: {id: 'engine.view.recent', name: 'Recent panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
-  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'recent', slot: 'left', label: 'Recent', load: () => import('./BookmarksPanel')})); }
+  manifest: {
+    id: 'engine.view.recent',
+    name: 'Recent panel',
+    version: '1.0.0',
+    scopes: ['runtime'],
+    consumes: [{ contract: VIEWS_CONTRACT, range: '^1.0.0' }],
+  },
+  setup(context) {
+    context.effect(
+      context.service<ViewsService>(VIEWS_CONTRACT).register({
+        viewType: 'recent',
+        slot: 'left',
+        label: 'Recent',
+        load: () => import('./BookmarksPanel'),
+      }),
+    );
+  },
 };
 
 /** Tags panel contribution for the left slot. */
 export const tagsPanelPlugin: PluginDefinition = {
-  manifest: {id: 'engine.view.tags', name: 'Tags panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
-  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'tags', slot: 'left', label: 'Tags', load: () => import('./TagsPanel')})); }
+  manifest: {
+    id: 'engine.view.tags',
+    name: 'Tags panel',
+    version: '1.0.0',
+    scopes: ['runtime'],
+    consumes: [{ contract: VIEWS_CONTRACT, range: '^1.0.0' }],
+  },
+  setup(context) {
+    context.effect(
+      context.service<ViewsService>(VIEWS_CONTRACT).register({
+        viewType: 'tags',
+        slot: 'left',
+        label: 'Tags',
+        load: () => import('./TagsPanel'),
+      }),
+    );
+  },
 };
 
 /** Outline panel contribution for the right slot. */
 export const outlinePanelPlugin: PluginDefinition = {
-  manifest: {id: 'engine.view.outline', name: 'Outline panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
-  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'outline', slot: 'right', label: 'Outline', load: () => import('./OutlinePanel')})); }
+  manifest: {
+    id: 'engine.view.outline',
+    name: 'Outline panel',
+    version: '1.0.0',
+    scopes: ['runtime'],
+    consumes: [{ contract: VIEWS_CONTRACT, range: '^1.0.0' }],
+  },
+  setup(context) {
+    context.effect(
+      context.service<ViewsService>(VIEWS_CONTRACT).register({
+        viewType: 'outline',
+        slot: 'right',
+        label: 'Outline',
+        load: () => import('./OutlinePanel'),
+      }),
+    );
+  },
 };
 
 /** Linked/unlinked mentions panel contribution for the right slot. */
 export const backlinksPanelPlugin: PluginDefinition = {
-  manifest: {id: 'engine.view.backlinks', name: 'Backlinks panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
-  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'backlinks', slot: 'right', label: 'Backlinks', load: () => import('./BacklinksPanel')})); }
+  manifest: {
+    id: 'engine.view.backlinks',
+    name: 'Backlinks panel',
+    version: '1.0.0',
+    scopes: ['runtime'],
+    consumes: [{ contract: VIEWS_CONTRACT, range: '^1.0.0' }],
+  },
+  setup(context) {
+    context.effect(
+      context.service<ViewsService>(VIEWS_CONTRACT).register({
+        viewType: 'backlinks',
+        slot: 'right',
+        label: 'Backlinks',
+        load: () => import('./BacklinksPanel'),
+      }),
+    );
+  },
 };
 
 /** Outgoing-links panel contribution for the right slot. */
 export const outgoingPanelPlugin: PluginDefinition = {
-  manifest: {id: 'engine.view.outgoing', name: 'Outgoing panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
-  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'outgoing', slot: 'right', label: 'Outgoing', load: () => import('./OutgoingPanel')})); }
+  manifest: {
+    id: 'engine.view.outgoing',
+    name: 'Outgoing panel',
+    version: '1.0.0',
+    scopes: ['runtime'],
+    consumes: [{ contract: VIEWS_CONTRACT, range: '^1.0.0' }],
+  },
+  setup(context) {
+    context.effect(
+      context.service<ViewsService>(VIEWS_CONTRACT).register({
+        viewType: 'outgoing',
+        slot: 'right',
+        label: 'Outgoing',
+        load: () => import('./OutgoingPanel'),
+      }),
+    );
+  },
 };
 
 /** Source-positioned footnote editing/navigation contribution for the right slot. */
 export const footnotesPanelPlugin: PluginDefinition = {
-  manifest: {id:'engine.view.footnotes',name:'Footnotes view',version:'1.0.0',scopes:['runtime'],consumes:[{contract:VIEWS_CONTRACT,range:'^1.0.0'}]},
-  setup(context){context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType:'footnotes',slot:'right',label:'Footnotes',load:()=>import('./FootnotesPanel')}));}
+  manifest: {
+    id: 'engine.view.footnotes',
+    name: 'Footnotes view',
+    version: '1.0.0',
+    scopes: ['runtime'],
+    consumes: [{ contract: VIEWS_CONTRACT, range: '^1.0.0' }],
+  },
+  setup(context) {
+    context.effect(
+      context.service<ViewsService>(VIEWS_CONTRACT).register({
+        viewType: 'footnotes',
+        slot: 'right',
+        label: 'Footnotes',
+        load: () => import('./FootnotesPanel'),
+      }),
+    );
+  },
 };
-
 
 /** Vault file tree contribution for the left slot. */
 export const filesPanelPlugin: PluginDefinition = {
-  manifest: {id: 'engine.view.files', name: 'Files panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
-  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'files', slot: 'left', label: 'Files', load: () => import('./FilesPanel')})); }
+  manifest: {
+    id: 'engine.view.files',
+    name: 'Files panel',
+    version: '1.0.0',
+    scopes: ['runtime'],
+    consumes: [{ contract: VIEWS_CONTRACT, range: '^1.0.0' }],
+  },
+  setup(context) {
+    context.effect(
+      context.service<ViewsService>(VIEWS_CONTRACT).register({
+        viewType: 'files',
+        slot: 'left',
+        label: 'Files',
+        load: () => import('./FilesPanel'),
+      }),
+    );
+  },
 };
-
 
 /** Full-text search contribution for the left slot. */
 export const searchPanelPlugin: PluginDefinition = {
-  manifest: {id: 'engine.view.search', name: 'Search panel', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
-  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'search', slot: 'left', label: 'Search', load: () => import('./SearchPanel')})); }
+  manifest: {
+    id: 'engine.view.search',
+    name: 'Search panel',
+    version: '1.0.0',
+    scopes: ['runtime'],
+    consumes: [{ contract: VIEWS_CONTRACT, range: '^1.0.0' }],
+  },
+  setup(context) {
+    context.effect(
+      context.service<ViewsService>(VIEWS_CONTRACT).register({
+        viewType: 'search',
+        slot: 'left',
+        label: 'Search',
+        load: () => import('./SearchPanel'),
+      }),
+    );
+  },
 };
-
 
 /** Graph contribution for the main slot. */
 export const graphViewPlugin: PluginDefinition = {
-  manifest: {id: 'engine.view.graph', name: 'Graph view', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
-  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'graph', slot: 'main', label: 'Graph', load: () => import('./GraphView')})); }
+  manifest: {
+    id: 'engine.view.graph',
+    name: 'Graph view',
+    version: '1.0.0',
+    scopes: ['runtime'],
+    consumes: [{ contract: VIEWS_CONTRACT, range: '^1.0.0' }],
+  },
+  setup(context) {
+    context.effect(
+      context.service<ViewsService>(VIEWS_CONTRACT).register({
+        viewType: 'graph',
+        slot: 'main',
+        label: 'Graph',
+        load: () => import('./GraphView'),
+      }),
+    );
+  },
 };
-
 
 /** Editor surface contribution for the main slot. */
 export const editorViewPlugin: PluginDefinition = {
-  manifest: {id: 'engine.view.editor', name: 'Editor view', version: '1.0.0', scopes: ['runtime'], consumes: [{contract: VIEWS_CONTRACT, range: '^1.0.0'}]},
-  setup(context) { context.effect(context.service<ViewsService>(VIEWS_CONTRACT).register({viewType: 'editor', slot: 'main', label: 'Editor', load: () => import('./EditorView')})); }
+  manifest: {
+    id: 'engine.view.editor',
+    name: 'Editor view',
+    version: '1.0.0',
+    scopes: ['runtime'],
+    consumes: [{ contract: VIEWS_CONTRACT, range: '^1.0.0' }],
+  },
+  setup(context) {
+    context.effect(
+      context.service<ViewsService>(VIEWS_CONTRACT).register({
+        viewType: 'editor',
+        slot: 'main',
+        label: 'Editor',
+        load: () => import('./EditorView'),
+      }),
+    );
+  },
 };

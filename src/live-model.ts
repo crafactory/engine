@@ -1,190 +1,292 @@
 import MarkdownIt from 'markdown-it';
 
-export type LiveBlockKind='table'|'code'|'diagram'|'quote'|'callout'|'math'|'embed'|'rule';
-export interface LiveBlock {from:number;to:number;kind:LiveBlockKind;content:string}
-const parser=new MarkdownIt({html:false});
+export type LiveBlockKind =
+  | 'table'
+  | 'code'
+  | 'diagram'
+  | 'quote'
+  | 'callout'
+  | 'math'
+  | 'embed'
+  | 'rule';
+export interface LiveBlock {
+  from: number;
+  to: number;
+  kind: LiveBlockKind;
+  content: string;
+}
+const parser = new MarkdownIt({ html: false });
 
 /** Public Markdown grammar, original range mapping. Offsets are UTF-16, like CodeMirror. */
-export function liveRegions(content:string):{blocks:LiveBlock[];literal:{from:number;to:number}[]} {
-  const lines=content.split('\n'),starts:number[]=[];let offset=0;
-  for(const line of lines){starts.push(offset);offset+=line.length+1;}
-  const blocks:LiveBlock[]=[],literal:{from:number;to:number}[]=[];
-  for(const token of parser.parse(content,{})){
-    if(!token.map)continue;
-    const [first,last]=token.map;
-    const from=starts[first],to=last<lines.length?starts[last]-1:content.length;
-    const source=content.slice(from,to);
-    if(token.type==='fence'||token.type==='code_block')literal.push({from,to});
-    if(token.level!==0)continue;
-    let kind:LiveBlockKind|undefined;
-    if(token.type==='table_open')kind='table';
-    else if(token.type==='fence'||token.type==='code_block')kind=token.info.trim()==='mermaid'?'diagram':'code';
-    else if(token.type==='blockquote_open')kind=/^>\s*\[![\w-]+\]/.test(source)?'callout':'quote';
-    else if(token.type==='hr')kind='rule';
-    else if(token.type==='paragraph_open'){
-      if(/^\$\$(?:[^\n]*\$\$|\s*\n[\s\S]*\n\$\$)\s*$/.test(source))kind='math';
-      else if(/^(?:!\[\[[^\]\n]+\]\]|!\[[^\]\n]*\]\([^\n]+\))\s*$/.test(source))kind='embed';
-    }
-    if(kind&&from!==undefined&&to>from)blocks.push({from,to,kind,content:source});
+export function liveRegions(content: string): {
+  blocks: LiveBlock[];
+  literal: { from: number; to: number }[];
+} {
+  const lines = content.split('\n'),
+    starts: number[] = [];
+  let offset = 0;
+  for (const line of lines) {
+    starts.push(offset);
+    offset += line.length + 1;
   }
-  return {blocks,literal};
+  const blocks: LiveBlock[] = [],
+    literal: { from: number; to: number }[] = [];
+  for (const token of parser.parse(content, {})) {
+    if (!token.map) continue;
+    const [first, last] = token.map;
+    const from = starts[first],
+      to = last < lines.length ? starts[last] - 1 : content.length;
+    const source = content.slice(from, to);
+    if (token.type === 'fence' || token.type === 'code_block') literal.push({ from, to });
+    if (token.level !== 0) continue;
+    let kind: LiveBlockKind | undefined;
+    if (token.type === 'table_open') kind = 'table';
+    else if (token.type === 'fence' || token.type === 'code_block')
+      kind = token.info.trim() === 'mermaid' ? 'diagram' : 'code';
+    else if (token.type === 'blockquote_open')
+      kind = /^>\s*\[![\w-]+\]/.test(source) ? 'callout' : 'quote';
+    else if (token.type === 'hr') kind = 'rule';
+    else if (token.type === 'paragraph_open') {
+      if (/^\$\$(?:[^\n]*\$\$|\s*\n[\s\S]*\n\$\$)\s*$/.test(source)) kind = 'math';
+      else if (/^(?:!\[\[[^\]\n]+\]\]|!\[[^\]\n]*\]\([^\n]+\))\s*$/.test(source)) kind = 'embed';
+    }
+    if (kind && from !== undefined && to > from) blocks.push({ from, to, kind, content: source });
+  }
+  return { blocks, literal };
 }
 /** Return only renderable top-level blocks, excluding the literal-region inventory. */
-export function liveBlocks(content:string):LiveBlock[]{return liveRegions(content).blocks;}
-
-/** Test half-open source overlap, including a caret located inside a block. */
-export function touchesRange(from:number,to:number,ranges:readonly {from:number;to:number}[]):boolean {
-  return ranges.some(r=>r.from===r.to?r.from>=from&&r.from<to:r.from<to&&r.to>from);
+export function liveBlocks(content: string): LiveBlock[] {
+  return liveRegions(content).blocks;
 }
 
-export interface TableCell {from:number;to:number;value:string}
-export interface TableRow {cells:TableCell[];header:boolean}
+/** Test half-open source overlap, including a caret located inside a block. */
+export function touchesRange(
+  from: number,
+  to: number,
+  ranges: readonly { from: number; to: number }[],
+): boolean {
+  return ranges.some((r) =>
+    r.from === r.to ? r.from >= from && r.from < to : r.from < to && r.to > from,
+  );
+}
+
+export interface TableCell {
+  from: number;
+  to: number;
+  value: string;
+}
+export interface TableRow {
+  cells: TableCell[];
+  header: boolean;
+}
 /** Split unescaped pipes, keeping pipes inside matched code spans intact. */
-export function tableCells(line:string,offset=0):TableCell[] {
-  const boundaries:number[]=[];let code=0;
-  for(let i=0;i<line.length;i++){
-    let slashCount=0;for(let j=i-1;j>=0&&line[j]==='\\';j--)slashCount++;
-    if(slashCount%2)continue;
-    if(line[i]==='`'){
-      let length=1;while(line[i+length]==='`')length++;
-      if(!code)code=length;else if(code===length)code=0;
-      i+=length-1;
-    }else if(line[i]==='|'&&!code)boundaries.push(i);
+export function tableCells(line: string, offset = 0): TableCell[] {
+  const boundaries: number[] = [];
+  let code = 0;
+  for (let i = 0; i < line.length; i++) {
+    let slashCount = 0;
+    for (let j = i - 1; j >= 0 && line[j] === '\\'; j--) slashCount++;
+    if (slashCount % 2) continue;
+    if (line[i] === '`') {
+      let length = 1;
+      while (line[i + length] === '`') length++;
+      if (!code) code = length;
+      else if (code === length) code = 0;
+      i += length - 1;
+    } else if (line[i] === '|' && !code) boundaries.push(i);
   }
-  if(!boundaries.length)return [{from:offset,to:offset+line.length,value:line.trim()}];
-  const leading=line.slice(0,boundaries[0]).trim()==='';
-  const trailing=line.slice(boundaries[boundaries.length-1]+1).trim()==='';
-  const points=[-1,...boundaries,line.length],cells:TableCell[]=[];
-  for(let i=0;i<points.length-1;i++){
-    if((i===0&&leading)||(i===points.length-2&&trailing))continue;
-    const start=points[i]+1,end=points[i+1];
-    cells.push({from:offset+start,to:offset+end,value:line.slice(start,end).trim().replace(/\\\|/g,'|')});
+  if (!boundaries.length) return [{ from: offset, to: offset + line.length, value: line.trim() }];
+  const leading = line.slice(0, boundaries[0]).trim() === '';
+  const trailing = line.slice(boundaries[boundaries.length - 1] + 1).trim() === '';
+  const points = [-1, ...boundaries, line.length],
+    cells: TableCell[] = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    if ((i === 0 && leading) || (i === points.length - 2 && trailing)) continue;
+    const start = points[i] + 1,
+      end = points[i + 1];
+    cells.push({
+      from: offset + start,
+      to: offset + end,
+      value: line.slice(start, end).trim().replace(/\\\|/g, '|'),
+    });
   }
   return cells;
 }
 /** Map header and body cells to source offsets while omitting the Markdown separator row. */
-export function tableRows(content:string):TableRow[] {
-  const rows:TableRow[]=[];let offset=0;
-  content.split('\n').forEach((line,index)=>{
-    if(index!==1)rows.push({cells:tableCells(line,offset),header:index===0});
-    offset+=line.length+1;
+export function tableRows(content: string): TableRow[] {
+  const rows: TableRow[] = [];
+  let offset = 0;
+  content.split('\n').forEach((line, index) => {
+    if (index !== 1) rows.push({ cells: tableCells(line, offset), header: index === 0 });
+    offset += line.length + 1;
   });
   return rows;
 }
 /** Replace one cell, preserving surrounding whitespace and escaping structural pipes. */
-export function replaceTableCell(content:string,cell:TableCell,value:string):string {
-  if(value===cell.value)return content;
-  const previous=content.slice(cell.from,cell.to);
-  const leading=previous.match(/^\s*/)?.[0]||'',trailing=previous.match(/\s*$/)?.[0]||'';
-  const escaped=value.replace(/[\r\n]+/g,' ').replace(/(?<!\\)\|/g,'\\|');
-  return content.slice(0,cell.from)+leading+escaped+(previous.trim()?trailing:leading? '':' ')+content.slice(cell.to);
+export function replaceTableCell(content: string, cell: TableCell, value: string): string {
+  if (value === cell.value) return content;
+  const previous = content.slice(cell.from, cell.to);
+  const leading = previous.match(/^\s*/)?.[0] || '',
+    trailing = previous.match(/\s*$/)?.[0] || '';
+  const escaped = value.replace(/[\r\n]+/g, ' ').replace(/(?<!\\)\|/g, '\\|');
+  return (
+    content.slice(0, cell.from) +
+    leading +
+    escaped +
+    (previous.trim() ? trailing : leading ? '' : ' ') +
+    content.slice(cell.to)
+  );
 }
 /** Reduce a block replacement to the changed UTF-16 span so unchanged source and widgets can map forward. */
-export function minimalBlockChange(from:number,before:string,after:string):{from:number;to:number;insert:string}|null {
-  if(before===after)return null;
-  let start=0,endBefore=before.length,endAfter=after.length;
-  while(start<endBefore&&start<endAfter&&before[start]===after[start])start++;
-  while(endBefore>start&&endAfter>start&&before[endBefore-1]===after[endAfter-1]){endBefore--;endAfter--;}
-  return {from:from+start,to:from+endBefore,insert:after.slice(start,endAfter)};
+export function minimalBlockChange(
+  from: number,
+  before: string,
+  after: string,
+): { from: number; to: number; insert: string } | null {
+  if (before === after) return null;
+  let start = 0,
+    endBefore = before.length,
+    endAfter = after.length;
+  while (start < endBefore && start < endAfter && before[start] === after[start]) start++;
+  while (endBefore > start && endAfter > start && before[endBefore - 1] === after[endAfter - 1]) {
+    endBefore--;
+    endAfter--;
+  }
+  return { from: from + start, to: from + endBefore, insert: after.slice(start, endAfter) };
 }
 
 /** Append an empty body row, matching the current column count. */
-export function appendTableRow(content:string,columns?:number):string {
-  const count=columns??Math.max(1,tableCells(content.split('\n')[0]||'').length);
-  return content+'\n|'+Array.from({length:count},()=>'  ').join('|')+'|';
+export function appendTableRow(content: string, columns?: number): string {
+  const count = columns ?? Math.max(1, tableCells(content.split('\n')[0] || '').length);
+  return content + '\n|' + Array.from({ length: count }, () => '  ').join('|') + '|';
 }
 
 /** Append one column to the header, separator and body rows. */
-export function appendTableColumn(content:string):string {
-  return content.split('\n').map(line=>{
-    if(!line.trim())return line;
-    const separator=/^\|?[\s:|-]+\|?$/.test(line.trim());
-    const extra=separator?' --- ':'  ';
-    const trimmed=line.trimEnd();
-    if(trimmed.endsWith('|'))return trimmed.slice(0,-1)+'|'+extra+'|';
-    return trimmed+'|'+extra+'|';
-  }).join('\n');
+export function appendTableColumn(content: string): string {
+  return content
+    .split('\n')
+    .map((line) => {
+      if (!line.trim()) return line;
+      const separator = /^\|?[\s:|-]+\|?$/.test(line.trim());
+      const extra = separator ? ' --- ' : '  ';
+      const trimmed = line.trimEnd();
+      if (trimmed.endsWith('|')) return trimmed.slice(0, -1) + '|' + extra + '|';
+      return trimmed + '|' + extra + '|';
+    })
+    .join('\n');
 }
 
 /** Column alignments parsed from the separator row. */
-export function tableAlignments(content:string):('left'|'right'|'center'|null)[] {
-  const cells=tableCells(content.split('\n')[1]||'');
-  return cells.map(cell=>{
-    const value=cell.value.trim();
-    if(value.startsWith(':')&&value.endsWith(':'))return 'center';
-    if(value.endsWith(':'))return 'right';
-    if(value.startsWith(':'))return 'left';
+export function tableAlignments(content: string): ('left' | 'right' | 'center' | null)[] {
+  const cells = tableCells(content.split('\n')[1] || '');
+  return cells.map((cell) => {
+    const value = cell.value.trim();
+    if (value.startsWith(':') && value.endsWith(':')) return 'center';
+    if (value.endsWith(':')) return 'right';
+    if (value.startsWith(':')) return 'left';
     return null;
   });
 }
 
 /** Rebuild one table line from kept raw cell slices. */
-function rebuildRow(line:string,cells:TableCell[]):string {
-  const leading=line.trimStart().startsWith('|'),trailing=line.trimEnd().endsWith('|');
-  return (leading?'|':'')+cells.map(cell=>line.slice(cell.from,cell.to)).join('|')+(trailing?'|':'');
+function rebuildRow(line: string, cells: TableCell[]): string {
+  const leading = line.trimStart().startsWith('|'),
+    trailing = line.trimEnd().endsWith('|');
+  return (
+    (leading ? '|' : '') +
+    cells.map((cell) => line.slice(cell.from, cell.to)).join('|') +
+    (trailing ? '|' : '')
+  );
 }
 
 /** Delete a body row (display row >= 1); header/separator rows are kept. */
-export function deleteTableRow(content:string,row:number):string {
-  if(row<1)return content;
-  const lines=content.split('\n'),index=row+1;
-  if(index>=lines.length)return content;
-  return lines.filter((_line,position)=>position!==index).join('\n');
+export function deleteTableRow(content: string, row: number): string {
+  if (row < 1) return content;
+  const lines = content.split('\n'),
+    index = row + 1;
+  if (index >= lines.length) return content;
+  return lines.filter((_line, position) => position !== index).join('\n');
 }
 
 /** Move a body row up or down by one display row. */
-export function moveTableRow(content:string,row:number,direction:1|-1):string {
-  if(row<1)return content;
-  const lines=content.split('\n'),index=row+1,target=index+direction;
-  if(target<=1||target>=lines.length)return content;
-  [lines[index],lines[target]]=[lines[target],lines[index]];
+export function moveTableRow(content: string, row: number, direction: 1 | -1): string {
+  if (row < 1) return content;
+  const lines = content.split('\n'),
+    index = row + 1,
+    target = index + direction;
+  if (target <= 1 || target >= lines.length) return content;
+  [lines[index], lines[target]] = [lines[target], lines[index]];
   return lines.join('\n');
 }
 
 /** Delete one column from every table row. */
-export function deleteTableColumn(content:string,column:number):string {
-  return content.split('\n').map(line=>{
-    if(!line.trim())return line;
-    const cells=tableCells(line);
-    if(column<0||column>=cells.length||cells.length<=1)return line;
-    cells.splice(column,1);
-    return rebuildRow(line,cells);
-  }).join('\n');
+export function deleteTableColumn(content: string, column: number): string {
+  return content
+    .split('\n')
+    .map((line) => {
+      if (!line.trim()) return line;
+      const cells = tableCells(line);
+      if (column < 0 || column >= cells.length || cells.length <= 1) return line;
+      cells.splice(column, 1);
+      return rebuildRow(line, cells);
+    })
+    .join('\n');
 }
 
 /** Move one column left or right across every table row. */
-export function moveTableColumn(content:string,column:number,direction:1|-1):string {
-  return content.split('\n').map(line=>{
-    if(!line.trim())return line;
-    const cells=tableCells(line),target=column+direction;
-    if(column<0||column>=cells.length||target<0||target>=cells.length)return line;
-    const raw=cells.map(cell=>line.slice(cell.from,cell.to));
-    [raw[column],raw[target]]=[raw[target],raw[column]];
-    const leading=line.trimStart().startsWith('|'),trailing=line.trimEnd().endsWith('|');
-    return (leading?'|':'')+raw.join('|')+(trailing?'|':'');
-  }).join('\n');
+export function moveTableColumn(content: string, column: number, direction: 1 | -1): string {
+  return content
+    .split('\n')
+    .map((line) => {
+      if (!line.trim()) return line;
+      const cells = tableCells(line),
+        target = column + direction;
+      if (column < 0 || column >= cells.length || target < 0 || target >= cells.length) return line;
+      const raw = cells.map((cell) => line.slice(cell.from, cell.to));
+      [raw[column], raw[target]] = [raw[target], raw[column]];
+      const leading = line.trimStart().startsWith('|'),
+        trailing = line.trimEnd().endsWith('|');
+      return (leading ? '|' : '') + raw.join('|') + (trailing ? '|' : '');
+    })
+    .join('\n');
 }
 
 /** Language token of a fenced block, accepting up to three leading spaces. */
-export function fenceLanguage(content:string):string {
-  const first=(content.split('\n')[0]||'').replace(/^[ \t]{0,3}[`~]{3,}\s*/,'');
-  return first.split(/\s+/)[0]||'';
+export function fenceLanguage(content: string): string {
+  const first = (content.split('\n')[0] || '').replace(/^[ \t]{0,3}[`~]{3,}\s*/, '');
+  return first.split(/\s+/)[0] || '';
 }
 
 /** Fence body, preserving the last line when the fence is unclosed. */
-export function fenceSource(content:string):string {
-  const lines=content.split('\n'),opening=(lines[0]||'').match(/^[ \t]{0,3}([`~]{3,})/);
-  if(!opening)return content;
-  const marker=opening[1],closing=new RegExp('^[ \\t]{0,3}'+marker[0]+'{'+marker.length+',}\\s*$');
-  const closed=lines.length>1&&closing.test(lines[lines.length-1]||'');
-  return lines.slice(1,closed?-1:undefined).join('\n');
+export function fenceSource(content: string): string {
+  const lines = content.split('\n'),
+    opening = (lines[0] || '').match(/^[ \t]{0,3}([`~]{3,})/);
+  if (!opening) return content;
+  const marker = opening[1],
+    closing = new RegExp('^[ \\t]{0,3}' + marker[0] + '{' + marker.length + ',}\\s*$');
+  const closed = lines.length > 1 && closing.test(lines[lines.length - 1] || '');
+  return lines.slice(1, closed ? -1 : undefined).join('\n');
 }
 
-export interface ListMarker {indent:number; marker:string; ordered:boolean; from:number; to:number; depth:number}
+export interface ListMarker {
+  indent: number;
+  marker: string;
+  ordered: boolean;
+  from: number;
+  to: number;
+  depth: number;
+}
 /** Locate a bullet or ordered-list marker, accepting leading indentation and trailing space. */
-export function listMarker(line:string,offset=0):ListMarker|undefined {
-  const match=line.match(/^([ \t]*)([-*+]|\d{1,9}[.)])([ \t]+)/);
-  if(!match)return;
-  const indent=match[1].replace(/\t/g,'    ').length;
-  return {indent,marker:match[2],ordered:/^\d/.test(match[2]),from:offset+match[1].length,to:offset+match[1].length+match[2].length+match[3].length,depth:Math.floor(indent/2)};
+export function listMarker(line: string, offset = 0): ListMarker | undefined {
+  const match = line.match(/^([ \t]*)([-*+]|\d{1,9}[.)])([ \t]+)/);
+  if (!match) return;
+  const indent = match[1].replace(/\t/g, '    ').length;
+  return {
+    indent,
+    marker: match[2],
+    ordered: /^\d/.test(match[2]),
+    from: offset + match[1].length,
+    to: offset + match[1].length + match[2].length + match[3].length,
+    depth: Math.floor(indent / 2),
+  };
 }

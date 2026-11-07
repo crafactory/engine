@@ -3,11 +3,12 @@
 Status: Android development pilot with bounded native acceptance, not a production release.
 [PR #76 artifacts](https://github.com/crafactory/engine/pull/76) are historical baseline
 evidence. Use [VERIFICATION.md](VERIFICATION.md) and the current PR's exact-head Android
-check for later changes. The minimal-shell increment is being developed in
-[PR #78](https://github.com/crafactory/engine/pull/78); its acceptance is not implied by
-historical pilot results.
-This increment
-follows the merged [Live Editing repairs](https://github.com/crafactory/engine/pull/75).
+check for later changes. The minimal-shell increment merged in
+[PR #78](https://github.com/crafactory/engine/pull/78), with 11 native workflow groups
+passing at `4c68a7b` in its [exact-head run](https://github.com/crafactory/engine/actions/runs/42385402604).
+This is bounded evidence for that revision, not acceptance of subsequent changes or
+all Android devices. It follows the merged
+[Live Editing repairs](https://github.com/crafactory/engine/pull/75).
 The current plugin verdicts remain in [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md);
 host-wide gaps remain in [PARITY.md](PARITY.md).
 

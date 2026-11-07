@@ -1,4 +1,4 @@
-import type {Note} from '../../types';
+import type { Note } from '../../types';
 
 /** Data attached to a Canvas card node. */
 export interface CanvasData extends Record<string, unknown> {

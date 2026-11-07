@@ -4,29 +4,33 @@
  * runtime. Obsidian-shaped APIs stay inside the support implementation; callers only start,
  * stop and observe a controller.
  */
-import type {PluginDefinition} from '../kernel';
-import type {PluginTab} from '../compat-dom';
-import type {CompatNativeServices, PluginSnapshot} from '../compat-core';
-import type {PluginCommand, PluginController} from '../plugins';
-import type {PluginManifest} from '../types';
-import {ENGINE_VERSION} from './version';
+import type { PluginDefinition } from '../kernel';
+import type { PluginTab } from '../compat-dom';
+import type { CompatNativeServices, PluginSnapshot } from '../compat-core';
+import type { PluginCommand, PluginController } from '../plugins';
+import type { PluginManifest } from '../types';
+import { ENGINE_VERSION } from './version';
 
 export const COMPAT_CONTRACT = 'engine.compat/v1';
 export const COMPAT_VERSION = '1.1.0';
 
 /** A local package discovered by the support plugin. */
-export interface CompatPackage {manifest: PluginManifest; code: string;styles?:string}
+export interface CompatPackage {
+  manifest: PluginManifest;
+  code: string;
+  styles?: string;
+}
 
 /** Host primitives used by the Obsidian adapter; operation names stay inside src/compat. */
 export interface CompatHost {
   loadData(id: string): Promise<unknown>;
   saveData(id: string, data: unknown): Promise<unknown>;
   read(path: string): Promise<string>;
-  readVersioned?(path: string): Promise<{content: string; version: string}>;
-  readBinary?(path:string):Promise<ArrayBuffer>;
-  writeBinary?(path:string,data:ArrayBuffer|ArrayBufferView):Promise<unknown>;
-  createBinary?(path:string,data:ArrayBuffer|ArrayBufferView):Promise<unknown>;
-  modifyBinary?(path:string,data:ArrayBuffer|ArrayBufferView):Promise<unknown>;
+  readVersioned?(path: string): Promise<{ content: string; version: string }>;
+  readBinary?(path: string): Promise<ArrayBuffer>;
+  writeBinary?(path: string, data: ArrayBuffer | ArrayBufferView): Promise<unknown>;
+  createBinary?(path: string, data: ArrayBuffer | ArrayBufferView): Promise<unknown>;
+  modifyBinary?(path: string, data: ArrayBuffer | ArrayBufferView): Promise<unknown>;
   create(path: string, content: string): Promise<unknown>;
   modify(path: string, content: string, expectedVersion?: string): Promise<unknown>;
   append(path: string, content: string): Promise<unknown>;
@@ -53,7 +57,7 @@ export interface CompatStartCallbacks {
   tabs?: (tabs: PluginTab[]) => void;
   extensions?: (extensions: unknown[]) => void;
   fileExtensions?: (extensions: string[], viewType?: string) => void;
-  openView?: (viewType: string|null, path: string, leafId: string) => void;
+  openView?: (viewType: string | null, path: string, leafId: string) => void;
   saveLayout?: () => Promise<void>;
   native?: CompatNativeServices;
 }
@@ -69,7 +73,7 @@ export interface CompatService {
   /** Discover and validate local packages before they are offered in Settings. */
   list(): Promise<CompatPackage[]>;
   start(request: CompatStartRequest): PluginController;
-  capabilities(): {worker: boolean; renderer: boolean};
+  capabilities(): { worker: boolean; renderer: boolean };
 }
 
 /** Register a support implementation as a native runtime plugin. */
@@ -80,10 +84,12 @@ export function compatPlugin(service: CompatService): PluginDefinition {
       name: 'Obsidian plugin support',
       version: COMPAT_VERSION,
       scopes: ['runtime'],
-      provides: [{contract: COMPAT_CONTRACT, version: COMPAT_VERSION}]
+      provides: [{ contract: COMPAT_CONTRACT, version: COMPAT_VERSION }],
     },
-    setup(context) { context.provide(COMPAT_CONTRACT, COMPAT_VERSION, service); }
+    setup(context) {
+      context.provide(COMPAT_CONTRACT, COMPAT_VERSION, service);
+    },
   };
 }
 
-export {ENGINE_VERSION};
+export { ENGINE_VERSION };
