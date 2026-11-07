@@ -12,6 +12,7 @@ import {renameDestination} from './file-path';
 import {flushIndependent} from './services/flush-independent';
 import {readWorkspaceLayout} from './workspace-layout';
 import {MobileHeader,MobileNavigation,MobileSheet,type MobileSheetKind,type MobileAction} from './mobile/Shell';
+import {Button} from './components/ui/button';
 import {recordPluginDocumentView,retirePluginFileViews,recoverPluginFileViews,type PluginDocumentView} from './plugin-document-views';
 import {title,isNote,frontmatter,setProperties,resolveLink,headings,applyTemplate,rewriteLinks} from './knowledge';
 import type {EditorHandle} from './Editor';
@@ -47,7 +48,7 @@ const keyLabels:Record<string,string>={mod:'⌘',alt:'⌥',shift:'⇧'};
 const formatHotkey=(binding:string)=>binding.split('+').map(part=>keyLabels[part]??(part.length===1?part.toUpperCase():part)).join(' ');
 function Logo(){return <svg viewBox="0 0 32 32" fill="none" aria-label="Crafactory Engine"><path d="M23 9H12l-5 7 5 7h11M18 9l-5 7 5 7M13 16h12" stroke="currentColor" strokeWidth="2.3" strokeLinejoin="round"/></svg>;}
 function IconButton({label,children,onClick,active=false,className='',testid}:{label:string;children:React.ReactNode;onClick:()=>void;active?:boolean;className?:string;testid?:string}){
-  return <button className={'icon-button '+(active?'active ':'')+className} aria-label={label} title={label} onClick={onClick} data-testid={testid||label.toLowerCase().replace(/[^a-z0-9]+/g,'-')}>{children}</button>;
+  return <Button variant="ghost" size="icon" className={'icon-button '+(active?'active ':'')+className} aria-label={label} title={label} onClick={onClick} data-testid={testid||label.toLowerCase().replace(/[^a-z0-9]+/g,'-')}>{children}</Button>;
 }
 async function download(name:string,content:string|Blob,type='text/plain'){
   const blob=typeof content==='string'?new Blob([content],{type}):content;
@@ -70,7 +71,9 @@ export function App(){
   const lastEditMode=useRef<'source'|'live'>('live');
   if(mode!=='reading')lastEditMode.current=mode;
   const [mobileSheet,setMobileSheet]=useState<MobileSheetKind>(null);
+  const [mobileProperties,setMobileProperties]=useState(false);
   const [tabs,setTabs]=useState<string[]>([]),[active,setActive]=useState(''),[split,setSplit]=useState<string|null>(null);
+  useEffect(()=>{if(nativeAndroid)setMobileProperties(false);},[active]);
   const [uiRevision,setUiRevision]=useState(0);
   const [pluginFormats,setPluginFormats]=useState<Record<string,{viewType:string;pluginId:string}>>({});
   const pluginDocumentViews=useRef(new Map<string,PluginDocumentView>());
@@ -906,8 +909,8 @@ export function App(){
     if(resolvedView!=='markdown'&&mode!=='source'&&View)return <ViewBoundary resetKey={note.path}><View {...viewProps}/></ViewBoundary>;
     return <div className="note-document" onDragOver={e=>e.preventDefault()} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();importFiles(e.dataTransfer.files);}}}>
       <div className={'document-inner '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>
-        <div className="note-title"><h1>{title(note.path)}</h1><button className={bookmarks.includes(path)?'is-bookmarked':''} onClick={()=>toggleBookmarkPath(path)} aria-label="Bookmark note" title="Bookmark note"><Bookmark size={19} fill={bookmarks.includes(path)?'currentColor':'none'}/></button></div>
-        {enabled('properties')&&isNote(note.path)&&mode!=='source'&&<PropertiesEditor note={note} notes={notes} types={propertyTypes} onTypeChange={(key,type)=>setPropertyTypes(current=>{const next={...current};if(type)next[key]=type;else delete next[key];return next;})} onNoteChange={editNote} onError={report} ask={dialog.ask}/>}
+        <div className="note-title"><h1>{title(note.path)}</h1>{!nativeAndroid&&<button className={bookmarks.includes(path)?'is-bookmarked':''} onClick={()=>toggleBookmarkPath(path)} aria-label="Bookmark note" title="Bookmark note"><Bookmark size={19} fill={bookmarks.includes(path)?'currentColor':'none'}/></button>}</div>
+        {enabled('properties')&&isNote(note.path)&&mode!=='source'&&(!nativeAndroid||mobileProperties)&&<PropertiesEditor note={note} notes={notes} types={propertyTypes} onTypeChange={(key,type)=>setPropertyTypes(current=>{const next={...current};if(type)next[key]=type;else delete next[key];return next;})} onNoteChange={editNote} onError={report} ask={dialog.ask}/>}
       </div>
       {mode==='reading'&&isNote(note.path)&&<div className={'reading-surface '+(settings.readableWidth?'readable':'')} style={{fontSize:settings.fontSize}}>{View?<ViewBoundary resetKey={note.path}><View {...viewProps}/></ViewBoundary>:<Markdown content={note.content} notes={notes} path={note.path} previews={pagePreviewRuntime.current?.service} onOpen={openLink} onChange={content=>editNote(note.path,content)}/>}</div>}
       <div className={'editor-host'+(mode==='reading'&&isNote(note.path)?' editor-hidden':'')}>
@@ -944,6 +947,8 @@ export function App(){
     {id:'live',label:'Live editing',testid:'mode-live',selected:mode==='live',disabled:!activeNote,run:()=>setMode('live')},
     {id:'reading',label:'Reading view',testid:'mode-reading',selected:mode==='reading',disabled:!activeNote,run:()=>setMode('reading')},
     {id:'context',label:'Note context',disabled:!activeNote,run:()=>setRight(true)},
+    {id:'properties',label:'Note properties',disabled:!activeMarkdown||!enabled('properties'),selected:mobileProperties&&mode!=='source',run:()=>{setMobileProperties(!(mobileProperties&&mode!=='source'));if(mode==='source')setMode('live');}},
+    {id:'bookmark-note',label:'Bookmark note',disabled:!activeNote||!enabled('bookmarks'),selected:bookmarks.includes(active),run:toggleBookmark},
     {id:'switcher',label:'Quick switcher',disabled:!enabled('switcher'),run:()=>setPalette('files')},
     {id:'commands',label:'Command palette',ariaLabel:'Mobile commands',disabled:!enabled('commands'),run:()=>setPalette('commands')},
     {id:'bookmarks',label:'Bookmarks',disabled:!enabled('bookmarks'),run:()=>{setSideTab('bookmarks');setLeft(true);}},

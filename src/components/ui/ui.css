@@ -1,0 +1,26 @@
+/* Prefix utilities and omit preflight: existing editor/plugin DOM owns its resets. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme) prefix(ui);
+@import "tailwindcss/utilities.css" prefix(ui);
+@import "tw-animate-css";
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-card: var(--panel);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--panel);
+  --color-popover-foreground: var(--text);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--bg);
+  --color-secondary: var(--hover);
+  --color-secondary-foreground: var(--text);
+  --color-muted: var(--panel);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--hover);
+  --color-accent-foreground: var(--text);
+  --color-destructive: var(--danger, #b42318);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--accent);
+}

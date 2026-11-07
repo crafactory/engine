@@ -23,8 +23,14 @@ only passing exact-head gates. Verify author AND committer before every commit/m
 
 ## Next increment
 
-After this PR's complete review/repair/merge cycle, implement a concrete partial workflow
-such as bookmark groups with migration, persistence and UI tests in its own small PR.
+Owner additionally requests oxlint/oxfmt, file-length/structure enforcement, and shadcn/ui
+instead of bespoke UI widgets. A private acknowledgment was queued for that request.
+Adapt this still-in-development shell PR to registry-generated shadcn Button/Sheet before
+review/merge; preserve plugin host lifetimes and native Back/focus behavior.
+After this PR's complete review/repair/merge cycle, establish oxlint/oxfmt plus CI and
+bounded file/structure policy in its own PR; then migrate remaining shared UI in small,
+verified increments. Continue concrete partial capabilities such as bookmark groups
+without building a second bespoke widget system.
 Other incomplete items remain in the parity/plugin ledgers; don't claim full certification.
 Deliver private Chinese results by send_email(cc=[]), including actual merged changes,
 matching APK/evidence if available and remaining limitations, then empty final.

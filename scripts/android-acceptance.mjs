@@ -134,8 +134,8 @@ function png(width,height){
   return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(rows)),chunk('IEND',Buffer.alloc(0))]);
 }
 async function tools(){
-  if(!await page.getByRole('dialog',{name:'Mobile tools',exact:true}).isVisible())await page.getByRole('button',{name:'Mobile tools',exact:true}).click();
-  await expect(page.getByRole('dialog',{name:'Mobile tools',exact:true})).toBeVisible();
+  if(!await page.getByRole('dialog',{name:'Tools',exact:true}).isVisible())await page.getByRole('button',{name:'Mobile tools',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Tools',exact:true})).toBeVisible();
 }
 async function mobileSettings(){
   await tools();await page.getByRole('button',{name:'Mobile settings',exact:true}).click();
@@ -172,6 +172,7 @@ async function styleTab(){
   await page.locator('.plugin-settings-content').getByText('Android Probe',{exact:true}).click();
 }
 const notePath='Native Probe.md',initial='# Native Probe\n\nStart\n\n![Native asset](pixel.png)\n';
+const desktopLayout={tabs:[notePath],active:notePath,split:notePath,left:true,right:true,mode:'source'};
 let expectedText=initial;
 try{
   await step('real APK installation and app-private fixtures',async()=>{
@@ -181,7 +182,7 @@ try{
     await writeNative('vault/'+notePath,initial);await writeNative('vault/pixel.png',png(32,16));
     await writeNative('vault/.photo.png',png(32,16));
     await writeNative('vault/.crafactory/plugins/incomplete/manifest.json',JSON.stringify({id:'incomplete',name:'Incomplete',version:'1.0.0'}));
-    await writeNative('engine-profile/state.json',JSON.stringify({settings:{mode:'source',css},layout:{tabs:[notePath],active:notePath,split:null,left:false,right:false,mode:'source'}}));
+    await writeNative('engine-profile/state.json',JSON.stringify({settings:{mode:'source',css},layout:desktopLayout}));
     for(const [id,name,desktop,code]of [
       ['native-probe','Original Native Probe',false,probe],
       ['desktop-probe','Desktop-only Probe',true,'throw new Error("Desktop-only code must not execute on Android");']
@@ -211,6 +212,38 @@ try{
     const targets=await page.locator('.mobile-nav button').evaluateAll(buttons=>buttons.map(button=>{const r=button.getBoundingClientRect();return {width:r.width,height:r.height};}));
     assert.equal(targets.length,6);assert(targets.every(target=>target.width>=44&&target.height>=44));
     await page.screenshot({path:path.join(output,'android-workspace.png')});
+  });
+  await step('native minimal shell creates, switches and closes real tabs without changing desktop layout',async()=>{
+    await expect.poll(()=>readJSON('engine-profile/state.json').mobileLayout?.active).toBe(notePath);
+    assert.deepEqual(readJSON('engine-profile/state.json').layout,desktopLayout);
+    await page.getByRole('button',{name:'Mobile new note',exact:true}).click();
+    await page.getByTestId('dialog-input').fill('Mobile Scratch.md');
+    await expect.poll(keyboardVisibility,{timeout:10000}).toEqual({native:true,reported:true});
+    shell('input keyevent 4');await expect.poll(keyboardVisibility).toEqual({native:false,reported:false});
+    await page.getByTestId('dialog-submit').click();
+    await expect(page.locator('.note-title h1')).toHaveText('Mobile Scratch');
+    await page.getByRole('button',{name:'Mobile open tabs',exact:true}).click();
+    await expect(page.getByRole('dialog',{name:'Open tabs',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Open tab '+notePath,exact:true})).toBeVisible();
+    await page.screenshot({path:path.join(output,'android-tabs.png')});
+    shell('input keyevent 4');
+    await expect(page.getByRole('dialog',{name:'Open tabs',exact:true})).not.toBeVisible();
+    await expect(page.locator('.note-title h1')).toHaveText('Mobile Scratch');
+    await page.getByRole('button',{name:'Mobile back',exact:true}).click();
+    await expect(page.locator('.note-title h1')).toHaveText('Native Probe');
+    await page.getByRole('button',{name:'Mobile forward',exact:true}).click();
+    await expect(page.locator('.note-title h1')).toHaveText('Mobile Scratch');
+    await page.getByRole('button',{name:'Mobile open tabs',exact:true}).click();
+    await page.getByRole('button',{name:'Close tab Mobile Scratch.md',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Open tab Mobile Scratch.md',exact:true})).toHaveCount(0);
+    await page.getByRole('button',{name:'Open tab '+notePath,exact:true}).click();
+    await expect(page.locator('.note-title h1')).toHaveText('Native Probe');
+    await expect.poll(()=>readJSON('engine-profile/state.json').mobileLayout?.active).toBe(notePath);
+    assert.deepEqual(readJSON('engine-profile/state.json').layout,desktopLayout);
+    await restart();
+    await expect(page.locator('.note-title h1')).toHaveText('Native Probe');
+    for(const selector of ['.secondary-pane','.left-sidebar','.right-sidebar'])await expect(page.locator(selector)).toHaveCount(0);
+    assert.deepEqual(readJSON('engine-profile/state.json').layout,desktopLayout);
   });
   await step('native filesystem overwrite, Unicode composition and real keyboard/back',async()=>{
     const editor=page.locator('.editor .cm-content').first();await expect(editor).toBeVisible();
@@ -339,7 +372,7 @@ try{
     await closeSettings();await command('Open native probe modal');
     await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toBeVisible();
     shell('input keyevent 4');await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toHaveCount(0);
-    await page.getByRole('button',{name:'Native ribbon probe',exact:true}).click();
+    await tools();await page.getByRole('button',{name:'Native ribbon probe',exact:true}).click();
     await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toBeVisible();
     shell('input keyevent 4');await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toHaveCount(0);
     await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible();

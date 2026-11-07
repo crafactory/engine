@@ -15,6 +15,8 @@
 - Back dismisses the current sheet/drawer/modal before changing note history; keyboard Back hides the keyboard first.
 - Imported desktop layouts do not reopen drawers/splits. Mobile layout saves do not overwrite the desktop layout.
 - Reload retains mobile tabs/mode/active note, but transient drawers/sheets stay closed.
+- Sheet controls use shadcn/Radix. Dismiss/reopen preserves plugin DOM identity; invoking
+  plugin actions releases sheet focus/inert state before the plugin modal opens.
 - Test 390px portrait, 844px landscape, large native viewport and unchanged 1440px desktop.
 
 ## Native acceptance

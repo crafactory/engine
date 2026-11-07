@@ -20,5 +20,6 @@ for(const [name,info]of Object.entries(packages)){
     try{const content=await fs.readFile(path.join(info.path,candidate),'utf8');output+='### '+candidate+'\n\n```text\n'+content.replaceAll('```','~~~')+'\n```\n\n';}catch{}
   }
 }
+output+='## shadcn/ui registry components\n\nProject: https://github.com/shadcn-ui/ui\n\nLicense: MIT\n\n```text\n'+await fs.readFile('src/components/ui/LICENSE','utf8')+'```\n\n';
 await fs.writeFile('THIRD_PARTY_NOTICES.md',output.trimEnd()+'\n');
 console.log(`Generated notices for ${Object.keys(packages).length-1} production dependencies.`);
