@@ -17,6 +17,34 @@ describe('formatter-independent export inventory', () => {
       'Missing export list',
     );
     expect(() => readExportList('', '.*')).toThrow('Invalid export list name');
+    expect(() =>
+      readExportList("const supportedExports = ['App', runtimeName] as const;", 'supportedExports'),
+    ).toThrow('Invalid export list');
+    expect(() =>
+      readExportList("const supportedExports = ['App']\nas const;", 'supportedExports'),
+    ).toThrow('Invalid export list');
+  });
+  it('stops at the named array despite comments before the const assertion', () => {
+    const source = `
+      const supportedExports = ['App', 'Plugin'] /* retained boundary */ as const;
+      const other = ['must not leak', 'Plugin'] as const;
+    `;
+    expect(readExportList(source, 'supportedExports')).toEqual(['App', 'Plugin']);
+  });
+  it('ignores commented declarations and elements without corrupting quoted strings', () => {
+    const source = `
+      // const supportedExports = ['wrong'] as const;
+      /* const supportedExports = ['also wrong'] as const; */
+      const supportedExports = [
+        'App', // "Plugin" is not another element
+        /* 'fake' */ "Plugin", 'https://example.test/a/*literal*/',
+      ] /* comment between the array and its assertion */ as const;
+    `;
+    expect(readExportList(source, 'supportedExports')).toEqual([
+      'App',
+      'Plugin',
+      'https://example.test/a/*literal*/',
+    ]);
   });
 });
 describe('cross-platform inventory line endings', () => {

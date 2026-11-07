@@ -12,7 +12,7 @@ export const ownedSource = (file) =>
 
 export function structureIssues(file, text, policy) {
   const issues = [];
-  const lines = text.replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n').length;
+  const lines = text.replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n').length;
   const limit = policy.legacyLimits[file] ?? policy.maxLines;
   if (lines > limit)
     issues.push(`${file}: ${lines} lines exceeds ${limit}; extract a focused module`);

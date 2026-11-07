@@ -48,7 +48,7 @@
   ],
   "legacyLimits": {
     "e2e-desktop/renderer.spec.ts": 1387,
-    "scripts/android-acceptance.mjs": 554,
+    "scripts/android-acceptance.mjs": 1068,
     "scripts/inventory.mjs": 531,
     "src/App.tsx": 3846,
     "src/Settings.tsx": 648,

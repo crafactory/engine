@@ -34,7 +34,6 @@
     "e2e/workspace.spec.ts",
     "electron/main.cjs",
     "electron/preload.cjs",
-    "scripts/android-acceptance.mjs",
     "scripts/android-ime-state.mjs",
     "scripts/corpus-report.mjs",
     "scripts/notices.mjs",

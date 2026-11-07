@@ -19,11 +19,12 @@ Branch `chore/oxc-source-policy` now introduces exact-pinned oxlint 1.92.0 / oxf
 check wiring, explicit 500-line defaults/legacy ceilings and source placement guard.
 PR #79 opened draft early. Full 233-file conversion exceeded CodeRabbit's 100-file
 limit, so no effective initial review occurred and no merge exception applies.
-Resize #79 to 94 changed files; 140 existing paths temporarily excluded from formatting,
+Resize #79 to 95 changed files; 139 existing paths temporarily excluded from formatting,
 never new files or whole source directories. Full snapshot is local branch
 `backup/oxc-full-2c34e97`; deferred path data is `/tmp/engine-formatter-adoption-remaining.json`.
-Next batches restore those paths from the snapshot, remove exact exclusions and review
-updated mechanical-only ceilings. 216 executable files in the original full conversion
+The snapshot is read-only comparison evidence, never a source for overwriting current
+files. Remove exact exclusions and format current contents, preserving later edits.
+216 executable files in the original full conversion
 match compiled ASTs after documented syntactic/JSX-text normalization.
 Intentional lint cleanup is separate. Inventory and CSP extraction tolerate formatter
 whitespace without relaxing capability assertions. Format/lint/structure/inventory,
@@ -31,6 +32,28 @@ whitespace without relaxing capability assertions. Format/lint/structure/invento
 There are 8 explicit oversized legacy ceilings in the resized increment. JSX now has
 explicit structure/length regressions. Effective CodeRabbit review and
 full exact-head cloud/native gates remain; do not merge until they pass.
+
+Head `5def3cb` passes both Verify runs, three OS package builds and independent corpus;
+local browser 83/83 and desktop 83 with 22 expected no-corpus skips pass. Full local
+corpus replay is running with `/tmp/engine-plugin-corpus`. Native run 42387137440 failed
+when creation focused the new editor and reopened the real IME, hiding the bottom nav
+before the harness clicked Tabs. Failure screenshot/DOM/input diagnostics confirm that
+expected keyboard state, not an app layout regression. Uncommitted harness repair now
+explicitly clicks the new editor, verifies real/reported IME visibility, presses native
+Back and verifies dismissal before Tabs. The script joins the first formatting batch;
+its 1068-line post-format ceiling replaces the former compact 554-line ceiling.
+Effective CodeRabbit review 5813357111 on `5def3cb` posted four valid findings:
+snapshot restoration guidance, parser boundary, parser comments and lone CR counting.
+Parser now uses the existing TypeScript AST without executing source; tests cover both
+comment findings and fail-closed dynamic elements. CR/mixed-ending boundaries are tested.
+The review disclosed three large diffs unavailable to it; manually audited their focused
+lint cleanup separately from the existing compiled-AST formatting proof.
+One included review/hour is exhausted. Finish this SAME tooling increment by formatting
+current remaining files in a separate mechanical commit, not by restoring a snapshot.
+Remove all temporary adoption exclusions and document the reviewed semantic phase,
+mechanical proof, repairs, service limits and exact-head gates without claiming full
+file-by-file review. Use the owner's bounded post-effective-review exception only with
+all findings repaired and no known blockers. Do not create unreviewed follow-up merges.
 
 ## Next work
 

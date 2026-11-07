@@ -35,6 +35,8 @@ describe('source structure budgets', () => {
     expect(structureIssues('src/App.tsx', 'a\nb\nc\nd\ne\n', policy)).toEqual([]);
     expect(structureIssues('src/App.tsx', 'a\nb\nc\nd\ne\nf\n', policy)).toHaveLength(1);
     expect(structureIssues('src/services/new.ts', 'a\r\nb\r\nc\r\n', policy)).toEqual([]);
+    expect(structureIssues('src/services/new.ts', 'a\rb\r\nc\n', policy)).toEqual([]);
+    expect(structureIssues('src/services/new.ts', 'a\rb\r\nc\nd\r', policy)).toHaveLength(1);
   });
   it('does not extend a legacy exception to a similarly named new file', () => {
     expect(structureIssues('src/services/App.tsx', 'a\nb\nc\nd\n', policy)).toHaveLength(1);

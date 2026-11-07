@@ -21,7 +21,7 @@ are excluded. Lockfiles are ignored by oxfmt itself.
 See the [formatter configuration](https://oxc.rs/docs/guide/usage/formatter/config)
 and [ignore behavior](https://oxc.rs/docs/guide/usage/formatter/ignore-files).
 
-The initial rollout temporarily lists 140 existing files as exact-path formatting
+The initial rollout temporarily lists 139 existing files as exact-path formatting
 exclusions. These are adoption debt, not permanent directory exemptions: new files
 are checked immediately. Remove the listed paths in subsequent mechanical-format
 PRs below the review service's 100-file limit. Lint and structure checks already cover

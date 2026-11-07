@@ -1,12 +1,27 @@
+import ts from 'typescript';
+
 export const normalizeText = (text) => text.replace(/\r\n/g, '\n');
 /** Read the original literal export lists without depending on formatter whitespace. */
 export function readExportList(source, name) {
   if (!/^[A-Za-z]+$/.test(name)) throw new Error('Invalid export list name');
-  const match = source.match(
-    new RegExp('\\b' + name + '\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*as\\s+const\\b'),
-  );
-  if (!match) throw new Error('Missing export list: ' + name);
-  return [...match[1].matchAll(/['"]([^'"]+)['"]/g)].map((item) => item[1]);
+  const parsed = ts.createSourceFile('exports.ts', source, ts.ScriptTarget.Latest, true);
+  for (const statement of parsed.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== name) continue;
+      const value = declaration.initializer;
+      if (
+        !value ||
+        !ts.isAsExpression(value) ||
+        value.type.getText(parsed) !== 'const' ||
+        !ts.isArrayLiteralExpression(value.expression) ||
+        !value.expression.elements.every(ts.isStringLiteralLike)
+      )
+        throw new Error('Invalid export list: ' + name);
+      return value.expression.elements.map((element) => element.text);
+    }
+  }
+  throw new Error('Missing export list: ' + name);
 }
 export function parseParityLedger(text, coreSource, apiSource) {
   const slug = (name) =>
