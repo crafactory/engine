@@ -19,12 +19,13 @@ function SheetPortal({ ...props }: React.ComponentProps<typeof SheetPrimitive.Po
   return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />;
 }
 
-function SheetOverlay({
-  className,
-  ...props
-}: React.ComponentProps<typeof SheetPrimitive.Overlay>) {
+const SheetOverlay = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
+>(({ className, ...props }, ref) => {
   return (
     <SheetPrimitive.Overlay
+      ref={ref}
       data-slot="sheet-overlay"
       className={cn(
         'ui:fixed ui:inset-0 ui:z-50 ui:bg-black/50 ui:data-[state=closed]:animate-out ui:data-[state=closed]:fade-out-0 ui:data-[state=open]:animate-in ui:data-[state=open]:fade-in-0',
@@ -33,22 +34,21 @@ function SheetOverlay({
       {...props}
     />
   );
-}
+});
+SheetOverlay.displayName = 'SheetOverlay';
 
-function SheetContent({
-  className,
-  children,
-  side = 'right',
-  showCloseButton = true,
-  ...props
-}: React.ComponentProps<typeof SheetPrimitive.Content> & {
-  side?: 'top' | 'right' | 'bottom' | 'left';
-  showCloseButton?: boolean;
-}) {
+const SheetContent = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content> & {
+    side?: 'top' | 'right' | 'bottom' | 'left';
+    showCloseButton?: boolean;
+  }
+>(({ className, children, side = 'right', showCloseButton = true, ...props }, ref) => {
   return (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content
+        ref={ref}
         data-slot="sheet-content"
         className={cn(
           'ui:fixed ui:z-50 ui:flex ui:flex-col ui:gap-4 ui:bg-background ui:shadow-lg ui:transition ui:ease-in-out ui:data-[state=closed]:animate-out ui:data-[state=closed]:duration-300 ui:data-[state=open]:animate-in ui:data-[state=open]:duration-500',
@@ -74,7 +74,8 @@ function SheetContent({
       </SheetPrimitive.Content>
     </SheetPortal>
   );
-}
+});
+SheetContent.displayName = 'SheetContent';
 
 function SheetHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (

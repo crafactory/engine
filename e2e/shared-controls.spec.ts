@@ -11,6 +11,24 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('.note-title h1')).toHaveText('Welcome');
 });
 
+test('registry portals do not lose React 18 refs or emit console errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'New note', exact: true }).click();
+  await expect(page.getByTestId('dialog-input')).toBeFocused();
+  await page.getByTestId('dialog-cancel').click();
+  await page.getByRole('button', { name: 'Command palette', exact: true }).click();
+  await expect(page.getByTestId('palette-input')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Editor', exact: true }).click();
+  await expect(page.getByRole('switch', { name: 'lineNumbers', exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('registry prompt selects text, traps Tab and cancels without creating a note', async ({
   page,
 }) => {

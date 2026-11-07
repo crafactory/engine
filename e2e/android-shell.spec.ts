@@ -100,6 +100,10 @@ async function fixture(page: Page, state: Record<string, unknown> = {}) {
   });
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error' && message.text().includes('cannot be given refs'))
+      errors.push(message.text());
+  });
   await page.goto('/');
   await expect(page.locator('.workspace-loading')).toHaveCount(0);
   await expect(page.locator('.note-title h1')).toBeVisible();

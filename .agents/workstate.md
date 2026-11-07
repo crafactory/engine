@@ -32,10 +32,13 @@ navigation. Do not imply every application surface or plugin is already certifie
 
 PR #80 now implements the shared-control scope. Full local check/944 units, four new
 browser regressions and real Electron nested-modal/DOM-identity regression pass.
-Settings is 446 lines, CommunitySettings 266; no raised legacy ceilings.
+Settings is below 500 lines, CommunitySettings 266; no raised legacy ceilings.
 Before review-ready, publish this implementation; then effective CodeRabbit review,
 bounded repairs and exact-head full browser/desktop/package/corpus/native gates.
 Non-modal settings/pointer scrim is documented: no background keyboard-trap claim.
+`c00ff6f` passes fresh local 87/87 browser and 105/105 desktop/corpus. Subsequent
+Dialog/Sheet React 18 portal ref repair and fifth console regression need a new head
+and fresh gates. Preserve actual menu Escape/selection and modal/container assertions.
 
 Final #79 local replay ended 81 passed/2 failed during accidental Vite full reloads
 caused by checkout/docs writes. Both failures passed an isolated stable diagnostic
