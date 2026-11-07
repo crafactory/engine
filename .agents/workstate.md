@@ -20,7 +20,11 @@ modal targets. Focused 15 Android/editor cases pass; final-head full/native/pack
 gates and matching APK inspection are still pending. Earlier native run failed on a
 captured system-launcher ANR; extend the existing one-only launcher recovery into the
 earliest input poll, without accepting application ANRs or weakening keyboard checks.
-Push repairs, resolve repaired threads, and merge only passing exact-head gates.
+All five threads are resolved; browser 83/83, isolated desktop/corpus 105/105 and actual
+Linux package 24/24 passed on `8ce2027`. Its native attempt hung after a ColorBuffer
+error until the job deadline, with no report: not accepted. Bound CDP actions and the
+native process, add startup breadcrumbs, then rerun all exact-head gates and inspect
+the matching native APK/report before merge.
 Verify author AND committer before every commit/merge.
 
 ## Next increment

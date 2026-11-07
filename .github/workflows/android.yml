@@ -47,7 +47,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: node scripts/android-acceptance.mjs
+          script: timeout --signal=TERM --kill-after=10s 12m node scripts/android-acceptance.mjs
         env:
           ENGINE_PLUGIN_CORPUS: ${{ runner.temp }}/plugin-corpus
           ENGINE_TESTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}

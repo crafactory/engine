@@ -67,6 +67,8 @@ async function connect(){
         // A real WebView cannot implement desktop Browser.setDownloadBehavior/context APIs.
         browser=await chromium.connectOverCDP('http://127.0.0.1:9222',{timeout:5000,noDefaults:true});
         page=browser.contexts()[0]?.pages()[0];if(!page)throw new Error('Native WebView has no page');
+        // Library-created CDP pages do not inherit Playwright Test's action deadline.
+        page.setDefaultTimeout(15000);page.setDefaultNavigationTimeout(15000);
         page.on('pageerror',error=>{errors.push(error.stack||error.message);console.error('WEBVIEW ERROR',error);});
         page.on('console',message=>{if(message.type()==='error'){consoleErrors.push(message.text());console.error('WEBVIEW CONSOLE',message.text());}});
         await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible({timeout:20000});
@@ -182,6 +184,7 @@ try{
     metadata.apkSha256=crypto.createHash('sha256').update(await fs.readFile(APK)).digest('hex');
     metadata.androidApi=shell('getprop ro.build.version.sdk').trim();
     adb('install','-r',APK);
+    console.log('ANDROID APK installed; writing app-private fixtures');
     await writeNative('vault/'+notePath,initial);await writeNative('vault/pixel.png',png(32,16));
     await writeNative('vault/.photo.png',png(32,16));
     await writeNative('vault/.crafactory/plugins/incomplete/manifest.json',JSON.stringify({id:'incomplete',name:'Incomplete',version:'1.0.0'}));
@@ -204,7 +207,9 @@ try{
       await writeNative('vault/.crafactory/plugins/'+pinned.directory+'/'+file,bytes);
     }
     assert.equal(manifest.id,pinned.directory);
+    console.log('ANDROID fixtures written; launching and connecting WebView');
     shell(`am start -n ${APP}/.MainActivity`);await connect();
+    console.log('ANDROID WebView connected; checking minimal shell');
     metadata.webView=browser.version();
     assert.equal(new URL(page.url()).origin,'https://localhost');
     assert.deepEqual(await page.evaluate(()=>({platform:window.engine.platform,persistent:window.engine.persistent,desktop:window.engine.desktop,node:typeof window.require})),{platform:'android',persistent:true,desktop:false,node:'undefined'});
