@@ -67,6 +67,8 @@ async function connect(){
         // A real WebView cannot implement desktop Browser.setDownloadBehavior/context APIs.
         browser=await chromium.connectOverCDP('http://127.0.0.1:9222',{timeout:5000,noDefaults:true});
         page=browser.contexts()[0]?.pages()[0];if(!page)throw new Error('Native WebView has no page');
+        // Library-created CDP pages do not inherit Playwright Test's action deadline.
+        page.setDefaultTimeout(15000);page.setDefaultNavigationTimeout(15000);
         page.on('pageerror',error=>{errors.push(error.stack||error.message);console.error('WEBVIEW ERROR',error);});
         page.on('console',message=>{if(message.type()==='error'){consoleErrors.push(message.text());console.error('WEBVIEW CONSOLE',message.text());}});
         await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible({timeout:20000});
@@ -120,6 +122,9 @@ module.exports=class NativeProbe extends Plugin {
       const open=()=>{
       const {Modal}=require('obsidian');const modal=new Modal(this.app);modal.setTitle('Native probe modal');
       modal.contentEl.textContent='Native Back closes only this modal.';modal.open();
+      const input=document.createElement('input');input.setAttribute('aria-label','Native probe text');
+      const select=document.createElement('select');select.setAttribute('aria-label','Native probe choice');select.add(new Option('One','one'));
+      modal.contentEl.append(input,select);
       };
       this.addCommand({id:'modal',name:'Open native probe modal',callback:open});
       this.addRibbonIcon('check','Native ribbon probe',open);
@@ -133,8 +138,18 @@ function png(width,height){
   const rows=Buffer.alloc(height*(1+width*3));for(let y=0;y<height;y++)for(let x=0;x<width;x++){const p=y*(1+width*3)+1+x*3;rows[p]=115;rows[p+1]=88;rows[p+2]=190;}
   return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(rows)),chunk('IEND',Buffer.alloc(0))]);
 }
+async function tools(){
+  if(!await page.getByRole('dialog',{name:'Tools',exact:true}).isVisible())await page.getByRole('button',{name:'Mobile tools',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Tools',exact:true})).toBeVisible();
+}
+async function mobileSettings(){
+  await tools();await page.getByRole('button',{name:'Mobile settings',exact:true}).click();
+}
+async function mobileMode(name){
+  await tools();await page.getByRole('button',{name,exact:true}).click();
+}
 async function community(){
-  await page.getByRole('button',{name:'Mobile settings',exact:true}).click();
+  await mobileSettings();
   await page.getByRole('button',{name:'Community plugins',exact:true}).click();
 }
 async function enable(name,mode='renderer'){
@@ -147,7 +162,7 @@ async function enable(name,mode='renderer'){
 }
 async function closeSettings(){await page.getByTestId('settings-close').click();}
 async function command(text){
-  await page.getByRole('button',{name:'Mobile commands',exact:true}).click();
+  await tools();await page.getByRole('button',{name:'Mobile commands',exact:true}).click();
   await page.locator('.palette input').click();
   await page.locator('.palette input').fill(text);
   await expect.poll(keyboardVisibility,{timeout:10000}).toEqual({native:true,reported:true});
@@ -162,16 +177,18 @@ async function styleTab(){
   await page.locator('.plugin-settings-content').getByText('Android Probe',{exact:true}).click();
 }
 const notePath='Native Probe.md',initial='# Native Probe\n\nStart\n\n![Native asset](pixel.png)\n';
+const desktopLayout={tabs:[notePath],active:notePath,split:notePath,left:true,right:true,mode:'source'};
 let expectedText=initial;
 try{
   await step('real APK installation and app-private fixtures',async()=>{
     metadata.apkSha256=crypto.createHash('sha256').update(await fs.readFile(APK)).digest('hex');
     metadata.androidApi=shell('getprop ro.build.version.sdk').trim();
     adb('install','-r',APK);
+    console.log('ANDROID APK installed; writing app-private fixtures');
     await writeNative('vault/'+notePath,initial);await writeNative('vault/pixel.png',png(32,16));
     await writeNative('vault/.photo.png',png(32,16));
     await writeNative('vault/.crafactory/plugins/incomplete/manifest.json',JSON.stringify({id:'incomplete',name:'Incomplete',version:'1.0.0'}));
-    await writeNative('engine-profile/state.json',JSON.stringify({settings:{mode:'source',css},layout:{tabs:[notePath],active:notePath,split:null,left:false,right:false,mode:'source'}}));
+    await writeNative('engine-profile/state.json',JSON.stringify({settings:{mode:'source',css},layout:desktopLayout}));
     for(const [id,name,desktop,code]of [
       ['native-probe','Original Native Probe',false,probe],
       ['desktop-probe','Desktop-only Probe',true,'throw new Error("Desktop-only code must not execute on Android");']
@@ -190,16 +207,57 @@ try{
       await writeNative('vault/.crafactory/plugins/'+pinned.directory+'/'+file,bytes);
     }
     assert.equal(manifest.id,pinned.directory);
+    console.log('ANDROID fixtures written; launching and connecting WebView');
     shell(`am start -n ${APP}/.MainActivity`);await connect();
+    console.log('ANDROID WebView connected; checking minimal shell');
     metadata.webView=browser.version();
     assert.equal(new URL(page.url()).origin,'https://localhost');
     assert.deepEqual(await page.evaluate(()=>({platform:window.engine.platform,persistent:window.engine.persistent,desktop:window.engine.desktop,node:typeof window.require})),{platform:'android',persistent:true,desktop:false,node:'undefined'});
-    await expect(page.locator('.statusbar')).toContainText('Saved locally');
+    await tools();await expect(page.getByRole('status',{name:'Save status'})).toContainText('Saved locally');
+    await page.getByRole('button',{name:'Close mobile sheet',exact:true}).click();
     await expect(page.locator('.note-title h1')).toHaveText('Native Probe');
-    await expect(page.locator('.ribbon')).toBeHidden();
+    for(const selector of ['.ribbon','.tabbar','.note-toolbar','.statusbar','.secondary-pane'])await expect(page.locator(selector)).toHaveCount(0);
     const targets=await page.locator('.mobile-nav button').evaluateAll(buttons=>buttons.map(button=>{const r=button.getBoundingClientRect();return {width:r.width,height:r.height};}));
-    assert.equal(targets.length,4);assert(targets.every(target=>target.width>=44&&target.height>=44));
+    assert.equal(targets.length,6);assert(targets.every(target=>target.width>=44&&target.height>=44));
     await page.screenshot({path:path.join(output,'android-workspace.png')});
+  });
+  await step('native minimal shell creates, switches and closes real tabs without changing desktop layout',async()=>{
+    await expect.poll(()=>readJSON('engine-profile/state.json').mobileLayout?.active).toBe(notePath);
+    assert.deepEqual(readJSON('engine-profile/state.json').layout,desktopLayout);
+    await page.getByRole('button',{name:'Mobile new note',exact:true}).click();
+    await page.getByTestId('dialog-input').fill('Mobile Scratch.md');
+    await expect.poll(async()=>{
+      // The first native input can encounter the same captured Pixel Launcher
+      // ANR as the composition scenario. Never dismiss an application ANR.
+      await recoverLauncherAnr();
+      await page.getByTestId('dialog-input').click();
+      return keyboardVisibility();
+    },{timeout:15000}).toEqual({native:true,reported:true});
+    shell('input keyevent 4');await expect.poll(keyboardVisibility).toEqual({native:false,reported:false});
+    await page.getByTestId('dialog-submit').click();
+    await expect(page.locator('.note-title h1')).toHaveText('Mobile Scratch');
+    await page.getByRole('button',{name:'Mobile open tabs',exact:true}).click();
+    await expect(page.getByRole('dialog',{name:'Open tabs',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Open tab '+notePath,exact:true})).toBeVisible();
+    await page.screenshot({path:path.join(output,'android-tabs.png')});
+    shell('input keyevent 4');
+    await expect(page.getByRole('dialog',{name:'Open tabs',exact:true})).not.toBeVisible();
+    await expect(page.locator('.note-title h1')).toHaveText('Mobile Scratch');
+    await page.getByRole('button',{name:'Mobile back',exact:true}).click();
+    await expect(page.locator('.note-title h1')).toHaveText('Native Probe');
+    await page.getByRole('button',{name:'Mobile forward',exact:true}).click();
+    await expect(page.locator('.note-title h1')).toHaveText('Mobile Scratch');
+    await page.getByRole('button',{name:'Mobile open tabs',exact:true}).click();
+    await page.getByRole('button',{name:'Close tab Mobile Scratch.md',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Open tab Mobile Scratch.md',exact:true})).toHaveCount(0);
+    await page.getByRole('button',{name:'Open tab '+notePath,exact:true}).click();
+    await expect(page.locator('.note-title h1')).toHaveText('Native Probe');
+    await expect.poll(()=>readJSON('engine-profile/state.json').mobileLayout?.active).toBe(notePath);
+    assert.deepEqual(readJSON('engine-profile/state.json').layout,desktopLayout);
+    await restart();
+    await expect(page.locator('.note-title h1')).toHaveText('Native Probe');
+    for(const selector of ['.secondary-pane','.left-sidebar','.right-sidebar'])await expect(page.locator(selector)).toHaveCount(0);
+    assert.deepEqual(readJSON('engine-profile/state.json').layout,desktopLayout);
   });
   await step('native filesystem overwrite, Unicode composition and real keyboard/back',async()=>{
     const editor=page.locator('.editor .cm-content').first();await expect(editor).toBeVisible();
@@ -297,13 +355,14 @@ try{
     shell('input keyevent 4');await expect.poll(keyboardVisibility).toEqual({native:false,reported:false});
     await expect(page.locator('.left-sidebar')).toBeVisible();
     shell('input keyevent 4');await expect(page.locator('.left-sidebar')).toHaveCount(0);
-    await page.getByRole('button',{name:'Mobile settings',exact:true}).click();
+    await mobileSettings();
     assert(await page.locator('.settings-modal>nav>button').evaluateAll(buttons=>buttons.every(button=>button.scrollWidth<=button.clientWidth+1)),'Mobile settings labels must not overlap');
     await page.getByRole('button',{name:'Core plugins',exact:true}).click();
     await page.getByRole('switch',{name:'Enable Search',exact:true}).uncheck();
     await page.getByRole('switch',{name:'Enable Command palette',exact:true}).uncheck();
     await closeSettings();
     await expect(page.getByRole('button',{name:'Mobile search',exact:true})).toBeDisabled();
+    await tools();
     await expect(page.getByRole('button',{name:'Mobile commands',exact:true})).toBeDisabled();
     await page.getByRole('button',{name:'Mobile settings',exact:true}).click();
     await page.getByRole('button',{name:'Core plugins',exact:true}).click();
@@ -326,8 +385,9 @@ try{
     await expect.poll(()=>readJSON('engine-profile/plugins/native-probe.json'),{timeout:15000}).toMatchObject({appMobile:true,renderer:true,isMobile:true,isPhone:true,isAndroidApp:true,isDesktopApp:false});
     await closeSettings();await command('Open native probe modal');
     await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toBeVisible();
+    assert(await page.locator('.plugin-modal input,.plugin-modal select').evaluateAll(controls=>controls.length===2&&controls.every(control=>control.getBoundingClientRect().height>=44)));
     shell('input keyevent 4');await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toHaveCount(0);
-    await page.getByRole('button',{name:'Native ribbon probe',exact:true}).click();
+    await tools();await page.getByRole('button',{name:'Native ribbon probe',exact:true}).click();
     await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toBeVisible();
     shell('input keyevent 4');await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toHaveCount(0);
     await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible();
@@ -348,7 +408,7 @@ try{
     await closeSettings();
   });
   await step('native save failure retains draft and refuses root Back until recovery',async()=>{
-    await page.getByRole('button',{name:'Source mode',exact:true}).click();
+    await mobileMode('Source mode');
     const editor=page.locator('.editor .cm-content').first();
     await editor.click();await page.keyboard.press('Control+End');
     shell(`run-as ${APP} mv ${quote('files/vault/'+notePath)} ${quote('files/vault/'+notePath+'.blocked')}`);
@@ -376,7 +436,7 @@ try{
     await expect(page.locator('.error-banner')).toHaveCount(0);
   });
   await step('background flush does not unload plugins; restart keeps values but not trust',async()=>{
-    await page.getByRole('button',{name:'Source mode',exact:true}).click();
+    await mobileMode('Source mode');
     await page.locator('.editor .cm-content').first().click();await page.keyboard.press('Control+End');
     // Hold 500ms autosaves beyond this entire assertion window: only native lifecycle
     // persistence can satisfy the exact-byte check. Restore the timer API afterward.
@@ -418,6 +478,9 @@ try{
     assert(file.endsWith('.zip'),'Native chooser must reference a retained ZIP');
     const zipBytes=rawNative(file);
     const zip=await JSZip.loadAsync(zipBytes);assert.equal(await zip.file(notePath).async('string'),expectedText);
+    const exportedState=JSON.parse(await zip.file('.crafactory/state.json').async('string'));
+    assert.deepEqual(exportedState.layout,desktopLayout);
+    assert.equal(exportedState.mobileLayout.active,notePath);
     assert.deepEqual(Buffer.from(await zip.file('.photo.png').async('uint8array')),png(32,16));
     await expect(page.locator('.error-banner')).toHaveCount(0);
     shell('input keyevent 4'); // dismiss the OS chooser; no content is sent to a recipient

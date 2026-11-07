@@ -3,7 +3,9 @@
 Status: Android development pilot with bounded native acceptance, not a production release.
 [PR #76 artifacts](https://github.com/crafactory/engine/pull/76) are historical baseline
 evidence. Use [VERIFICATION.md](VERIFICATION.md) and the current PR's exact-head Android
-check, currently [PR #77](https://github.com/crafactory/engine/pull/77), for later changes.
+check for later changes. The minimal-shell increment is being developed in
+[PR #78](https://github.com/crafactory/engine/pull/78); its acceptance is not implied by
+historical pilot results.
 This increment
 follows the merged [Live Editing repairs](https://github.com/crafactory/engine/pull/75).
 The current plugin verdicts remain in [PLUGIN-SUPPORT-MATRIX.md](PLUGIN-SUPPORT-MATRIX.md);
@@ -39,6 +41,22 @@ no such claim ([Obsidian mobile development](https://docs.obsidian.md/Plugins/Ge
   and bounded unchanged-plugin settings controls in the native WebView.
 - Keep Node/Electron unavailable. Refuse `isDesktopOnly` manifests on Android, rather
   than advertising native desktop capabilities.
+
+## Content-first native UI
+
+Android mounts a separate header and six-button bottom navigation instead of the
+desktop ribbon, draggable tabs, breadcrumbs and status strip. The tab count opens
+real tab management; Tools exposes modes, settings, commands, context, bookmarks,
+optional note properties and retained plugin contribution hosts. Header/navigation
+buttons and the tab/Tools sheet use the [shared shadcn foundation](UI.md).
+
+Native layouts use `mobileLayout`; existing desktop `layout` is preserved. Startup
+and named workspace loads suppress mobile splits and transient drawers. New native
+profiles default to light, while existing theme preferences remain unchanged.
+Vault ZIP export retains both layouts and property types. A reading-mode startup
+returns to the configured Source/Live preference when Edit is selected.
+Browser fixtures cover portrait, landscape, tablet and narrow widths; only the
+exact-head APK job establishes the bounded native behaviors it actually executes.
 
 ## Storage and trust boundaries
 

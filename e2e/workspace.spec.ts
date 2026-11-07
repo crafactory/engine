@@ -133,12 +133,8 @@ test('mobile viewport keeps document and dialogs usable',async({page})=>{
   await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();await expect(page.locator('.note-title h1')).toBeVisible();await command(page,'Create new note');await page.getByTestId('dialog-input').fill('Mobile.md');await page.getByTestId('dialog-submit').click();await expect(page.locator('.note-title h1')).toHaveText('Mobile');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.getByRole('button',{name:'Settings',exact:true}).click();
-  // CSS-only regression, not native runtime certification. Native 44px touch
-  // minima expose the old flex-shrink text overlap that a browser viewport alone misses.
-  await page.evaluate(()=>document.body.classList.add('native-android'));
-  const oldShrink=await page.addStyleTag({content:'.settings-modal>nav>button{flex-shrink:1!important}'});
-  expect(await page.locator('.settings-modal>nav>button').evaluateAll(buttons=>buttons.every(button=>button.scrollWidth<=button.clientWidth+1))).toBe(false);
-  await oldShrink.evaluate(style=>style.remove());
+  // Native touch-minimum/mutation coverage lives in the actual Android-identity
+  // fixture in android-shell.spec.ts, not a CSS class added to the desktop shell.
   expect(await page.locator('.settings-modal>nav>button').evaluateAll(buttons=>buttons.every(button=>button.scrollWidth<=button.clientWidth+1))).toBe(true);
   expect(await page.locator('.settings-modal>nav').evaluate(nav=>nav.scrollWidth>nav.clientWidth)).toBe(true);
 });

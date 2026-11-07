@@ -14,3 +14,7 @@ it('rejects malformed layouts and bounds tab admission',()=>{
   for(const value of [null,{}, {...base,mode:'execute'},{...base,left:'true'},{...base,tabs:Array(501).fill('A.md')}])expect(readWorkspaceLayout(value,['A.md'])).toBeUndefined();
   expect(readWorkspaceLayout({...base,tabs:[],active:'A.md',split:null},['A.md'])?.active).toBe('');
 });
+it('restores mobile documents without desktop splits or persistent drawers',()=>{
+  expect(readWorkspaceLayout({...base,right:true},['A.md','B.md'],true)).toEqual({...base,split:null,left:false,right:false});
+  expect(readWorkspaceLayout({...base,right:true},['A.md','B.md'])).toEqual({...base,right:true});
+});

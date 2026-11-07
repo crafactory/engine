@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import '@fontsource-variable/inter';
 import 'katex/dist/katex.min.css';
 import '@xyflow/react/dist/style.css';
+import './components/ui/ui.css';
 import './style.css';
 class Boundary extends React.Component<{children:React.ReactNode},{error:string}> {
   state={error:''};

@@ -26,6 +26,11 @@ test('Android Back owns visible drawers and settings while plugin discovery is p
   await expect(page.locator('.left-sidebar')).toBeVisible();
   expect(await page.evaluate(()=>(window as any).fixtureBack())).toBe(true);
   await expect(page.locator('.left-sidebar')).toHaveCount(0);
+  await page.getByRole('button',{name:'Mobile tools',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Tools',exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>(window as any).fixtureBack())).toBe(true);
+  await expect(page.getByRole('dialog',{name:'Tools',exact:true})).not.toBeVisible();
+  await page.getByRole('button',{name:'Mobile tools',exact:true}).click();
   await page.getByRole('button',{name:'Mobile settings',exact:true}).click();
   await expect(page.getByRole('dialog',{name:'Settings',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>(window as any).fixtureBack())).toBe(true);
