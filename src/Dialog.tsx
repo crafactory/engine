@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { X } from 'lucide-react';
 import {
@@ -24,15 +24,26 @@ interface PromptState {
 
 function Prompt({
   dialog,
+  requestId,
   setDialog,
   finish,
 }: {
   dialog: PromptState;
+  requestId: number;
   setDialog: (value: PromptState) => void;
   finish: (value: string | null) => void;
 }) {
   const form = useRef<HTMLFormElement>(null);
   const returnFocus = useOverlayFocusReturn();
+  /** Reset each request without remounting the focus scope or losing its return target. */
+  const focusInitial = useCallback(() => {
+    const input = form.current?.querySelector('input');
+    if (input) {
+      input.focus();
+      input.select();
+    } else form.current?.querySelector<HTMLButtonElement>('[data-testid="dialog-cancel"]')?.focus();
+  }, []);
+  useLayoutEffect(focusInitial, [focusInitial, requestId]);
   return (
     <Dialog
       open
@@ -48,14 +59,7 @@ function Prompt({
         onCloseAutoFocus={returnFocus}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
-          const input = form.current?.querySelector('input');
-          if (input) {
-            input.focus();
-            input.select();
-          } else
-            form.current
-              ?.querySelector<HTMLButtonElement>('[data-testid="dialog-cancel"]')
-              ?.focus();
+          focusInitial();
         }}
       >
         <form
@@ -111,6 +115,7 @@ function Prompt({
 export function useDialog() {
   const [dialog, setDialog] = useState<PromptState | null>(null);
   const resolve = useRef<(value: string | null) => void>();
+  const requestId = useRef(0);
   useEffect(
     () => () => {
       resolve.current?.(null);
@@ -128,6 +133,7 @@ export function useDialog() {
     resolve.current?.(null);
     return new Promise((done) => {
       resolve.current = done;
+      requestId.current++;
       setDialog(next);
     });
   }
@@ -149,6 +155,8 @@ export function useDialog() {
     confirm,
     open: dialog !== null,
     cancel: () => finish(null),
-    ui: dialog ? <Prompt dialog={dialog} setDialog={setDialog} finish={finish} /> : null,
+    ui: dialog ? (
+      <Prompt dialog={dialog} requestId={requestId.current} setDialog={setDialog} finish={finish} />
+    ) : null,
   };
 }

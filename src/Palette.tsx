@@ -53,7 +53,12 @@ export function Palette({
     .sort((a, b) => b.score - a.score)
     .slice(0, 60)
     .map((entry) => entry.item);
-  const active = filtered.some((item) => item.id === selected) ? selected : (filtered[0]?.id ?? '');
+  // cmdk trims values; JSON string encoding preserves whitespace-significant file IDs.
+  const active = filtered.some((item) => JSON.stringify(item.id) === selected)
+    ? selected
+    : filtered[0]
+      ? JSON.stringify(filtered[0].id)
+      : '';
   const run = (item: Choice) => {
     flushSync(onClose);
     item.run();
@@ -109,7 +114,12 @@ export function Palette({
               <p>{onCreate ? 'Press Enter to create this note.' : 'Try a shorter command name.'}</p>
             </CommandEmpty>
             {filtered.map((item) => (
-              <CommandItem key={item.id} value={item.id} onSelect={() => run(item)} asChild>
+              <CommandItem
+                key={item.id}
+                value={JSON.stringify(item.id)}
+                onSelect={() => run(item)}
+                asChild
+              >
                 <Button variant="ghost" data-testid={'palette-item-' + item.id}>
                   {title === 'Quick switcher' ? <FileText /> : <Terminal />}
                   <span className="app-command-label">

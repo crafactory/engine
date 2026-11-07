@@ -49,6 +49,30 @@ Baseline screenshots: `/tmp/engine-ui-baseline-*.png`; accepted native files:
 
 ## Constraints and next checks
 
+Effective CodeRabbit review 5813746556 covered `ef8a3fa`: three actionable findings.
+All three reproduced in new browser negative controls (prompt replacement, whitespace
+IDs, layered native-select padding). Repairs preserve the mounted focus scope, encode
+cmdk values reversibly and move the padding override into the existing base layer.
+The optional selected-result IME case is also covered. Fresh repaired-head gates pending.
+
+`ef8a3fa` local full browser 88/88 and desktop/corpus 105/105 passed. Both Verify,
+three packages and native acceptance passed. Independent corpus run 42392098113
+failed only Dataview's existing inline assertion. Diagnostic black-box replays
+(four ordinary, eight CPU-throttled and three delayed-static-render cases) passed;
+they do not establish the CI failure's cause. Original controlled fixture independently
+reproduced premature retirement of an async child admitted before DOM insertion.
+Track first attachment before removal-based retirement, retaining unconditional
+session/registration cleanup; add attachment and never-attached cleanup regressions.
+Do not claim this proves the Dataview failure's root cause. Keep its assertion unchanged,
+attach actual DOM/screens on failure, and require fresh independent corpus acceptance.
+
+Repaired source full check passes (944 units/build), fresh-server focused browser
+15/15 and focused Electron/real-Dataview 3/3 pass. Preserve these as pre-commit evidence,
+not final exact-head acceptance. Vite 6 cached an empty Dialog transform after formatting;
+curl confirmed it, fresh-server replay fixed the environment and passed all cases.
+Current Vite command 86869, log `/tmp/engine-ui-review-dev.log`. No more source/docs
+writes during final browser replay; no overlapping build and desktop replay.
+
 - No upstream plugin implementation inspection/copying or package modification.
 - Verify author AND committer before every commit/merge; never inspect credentials.
 - Follow CONTRIBUTING: effective initial review, bounded repairs, exact-head gates.

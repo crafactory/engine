@@ -27,8 +27,12 @@
 ## Shared control migration
 - New note/rename selects the initial text; Enter submits; Escape, Cancel and outside
   click cancel without mutations. Tab remains within a modal prompt and focus returns.
+- Replacing an open prompt reselects its initial input, or focuses Cancel for a
+  confirmation, while preserving the original return-focus target.
 - Quick switcher and command palette keep host fuzzy ranking, 60-result cap, arrow
   navigation, Enter/click selection, empty-query behavior and creation from no results.
+- Whitespace-significant file IDs remain distinct; composition Enter neither opens
+  an existing selected result nor creates a missing note.
 - Selecting a command releases palette focus before opening a prompt or plugin modal.
 - Settings keeps appearance/editor/files/hotkeys/core/community/extensions/about and
   plugin contribution panels. Changes still save, permission warnings remain explicit,
@@ -38,3 +42,6 @@
   dark/light themes, long labels and keyboard-open native states.
 - Use registry primitives with the existing prefixed, no-preflight shared theme.
   Retest native Back ownership and real IME, not only simulated browser events.
+- Settings native selects reserve space for their chevron in the actual CSS cascade.
+- An asynchronous render child may attach after sibling mutations; only a subsequent
+  removal retires it. Never-attached children still drain when their session closes.

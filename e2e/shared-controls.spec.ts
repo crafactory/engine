@@ -69,6 +69,49 @@ test('palette releases focus to the next prompt and confirmation starts on Cance
   await expect(page.getByTestId('file-Keep migration.md')).toBeVisible();
   await expect(page.locator('.app-prompt')).toHaveCount(0);
 });
+test('replacing a prompt resets selection and focuses Cancel without losing return focus', async ({
+  page,
+}) => {
+  const trigger = page.getByRole('button', { name: 'New note', exact: true });
+  await trigger.click();
+  const input = page.getByTestId('dialog-input');
+  await input.fill('Discarded replacement.md');
+  await page.keyboard.press('Control+n');
+  await expect(input).toHaveValue('Untitled.md');
+  expect(
+    await input.evaluate((element: HTMLInputElement) =>
+      element.value.slice(element.selectionStart!, element.selectionEnd!),
+    ),
+  ).toBe('Untitled.md');
+  // The native menu can replace a prompt while its Radix focus scope remains mounted.
+  await page.evaluate(() =>
+    window.dispatchEvent(new CustomEvent('engine-command', { detail: 'delete-note' })),
+  );
+  await expect(page.getByTestId('dialog-cancel')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('file-Welcome.md')).toBeVisible();
+  await expect(page.getByTestId('file-Discarded replacement.md')).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
+
+test('quick switcher preserves whitespace-significant file identities', async ({ page }) => {
+  for (const name of ['Identity.md', ' Identity.md']) {
+    await page.getByRole('button', { name: 'New note', exact: true }).click();
+    await page.getByTestId('dialog-input').fill(name);
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('file-' + name)).toBeVisible();
+  }
+  await command(page, 'Open quick switcher');
+  await page.getByTestId('palette-input').fill('Identity');
+  const options = page.getByRole('option');
+  await expect(options).toHaveCount(2);
+  const target = (await options.nth(1).getAttribute('data-testid'))!.slice('palette-item-'.length);
+  await page.keyboard.press('ArrowDown');
+  await expect(options.nth(0)).toHaveAttribute('data-selected', 'false');
+  await expect(options.nth(1)).toHaveAttribute('data-selected', 'true');
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('file-' + target)).toHaveClass(/selected/);
+});
 
 test('switcher arrows select real results and composition Enter cannot create a note', async ({
   page,
@@ -86,6 +129,12 @@ test('switcher arrows select real results and composition Enter cannot create a 
     chosen.replace(/\.md$/, '').split('/').at(-1)!,
   );
   await command(page, 'Open quick switcher');
+  await input.fill('');
+  await expect(options.first()).toHaveAttribute('data-selected', 'true');
+  const beforeComposition = await page.locator('.note-title h1').innerText();
+  await input.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true });
+  await expect(input).toBeFocused();
+  await expect(page.locator('.note-title h1')).toHaveText(beforeComposition);
   await input.fill('No matches composition fixture');
   await expect(options).toHaveCount(0);
   await input.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true });
@@ -99,6 +148,12 @@ test('settings navigation is reachable at phone and short landscape sizes in bot
   page,
 }) => {
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Editor', exact: true }).click();
+  const nativeSelect = page.locator('.app-settings [data-slot="native-select"]').first();
+  await expect(nativeSelect).toBeVisible();
+  expect(
+    await nativeSelect.evaluate((element) => parseFloat(getComputedStyle(element).paddingRight)),
+  ).toBeGreaterThanOrEqual(32);
   for (const size of [
     { width: 375, height: 812 },
     { width: 844, height: 390 },

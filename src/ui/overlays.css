@@ -95,9 +95,6 @@
   border: 0;
   background-clip: content-box;
 }
-.app-settings [data-slot='native-select'] {
-  padding-right: var(--space-8) !important;
-}
 .native-android .app-settings [data-slot='button'],
 .native-android .app-settings [data-slot='input'],
 .native-android .app-settings [data-slot='native-select'],
