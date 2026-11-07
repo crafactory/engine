@@ -53,6 +53,8 @@ buttons and the tab/Tools sheet use the [shared shadcn foundation](UI.md).
 Native layouts use `mobileLayout`; existing desktop `layout` is preserved. Startup
 and named workspace loads suppress mobile splits and transient drawers. New native
 profiles default to light, while existing theme preferences remain unchanged.
+Vault ZIP export retains both layouts and property types. A reading-mode startup
+returns to the configured Source/Live preference when Edit is selected.
 Browser fixtures cover portrait, landscape, tablet and narrow widths; only the
 exact-head APK job establishes the bounded native behaviors it actually executes.
 

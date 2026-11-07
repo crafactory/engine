@@ -5,6 +5,7 @@ async function prepare(page:Page,source:string){
   await page.goto('/');await expect(page.locator('.note-title h1')).toHaveText('Welcome');
   await page.getByRole('button',{name:'New note',exact:true}).click();
   await page.getByTestId('dialog-input').fill('Stability.md');await page.getByTestId('dialog-submit').click();
+  await expect(page.locator('.note-title h1')).toHaveText('Stability');
   await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();
   await page.keyboard.press('ControlOrMeta+a');await page.keyboard.insertText(source);
   await page.getByTestId('mode-live').click();

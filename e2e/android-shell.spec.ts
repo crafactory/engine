@@ -1,4 +1,5 @@
 import {test,expect,type Page} from '@playwright/test';
+import JSZip from 'jszip';
 
 test.use({viewport:{width:390,height:844},hasTouch:true});
 const desktopLayout={tabs:['A.md','B.md'],active:'A.md',split:'B.md',left:true,right:true,mode:'source'};
@@ -7,12 +8,14 @@ const desktopLayout={tabs:['A.md','B.md'],active:'A.md',split:'B.md',left:true,r
 async function fixture(page:Page,state:Record<string,unknown>={}){
   const files=new Map([['A.md',{content:'# Alpha\n\nShared editor body.\n',version:'1'}],['B.md',{content:'# Beta\n\nOther note.\n',version:'1'}]]);
   let saved:Record<string,any>={settings:{mode:'source'},layout:structuredClone(desktopLayout),...state},failWrites=false;
+  const exports:{bytes:number[]}[]=[];
   const entries=()=>[...files].map(([path,file])=>({path,name:path,folder:false,size:file.content.length,mtime:1,ctime:1}));
   await page.exposeFunction('fixtureCall',async(method:string,...args:any[])=>{
     if(method==='vault')return {name:'Mobile fixture',root:'fixture',entries:entries(),state:saved};
     if(method==='list')return entries();
     if(method==='read'){const file=files.get(args[0]);if(!file)throw new Error('File not found');return {path:args[0],...file};}
     if(method==='state'){saved=args[0];return;}
+    if(method==='export'){exports.push(args[0]);return;}
     if(method==='write'||method==='create'){
       if(failWrites)throw new Error('Fixture disk write failed');
       const [path,content,version]=args,old=files.get(path);
@@ -31,6 +34,7 @@ async function fixture(page:Page,state:Record<string,unknown>={}){
       vault:()=>call('vault'),list:()=>call('list'),read:(path:string)=>call('read',path),
       write:(...args:unknown[])=>call('write',...args),create:(...args:unknown[])=>call('create',...args),
       state:(value:unknown)=>call('state',value),plugins:async()=>[],pluginData:async()=>null,
+      exportFile:async(_name:string,blob:Blob)=>call('export',{bytes:Array.from(new Uint8Array(await blob.arrayBuffer()))}),
       nativePlugins:async()=>false,unsafeEval:async()=>false,onChange:()=>()=>{},onSuspend:()=>()=>{},
       onBack:(handler:()=>Promise<boolean>)=>{handlers.add(handler);return()=>handlers.delete(handler);}
     };
@@ -38,7 +42,7 @@ async function fixture(page:Page,state:Record<string,unknown>={}){
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('/');await expect(page.locator('.workspace-loading')).toHaveCount(0);
   await expect(page.locator('.note-title h1')).toBeVisible();
-  return {files,state:()=>saved,errors,failWrites:(value:boolean)=>{failWrites=value;}};
+  return {files,state:()=>saved,exports,errors,failWrites:(value:boolean)=>{failWrites=value;}};
 }
 async function tools(page:Page){await page.getByRole('button',{name:'Mobile tools',exact:true}).click();await expect(page.getByRole('dialog',{name:'Tools',exact:true})).toBeVisible();}
 async function command(page:Page,text:string){await tools(page);await page.getByRole('button',{name:'Mobile commands',exact:true}).click();await page.getByTestId('palette-input').fill(text);await page.locator('.palette-list button').filter({hasText:text}).first().click();}
@@ -124,19 +128,31 @@ test('Tools retains plugin hosts and exposes settings/context without blocking p
   const f=await fixture(page);
   await page.evaluate(()=>{
     const host=document.getElementById('plugin-ribbon')!;(window as any).originalRibbon=host;
+    const status=document.getElementById('plugin-status')!;
+    const toggle=document.createElement('button');toggle.textContent='Owned toggle';toggle.setAttribute('role','switch');toggle.setAttribute('aria-checked','false');
+    toggle.onclick=()=>toggle.setAttribute('aria-checked',String(toggle.getAttribute('aria-checked')!=='true'));
+    const tab=document.createElement('button');tab.textContent='Owned tab';tab.setAttribute('role','tab');tab.setAttribute('aria-selected','false');
+    tab.onclick=()=>tab.setAttribute('aria-selected','true');status.append(toggle,tab);
     const button=document.createElement('button');button.textContent='Owned probe action';
     button.onclick=()=>{
       const modal=document.createElement('div');modal.setAttribute('role','dialog');modal.setAttribute('aria-label','Owned probe dialog');
+      modal.className='plugin-modal';
       modal.style.cssText='position:fixed;inset:40px;z-index:1000;background:white';
+      const input=document.createElement('input'),select=document.createElement('select');select.add(new Option('One','one'));modal.append(input,select);
       const close=document.createElement('button');close.textContent='Close owned probe';close.onclick=()=>modal.remove();modal.append(close);document.body.append(modal);
     };host.append(button);
   });
   await tools(page);await expect(page.getByRole('button',{name:'Owned probe action'})).toBeVisible();
+  await page.getByRole('switch',{name:'Owned toggle'}).click();await expect(page.getByRole('switch',{name:'Owned toggle'})).toBeChecked();
+  await page.getByRole('tab',{name:'Owned tab'}).click();await expect(page.getByRole('tab',{name:'Owned tab'})).toHaveAttribute('aria-selected','true');
+  await expect(page.getByRole('dialog',{name:'Tools',exact:true})).toBeVisible();
   await page.keyboard.press('Escape');
+  await expect(page.getByRole('button',{name:'Mobile tools',exact:true})).toBeFocused();
   expect(await page.evaluate(()=>document.getElementById('plugin-ribbon')===(window as any).originalRibbon)).toBe(true);
   await tools(page);await page.getByRole('button',{name:'Owned probe action'}).click();
   await expect(page.getByRole('dialog',{name:'Tools',exact:true})).not.toBeVisible();
   await expect(page.getByRole('dialog',{name:'Owned probe dialog'})).toBeVisible();
+  expect(await page.locator('.plugin-modal input,.plugin-modal select').evaluateAll(controls=>controls.length===2&&controls.every(control=>control.getBoundingClientRect().height>=44))).toBe(true);
   await page.getByRole('button',{name:'Close owned probe'}).click();
   await tools(page);await page.getByRole('button',{name:'Note context',exact:true}).click();
   await expect(page.locator('.right-sidebar')).toBeVisible();
@@ -164,6 +180,24 @@ test('Tools retains plugin hosts and exposes settings/context without blocking p
   await page.keyboard.press('Escape');expect(f.errors).toEqual([]);
 });
 
+test('Android reading startup restores the preferred editing mode and ZIP preserves both layouts',async({page})=>{
+  const mobileLayout={...desktopLayout,tabs:['B.md','A.md'],active:'B.md',split:null,left:false,right:false,mode:'reading'};
+  const f=await fixture(page,{mobileLayout,propertyTypes:{project:'text'}});
+  await expect(page.locator('.reading-surface')).toBeVisible();
+  await page.getByRole('button',{name:'Edit note',exact:true}).click();
+  await tools(page);await expect(page.getByTestId('mode-source')).toHaveAttribute('aria-pressed','true');
+  await page.keyboard.press('Escape');
+  await command(page,'Export entire vault');
+  await expect.poll(()=>f.exports.length).toBe(1);
+  const zip=await JSZip.loadAsync(new Uint8Array(f.exports[0].bytes));
+  const state=JSON.parse(await zip.file('.crafactory/state.json')!.async('string'));
+  expect(state.layout).toEqual(desktopLayout);
+  expect(state.propertyTypes).toEqual({project:'text'});
+  expect(state.mobileLayout).toMatchObject({...mobileLayout,mode:'source'});
+  expect(await zip.file('B.md')!.async('string')).toBe(f.files.get('B.md')!.content);
+  expect(f.errors).toEqual([]);
+});
+
 test('native shell keeps failed drafts visible and permits explicit save retry',async({page})=>{
   const f=await fixture(page);f.failWrites(true);
   await page.getByTestId('note-editor').click();await page.keyboard.press('Control+End');await page.keyboard.insertText('\nKeep this draft');
@@ -175,4 +209,22 @@ test('native shell keeps failed drafts visible and permits explicit save retry',
   await expect.poll(()=>f.files.get('A.md')?.content).toContain('Keep this draft');
   await expect(page.locator('.mobile-unsaved-dot')).toHaveCount(0);
   expect(f.errors).toEqual([]);
+});
+
+test.describe('shadcn theme follows the application preference',()=>{
+  test.use({hasTouch:false});
+  for(const theme of ['light','dark'] as const)test(`${theme} ignores the opposite system theme`,async({page})=>{
+    await page.emulateMedia({colorScheme:theme==='light'?'dark':'light'});
+    const f=await fixture(page,{settings:{mode:'source',theme}});
+    await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
+    const button=page.getByRole('button',{name:'Mobile more actions',exact:true});
+    await button.hover();
+    const expected=await page.evaluate(theme=>{
+      const probe=document.createElement('span');
+      probe.style.backgroundColor=theme==='dark'?'color-mix(in oklab, var(--hover) 50%, transparent)':'var(--hover)';
+      document.body.append(probe);const value=getComputedStyle(probe).backgroundColor;probe.remove();return value;
+    },theme);
+    await expect.poll(()=>button.evaluate(element=>getComputedStyle(element).backgroundColor)).toBe(expected);
+    expect(f.errors).toEqual([]);
+  });
 });

@@ -274,6 +274,7 @@ export function App(){
       updateNotes(all);setEntries(vault.entries);setVaultName(vault.name);setRoot(vault.root);
       const state=vault.state;
       const pref={...platformDefaults,...state.settings};setSettings(pref);setMode(persistent?pref.mode:'reading');
+      lastEditMode.current=pref.mode==='source'?'source':'live';
       setBookmarksFromService(state.bookmarks||[]);setWorkspacesFromService(state.workspaces||{});setRecent(state.recent||[]);setPropertyTypes(readPropertyTypes(state.propertyTypes));
       const path=all.find(n=>n.path==='Welcome.md')?.path||all.find(n=>isNote(n.path))?.path||all[0]?.path||'';
       savedLayouts.current={layout:state.layout,mobileLayout:state.mobileLayout};
@@ -603,7 +604,7 @@ export function App(){
         if(textFile(e.path))zip.file(e.path,(await bridge.read(e.path)).content);
         else {const asset=await bridge.asset(e.path);if(asset.startsWith('data:'))zip.file(e.path,asset.split(',')[1],{base64:true});else if(asset){const response=await fetch(asset);zip.file(e.path,await response.blob());}}
       }
-      zip.file('.crafactory/state.json',JSON.stringify({settings,bookmarks,workspaces,recent},null,2));
+      zip.file('.crafactory/state.json',JSON.stringify(vaultState.current,null,2));
       await download(vaultName+'.zip',await zip.generateAsync({type:'blob'}),'application/zip');toast(nativeAndroid?'Vault sent to Android share sheet.':'Vault exported.');
     }catch(e){report(e);}
   }

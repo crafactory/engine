@@ -120,6 +120,9 @@ module.exports=class NativeProbe extends Plugin {
       const open=()=>{
       const {Modal}=require('obsidian');const modal=new Modal(this.app);modal.setTitle('Native probe modal');
       modal.contentEl.textContent='Native Back closes only this modal.';modal.open();
+      const input=document.createElement('input');input.setAttribute('aria-label','Native probe text');
+      const select=document.createElement('select');select.setAttribute('aria-label','Native probe choice');select.add(new Option('One','one'));
+      modal.contentEl.append(input,select);
       };
       this.addCommand({id:'modal',name:'Open native probe modal',callback:open});
       this.addRibbonIcon('check','Native ribbon probe',open);
@@ -218,7 +221,13 @@ try{
     assert.deepEqual(readJSON('engine-profile/state.json').layout,desktopLayout);
     await page.getByRole('button',{name:'Mobile new note',exact:true}).click();
     await page.getByTestId('dialog-input').fill('Mobile Scratch.md');
-    await expect.poll(keyboardVisibility,{timeout:10000}).toEqual({native:true,reported:true});
+    await expect.poll(async()=>{
+      // The first native input can encounter the same captured Pixel Launcher
+      // ANR as the composition scenario. Never dismiss an application ANR.
+      await recoverLauncherAnr();
+      await page.getByTestId('dialog-input').click();
+      return keyboardVisibility();
+    },{timeout:15000}).toEqual({native:true,reported:true});
     shell('input keyevent 4');await expect.poll(keyboardVisibility).toEqual({native:false,reported:false});
     await page.getByTestId('dialog-submit').click();
     await expect(page.locator('.note-title h1')).toHaveText('Mobile Scratch');
@@ -371,6 +380,7 @@ try{
     await expect.poll(()=>readJSON('engine-profile/plugins/native-probe.json'),{timeout:15000}).toMatchObject({appMobile:true,renderer:true,isMobile:true,isPhone:true,isAndroidApp:true,isDesktopApp:false});
     await closeSettings();await command('Open native probe modal');
     await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toBeVisible();
+    assert(await page.locator('.plugin-modal input,.plugin-modal select').evaluateAll(controls=>controls.length===2&&controls.every(control=>control.getBoundingClientRect().height>=44)));
     shell('input keyevent 4');await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toHaveCount(0);
     await tools();await page.getByRole('button',{name:'Native ribbon probe',exact:true}).click();
     await expect(page.getByRole('dialog',{name:'Native probe modal',exact:true})).toBeVisible();
@@ -463,6 +473,9 @@ try{
     assert(file.endsWith('.zip'),'Native chooser must reference a retained ZIP');
     const zipBytes=rawNative(file);
     const zip=await JSZip.loadAsync(zipBytes);assert.equal(await zip.file(notePath).async('string'),expectedText);
+    const exportedState=JSON.parse(await zip.file('.crafactory/state.json').async('string'));
+    assert.deepEqual(exportedState.layout,desktopLayout);
+    assert.equal(exportedState.mobileLayout.active,notePath);
     assert.deepEqual(Buffer.from(await zip.file('.photo.png').async('uint8array')),png(32,16));
     await expect(page.locator('.error-banner')).toHaveCount(0);
     shell('input keyevent 4'); // dismiss the OS chooser; no content is sent to a recipient

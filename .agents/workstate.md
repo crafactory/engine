@@ -14,12 +14,14 @@ six-button bottom pill, real tab management and a Tools sheet. Desktop ribbon/ta
 are not mounted on Android. Preserve desktop layout while saving separate mobile layout;
 mobile startup/workspace loads do not restore desktop splits/drawers.
 
-Implementation is in progress, not accepted. Update browser/native selectors to the real
-new entry points without weakening existing filesystem/IME/plugin/export assertions.
-Add focused mobile interaction/layout regressions; run check, browser, desktop/package
-and exact-head native acceptance. Inspect screenshots and console. Open PR early, require
-an effective CodeRabbit review and bounded repairs, resolve known blockers, then merge
-only passing exact-head gates. Verify author AND committer before every commit/merge.
+PR #78 is ready. Effective CodeRabbit review of `5d6e72f` raised five findings; repairs
+cover export state, startup edit mode, app theme, retained plugin controls and portaled
+modal targets. Focused 15 Android/editor cases pass; final-head full/native/package
+gates and matching APK inspection are still pending. Earlier native run failed on a
+captured system-launcher ANR; extend the existing one-only launcher recovery into the
+earliest input poll, without accepting application ANRs or weakening keyboard checks.
+Push repairs, resolve repaired threads, and merge only passing exact-head gates.
+Verify author AND committer before every commit/merge.
 
 ## Next increment
 

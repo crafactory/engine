@@ -14,6 +14,8 @@
 .native-keyboard-open .mobile-shell .mobile-nav{display:none}
 .mobile-shell .icon-button,.mobile-shell .file-row,.mobile-shell .sidebar-nav button,.mobile-shell .settings-modal>nav>button,.mobile-shell .modal footer button,.native-android .plugin-modal-close{min-width:44px;min-height:44px}
 .mobile-shell input:not([type=checkbox]):not([type=radio]),.mobile-shell select{min-height:44px}
+/* Compatibility modals portal outside the application shell. */
+.native-android .plugin-modal input:not([type=checkbox]):not([type=radio]),.native-android .plugin-modal select{min-height:44px}
 .mobile-shell .checkbox-container{position:relative}
 .mobile-shell .checkbox-container::before{content:"";position:absolute;inset:-12px -4px}
 .mobile-shell .left-sidebar,.mobile-shell .right-sidebar{display:flex;position:fixed;top:env(safe-area-inset-top);bottom:env(safe-area-inset-bottom);width:min(340px,calc(100vw - 32px));z-index:26;box-shadow:var(--shadow);resize:none}

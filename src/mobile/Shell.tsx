@@ -78,6 +78,10 @@ export function MobileSheet({sheet,onClose,tabs,active,tabTitle,onOpen,onCloseTa
         </section>
       </SheetContent>
     </Sheet>
-    {createPortal(<div onClickCapture={event=>{if((event.target as Element).closest('button,a,[role="button"],.clickable-icon'))dismiss();}}>{children}</div>,pluginMount)}
+    {createPortal(<div onClickCapture={event=>{
+      const target=event.target as Element;
+      if(target.closest('input,select,textarea,[role="switch"],[role="checkbox"],[role="radio"],[role="tab"],[aria-pressed]'))return;
+      if(target.closest('button,a,[role="button"],.clickable-icon'))dismiss();
+    }}>{children}</div>,pluginMount)}
   </>;
 }

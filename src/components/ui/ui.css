@@ -4,6 +4,9 @@
 @import "tailwindcss/utilities.css" prefix(ui);
 @import "tw-animate-css";
 
+/* Honor the app preference, not the operating system's independent color scheme. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--text);
