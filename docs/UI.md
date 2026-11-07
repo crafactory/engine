@@ -7,15 +7,24 @@ layout and domain behavior. This does not replace the Obsidian-compatible plugin
 ## Current migration
 
 - `components.json` records the New York registry style, `ui` utility prefix and aliases.
-- `src/components/ui/button.tsx` and `sheet.tsx` were generated with shadcn CLI 4.23.0.
-  Button uses React 18 `forwardRef` for existing ref consumers.
+- Button, Sheet, Dialog, Command, Input, Textarea, Switch and NativeSelect come from
+  shadcn CLI 4.23.0. Ref-consuming primitives use React 18 `forwardRef`.
 - The shared `IconButton` delegates to Button while retaining existing application classes.
 - Android header/navigation use Button, and its tab/Tools overlay uses Sheet (Radix Dialog).
   Plugin contributions live in a stable owned portal container, parked while closed,
   not destroyed each time Radix unmounts the sheet.
 - Commands close the sheet before invoking their action, so plugin dialogs can acquire
   focus. Native Back, Escape, focus return and retained plugin host identity have regressions.
-- Remaining legacy shared dialogs, settings, forms and navigation are not yet migrated.
+- Shared prompts, palette and settings now compose registry controls. Palette retains
+  host fuzzy ranking and a 60-result cap; cmdk owns keyboard selection, not filtering.
+  Close the palette/prompt synchronously before running actions that open another overlay.
+- Community settings is a separate module; Settings now fits the default 500-line budget.
+- Settings intentionally uses a non-modal Radix Dialog and a presentational pointer scrim:
+  imperative plugin modals portal to body and must retain focus and settings DOM identity.
+  It does not advertise `aria-modal` or trap background keyboard focus. Plugin-modal
+  interactions must not dismiss settings. A future unified portal owner may strengthen
+  background isolation without changing or remounting third-party plugin DOM.
+- Remaining legacy forms, contextual menus and navigation are not yet migrated.
   Migrate them in bounded follow-up PRs, not a claim that the whole UI is already shadcn.
 
 ## Styling and provenance

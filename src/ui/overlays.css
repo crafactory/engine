@@ -1,0 +1,110 @@
+/* Application compositions of registry controls; never reset plugin/editor DOM. */
+.app-prompt,
+.app-palette {
+  max-height: calc(100dvh - 2 * var(--space-4));
+  overflow: auto;
+}
+.app-prompt {
+  z-index: 110;
+}
+.app-prompt-overlay {
+  z-index: 100;
+}
+.app-prompt form {
+  display: grid;
+  gap: var(--space-4);
+}
+.app-prompt-header {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+}
+.app-palette {
+  display: block;
+  width: min(570px, calc(100vw - 2 * var(--space-4)));
+  max-width: min(570px, calc(100vw - 2 * var(--space-4)));
+  padding: 0;
+}
+.app-command-search {
+  display: flex;
+  align-items: center;
+  padding-right: var(--space-2);
+}
+.app-command-search [data-slot='command-input-wrapper'] {
+  flex: 1;
+  min-width: 0;
+}
+.app-command-search [data-slot='command-input'] {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.app-command-list {
+  max-height: min(380px, 50dvh);
+  padding: var(--space-2);
+}
+.app-command-list [data-slot='command-item'] {
+  width: 100%;
+  height: auto;
+  min-height: 44px;
+  text-align: left;
+  justify-content: flex-start;
+  white-space: normal;
+}
+.app-command-label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.app-palette small,
+.app-palette .palette-title,
+.app-palette footer,
+.app-settings .setting-row p,
+.app-settings .setting-block p {
+  color: var(--muted);
+}
+.app-settings-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #0008;
+}
+.app-settings {
+  padding: 0;
+  gap: 0;
+  max-width: min(910px, calc(100vw - 2 * var(--space-4)));
+  max-height: calc(100dvh - 2 * var(--space-4));
+}
+.app-settings > nav {
+  min-height: 0;
+  overflow-y: auto;
+}
+.native-android .app-settings {
+  height: calc(100dvh - 32px);
+}
+.native-android .app-settings [data-slot='switch'] {
+  /* Enlarge the actual target, not the registry track or thumb. */
+  box-sizing: content-box;
+  width: 32px;
+  height: 18px;
+  padding: 13px 6px;
+  border: 0;
+  background-clip: content-box;
+}
+.app-settings [data-slot='native-select'] {
+  padding-right: var(--space-8) !important;
+}
+.native-android .app-settings [data-slot='button'],
+.native-android .app-settings [data-slot='input'],
+.native-android .app-settings [data-slot='native-select'],
+.native-android .app-prompt [data-slot='button'],
+.native-android .app-prompt [data-slot='input'],
+.native-android .app-palette [data-slot='command-input-wrapper'] {
+  min-height: 44px;
+}
+.native-android .app-prompt [data-size='icon'],
+.native-android .app-palette [data-size='icon'] {
+  min-width: 44px;
+  min-height: 44px;
+}

@@ -30,8 +30,16 @@ Preserve fuzzy ranking/create behavior, keyboard/focus return and imperative plu
 DOM. Validate settings-plugin modal coexistence, native Back and portrait/landscape
 navigation. Do not imply every application surface or plugin is already certified.
 
-Final #79 local browser replay is still running as command 77548; do not edit runtime
-source or install dependencies until it completes. Vite command 89044 serves 5173.
+PR #80 now implements the shared-control scope. Full local check/944 units, four new
+browser regressions and real Electron nested-modal/DOM-identity regression pass.
+Settings is 446 lines, CommunitySettings 266; no raised legacy ceilings.
+Before review-ready, publish this implementation; then effective CodeRabbit review,
+bounded repairs and exact-head full browser/desktop/package/corpus/native gates.
+Non-modal settings/pointer scrim is documented: no background keyboard-trap claim.
+
+Final #79 local replay ended 81 passed/2 failed during accidental Vite full reloads
+caused by checkout/docs writes. Both failures passed an isolated stable diagnostic
+replay; do not claim a fresh final-head 83/83. Vite command 89044 serves 5173.
 Persistent js_repl `engineUiBrowser`, `engineUiPage`, `engineUiErrors` are available.
 Baseline screenshots: `/tmp/engine-ui-baseline-*.png`; accepted native files:
 `/tmp/engine-bd6425b-native`. Managed browser_start failed; use working js_repl.

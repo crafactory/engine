@@ -5,6 +5,7 @@ import 'katex/dist/katex.min.css';
 import '@xyflow/react/dist/style.css';
 import './components/ui/ui.css';
 import './style.css';
+import './ui/overlays.css';
 class Boundary extends React.Component<{ children: React.ReactNode }, { error: string }> {
   state = { error: '' };
   static getDerivedStateFromError(error: Error) {
