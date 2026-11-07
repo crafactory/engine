@@ -23,3 +23,18 @@
 - Build and install the exact-head APK; run native filesystem/IME/Back/restart/rotation/export/plugin/footnotes gates.
 - Preserve the existing disk-byte, composition, plugin-isolation and export assertions while adapting entry points.
 - Inspect native screenshots, touch targets and console/errors; browser fixtures are not native certification.
+
+## Shared control migration
+- New note/rename selects the initial text; Enter submits; Escape, Cancel and outside
+  click cancel without mutations. Tab remains within a modal prompt and focus returns.
+- Quick switcher and command palette keep host fuzzy ranking, 60-result cap, arrow
+  navigation, Enter/click selection, empty-query behavior and creation from no results.
+- Selecting a command releases palette focus before opening a prompt or plugin modal.
+- Settings keeps appearance/editor/files/hotkeys/core/community/extensions/about and
+  plugin contribution panels. Changes still save, permission warnings remain explicit,
+  failed native requests do not grant UI trust, and desktop-only controls stay disabled
+  on Android. Existing plugin DOM containers and callbacks retain their identity.
+- Check all settings navigation entries in short landscape and 375px portrait,
+  dark/light themes, long labels and keyboard-open native states.
+- Use registry primitives with the existing prefixed, no-preflight shared theme.
+  Retest native Back ownership and real IME, not only simulated browser events.
