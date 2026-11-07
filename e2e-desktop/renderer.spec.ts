@@ -826,6 +826,10 @@ test('renderer settings controls persist and modal traps focus and closes', asyn
       slider: 7,
     });
   const settingsHost = await page.locator('.plugin-settings-content').elementHandle();
+  await page.getByRole('button', { name: 'Open fixture menu', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Open fixture menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Fixture menu choice', exact: true }).click();
   await page.getByRole('button', { name: 'Open fixture modal', exact: true }).click();
   const modal = page.getByRole('dialog', { name: 'Fixture modal', exact: true });
   await expect(modal).toBeVisible();

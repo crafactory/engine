@@ -83,6 +83,9 @@
 .native-android .app-settings {
   height: calc(100dvh - 32px);
 }
+.native-android .app-settings [data-slot='button'] {
+  min-width: 44px;
+}
 .native-android .app-settings [data-slot='switch'] {
   /* Enlarge the actual target, not the registry track or thumb. */
   box-sizing: content-box;

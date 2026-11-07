@@ -166,19 +166,18 @@ export function Settings({
         onEscapeKeyDown={(event) => {
           // Radix listens in document capture; let the imperative top modal handle
           // Escape later without also dismissing this underlying settings dialog.
-          if (document.querySelector('.plugin-modal-backdrop')) event.preventDefault();
+          if (
+            document.querySelector('.plugin-modal-backdrop') ||
+            (event.target instanceof Element && event.target.closest('[role="menu"]'))
+          )
+            event.preventDefault();
           else event.stopPropagation();
         }}
         onInteractOutside={(event) => {
-          // Legacy plugin modals live in body, outside Radix portals. They must remain
-          // focusable without dismissing or remounting the active plugin settings tab.
+          // Close on our own scrim only, matching the original backdrop behavior.
+          // Plugin menus/modals and nested permission dialogs portal independently.
           const target = event.detail.originalEvent.target;
-          if (
-            target instanceof Element &&
-            target.closest(
-              '.plugin-modal-backdrop, [data-slot="dialog-content"], [data-slot="dialog-overlay"]',
-            )
-          )
+          if (!(target instanceof Element && target.classList.contains('app-settings-scrim')))
             event.preventDefault();
         }}
       >

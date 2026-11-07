@@ -22,7 +22,9 @@ layout and domain behavior. This does not replace the Obsidian-compatible plugin
 - Settings intentionally uses a non-modal Radix Dialog and a presentational pointer scrim:
   imperative plugin modals portal to body and must retain focus and settings DOM identity.
   It does not advertise `aria-modal` or trap background keyboard focus. Plugin-modal
-  interactions must not dismiss settings. A future unified portal owner may strengthen
+  interactions must not dismiss settings; only the owned scrim dismisses on outside
+  interaction. Host shortcuts respect consumed keyboard events, so plugin-menu Escape
+  cannot also close underlying settings. A future unified portal owner may strengthen
   background isolation without changing or remounting third-party plugin DOM.
 - Remaining legacy forms, contextual menus and navigation are not yet migrated.
   Migrate them in bounded follow-up PRs, not a claim that the whole UI is already shadcn.
