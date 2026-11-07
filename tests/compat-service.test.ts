@@ -1,109 +1,244 @@
-import {describe,it,expect,vi} from 'vitest';
-import {createCompatRuntime} from '../src/compat';
-import {createCompatService} from '../src/compat/service';
-import {COMPAT_CONTRACT,COMPAT_VERSION,compatPlugin,type CompatHost,type CompatService} from '../src/services/compat';
+import { describe, it, expect, vi } from 'vitest';
+import { createCompatRuntime } from '../src/compat';
+import { createCompatService } from '../src/compat/service';
+import {
+  COMPAT_CONTRACT,
+  COMPAT_VERSION,
+  compatPlugin,
+  type CompatHost,
+  type CompatService,
+} from '../src/services/compat';
 
-const manifest={id:'fixture',name:'Fixture',version:'1.0.0'};
-const host:CompatHost={
-  loadData:vi.fn(async()=>null),saveData:vi.fn(async()=>null),read:vi.fn(async()=> 'text'),
-  create:vi.fn(async()=>null),modify:vi.fn(async()=>null),append:vi.fn(async()=>null),writeLegacy:vi.fn(async()=>null),
-  rename:vi.fn(async(_from,to)=>to),trash:vi.fn(async()=>{}),mkdir:vi.fn(async()=>{}),asset:vi.fn(async()=> 'data:'),
-  open:vi.fn(async()=>{}),editor:vi.fn(async()=>{}),save:vi.fn(async()=>{})
+const manifest = { id: 'fixture', name: 'Fixture', version: '1.0.0' };
+const host: CompatHost = {
+  loadData: vi.fn(async () => null),
+  saveData: vi.fn(async () => null),
+  read: vi.fn(async () => 'text'),
+  create: vi.fn(async () => null),
+  modify: vi.fn(async () => null),
+  append: vi.fn(async () => null),
+  writeLegacy: vi.fn(async () => null),
+  rename: vi.fn(async (_from, to) => to),
+  trash: vi.fn(async () => {}),
+  mkdir: vi.fn(async () => {}),
+  asset: vi.fn(async () => 'data:'),
+  open: vi.fn(async () => {}),
+  editor: vi.fn(async () => {}),
+  save: vi.fn(async () => {}),
 };
-const callbacks={snapshot:()=>({name:'V',entries:[],notes:[],active:'',editor:null}),commands:()=>{},host,notice:()=>{},failure:()=>{}};
-const controller={ready:Promise.resolve(),sync:()=>{},stop:async()=>{}};
+const callbacks = {
+  snapshot: () => ({ name: 'V', entries: [], notes: [], active: '', editor: null }),
+  commands: () => {},
+  host,
+  notice: () => {},
+  failure: () => {},
+};
+const controller = { ready: Promise.resolve(), sync: () => {}, stop: async () => {} };
 
-describe('engine.compat/v1',()=>{
-  it('gates binary operations, validates buffers and preserves the host receiver',async()=>{
-    const worker=vi.fn((..._args:any[])=>controller),bytes=new Uint8Array([0,255]);
-    const binaryHost={...host,readBinary:vi.fn(async()=>bytes.buffer),createBinary:vi.fn(async function(this:CompatHost){expect(this).toBe(binaryHost);return null;})};
-    const service=createCompatService({worker});
-    service.start({package:{manifest:{...manifest,permissions:['vault:read','vault:write']},code:''},mode:'worker',callbacks:{...callbacks,host:binaryHost}});
-    const operation=worker.mock.calls[0][4] as (name:string,args:unknown[])=>Promise<unknown>;
-    await expect(operation('readBinary',['image.bin'])).resolves.toEqual(bytes.buffer);
-    await operation('createBinary',['image.bin',bytes]);
-    expect(binaryHost.createBinary).toHaveBeenCalledWith('image.bin',bytes);
-    await expect(operation('createBinary',['image.bin','text'])).rejects.toThrow('Invalid binary data');
-    await expect(operation('modifyBinary',['image.bin',bytes])).rejects.toThrow('unavailable');
-    service.start({package:{manifest:{...manifest,permissions:[]},code:''},mode:'worker',callbacks:{...callbacks,host:binaryHost}});
-    const denied=worker.mock.calls[1][4] as typeof operation;
-    await expect(denied('readBinary',['image.bin'])).rejects.toThrow('vault:read');
-    await expect(denied('createBinary',['image.bin',bytes])).rejects.toThrow('vault:write');
+describe('engine.compat/v1', () => {
+  it('gates binary operations, validates buffers and preserves the host receiver', async () => {
+    const worker = vi.fn((..._args: any[]) => controller),
+      bytes = new Uint8Array([0, 255]);
+    const binaryHost = {
+      ...host,
+      readBinary: vi.fn(async () => bytes.buffer),
+      createBinary: vi.fn(async function (this: CompatHost) {
+        expect(this).toBe(binaryHost);
+        return null;
+      }),
+    };
+    const service = createCompatService({ worker });
+    service.start({
+      package: { manifest: { ...manifest, permissions: ['vault:read', 'vault:write'] }, code: '' },
+      mode: 'worker',
+      callbacks: { ...callbacks, host: binaryHost },
+    });
+    const operation = worker.mock.calls[0][4] as (
+      name: string,
+      args: unknown[],
+    ) => Promise<unknown>;
+    await expect(operation('readBinary', ['image.bin'])).resolves.toEqual(bytes.buffer);
+    await operation('createBinary', ['image.bin', bytes]);
+    expect(binaryHost.createBinary).toHaveBeenCalledWith('image.bin', bytes);
+    await expect(operation('createBinary', ['image.bin', 'text'])).rejects.toThrow(
+      'Invalid binary data',
+    );
+    await expect(operation('modifyBinary', ['image.bin', bytes])).rejects.toThrow('unavailable');
+    service.start({
+      package: { manifest: { ...manifest, permissions: [] }, code: '' },
+      mode: 'worker',
+      callbacks: { ...callbacks, host: binaryHost },
+    });
+    const denied = worker.mock.calls[1][4] as typeof operation;
+    await expect(denied('readBinary', ['image.bin'])).rejects.toThrow('vault:read');
+    await expect(denied('createBinary', ['image.bin', bytes])).rejects.toThrow('vault:write');
     expect(binaryHost.createBinary).toHaveBeenCalledOnce();
   });
-  it('permission-gates versioned reads and preserves the loaded version on modify',async()=>{
-    const worker=vi.fn((..._args:any[])=>controller),readVersioned=vi.fn(async()=>({content:'text',version:'loaded-version'})),modify=vi.fn(async()=>({content:'changed',version:'saved-version'}));
-    const service=createCompatService({worker});
-    service.start({package:{manifest:{...manifest,permissions:['vault:read','vault:write']},code:''},mode:'worker',callbacks:{...callbacks,host:{...host,readVersioned,modify}}});
-    const operation=worker.mock.calls[0][4] as (name:string,args:unknown[])=>Promise<unknown>;
-    await expect(operation('readVersioned',['Test.txt'])).resolves.toEqual({content:'text',version:'loaded-version'});
-    await operation('modify',['Test.txt','changed','loaded-version']);expect(modify).toHaveBeenCalledWith('Test.txt','changed','loaded-version');
-    await expect(operation('modify',['Test.txt','changed',{}])).rejects.toThrow('Invalid expected file version');
-    service.start({package:{manifest:{...manifest,permissions:[]},code:''},mode:'worker',callbacks:{...callbacks,host:{...host,readVersioned}}});
-    const denied=worker.mock.calls[1][4] as typeof operation;
-    await expect(denied('readVersioned',['Test.txt'])).rejects.toThrow('Plugin lacks the vault:read permission');
+  it('permission-gates versioned reads and preserves the loaded version on modify', async () => {
+    const worker = vi.fn((..._args: any[]) => controller),
+      readVersioned = vi.fn(async () => ({ content: 'text', version: 'loaded-version' })),
+      modify = vi.fn(async () => ({ content: 'changed', version: 'saved-version' }));
+    const service = createCompatService({ worker });
+    service.start({
+      package: { manifest: { ...manifest, permissions: ['vault:read', 'vault:write'] }, code: '' },
+      mode: 'worker',
+      callbacks: { ...callbacks, host: { ...host, readVersioned, modify } },
+    });
+    const operation = worker.mock.calls[0][4] as (
+      name: string,
+      args: unknown[],
+    ) => Promise<unknown>;
+    await expect(operation('readVersioned', ['Test.txt'])).resolves.toEqual({
+      content: 'text',
+      version: 'loaded-version',
+    });
+    await operation('modify', ['Test.txt', 'changed', 'loaded-version']);
+    expect(modify).toHaveBeenCalledWith('Test.txt', 'changed', 'loaded-version');
+    await expect(operation('modify', ['Test.txt', 'changed', {}])).rejects.toThrow(
+      'Invalid expected file version',
+    );
+    service.start({
+      package: { manifest: { ...manifest, permissions: [] }, code: '' },
+      mode: 'worker',
+      callbacks: { ...callbacks, host: { ...host, readVersioned } },
+    });
+    const denied = worker.mock.calls[1][4] as typeof operation;
+    await expect(denied('readVersioned', ['Test.txt'])).rejects.toThrow(
+      'Plugin lacks the vault:read permission',
+    );
     expect(readVersioned).toHaveBeenCalledOnce();
   });
-  it('registers and resolves the support service',async()=>{
-    const service:CompatService={list:async()=>[],start:()=>controller,capabilities:()=>({worker:true,renderer:true})};
-    const runtime=await createCompatRuntime({service});
-    expect(runtime.kernel.runtime.services.resolve(COMPAT_CONTRACT,`^${COMPAT_VERSION}`).ok).toBe(true);
+  it('registers and resolves the support service', async () => {
+    const service: CompatService = {
+      list: async () => [],
+      start: () => controller,
+      capabilities: () => ({ worker: true, renderer: true }),
+    };
+    const runtime = await createCompatRuntime({ service });
+    expect(runtime.kernel.runtime.services.resolve(COMPAT_CONTRACT, `^${COMPAT_VERSION}`).ok).toBe(
+      true,
+    );
     expect(runtime.service).toBe(service);
     await runtime.kernel.stop();
   });
 
-  it('discovers and validates packages through the support service',async()=>{
-    const service=createCompatService({discover:async()=>[{manifest,code:'ok'},{manifest:{...manifest,id:'Bad ID'},code:'bad'}]});
-    expect(await service.list()).toEqual([{manifest,code:'ok'}]);
+  it('discovers and validates packages through the support service', async () => {
+    const service = createCompatService({
+      discover: async () => [
+        { manifest, code: 'ok' },
+        { manifest: { ...manifest, id: 'Bad ID' }, code: 'bad' },
+      ],
+    });
+    expect(await service.list()).toEqual([{ manifest, code: 'ok' }]);
   });
 
-  it('dispatches worker and renderer starts with typed host callbacks',()=>{
-    const worker=vi.fn(()=>controller),renderer=vi.fn(()=>controller);
-    const service=createCompatService({worker,renderer});
-    expect(service.capabilities()).toEqual({worker:true,renderer:true});
-    service.start({package:{manifest,code:'worker'},mode:'worker',callbacks});
-    expect(worker).toHaveBeenCalledWith(manifest,'worker',callbacks.snapshot,callbacks.commands,expect.any(Function),callbacks.notice,callbacks.failure);
-    service.start({package:{manifest,code:'renderer'},mode:'renderer',callbacks});
-    expect(renderer).toHaveBeenCalledWith(manifest,'renderer',callbacks.snapshot,callbacks.commands,expect.any(Function),callbacks.notice,callbacks.failure,expect.any(Function),expect.any(Function),undefined,undefined,undefined,undefined,undefined);
-    service.start({package:{manifest,code:'styled',styles:'.fixture { color: red; }'},mode:'renderer',callbacks});
+  it('dispatches worker and renderer starts with typed host callbacks', () => {
+    const worker = vi.fn(() => controller),
+      renderer = vi.fn(() => controller);
+    const service = createCompatService({ worker, renderer });
+    expect(service.capabilities()).toEqual({ worker: true, renderer: true });
+    service.start({ package: { manifest, code: 'worker' }, mode: 'worker', callbacks });
+    expect(worker).toHaveBeenCalledWith(
+      manifest,
+      'worker',
+      callbacks.snapshot,
+      callbacks.commands,
+      expect.any(Function),
+      callbacks.notice,
+      callbacks.failure,
+    );
+    service.start({ package: { manifest, code: 'renderer' }, mode: 'renderer', callbacks });
+    expect(renderer).toHaveBeenCalledWith(
+      manifest,
+      'renderer',
+      callbacks.snapshot,
+      callbacks.commands,
+      expect.any(Function),
+      callbacks.notice,
+      callbacks.failure,
+      expect.any(Function),
+      expect.any(Function),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    );
+    service.start({
+      package: { manifest, code: 'styled', styles: '.fixture { color: red; }' },
+      mode: 'renderer',
+      callbacks,
+    });
     expect(renderer.mock.calls.at(-1)?.at(-3)).toBe('.fixture { color: red; }');
   });
-  it('tracks actual layout persistence only through the renderer callback',async()=>{
-    const worker=vi.fn(()=>controller),renderer=vi.fn((..._args:any[])=>controller),saveLayout=vi.fn(async()=>{}),activity=vi.fn();
-    const service=createCompatService({worker,renderer});
-    service.start({package:{manifest,code:''},mode:'renderer',callbacks:{...callbacks,saveLayout,activity}});
-    const save=renderer.mock.calls[0].at(-1) as ()=>Promise<void>,pending=save();
-    expect(activity).toHaveBeenCalledWith(pending);await pending;expect(saveLayout).toHaveBeenCalledOnce();
-    service.start({package:{manifest,code:''},mode:'worker',callbacks:{...callbacks,saveLayout,activity}});
+  it('tracks actual layout persistence only through the renderer callback', async () => {
+    const worker = vi.fn(() => controller),
+      renderer = vi.fn((..._args: any[]) => controller),
+      saveLayout = vi.fn(async () => {}),
+      activity = vi.fn();
+    const service = createCompatService({ worker, renderer });
+    service.start({
+      package: { manifest, code: '' },
+      mode: 'renderer',
+      callbacks: { ...callbacks, saveLayout, activity },
+    });
+    const save = renderer.mock.calls[0].at(-1) as () => Promise<void>,
+      pending = save();
+    expect(activity).toHaveBeenCalledWith(pending);
+    await pending;
+    expect(saveLayout).toHaveBeenCalledOnce();
+    service.start({
+      package: { manifest, code: '' },
+      mode: 'worker',
+      callbacks: { ...callbacks, saveLayout, activity },
+    });
     expect(worker.mock.calls[0]).toHaveLength(7);
   });
 
-  it('maps bounded operations to host primitives and enforces permissions',async()=>{
-    const worker=vi.fn(()=>controller);
-    const service=createCompatService({worker});
-    service.start({package:{manifest:{...manifest,permissions:['vault:read']},code:''},mode:'worker',callbacks});
-    const operation=(worker.mock.calls[0] as unknown[])[4] as (name:string,args:unknown[])=>Promise<unknown>;
-    await expect(operation('read',['A.md'])).resolves.toBe('text');
+  it('maps bounded operations to host primitives and enforces permissions', async () => {
+    const worker = vi.fn(() => controller);
+    const service = createCompatService({ worker });
+    service.start({
+      package: { manifest: { ...manifest, permissions: ['vault:read'] }, code: '' },
+      mode: 'worker',
+      callbacks,
+    });
+    const operation = (worker.mock.calls[0] as unknown[])[4] as (
+      name: string,
+      args: unknown[],
+    ) => Promise<unknown>;
+    await expect(operation('read', ['A.md'])).resolves.toBe('text');
     expect(host.read).toHaveBeenCalledWith('A.md');
-    await expect(operation('create',['A.md','x'])).rejects.toThrow('vault:write');
-    await expect(operation('nope',[])).rejects.toThrow('Unsupported plugin host operation');
+    await expect(operation('create', ['A.md', 'x'])).rejects.toThrow('vault:write');
+    await expect(operation('nope', [])).rejects.toThrow('Unsupported plugin host operation');
   });
 
-  it('rejects non-string content and non-integer editor ranges before dispatch',async()=>{
-    const worker=vi.fn(()=>controller);
-    const service=createCompatService({worker});
-    service.start({package:{manifest,code:''},mode:'worker',callbacks});
-    const operation=(worker.mock.calls[0] as unknown[])[4] as (name:string,args:unknown[])=>Promise<unknown>;
-    await expect(operation('create',['A.md',null])).rejects.toThrow('Invalid plugin text');
-    await expect(operation('editor',['A.md','base','next',null,0])).rejects.toThrow('Invalid editor mutation');
-    await expect(operation('save',['A.md'])).resolves.toBeUndefined();
+  it('rejects non-string content and non-integer editor ranges before dispatch', async () => {
+    const worker = vi.fn(() => controller);
+    const service = createCompatService({ worker });
+    service.start({ package: { manifest, code: '' }, mode: 'worker', callbacks });
+    const operation = (worker.mock.calls[0] as unknown[])[4] as (
+      name: string,
+      args: unknown[],
+    ) => Promise<unknown>;
+    await expect(operation('create', ['A.md', null])).rejects.toThrow('Invalid plugin text');
+    await expect(operation('editor', ['A.md', 'base', 'next', null, 0])).rejects.toThrow(
+      'Invalid editor mutation',
+    );
+    await expect(operation('save', ['A.md'])).resolves.toBeUndefined();
     expect(host.save).toHaveBeenCalledWith('A.md');
-    expect(host.create).not.toHaveBeenCalledWith('A.md','null');
+    expect(host.create).not.toHaveBeenCalledWith('A.md', 'null');
   });
 
-  it('exposes the support plugin metadata',()=>{
-    const plugin=compatPlugin({list:async()=>[],start:()=>controller,capabilities:()=>({worker:true,renderer:false})});
+  it('exposes the support plugin metadata', () => {
+    const plugin = compatPlugin({
+      list: async () => [],
+      start: () => controller,
+      capabilities: () => ({ worker: true, renderer: false }),
+    });
     expect(plugin.manifest.id).toBe('engine.compat');
-    expect(plugin.manifest.provides).toEqual([{contract:COMPAT_CONTRACT,version:COMPAT_VERSION}]);
+    expect(plugin.manifest.provides).toEqual([
+      { contract: COMPAT_CONTRACT, version: COMPAT_VERSION },
+    ]);
   });
 });

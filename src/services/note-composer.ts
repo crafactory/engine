@@ -4,9 +4,9 @@
  * dialogs, editor selection replacement, link rewriting across the vault and the trash
  * write; this service owns the merge/extract content rules.
  */
-import {Kernel, type PluginDefinition} from '../kernel';
-import {frontmatter} from '../knowledge';
-import {ENGINE_VERSION} from './version';
+import { Kernel, type PluginDefinition } from '../kernel';
+import { frontmatter } from '../knowledge';
+import { ENGINE_VERSION } from './version';
 
 export const NOTE_COMPOSER_CONTRACT = 'engine.note-composer/v1';
 export const NOTE_COMPOSER_VERSION = '1.0.0';
@@ -35,19 +35,32 @@ export class NoteComposer implements NoteComposerService {
 /** Wrap a composer service as a runtime-scoped native plugin. */
 export function noteComposerPlugin(service: NoteComposerService): PluginDefinition {
   return {
-    manifest: {id: 'engine.note-composer', name: 'Note composer', version: NOTE_COMPOSER_VERSION, scopes: ['runtime'], provides: [{contract: NOTE_COMPOSER_CONTRACT, version: NOTE_COMPOSER_VERSION}]},
-    setup(context) { context.provide(NOTE_COMPOSER_CONTRACT, NOTE_COMPOSER_VERSION, service); }
+    manifest: {
+      id: 'engine.note-composer',
+      name: 'Note composer',
+      version: NOTE_COMPOSER_VERSION,
+      scopes: ['runtime'],
+      provides: [{ contract: NOTE_COMPOSER_CONTRACT, version: NOTE_COMPOSER_VERSION }],
+    },
+    setup(context) {
+      context.provide(NOTE_COMPOSER_CONTRACT, NOTE_COMPOSER_VERSION, service);
+    },
   };
 }
 
-export interface NoteComposerRuntime {kernel: Kernel; service: NoteComposerService}
+export interface NoteComposerRuntime {
+  kernel: Kernel;
+  service: NoteComposerService;
+}
 
 /** Build and start a kernel exposing the composer service. */
-export async function createNoteComposerRuntime(options: {engineVersion?: string} = {}): Promise<NoteComposerRuntime> {
-  const kernel = new Kernel({engineVersion: options.engineVersion ?? ENGINE_VERSION});
+export async function createNoteComposerRuntime(
+  options: { engineVersion?: string } = {},
+): Promise<NoteComposerRuntime> {
+  const kernel = new Kernel({ engineVersion: options.engineVersion ?? ENGINE_VERSION });
   kernel.register(noteComposerPlugin(new NoteComposer()));
   await kernel.start();
   const resolved = kernel.runtime.services.resolve(NOTE_COMPOSER_CONTRACT, '^1.0.0');
   if (!resolved.ok) throw new Error('Note composer service was not provided');
-  return {kernel, service: resolved.binding.value as NoteComposerService};
+  return { kernel, service: resolved.binding.value as NoteComposerService };
 }
