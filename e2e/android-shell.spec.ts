@@ -100,6 +100,10 @@ async function fixture(page: Page, state: Record<string, unknown> = {}) {
   });
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error' && message.text().includes('cannot be given refs'))
+      errors.push(message.text());
+  });
   await page.goto('/');
   await expect(page.locator('.workspace-loading')).toHaveCount(0);
   await expect(page.locator('.note-title h1')).toBeVisible();
@@ -260,6 +264,9 @@ test('mobile restoration and named workspaces never overwrite desktop layout or 
 test('Tools retains plugin hosts and exposes settings/context without blocking plugin modals', async ({
   page,
 }) => {
+  // Registry Button transitions include flex-shrink. Geometry mutations must be
+  // instantaneous in both directions, rather than measuring an animation frame.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   const f = await fixture(page);
   await page.evaluate(() => {
     const host = document.getElementById('plugin-ribbon')!;
@@ -343,6 +350,7 @@ test('Tools retains plugin hosts and exposes settings/context without blocking p
   await page.keyboard.press('Escape');
   await tools(page);
   await page.getByRole('button', { name: 'Mobile settings', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Settings', exact: true })).toBeVisible();
   const oldShrink = await page.addStyleTag({
     content: '.settings-modal>nav>button{flex-shrink:1!important}',
   });
@@ -365,6 +373,11 @@ test('Tools retains plugin hosts and exposes settings/context without blocking p
     await page.locator('.settings-modal>nav').evaluate((nav) => nav.scrollWidth > nav.clientWidth),
   ).toBe(true);
   await page.getByRole('button', { name: 'Core plugins', exact: true }).click();
+  const switchBounds = await page
+    .getByRole('switch', { name: 'Enable Search', exact: true })
+    .boundingBox();
+  expect(switchBounds!.width).toBeGreaterThanOrEqual(44);
+  expect(switchBounds!.height).toBeGreaterThanOrEqual(44);
   await page.getByRole('switch', { name: 'Enable Search', exact: true }).uncheck();
   await page.getByRole('switch', { name: 'Enable Command palette', exact: true }).uncheck();
   await page.getByTestId('settings-close').click();

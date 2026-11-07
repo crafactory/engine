@@ -312,3 +312,69 @@ test('pending child unload revokes global events even behind a never-settling cl
   expect(await page.evaluate(() => (window as any).__managedClicks)).toBe(clicks);
   await expect(page.locator('code.language-engine-fixture')).toHaveText('source bytes\n');
 });
+test('an asynchronous child can attach after a sibling mutation without premature unload', async () => {
+  const dir = path.join(root, '.crafactory/plugins/markdown-fixture');
+  await fs.writeFile(
+    path.join(dir, 'main.js'),
+    `const {Plugin,MarkdownRenderChild,MarkdownRenderer}=require('obsidian');
+module.exports=class extends Plugin {
+  onload() {
+    window.__detachedUnloads=0;
+    this.registerMarkdownPostProcessor(async (el,ctx)=>{
+      const target=document.createElement('span');target.className='deferred-child';
+      let release;
+      const gate=new Promise(resolve=>release=resolve);
+      const app=this.app;
+      ctx.addChild(new class extends MarkdownRenderChild {
+        async onload() {
+          await gate;
+          await MarkdownRenderer.render(app,'Rendered after attachment',target,ctx.sourcePath,this);
+        }
+        onunload() {window.__detachedUnloads++;}
+      }(target));
+      await new Promise(resolve=>{
+        const observer=new MutationObserver(()=>{observer.disconnect();resolve();});
+        observer.observe(el,{childList:true});
+        el.createSpan({text:'Sibling mutation'});
+      });
+      el.append(target);release();
+    });
+  }
+};`,
+  );
+  await enable();
+  await expect(page.locator('.deferred-child')).toHaveText('Rendered after attachment');
+  expect(await page.evaluate(() => (window as any).__detachedUnloads)).toBe(0);
+  await page.getByTestId('mode-source').click();
+  await page.waitForFunction(() => (window as any).__detachedUnloads === 1);
+});
+test('a never-attached child remains session-owned and drains with the reading root', async () => {
+  const dir = path.join(root, '.crafactory/plugins/markdown-fixture');
+  await fs.writeFile(
+    path.join(dir, 'main.js'),
+    `const {Plugin,MarkdownRenderChild}=require('obsidian');
+module.exports=class extends Plugin {
+  onload() {
+    window.__orphanUnloads=0;window.__orphanEvents=0;
+    this.registerMarkdownPostProcessor((el,ctx)=>{
+      ctx.addChild(new class extends MarkdownRenderChild {
+        onload() {
+          this.registerDomEvent(document,'orphan-probe',()=>window.__orphanEvents++);
+          window.__orphanStarted=true;
+        }
+        onunload() {window.__orphanUnloads++;}
+      }(document.createElement('span')));
+    });
+  }
+};`,
+  );
+  await enable();
+  await page.waitForFunction(() => (window as any).__orphanStarted);
+  expect(await page.evaluate(() => (window as any).__orphanUnloads)).toBe(0);
+  await page.evaluate(() => document.dispatchEvent(new Event('orphan-probe')));
+  expect(await page.evaluate(() => (window as any).__orphanEvents)).toBe(1);
+  await page.getByTestId('mode-source').click();
+  await page.waitForFunction(() => (window as any).__orphanUnloads === 1);
+  await page.evaluate(() => document.dispatchEvent(new Event('orphan-probe')));
+  expect(await page.evaluate(() => (window as any).__orphanEvents)).toBe(1);
+});

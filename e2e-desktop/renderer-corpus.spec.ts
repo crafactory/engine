@@ -5,6 +5,7 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { nativeTestEnv } from './native-env';
+import { acceptDataviewReading } from './dataview-acceptance';
 const corpus = JSON.parse(
   await fs.readFile(
     new URL('../docs/compatibility/community-corpus.json', import.meta.url),
@@ -325,32 +326,7 @@ for (const plugin of corpus.plugins)
         await page.getByRole('switch', { name: 'Enable JavaScript queries', exact: true }).check();
         await page.getByTestId('settings-close').click();
         await page.getByTestId('mode-reading').click();
-        const blocks = page.locator('.reading-surface .plugin-code-block');
-        await expect(blocks).toHaveCount(9);
-        await expect(blocks.nth(0)).toContainText('Name');
-        await expect(blocks.nth(0)).toContainText('Modified');
-        await expect(blocks.nth(0)).toContainText('Third');
-        await expect(blocks.nth(1)).toContainText('Task one');
-        await expect(blocks.nth(1)).toContainText('Task two');
-        await expect(blocks.nth(1)).toContainText('Third task');
-        await expect(blocks.nth(2)).toContainText('Third');
-        await expect(blocks.nth(3)).toContainText('Second');
-        expect(
-          (await blocks.nth(4).innerText())
-            .split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean),
-        ).toEqual(['Third', 'Test']);
-        await expect(blocks.nth(5)).toContainText('Folder');
-        await expect(blocks.nth(5)).toContainText('Third');
-        await expect(blocks.nth(5)).toContainText('2');
-        await expect(blocks.nth(6)).toContainText('#alpha');
-        await expect(blocks.nth(7)).toContainText('JS Test');
-        await expect(blocks.nth(8)).toContainText('VIEW Test');
-        const reading = page.locator('.reading-surface');
-        await expect(reading).toContainText(/Inline:\s*Test/);
-        await expect(reading).not.toContainText('= this.file.name');
-        await expect(page.locator('.toast')).toHaveCount(0);
+        await acceptDataviewReading(page, testInfo);
         outcome = 'BOUNDED_WORKFLOWS_PASS';
         workflows = [
           'TABLE file.name/file.mtime',

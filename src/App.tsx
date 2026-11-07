@@ -64,6 +64,7 @@ import {
   type MobileAction,
 } from './mobile/Shell';
 import { Button } from './components/ui/button';
+import { defaultKeys, formatHotkey } from './ui/hotkeys';
 import {
   recordPluginDocumentView,
   retirePluginFileViews,
@@ -175,23 +176,6 @@ const validPath = (path: string) =>
   !path.includes('\\') &&
   !path.split('/').some((p) => !p || p.startsWith('.')) &&
   !path.includes('\0');
-const defaultKeys: Record<string, string> = {
-  'new-note': 'mod+n',
-  'quick-switcher': 'mod+o',
-  'command-palette': 'mod+p',
-  search: 'mod+shift+f',
-  'toggle-mode': 'mod+e',
-  settings: 'mod+,',
-  'close-tab': 'mod+w',
-  'daily-note': 'mod+shift+d',
-};
-/** Render a normalized key binding (`mod+shift+f`) as display text (`⌘ ⇧ F`). */
-const keyLabels: Record<string, string> = { mod: '⌘', alt: '⌥', shift: '⇧' };
-const formatHotkey = (binding: string) =>
-  binding
-    .split('+')
-    .map((part) => keyLabels[part] ?? (part.length === 1 ? part.toUpperCase() : part))
-    .join(' ');
 function Logo() {
   return (
     <svg viewBox="0 0 32 32" fill="none" aria-label="Crafactory Engine">
@@ -2316,6 +2300,7 @@ export function App() {
   }
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       if (e.key === 'Escape') {
         setPalette(null);
         setContext(null);

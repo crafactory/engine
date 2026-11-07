@@ -26,7 +26,11 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: npm ci
-      - run: npm run check && npx cap sync android
+      - run: |
+          npm run check
+          npx cap sync android
+          cmp LICENSE android/app/src/main/assets/public/LICENSE
+          cmp THIRD_PARTY_NOTICES.md android/app/src/main/assets/public/THIRD_PARTY_NOTICES.md
       - name: Build debug and release APKs
         run: cd android && bash gradlew --no-daemon assembleDebug assembleRelease
       - name: Prepare unchanged pinned plugin inputs

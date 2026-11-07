@@ -35,6 +35,7 @@ interface ChildRecord {
   child: MarkdownRenderChild;
   registration: Registration;
   ready: Promise<void>;
+  attached: boolean;
   closing?: Promise<void>;
 }
 const registrations = new Set<Registration>();
@@ -187,8 +188,10 @@ export class RenderSession {
       void this.close();
       return;
     }
-    for (const record of this.children)
-      if (!this.root.contains(record.child.containerEl)) void this.closeChild(record);
+    for (const record of this.children) {
+      if (this.root.contains(record.child.containerEl)) record.attached = true;
+      else if (record.attached) void this.closeChild(record);
+    }
   }
   /** Bound cooperative startup/unload waits and retain ownership until late startup settles. */
   private closeChild(record: ChildRecord): Promise<void> {
@@ -238,7 +241,14 @@ export class RenderSession {
         if ([...this.children].some((record) => record.child === child))
           throw new Error('Child already registered');
         if (childOwners.has(child)) throw new Error('Child belongs to another render session');
-        const record: ChildRecord = { child, registration, ready: Promise.resolve() };
+        // A child may begin async rendering before its container is inserted. Only
+        // observe removal after attachment; never-attached children still drain on close.
+        const record: ChildRecord = {
+          child,
+          registration,
+          ready: Promise.resolve(),
+          attached: this.root.contains(child.containerEl),
+        };
         this.children.add(record);
         childOwners.set(child, this);
         record.ready = Promise.all([child.load(), componentLifecycle(child, 'startup')]).then(

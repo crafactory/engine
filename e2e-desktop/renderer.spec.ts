@@ -8,6 +8,7 @@ import {
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+import { compileWasm } from './wasm-probe';
 let root: string, profile: string, app: ElectronApplication, page: Page;
 test.beforeEach(async () => {
   root = await fs.mkdtemp(path.join(os.tmpdir(), 'engine-renderer-'));
@@ -747,25 +748,6 @@ for (const fail of [true, false])
         );
     }
   });
-/** Minimal valid empty WebAssembly module: magic header plus version 1. */
-const wasm = [0, 97, 115, 109, 1, 0, 0, 0];
-/** Compile WebAssembly from page context so the entry's real CSP decides. */
-async function compileWasm() {
-  return page.evaluate(
-    (bytes) =>
-      new Promise<string>((resolve) =>
-        setTimeout(async () => {
-          try {
-            await WebAssembly.compile(new Uint8Array(bytes));
-            resolve('compiled');
-          } catch (error) {
-            resolve(String(error));
-          }
-        }, 0),
-      ),
-    wasm,
-  );
-}
 /** Open the native application's community-plugin settings using visible controls. */
 async function settings() {
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
@@ -843,15 +825,28 @@ test('renderer settings controls persist and modal traps focus and closes', asyn
       area: 'Multiline\nsetting',
       slider: 7,
     });
+  const settingsHost = await page.locator('.plugin-settings-content').elementHandle();
+  await page.getByRole('button', { name: 'Open fixture menu', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Open fixture menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Fixture menu choice', exact: true }).click();
   await page.getByRole('button', { name: 'Open fixture modal', exact: true }).click();
   const modal = page.getByRole('dialog', { name: 'Fixture modal', exact: true });
   await expect(modal).toBeVisible();
+  // The body-level imperative modal must not dismiss/remount the registry settings host.
+  await expect(page.getByRole('dialog', { name: 'Settings', exact: true })).toBeVisible();
   await page.keyboard.press('Tab');
   await expect(modal.locator(':focus')).toHaveCount(1);
   await page.keyboard.press('Shift+Tab');
   await expect(modal.locator(':focus')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(modal).toHaveCount(0);
+  expect(
+    await settingsHost!.evaluate(
+      (host) => host === document.querySelector('.plugin-settings-content'),
+    ),
+  ).toBe(true);
+  await expect(page.getByLabel('Fixture text', { exact: true })).toHaveValue('中文 setting');
   await expect(page.getByRole('button', { name: 'Open fixture modal', exact: true })).toBeFocused();
   await page.getByTestId('settings-close').click();
   await settings();
@@ -1315,7 +1310,7 @@ for (const [label, source] of [
     await expect(page.locator('.plugin-status-item')).toHaveCount(0);
   });
 test('default entry refuses WebAssembly compilation', async () => {
-  const result = await compileWasm();
+  const result = await compileWasm(page);
   expect(result).not.toBe('compiled');
   expect(result).toContain('CompileError');
   expect(result).toContain('Content Security Policy');
@@ -1383,5 +1378,5 @@ test('unsafe-eval is opt-in, desktop-only and applies after restart', async () =
         ),
     ),
   ).toBe(4);
-  expect(await compileWasm()).toBe('compiled');
+  expect(await compileWasm(page)).toBe('compiled');
 });

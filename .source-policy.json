@@ -55,7 +55,6 @@
     "src/App.tsx": 3846,
     "src/LivePreview.tsx": 997,
     "src/Markdown.tsx": 557,
-    "src/Settings.tsx": 648,
     "src/compat-core.ts": 2017,
     "src/compat-dom.ts": 2851,
     "src/kernel/kernel.ts": 879,

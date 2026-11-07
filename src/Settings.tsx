@@ -1,3 +1,11 @@
+import { Switch } from './components/ui/switch';
+import { Button } from './components/ui/button';
+import { Input } from './components/ui/input';
+import { Textarea } from './components/ui/textarea';
+import { CommunitySettings } from './components/settings/CommunitySettings';
+import { settingRow as row } from './components/settings/row';
+import { Dialog, DialogContent, DialogPortal, DialogTitle } from './components/ui/dialog';
+import { useOverlayFocusReturn } from './ui/overlay-focus';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { PluginTab } from './compat-dom';
 import {
@@ -123,126 +131,57 @@ export function Settings({
   onMode?: (id: string, mode: string) => void;
   nativeSettings?: SettingsContribution[];
 }) {
-  const [tab, setTab] = useState('appearance'),
-    [pluginQuery, setPluginQuery] = useState(''),
-    [unsafeEval, setUnsafeEval] = useState<boolean | null>(null),
-    [unsafeEvalConfirm, setUnsafeEvalConfirm] = useState(false);
-  const [nativePlugins, setNativePlugins] = useState(false),
-    [nativeConfirm, setNativeConfirm] = useState(false);
-  const [activeTrust, setActiveTrust] = useState<{
-    unsafeEval: boolean;
-    nativePlugins: boolean;
-  } | null>(null);
-  const trustProfileSequence = useRef(0);
-  const unsafeEvalRestart =
-      activeTrust !== null && unsafeEval !== null && unsafeEval !== activeTrust.unsafeEval,
-    nativeRestart = activeTrust !== null && nativePlugins !== activeTrust.nativePlugins;
-  const [nativeBusy, setNativeBusy] = useState(false),
-    [nativeError, setNativeError] = useState('');
-  const [unsafeBusy, setUnsafeBusy] = useState(false),
-    [unsafeError, setUnsafeError] = useState('');
-  useEffect(() => {
-    if (tab !== 'community') return;
-    let live = true;
-    setActiveTrust(null);
-    /** Apply a confirmed profile only while this Community panel subscription remains live. */
-    const apply = (profile: {
-      saved: { unsafeEval: boolean; nativePlugins: boolean };
-      active: { unsafeEval: boolean; nativePlugins: boolean };
-    }) => {
-      if (live) {
-        setNativePlugins(profile.saved.nativePlugins);
-        setUnsafeEval(profile.saved.unsafeEval);
-        setActiveTrust(profile.active);
-        setNativeError('');
-      }
-    };
-    const offTrust = bridge.onTrustProfileChange?.((profile) => {
-      trustProfileSequence.current++;
-      apply(profile);
-    });
-    const sequence = trustProfileSequence.current;
-    if (bridge.desktop && bridge.trustProfile)
-      void bridge
-        .trustProfile()
-        .then((profile) => {
-          if (sequence === trustProfileSequence.current) apply(profile);
-        })
-        .catch((error) => {
-          if (live && sequence === trustProfileSequence.current) setNativeError(String(error));
-        });
-    else {
-      setNativePlugins(false);
-      setUnsafeEval(false);
-    }
-    return () => {
-      live = false;
-      offTrust?.();
-    };
-  }, [tab]);
-  /** Persist only native-confirmed profile changes, preserving UI state on failure. */
-  async function changeNativePlugins(enabled: boolean) {
-    if (!bridge.desktop || !bridge.setNativePlugins || nativeBusy || !activeTrust) return;
-    setNativeBusy(true);
-    setNativeError('');
-    try {
-      const result = await bridge.setNativePlugins(enabled);
-      setNativePlugins(result);
-      setNativeConfirm(false);
-    } catch (error) {
-      setNativeConfirm(false);
-      setNativeError(String(error));
-    } finally {
-      setNativeBusy(false);
-    }
-  }
+  const [tab, setTab] = useState('appearance');
+  const [pluginQuery, setPluginQuery] = useState('');
+  const returnFocus = useOverlayFocusReturn();
   const update = (key: keyof Preferences, v: any) => onChange({ ...value, [key]: v });
-  const row = (name: string, description: string, control: React.ReactNode) => (
-    <div className="setting-row">
-      <div>
-        <strong>{name}</strong>
-        <p>{description}</p>
-      </div>
-      {control}
-    </div>
-  );
   const toggle = (key: keyof Preferences) => (
-    <input
+    <Switch
       aria-label={String(key)}
-      type="checkbox"
-      role="switch"
       checked={!!value[key]}
-      onChange={(e) => update(key, e.target.checked)}
+      onCheckedChange={(checked) => update(key, checked)}
     />
   );
-  /** Persist the desktop-only unsafe-eval opt-in after the inline warning is accepted. */
-  async function changeUnsafeEval(enabled: boolean) {
-    if (!bridge.desktop || !bridge.setUnsafeEval || unsafeBusy || !activeTrust) return;
-    setUnsafeBusy(true);
-    setUnsafeError('');
-    try {
-      const result = await bridge.setUnsafeEval(enabled);
-      setUnsafeEval(result);
-      setUnsafeEvalConfirm(false);
-    } catch (error) {
-      setUnsafeEvalConfirm(false);
-      setUnsafeError(String(error));
-    } finally {
-      setUnsafeBusy(false);
-    }
-  }
   const contributed = nativeSettings.filter(
     (contribution) => (contribution.tab ?? 'extensions') === tab,
   );
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <section
-        className="settings-modal"
-        role="dialog"
-        aria-modal="true"
+    <Dialog
+      open
+      modal={false}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogPortal>
+        <div className="app-settings-scrim" aria-hidden="true" />
+      </DialogPortal>
+      <DialogContent
+        className="settings-modal app-settings"
+        showCloseButton={false}
+        showOverlay={false}
         aria-label="Settings"
-        onClick={(e) => e.stopPropagation()}
+        aria-describedby={undefined}
+        onCloseAutoFocus={returnFocus}
+        onEscapeKeyDown={(event) => {
+          // Radix listens in document capture; let the imperative top modal handle
+          // Escape later without also dismissing this underlying settings dialog.
+          if (
+            document.querySelector('.plugin-modal-backdrop') ||
+            (event.target instanceof Element && event.target.closest('[role="menu"]'))
+          )
+            event.preventDefault();
+          else event.stopPropagation();
+        }}
+        onInteractOutside={(event) => {
+          // Close on our own scrim only, matching the original backdrop behavior.
+          // Plugin menus/modals and nested permission dialogs portal independently.
+          const target = event.detail.originalEvent.target;
+          if (!(target instanceof Element && target.classList.contains('app-settings-scrim')))
+            event.preventDefault();
+        }}
       >
+        <DialogTitle className="ui:sr-only">Settings</DialogTitle>
         <nav>
           <div className="settings-label">Settings</div>
           {[
@@ -255,13 +194,14 @@ export function Settings({
             ['extensions', Blocks, 'Extensions'],
             ['about', Info, 'About'],
           ].map(([id, Icon, label]) => (
-            <button
+            <Button
+              variant="ghost"
               key={String(id)}
               onClick={() => setTab(String(id))}
               className={tab === id ? 'selected' : ''}
             >
               {typeof Icon !== 'string' && <Icon size={16} />} {String(label)}
-            </button>
+            </Button>
           ))}
         </nav>
         <div className="settings-content">
@@ -278,20 +218,26 @@ export function Settings({
                         ? 'Extensions'
                         : tab[0].toUpperCase() + tab.slice(1))}
             </h2>
-            <button onClick={onClose} aria-label="Close settings" data-testid="settings-close">
+            <Button
+              variant="ghost"
+              onClick={onClose}
+              aria-label="Close settings"
+              data-testid="settings-close"
+            >
               <X size={18} />
-            </button>
+            </Button>
           </header>
           {!!pluginTabs.length && (
             <div className="plugin-settings-tabs">
               {pluginTabs.map((p) => (
-                <button
+                <Button
+                  variant="ghost"
                   key={p.id}
                   onClick={() => setTab(p.id)}
                   aria-label={'Plugin settings ' + p.name}
                 >
                   {p.name}
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -318,28 +264,30 @@ export function Settings({
                 'Color theme',
                 'A quiet workspace in light or dark.',
                 <div className="segmented">
-                  <button
+                  <Button
+                    variant="ghost"
                     className={value.theme === 'dark' ? 'selected' : ''}
                     onClick={() => update('theme', 'dark')}
                     data-testid="theme-dark"
                   >
                     <Moon size={14} />
                     Dark
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
                     className={value.theme === 'light' ? 'selected' : ''}
                     onClick={() => update('theme', 'light')}
                     data-testid="theme-light"
                   >
                     <Sun size={14} />
                     Light
-                  </button>
+                  </Button>
                 </div>,
               )}
               {row(
                 'Text size',
                 'Font size for reading and editing.',
-                <input
+                <Input
                   aria-label="Text size"
                   type="number"
                   min="12"
@@ -358,7 +306,7 @@ export function Settings({
               <label className="setting-block">
                 <strong>CSS snippet</strong>
                 <p>Local styling applied to this workspace. Paste CSS, not JavaScript.</p>
-                <textarea
+                <Textarea
                   aria-label="CSS snippet"
                   placeholder=".markdown { line-height: 1.8; }"
                   value={value.css}
@@ -380,7 +328,7 @@ export function Settings({
                     attachmentFolder: 'Attachment folder',
                   }[key],
                   'Path relative to the current vault.',
-                  <input
+                  <Input
                     key={key}
                     aria-label={key}
                     value={value[key]}
@@ -414,7 +362,7 @@ export function Settings({
                 row(
                   id.replaceAll('-', ' '),
                   '',
-                  <input
+                  <Input
                     aria-label={'Hotkey ' + id}
                     value={value.hotkeys[id] || shortcut}
                     onChange={(e) => update('hotkeys', { ...value.hotkeys, [id]: e.target.value })}
@@ -426,7 +374,7 @@ export function Settings({
           {tab === 'core' && (
             <>
               <label className="setting-block">
-                <input
+                <Input
                   placeholder="Find a core plugin…"
                   aria-label="Find a core plugin"
                   value={pluginQuery}
@@ -439,16 +387,14 @@ export function Settings({
                   row(
                     name,
                     description,
-                    <input
+                    <Switch
                       key={id}
-                      type="checkbox"
-                      role="switch"
                       aria-label={'Enable ' + name}
                       checked={!value.disabledPlugins.includes(id)}
-                      onChange={(e) =>
+                      onCheckedChange={(checked) =>
                         update(
                           'disabledPlugins',
-                          e.target.checked
+                          checked
                             ? value.disabledPlugins.filter((p) => p !== id)
                             : [...value.disabledPlugins, id],
                         )
@@ -459,162 +405,13 @@ export function Settings({
             </>
           )}
           {tab === 'community' && (
-            <>
-              <div className="security-notice">
-                <Shield size={20} />
-                <div>
-                  <strong>Restricted mode by default</strong>
-                  <p>
-                    Local plugins may use the Engine API or an experimental CommonJS Obsidian API
-                    subset. Full community-plugin compatibility is not supported. Unsupported APIs
-                    fail explicitly. Enabled plugins can read and modify notes and store data,
-                    including during startup. Only enable trusted code.
-                  </p>
-                </div>
-              </div>
-              <p className="settings-note">
-                Worker is the default. Trusted renderer adds DOM and CodeMirror integration but is
-                not isolated from the application or vault bridge and cannot be forcibly
-                interrupted. Runtime choices and enabled state reset on restart; no plugin runs
-                automatically.
-              </p>
-              {bridge.platform === 'android' && (
-                <p className="settings-note">
-                  Android trusted renderer code also shares this app’s native Capacitor APIs and
-                  app-private files. This is app-UID trust, not a per-plugin sandbox or desktop
-                  Node.js access. Desktop-only manifests cannot be enabled; unsafe-eval, Node.js and
-                  Electron are unavailable.
-                </p>
-              )}
-              <div className="setting-row">
-                <div>
-                  <strong>Allow unsafe-eval in trusted renderer</strong>
-                  <p>
-                    Required by DataviewJS and dv.view. This only applies to the packaged desktop
-                    app, weakens the Content Security Policy and requires a restart. Plugins remain
-                    unsandboxed.
-                  </p>
-                </div>
-                <input
-                  aria-label="Allow unsafe-eval in trusted renderer"
-                  type="checkbox"
-                  role="switch"
-                  checked={!!unsafeEval}
-                  disabled={!bridge.desktop || unsafeBusy || activeTrust === null}
-                  onChange={(event) => {
-                    if (event.target.checked && !unsafeEval) setUnsafeEvalConfirm(true);
-                    else void changeUnsafeEval(false);
-                  }}
-                />
-              </div>
-              {unsafeEvalConfirm && (
-                <div className="unsafe-eval-warning" role="alert">
-                  <p>
-                    Allowing unsafe-eval lets trusted plugins run eval/Function, including
-                    DataviewJS and dv.view. It weakens CSP for the whole desktop renderer and does
-                    not sandbox plugins. Restart is required.
-                  </p>
-                  <button disabled={unsafeBusy} onClick={() => void changeUnsafeEval(true)}>
-                    Enable unsafe-eval
-                  </button>
-                  <button disabled={unsafeBusy} onClick={() => setUnsafeEvalConfirm(false)}>
-                    Cancel
-                  </button>
-                </div>
-              )}
-              {unsafeError && <p role="alert">{unsafeError}</p>}
-              {unsafeEvalRestart && (
-                <p className="settings-note" role="status">
-                  Restart Crafactory Engine to apply the unsafe-eval change.
-                </p>
-              )}
-              <div className="setting-row">
-                <div>
-                  <strong>Allow native Node.js plugins</strong>
-                  <p>
-                    Full desktop access for trusted plugins such as Git. All renderer scripts can
-                    access files outside the vault, execute commands, access credentials and use the
-                    network. NOT a per-plugin sandbox. Granting or revoking requires a restart.
-                  </p>
-                </div>
-                <input
-                  aria-label="Allow native Node.js plugins"
-                  type="checkbox"
-                  role="switch"
-                  checked={nativePlugins}
-                  disabled={!bridge.desktop || nativeBusy || activeTrust === null}
-                  onChange={(event) => {
-                    if (event.target.checked && !nativePlugins) setNativeConfirm(true);
-                    else void changeNativePlugins(false);
-                  }}
-                />
-              </div>
-              {nativeConfirm && (
-                <div role="alert">
-                  <p>
-                    This trusts every script in this desktop renderer with your computer, not only
-                    the selected plugin. Only enable code you fully trust. Unloading a plugin cannot
-                    undo file changes or commands.
-                  </p>
-                  <button disabled={nativeBusy} onClick={() => void changeNativePlugins(true)}>
-                    Enable native plugins
-                  </button>
-                  <button disabled={nativeBusy} onClick={() => setNativeConfirm(false)}>
-                    Cancel
-                  </button>
-                </div>
-              )}
-              {nativeError && <p role="alert">{nativeError}</p>}
-              {nativeRestart && (
-                <p role="status">
-                  Restart Crafactory Engine to apply the native plugin permission change, including
-                  revocation.
-                </p>
-              )}
-              {!plugins.length ? (
-                <div className="empty">
-                  <Puzzle size={28} />
-                  <h3>No local plugins installed</h3>
-                  <p>
-                    {bridge.platform === 'android'
-                      ? 'This pilot has no community-plugin installer or shared-folder import. Debug builds can sideload unchanged packages into the app-private vault’s .crafactory/plugins/plugin-id directory.'
-                      : 'Place a manifest.json and main.js in .crafactory/plugins/plugin-id, then reopen settings. An example plugin is included in the repository.'}
-                  </p>
-                </div>
-              ) : (
-                plugins.map((p) => (
-                  <div key={p.id}>
-                    {row(
-                      p.name,
-                      `${p.description || ''} · ${p.version}${bridge.platform === 'android' && p.isDesktopOnly ? ' · Desktop-only; unavailable on Android' : ''}`,
-                      <input
-                        type="checkbox"
-                        role="switch"
-                        aria-label={'Enable ' + p.name}
-                        checked={enabled.includes(p.id)}
-                        disabled={bridge.platform === 'android' && p.isDesktopOnly === true}
-                        onChange={() => onTogglePlugin(p.id)}
-                      />,
-                    )}
-                    <label className="plugin-runtime">
-                      Runtime for {p.name}
-                      <select
-                        aria-label={'Runtime for ' + p.name}
-                        value={modes[p.id] || 'worker'}
-                        disabled={
-                          enabled.includes(p.id) ||
-                          (bridge.platform === 'android' && p.isDesktopOnly === true)
-                        }
-                        onChange={(e) => onMode(p.id, e.target.value)}
-                      >
-                        <option value="worker">Worker (default)</option>
-                        <option value="renderer">Trusted renderer (not sandboxed)</option>
-                      </select>
-                    </label>
-                  </div>
-                ))
-              )}
-            </>
+            <CommunitySettings
+              plugins={plugins}
+              enabled={enabled}
+              onTogglePlugin={onTogglePlugin}
+              modes={modes}
+              onMode={onMode}
+            />
           )}
           {tab === 'about' && (
             <div className="about">
@@ -642,7 +439,7 @@ export function Settings({
             </div>
           )}
         </div>
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
