@@ -1,8 +1,18 @@
 import {describe,it,expect} from 'vitest';
 import fs from 'node:fs';
-import {normalizeText,parseParityLedger} from '../scripts/inventory-model.mjs';
+import {normalizeText,parseParityLedger,readExportList} from '../scripts/inventory-model.mjs';
 const ledger=fs.readFileSync(new URL('../docs/PARITY.md',import.meta.url),'utf8');
 const core='https://help.obsidian.md/plugins',api='https://docs.obsidian.md/Reference/TypeScript+API/index';
+describe('formatter-independent export inventory',()=>{
+  it('accepts compact, formatted, CRLF and quoted export arrays',()=>{
+    for(const text of ["const supportedExports=['App','Plugin'] as const;",'const supportedExports = [\r\n  "App",\r\n  "Plugin",\r\n] as const;'])
+      expect(readExportList(text,'supportedExports')).toEqual(['App','Plugin']);
+  });
+  it('fails closed when a named list is missing or invalid',()=>{
+    expect(()=>readExportList('const other = [];','supportedExports')).toThrow('Missing export list');
+    expect(()=>readExportList('','.*')).toThrow('Invalid export list name');
+  });
+});
 describe('cross-platform inventory line endings',()=>{
   it('keeps explicit partial core rows rather than silently dropping a documented gap',()=>{
     const parsed=parseParityLedger('## Core plugins\n| Bases | Partial | Table subset | Formula/query gaps |\n',core,api);

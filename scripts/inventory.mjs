@@ -1,15 +1,15 @@
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
-import {normalizeText,parseParityLedger} from './inventory-model.mjs';
+import {normalizeText,parseParityLedger,readExportList} from './inventory-model.mjs';
 const check=process.argv.includes('--check');
 /** Read a repository text input with normalized line endings for reproducible inventory checks. */
 async function read(path){return normalizeText(await fs.readFile(new URL('../'+path,import.meta.url),'utf8'));}
 const ledger=await read('docs/PARITY.md'),baseline=JSON.parse(await read('docs/compatibility/reference-baseline.json'));
 const exported=JSON.parse(await read('docs/compatibility/obsidian-exports.json'));
 const source=await read('src/compat-core.ts');
-const supported=[...source.match(/supportedExports=\[([\s\S]*?)\] as const/)[1].matchAll(/'([^']+)'/g)].map(m=>m[1]);
+const supported=readExportList(source,'supportedExports');
 const rendererSource=await read('src/compat-dom.ts');
-const rendererOnly=[...rendererSource.match(/rendererExports=\[([\s\S]*?)\] as const/)[1].matchAll(/'([^']+)'/g)].map(m=>m[1]);
+const rendererOnly=readExportList(rendererSource,'rendererExports');
 const rendererSupported=[...supported,...rendererOnly];
 assert.equal(new Set(rendererSupported).size,rendererSupported.length,'Renderer exports must not duplicate Worker exports');
 assert.equal(new Set(exported.symbols.map(s=>s.name)).size,exported.symbols.length);

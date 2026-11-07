@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "oxc"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "no-unused-vars": "error",
+    "typescript/no-this-alias": "off"
+  },
+  "overrides": [
+    {
+      "files": ["e2e-desktop/*corpus.spec.ts"],
+      "rules": {
+        "no-empty-pattern": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    ".agents/**",
+    "examples/**",
+    "docs/**",
+    ".compat-corpus/**",
+    "android/**",
+    "dist/**",
+    "release/**",
+    "test-results*/**",
+    "playwright-report/**",
+    "coverage/**"
+  ]
+}

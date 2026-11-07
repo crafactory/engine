@@ -1,4 +1,11 @@
 export const normalizeText=text=>text.replace(/\r\n/g,'\n');
+/** Read the original literal export lists without depending on formatter whitespace. */
+export function readExportList(source,name){
+  if(!/^[A-Za-z]+$/.test(name))throw new Error('Invalid export list name');
+  const match=source.match(new RegExp('\\b'+name+'\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*as\\s+const\\b'));
+  if(!match)throw new Error('Missing export list: '+name);
+  return [...match[1].matchAll(/['"]([^'"]+)['"]/g)].map(item=>item[1]);
+}
 export function parseParityLedger(text,coreSource,apiSource){
   const slug=name=>name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
   let section='';const items=[];
