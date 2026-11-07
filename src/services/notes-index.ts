@@ -6,23 +6,44 @@
  * per-note metadata. The index is built from note content supplied by the caller, so it
  * depends on no editor or UI module.
  */
-import {Kernel, type PluginDefinition} from '../kernel';
-import type {Note} from '../types';
-import {frontmatter, headings, links, search, tags, title} from '../knowledge';
-import {parseMetadata,type CachedMetadata} from '../metadata';
-import {ENGINE_VERSION} from './version';
+import { Kernel, type PluginDefinition } from '../kernel';
+import type { Note } from '../types';
+import { frontmatter, headings, links, search, tags, title } from '../knowledge';
+import { parseMetadata, type CachedMetadata } from '../metadata';
+import { ENGINE_VERSION } from './version';
 
 export const INDEX_CONTRACT = 'engine.index/v1';
 export const INDEX_VERSION = '1.0.0';
 
-export interface IndexedLink {target: string; label: string; embed: boolean; fragment: string}
-export interface IndexedHeading {level: number; text: string; offset: number}
-export interface IndexedNote {
-  path: string; title: string; aliases: string[]; tags: string[];
-  headings: IndexedHeading[]; links: IndexedLink[]; properties: Record<string, unknown>; body: string;
+export interface IndexedLink {
+  target: string;
+  label: string;
+  embed: boolean;
+  fragment: string;
 }
-export interface Backlink {path: string; context: string}
-export interface TagCount {tag: string; count: number}
+export interface IndexedHeading {
+  level: number;
+  text: string;
+  offset: number;
+}
+export interface IndexedNote {
+  path: string;
+  title: string;
+  aliases: string[];
+  tags: string[];
+  headings: IndexedHeading[];
+  links: IndexedLink[];
+  properties: Record<string, unknown>;
+  body: string;
+}
+export interface Backlink {
+  path: string;
+  context: string;
+}
+export interface TagCount {
+  tag: string;
+  count: number;
+}
 
 /** Derived note metadata, relationships and search over a mutable note set. */
 export interface IndexService {
@@ -41,14 +62,15 @@ export interface IndexService {
   /** Bounded Obsidian-shaped metadata cache for a note. */
   metadata(path: string): CachedMetadata | undefined;
   resolve(linktext: string, from: string): string | undefined;
-  search(query: string, options?: {caseSensitive?: boolean}): string[];
+  search(query: string, options?: { caseSensitive?: boolean }): string[];
 }
 
 /** Read a frontmatter value that may be a string or an array of strings (singular or plural). */
 function aliasesOf(properties: Record<string, unknown>): string[] {
   const value = properties.aliases ?? properties.alias;
   if (typeof value === 'string') return value ? [value] : [];
-  if (Array.isArray(value)) return value.filter((entry): entry is string => typeof entry === 'string');
+  if (Array.isArray(value))
+    return value.filter((entry): entry is string => typeof entry === 'string');
   return [];
 }
 
@@ -64,7 +86,7 @@ export class NotesIndex implements IndexService {
     const unique = new Map<string, Note>();
     for (const note of Array.isArray(notes) ? notes : []) {
       if (!note || typeof note.path !== 'string') continue;
-      unique.set(note.path, {path: note.path, content: note.content ?? ''});
+      unique.set(note.path, { path: note.path, content: note.content ?? '' });
     }
     this.notes = [...unique.values()];
     this.cache.clear();
@@ -74,8 +96,8 @@ export class NotesIndex implements IndexService {
 
   /** Insert or replace one note and invalidate its cached derivation. */
   update(path: string, content: string): void {
-    this.notes = this.notes.filter(note => note.path !== path);
-    this.notes.push({path, content});
+    this.notes = this.notes.filter((note) => note.path !== path);
+    this.notes.push({ path, content });
     this.cache.delete(path);
     this.metadataCache.delete(path);
     this.reindexLookups();
@@ -83,17 +105,21 @@ export class NotesIndex implements IndexService {
 
   /** Remove a note from the index. */
   remove(path: string): void {
-    this.notes = this.notes.filter(note => note.path !== path);
+    this.notes = this.notes.filter((note) => note.path !== path);
     this.cache.delete(path);
     this.metadataCache.delete(path);
     this.reindexLookups();
   }
 
   /** Number of indexed notes. */
-  size(): number { return this.notes.length; }
+  size(): number {
+    return this.notes.length;
+  }
 
   /** Indexed paths in insertion order. */
-  paths(): string[] { return this.notes.map(note => note.path); }
+  paths(): string[] {
+    return this.notes.map((note) => note.path);
+  }
 
   /** Derived metadata for a note as an isolated snapshot. */
   note(path: string): IndexedNote | undefined {
@@ -104,13 +130,13 @@ export class NotesIndex implements IndexService {
   /** Outgoing links of a note. */
   outgoing(path: string): IndexedLink[] {
     const source = this.source(path);
-    return (source ? this.derive(source).links : []).map(link => ({...link}));
+    return (source ? this.derive(source).links : []).map((link) => ({ ...link }));
   }
 
   /** Headings of a note. */
   headings(path: string): IndexedHeading[] {
     const source = this.source(path);
-    return (source ? this.derive(source).headings : []).map(heading => ({...heading}));
+    return (source ? this.derive(source).headings : []).map((heading) => ({ ...heading }));
   }
 
   /** Frontmatter properties of a note as an isolated snapshot. */
@@ -124,26 +150,31 @@ export class NotesIndex implements IndexService {
     const source = this.source(path);
     if (!source) return undefined;
     let value = this.metadataCache.get(path);
-    if (!value) { value = parseMetadata(source.content); this.metadataCache.set(path, value); }
+    if (!value) {
+      value = parseMetadata(source.content);
+      this.metadataCache.set(path, value);
+    }
     return structuredClone(value);
   }
 
   /** Unique frontmatter property keys across the index, in first-seen order. */
   propertyKeys(): string[] {
     const keys = new Set<string>();
-    for (const note of this.notes) for (const key of Object.keys(this.derive(note).properties)) keys.add(key);
+    for (const note of this.notes)
+      for (const key of Object.keys(this.derive(note).properties)) keys.add(key);
     return [...keys];
   }
 
   /** Notes whose links resolve to the given path, once per source, with the link label. */
   backlinks(path: string): Backlink[] {
-    const result: Backlink[] = [], seen = new Set<string>();
+    const result: Backlink[] = [],
+      seen = new Set<string>();
     for (const source of this.notes) {
       if (source.path === path || seen.has(source.path)) continue;
       for (const link of this.derive(source).links) {
         if (this.resolve(link.target, source.path) !== path) continue;
         seen.add(source.path);
-        result.push({path: source.path, context: link.label || link.target});
+        result.push({ path: source.path, context: link.label || link.target });
         break;
       }
     }
@@ -158,22 +189,29 @@ export class NotesIndex implements IndexService {
       if (allowed && !allowed.has(source.path)) continue;
       for (const tag of tags(source.content)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
     }
-    return [...counts].map(([tag, count]) => ({tag, count})).sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+    return [...counts]
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
   }
 
   /** Resolve a link target from a source path by path, sibling, title or alias. */
   resolve(linktext: string, from: string): string | undefined {
-    if (!linktext) return this.notes.find(note => note.path === from)?.path;
+    if (!linktext) return this.notes.find((note) => note.path === from)?.path;
     const normalized = linktext.replace(/^\.\//, '');
     const parent = from.includes('/') ? from.slice(0, from.lastIndexOf('/') + 1) : '';
-    for (const candidate of [normalized, normalized + '.md', parent + normalized, parent + normalized + '.md']) {
+    for (const candidate of [
+      normalized,
+      normalized + '.md',
+      parent + normalized,
+      parent + normalized + '.md',
+    ]) {
       const hit = this.byPath.get(candidate.toLowerCase());
       if (hit) return hit;
     }
     // First note (in index order) whose title or alias matches, preserving the original
     // resolver order; a string alias keeps its substring match.
     const normalizedTitle = title(normalized).toLowerCase();
-    const found = this.notes.find(note => {
+    const found = this.notes.find((note) => {
       const entry = this.derive(note);
       if (entry.title.toLowerCase() === normalizedTitle) return true;
       const value = entry.properties.aliases ?? entry.properties.alias;
@@ -184,12 +222,14 @@ export class NotesIndex implements IndexService {
   }
 
   /** Full-text search returning matching paths. */
-  search(query: string, options: {caseSensitive?: boolean} = {}): string[] {
-    return search(this.notes, query, options.caseSensitive ?? false).map(note => note.path);
+  search(query: string, options: { caseSensitive?: boolean } = {}): string[] {
+    return search(this.notes, query, options.caseSensitive ?? false).map((note) => note.path);
   }
 
   /** Find an indexed note by path. */
-  private source(path: string): Note | undefined { return this.notes.find(note => note.path === path); }
+  private source(path: string): Note | undefined {
+    return this.notes.find((note) => note.path === path);
+  }
 
   /** Cached derivation for a note, without cloning. */
   private derive(node: Note): IndexedNote {
@@ -197,8 +237,14 @@ export class NotesIndex implements IndexService {
     if (cached) return cached;
     const parsed = frontmatter(node.content);
     const entry: IndexedNote = {
-      path: node.path, title: title(node.path), aliases: aliasesOf(parsed.properties), tags: tags(node.content),
-      headings: headings(node.content), links: links(node.content), properties: parsed.properties, body: parsed.body
+      path: node.path,
+      title: title(node.path),
+      aliases: aliasesOf(parsed.properties),
+      tags: tags(node.content),
+      headings: headings(node.content),
+      links: links(node.content),
+      properties: parsed.properties,
+      body: parsed.body,
     };
     this.cache.set(node.path, entry);
     return entry;
@@ -217,19 +263,32 @@ export class NotesIndex implements IndexService {
 /** Wrap an index service as a runtime-scoped native plugin that provides the contract. */
 export function indexPlugin(service: IndexService): PluginDefinition {
   return {
-    manifest: {id: 'engine.index', name: 'Index', version: INDEX_VERSION, scopes: ['runtime'], provides: [{contract: INDEX_CONTRACT, version: INDEX_VERSION}]},
-    setup(context) { context.provide(INDEX_CONTRACT, INDEX_VERSION, service); }
+    manifest: {
+      id: 'engine.index',
+      name: 'Index',
+      version: INDEX_VERSION,
+      scopes: ['runtime'],
+      provides: [{ contract: INDEX_CONTRACT, version: INDEX_VERSION }],
+    },
+    setup(context) {
+      context.provide(INDEX_CONTRACT, INDEX_VERSION, service);
+    },
   };
 }
 
-export interface IndexRuntime {kernel: Kernel; index: IndexService}
+export interface IndexRuntime {
+  kernel: Kernel;
+  index: IndexService;
+}
 
 /** Build and start a kernel exposing the index service. */
-export async function createIndexRuntime(options: {engineVersion?: string} = {}): Promise<IndexRuntime> {
-  const kernel = new Kernel({engineVersion: options.engineVersion ?? ENGINE_VERSION});
+export async function createIndexRuntime(
+  options: { engineVersion?: string } = {},
+): Promise<IndexRuntime> {
+  const kernel = new Kernel({ engineVersion: options.engineVersion ?? ENGINE_VERSION });
   kernel.register(indexPlugin(new NotesIndex()));
   await kernel.start();
   const resolved = kernel.runtime.services.resolve(INDEX_CONTRACT, '^1.0.0');
   if (!resolved.ok) throw new Error('Index service was not provided');
-  return {kernel, index: resolved.binding.value as IndexService};
+  return { kernel, index: resolved.binding.value as IndexService };
 }

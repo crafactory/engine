@@ -1,4 +1,4 @@
-import type {Note} from '../../types';
+import type { Note } from '../../types';
 
 /** Props shared by built-in Bases view renderers. */
 export interface BasesViewProps {
@@ -16,4 +16,9 @@ export interface BasesViewProps {
 }
 
 /** Render a cell value consistently across built-in views. */
-export const displayValue = (value: any): string => Array.isArray(value) ? value.join(', ') : value === null || value === undefined ? '' : String(value);
+export const displayValue = (value: any): string =>
+  Array.isArray(value)
+    ? value.join(', ')
+    : value === null || value === undefined
+      ? ''
+      : String(value);

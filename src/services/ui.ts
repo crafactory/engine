@@ -3,7 +3,7 @@
  * Extensions contribute declarative ribbon buttons and status-bar text without importing
  * application React code. The service is UI-free; the host renders the contributions.
  */
-import type {PluginDefinition} from '../kernel';
+import type { PluginDefinition } from '../kernel';
 
 export const UI_CONTRACT = 'engine.ui/v1';
 export const UI_VERSION = '1.0.0';
@@ -41,7 +41,11 @@ export interface BlockContribution extends UiContributionBase {
   load: () => Promise<unknown>;
 }
 
-export type UiContribution = RibbonContribution | StatusContribution | SettingsContribution | BlockContribution;
+export type UiContribution =
+  | RibbonContribution
+  | StatusContribution
+  | SettingsContribution
+  | BlockContribution;
 
 /** Register UI contributions and subscribe to changes. */
 export interface UiService {
@@ -63,32 +67,50 @@ export class UiContributions implements UiService {
 
   /** Register or replace a contribution; the disposer restores the predecessor. */
   register(contribution: UiContribution): () => void {
-    if (!contribution || typeof contribution.id !== 'string' || !contribution.id) throw new Error('Invalid UI contribution id');
-    if (typeof contribution.label !== 'string' || !contribution.label.trim()) throw new Error('Invalid UI contribution label');
-    if (contribution.order !== undefined && !Number.isFinite(contribution.order)) throw new Error('Invalid UI contribution order');
+    if (!contribution || typeof contribution.id !== 'string' || !contribution.id)
+      throw new Error('Invalid UI contribution id');
+    if (typeof contribution.label !== 'string' || !contribution.label.trim())
+      throw new Error('Invalid UI contribution label');
+    if (contribution.order !== undefined && !Number.isFinite(contribution.order))
+      throw new Error('Invalid UI contribution order');
     if (contribution.kind === 'ribbon') {
-      if (typeof contribution.run !== 'function') throw new Error('Ribbon contribution needs a run function');
+      if (typeof contribution.run !== 'function')
+        throw new Error('Ribbon contribution needs a run function');
     } else if (contribution.kind === 'status') {
       if (typeof contribution.text !== 'string') throw new Error('Status contribution needs text');
     } else if (contribution.kind === 'settings') {
-      if (typeof contribution.load !== 'function') throw new Error('Settings contribution needs a loader');
-      if (contribution.tab !== undefined && (typeof contribution.tab !== 'string' || !contribution.tab.trim())) throw new Error('Invalid settings tab');
+      if (typeof contribution.load !== 'function')
+        throw new Error('Settings contribution needs a loader');
+      if (
+        contribution.tab !== undefined &&
+        (typeof contribution.tab !== 'string' || !contribution.tab.trim())
+      )
+        throw new Error('Invalid settings tab');
     } else if (contribution.kind === 'block') {
-      if (typeof contribution.language !== 'string' || !contribution.language.trim()) throw new Error('Block contribution needs a language');
-      if (typeof contribution.load !== 'function') throw new Error('Block contribution needs a loader');
+      if (typeof contribution.language !== 'string' || !contribution.language.trim())
+        throw new Error('Block contribution needs a language');
+      if (typeof contribution.load !== 'function')
+        throw new Error('Block contribution needs a loader');
     } else throw new Error('Invalid UI contribution kind');
-    const normalized = {...contribution} as UiContribution;
-    const index = this.contributions.findIndex(candidate => candidate.kind === normalized.kind && candidate.id === normalized.id);
+    const normalized = { ...contribution } as UiContribution;
+    const index = this.contributions.findIndex(
+      (candidate) => candidate.kind === normalized.kind && candidate.id === normalized.id,
+    );
     this.previous.set(normalized, index >= 0 ? this.contributions[index] : undefined);
-    if (index >= 0) this.contributions[index] = normalized; else this.contributions.push(normalized);
+    if (index >= 0) this.contributions[index] = normalized;
+    else this.contributions.push(normalized);
     this.publish();
     return () => {
       this.revoked.add(normalized);
-      const current = this.contributions.findIndex(candidate => candidate.kind === normalized.kind && candidate.id === normalized.id);
+      const current = this.contributions.findIndex(
+        (candidate) => candidate.kind === normalized.kind && candidate.id === normalized.id,
+      );
       if (current < 0 || this.contributions[current] !== normalized) return;
       let replacement = this.previous.get(normalized);
-      while (replacement && this.revoked.has(replacement)) replacement = this.previous.get(replacement);
-      if (replacement) this.contributions[current] = replacement; else this.contributions.splice(current, 1);
+      while (replacement && this.revoked.has(replacement))
+        replacement = this.previous.get(replacement);
+      if (replacement) this.contributions[current] = replacement;
+      else this.contributions.splice(current, 1);
       this.publish();
     };
   }
@@ -96,33 +118,46 @@ export class UiContributions implements UiService {
   /** List contributions ordered by kind order then registration order. */
   list(kind?: UiContribution['kind']): UiContribution[] {
     return this.contributions
-      .filter(contribution => kind === undefined || contribution.kind === kind)
+      .filter((contribution) => kind === undefined || contribution.kind === kind)
       .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
   }
 
   /** Ribbon contributions in host order. */
-  ribbon(): RibbonContribution[] { return this.list('ribbon') as RibbonContribution[]; }
+  ribbon(): RibbonContribution[] {
+    return this.list('ribbon') as RibbonContribution[];
+  }
 
   /** Status contributions in host order. */
-  status(): StatusContribution[] { return this.list('status') as StatusContribution[]; }
+  status(): StatusContribution[] {
+    return this.list('status') as StatusContribution[];
+  }
 
   /** Settings contributions in host order. */
-  settings(): SettingsContribution[] { return this.list('settings') as SettingsContribution[]; }
+  settings(): SettingsContribution[] {
+    return this.list('settings') as SettingsContribution[];
+  }
 
   /** Block-preview contributions in host order. */
-  blocks(): BlockContribution[] { return this.list('block') as BlockContribution[]; }
+  blocks(): BlockContribution[] {
+    return this.list('block') as BlockContribution[];
+  }
 
   /** Observe contribution changes; returns an unsubscribe function. */
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
-    return () => { this.listeners.delete(listener); };
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   /** Notify every listener; one failing subscriber must not orphan the registration. */
   private publish() {
     for (const listener of this.listeners) {
-      try { listener(); }
-      catch (error) { console.error('UI contribution listener failed', error); }
+      try {
+        listener();
+      } catch (error) {
+        console.error('UI contribution listener failed', error);
+      }
     }
   }
 }
@@ -130,7 +165,15 @@ export class UiContributions implements UiService {
 /** Wrap a UI registry as a runtime-scoped native plugin. */
 export function uiPlugin(service: UiService = new UiContributions()): PluginDefinition {
   return {
-    manifest: {id: 'engine.ui', name: 'UI', version: UI_VERSION, scopes: ['runtime'], provides: [{contract: UI_CONTRACT, version: UI_VERSION}]},
-    setup(context) { context.provide(UI_CONTRACT, UI_VERSION, service); }
+    manifest: {
+      id: 'engine.ui',
+      name: 'UI',
+      version: UI_VERSION,
+      scopes: ['runtime'],
+      provides: [{ contract: UI_CONTRACT, version: UI_VERSION }],
+    },
+    setup(context) {
+      context.provide(UI_CONTRACT, UI_VERSION, service);
+    },
   };
 }

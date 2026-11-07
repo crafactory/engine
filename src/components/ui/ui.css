@@ -1,8 +1,8 @@
 /* Prefix utilities and omit preflight: existing editor/plugin DOM owns its resets. */
 @layer theme, base, components, utilities;
-@import "tailwindcss/theme.css" layer(theme) prefix(ui);
-@import "tailwindcss/utilities.css" prefix(ui);
-@import "tw-animate-css";
+@import 'tailwindcss/theme.css' layer(theme) prefix(ui);
+@import 'tailwindcss/utilities.css' prefix(ui);
+@import 'tw-animate-css';
 
 /* Honor the app preference, not the operating system's independent color scheme. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));

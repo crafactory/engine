@@ -1,15 +1,7 @@
 {
   "maxLines": 500,
   "maxSourcePathSegments": 5,
-  "sourceDirectories": [
-    "compat",
-    "components",
-    "kernel",
-    "mobile",
-    "services",
-    "ui",
-    "views"
-  ],
+  "sourceDirectories": ["compat", "components", "kernel", "mobile", "services", "ui", "views"],
   "legacyRootFiles": [
     "src/App.tsx",
     "src/Bases.tsx",

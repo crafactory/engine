@@ -1,6 +1,11 @@
-import {describe,it,expect} from 'vitest';
-import {WebViewer, webViewerPlugin, createWebViewerRuntime, WEB_VIEWER_CONTRACT} from '../src/services';
-import {Kernel} from '../src/kernel';
+import { describe, it, expect } from 'vitest';
+import {
+  WebViewer,
+  webViewerPlugin,
+  createWebViewerRuntime,
+  WEB_VIEWER_CONTRACT,
+} from '../src/services';
+import { Kernel } from '../src/kernel';
 
 describe('web viewer service', () => {
   it('accepts and trims HTTPS addresses', () => {
@@ -19,9 +24,19 @@ describe('web viewer service', () => {
     expect(runtime.kernel.runtime.services.resolve(WEB_VIEWER_CONTRACT).ok).toBe(true);
     expect(runtime.service.normalize('https://example.com')).toBe('https://example.com');
     let value = '';
-    const kernel = new Kernel({engineVersion: '1.0.0'});
+    const kernel = new Kernel({ engineVersion: '1.0.0' });
     kernel.register(webViewerPlugin(new WebViewer()));
-    kernel.register({manifest: {id: 'engine.probe', name: 'Probe', version: '1.0.0', consumes: [{contract: WEB_VIEWER_CONTRACT}]}, setup(context) { value = context.service<WebViewer>(WEB_VIEWER_CONTRACT).normalize('https://example.com/x'); }});
+    kernel.register({
+      manifest: {
+        id: 'engine.probe',
+        name: 'Probe',
+        version: '1.0.0',
+        consumes: [{ contract: WEB_VIEWER_CONTRACT }],
+      },
+      setup(context) {
+        value = context.service<WebViewer>(WEB_VIEWER_CONTRACT).normalize('https://example.com/x');
+      },
+    });
     await kernel.start();
     expect(value).toBe('https://example.com/x');
   });
