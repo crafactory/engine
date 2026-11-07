@@ -11,6 +11,7 @@ import {bridge,defaults} from './bridge';
 import {renameDestination} from './file-path';
 import {flushIndependent} from './services/flush-independent';
 import {readWorkspaceLayout} from './workspace-layout';
+import {MobileHeader,MobileNavigation,MobileSheet,type MobileSheetKind,type MobileAction} from './mobile/Shell';
 import {recordPluginDocumentView,retirePluginFileViews,recoverPluginFileViews,type PluginDocumentView} from './plugin-document-views';
 import {title,isNote,frontmatter,setProperties,resolveLink,headings,applyTemplate,rewriteLinks} from './knowledge';
 import type {EditorHandle} from './Editor';
@@ -57,6 +58,7 @@ async function download(name:string,content:string|Blob,type='text/plain'){
 /** Compose the local-first vault workspace and explicitly authorized plugin controllers. */
 export function App(){
   const nativeAndroid=bridge.platform==='android',persistent=bridge.desktop||!!bridge.persistent;
+  const platformDefaults=nativeAndroid?{...defaults,theme:'light' as const}:defaults;
   const [notes,setNotes]=useState<Note[]>([]),[entries,setEntries]=useState<Entry[]>([]);
   const imageEntries=entries.filter(e=>!e.folder&&/\.(png|jpe?g|gif|webp|svg|bmp|ico|avif|apng)$/i.test(e.path));
   const assetRevision=imageEntries.map(e=>e.path+'\0'+e.size+'\0'+e.mtime).join('\0');
@@ -64,7 +66,10 @@ export function App(){
   const assetVersions=useMemo(()=>new Map(imageEntries.map(e=>[e.path,`${e.size}:${e.mtime}`])),[assetRevision]);
   const [vaultName,setVaultName]=useState('Crafactory Vault'),[root,setRoot]=useState('');
   const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
-  const [settings,setSettings]=useState<Preferences>(defaults),[mode,setMode]=useState<Preferences['mode']>('reading');
+  const [settings,setSettings]=useState<Preferences>(platformDefaults),[mode,setMode]=useState<Preferences['mode']>('reading');
+  const lastEditMode=useRef<'source'|'live'>('live');
+  if(mode!=='reading')lastEditMode.current=mode;
+  const [mobileSheet,setMobileSheet]=useState<MobileSheetKind>(null);
   const [tabs,setTabs]=useState<string[]>([]),[active,setActive]=useState(''),[split,setSplit]=useState<string|null>(null);
   const [uiRevision,setUiRevision]=useState(0);
   const [pluginFormats,setPluginFormats]=useState<Record<string,{viewType:string;pluginId:string}>>({});
@@ -117,7 +122,9 @@ export function App(){
   const uiBlocks=useMemo(()=>uiRuntime.current?.ui.blocks()??[],[uiRevision]);
   const pluginState=useRef({entries,vaultName,active,mode});pluginState.current={entries,vaultName,active,mode};
   const vaultState=useRef<VaultState>({settings,bookmarks,workspaces,recent,propertyTypes});
-  vaultState.current={settings,bookmarks,workspaces,recent,propertyTypes,layout:{tabs,active,split,left,right,mode}};
+  const savedLayouts=useRef<Pick<VaultState,'layout'|'mobileLayout'>>({});
+  vaultState.current={settings,bookmarks,workspaces,recent,propertyTypes,...savedLayouts.current,
+    ...(nativeAndroid?{mobileLayout:{tabs,active,split:null,left:false,right:false,mode}}:{layout:{tabs,active,split,left,right,mode}})};
   const pluginManifests=useRef(new Map<string,PluginManifest>());
   const pluginFormatStacks=useRef(new Map<string,{pluginId:string;viewType:string;dispose:()=>void}[]>());
   const pluginViewCleanups=useRef(new Map<string,()=>void>());
@@ -263,12 +270,14 @@ export function App(){
       savedContent.current=new Map(all.map(n=>[n.path,n.content]));versions.current=new Map(all.map(n=>[n.path,n.version]));
       updateNotes(all);setEntries(vault.entries);setVaultName(vault.name);setRoot(vault.root);
       const state=vault.state;
-      const pref={...defaults,...state.settings};setSettings(pref);setMode(persistent?pref.mode:'reading');
+      const pref={...platformDefaults,...state.settings};setSettings(pref);setMode(persistent?pref.mode:'reading');
       setBookmarksFromService(state.bookmarks||[]);setWorkspacesFromService(state.workspaces||{});setRecent(state.recent||[]);setPropertyTypes(readPropertyTypes(state.propertyTypes));
       const path=all.find(n=>n.path==='Welcome.md')?.path||all.find(n=>isNote(n.path))?.path||all[0]?.path||'';
-      const layout=readWorkspaceLayout(state.layout,vault.entries.filter(entry=>!entry.folder).map(entry=>entry.path)),initialPath=layout?.active??path;
+      savedLayouts.current={layout:state.layout,mobileLayout:state.mobileLayout};
+      const layout=readWorkspaceLayout(nativeAndroid?state.mobileLayout??state.layout:state.layout,vault.entries.filter(entry=>!entry.folder).map(entry=>entry.path),nativeAndroid),initialPath=layout?.active??path;
       setTabs(layout?.tabs??(path?[path]:[]));setActive(initialPath);setSplit(layout?.split??null);
       if(layout){setLeft(layout.left);setRight(layout.right);setMode(persistent?layout.mode:'reading');}
+      if(nativeAndroid){setLeft(false);setRight(false);setMobileSheet(null);}
       history.current=initialPath?[initialPath]:[];historyIndex.current=initialPath?0:-1;
       loaded.current=true;await loadPluginPackages(pref.disabledPlugins);
     }catch(e){report(e);}finally{setLoading(false);}
@@ -364,6 +373,7 @@ export function App(){
     if(recovery){setRecovery(null);return true;}
     if(showSettings){setShowSettings(false);return true;}
     if(slides){setSlides(false);return true;}
+    if(mobileSheet){setMobileSheet(null);return true;}
     if(right){setRight(false);return true;}
     if(left){setLeft(false);return true;}
     if(historyIndex.current>0){
@@ -580,7 +590,7 @@ export function App(){
     const name=await dialog.ask('Save workspace','My workspace');
     if(name){const workspace={tabs,active,split,left,right,mode};const service=workspacesRuntime.current?.service;if(service)service.save(name,workspace);else setWorkspaces(w=>({...w,[name]:workspace}));}
   }
-  function loadWorkspace(name:string){const w=workspacesRuntime.current?.service.get(name)??workspaces[name];if(w){setTabs(w.tabs);setActive(w.active);setSplit(w.split);setLeft(w.left);setRight(w.right);setMode(w.mode);}}
+  function loadWorkspace(name:string){const w=workspacesRuntime.current?.service.get(name)??workspaces[name];if(w){setTabs(w.tabs);setActive(w.active);setSplit(nativeAndroid?null:w.split);setLeft(nativeAndroid?false:w.left);setRight(nativeAndroid?false:w.right);setMode(w.mode);}}
   async function exportVault(){
     try{
       await flushIndependent([...pluginStops.current.values()].map(controller=>async()=>controller.flushFileViews?.()));
@@ -770,6 +780,7 @@ export function App(){
     {id:'settings',label:'Open settings',shortcut:'⌘ ,',run:async()=>{await loadPluginPackages();setShowSettings(true);}},
     ...pluginCommands
   ].filter(c=>{
+    if(nativeAndroid&&(c.id==='split-pane'||c.id==='close-split'))return false;
     const group:Record<string,string>={'graph':'graph','local-graph':'graph','daily-note':'daily','unique-note':'unique','new-canvas':'canvas','new-base':'bases','random-note':'random','insert-template':'templates','bookmark':'bookmarks','merge-note':'composer','extract-note':'composer','recovery':'recovery','save-workspace':'workspaces','load-workspace':'workspaces','slides':'slides','web-viewer':'web','audio':'audio','converter':'converter','search':'search','quick-switcher':'switcher','command-palette':'commands'};
     return (c.id!=='footnotes'||enabled('footnotes'))&&(!group[c.id]||enabled(group[c.id]));
   });
@@ -927,13 +938,24 @@ export function App(){
   const OutgoingView=rightTab==='outgoing'?panelComponent('outgoing','right'):undefined;
   const outgoingProps=OutgoingView?{sideTab:'outgoing' as const,...panelBase}:undefined;
   const FootnotesView=rightTab==='footnotes'&&enabled('footnotes')?panelComponent('footnotes','right'):undefined;
-  return <div className="app app-container" onClick={()=>context&&setContext(null)}>
+  function openMobileSheet(sheet:MobileSheetKind){setLeft(false);setRight(false);setMobileSheet(sheet);}
+  const mobileActions:MobileAction[]=[
+    {id:'source',label:'Source mode',testid:'mode-source',selected:mode==='source',disabled:!activeNote,run:()=>setMode('source')},
+    {id:'live',label:'Live editing',testid:'mode-live',selected:mode==='live',disabled:!activeNote,run:()=>setMode('live')},
+    {id:'reading',label:'Reading view',testid:'mode-reading',selected:mode==='reading',disabled:!activeNote,run:()=>setMode('reading')},
+    {id:'context',label:'Note context',disabled:!activeNote,run:()=>setRight(true)},
+    {id:'switcher',label:'Quick switcher',disabled:!enabled('switcher'),run:()=>setPalette('files')},
+    {id:'commands',label:'Command palette',ariaLabel:'Mobile commands',disabled:!enabled('commands'),run:()=>setPalette('commands')},
+    {id:'bookmarks',label:'Bookmarks',disabled:!enabled('bookmarks'),run:()=>{setSideTab('bookmarks');setLeft(true);}},
+    {id:'settings',label:'Settings',ariaLabel:'Mobile settings',run:()=>setShowSettings(true)}
+  ];
+  return <div className={'app app-container'+(nativeAndroid?' mobile-shell':'')} onClick={()=>context&&setContext(null)}>
     <style>{settings.css}</style>
     <input ref={importInput} type="file" multiple accept=".md,.markdown,.txt,image/*,audio/*,video/*,.pdf,.canvas,.base" className="hidden" aria-label="Import files" onChange={e=>{importFiles(e.target.files);e.target.value='';}}/>
     <input ref={attachmentInput} type="file" multiple className="hidden" aria-label="Add attachment" onChange={e=>{importFiles(e.target.files);e.target.value='';}}/>
     <div className="workspace">
       {nativeAndroid&&(left||right)&&<div className="sidebar-backdrop" onClick={()=>{setLeft(false);setRight(false);}}/>}
-      <nav className="ribbon" aria-label="Workspace tools">
+      {!nativeAndroid&&<nav className="ribbon" aria-label="Workspace tools">
         <div className="ribbon-tools">
           {enabled('explorer')&&<IconButton label="File explorer" onClick={()=>{setLeft(true);setSideTab('files');}} active={left&&sideTab==='files'}><Files size={20}/></IconButton>}
           {enabled('search')&&<IconButton label="Search" onClick={()=>{setLeft(true);setSideTab('search');}} active={left&&sideTab==='search'}><Search size={20}/></IconButton>}
@@ -947,7 +969,7 @@ export function App(){
           {!nativeAndroid&&<div id="plugin-ribbon" aria-label="Plugin ribbon"/>}
         </div>
         <div>{enabled('audio')&&<IconButton label={recording?'Stop recording':'Record audio'} onClick={audio} active={recording}><Mic size={19}/></IconButton>}<IconButton label="Open another vault" onClick={()=>chooseVault()}><HardDrive size={19}/></IconButton><IconButton label="Settings" onClick={()=>runCommand('settings')}><SettingsIcon size={20}/></IconButton></div>
-      </nav>
+      </nav>}
       {left&&<aside className="left-sidebar" aria-label="Vault navigation">
         <div className="sidebar-tabs">
           {enabled('explorer')&&<IconButton label="Files tab" onClick={()=>setSideTab('files')} active={sideTab==='files'}><Files size={16}/></IconButton>}
@@ -964,7 +986,9 @@ export function App(){
         <footer className="sidebar-footer"><button onClick={()=>chooseVault()}><HardDrive size={14}/><span>{vaultName}</span><ChevronDown size={13}/></button><span>{entries.filter(e=>!e.folder&&isNote(e.path)).length} notes</span></footer>
       </aside>}
       <main className="main-workspace">
-        <div className="tabbar">
+        {nativeAndroid?<MobileHeader filesOpen={left&&sideTab==='files'} reading={mode==='reading'} editable={!!activeNote} unsaved={dirtyCount}
+          onFiles={()=>{setRight(false);setSideTab('files');setLeft(value=>sideTab!=='files'||!value);}}
+          onReading={()=>setMode(mode==='reading'?lastEditMode.current:'reading')} onTools={()=>openMobileSheet('tools')}/>:<><div className="tabbar">
           {!left&&<IconButton label="Expand sidebar" onClick={()=>setLeft(true)}><PanelLeftOpen size={17}/></IconButton>}
           <div className="tabs" role="tablist" aria-label="Open files">{tabs.map(path=><div className={'tab '+(active===path?'active':'')} role="tab" aria-selected={active===path} key={path} draggable
             onDragStart={e=>e.dataTransfer.setData('engine/tab',path)} onDragOver={e=>e.preventDefault()} onDrop={e=>{const from=e.dataTransfer.getData('engine/tab');if(from){const next=tabs.filter(t=>t!==from);next.splice(next.indexOf(path),0,from);setTabs(next);}}}>
@@ -974,7 +998,7 @@ export function App(){
         </div>
         <div className="note-toolbar"><div className="breadcrumb"><IconButton label="Back" onClick={()=>back(-1)}><ArrowLeft size={15}/></IconButton><IconButton label="Forward" onClick={()=>back(1)}><ArrowRight size={15}/></IconButton><span>{active?active.split('/').slice(0,-1).join(' / ')||vaultName:vaultName}</span>{active&&<><ChevronRight size={12}/><span className="current-crumb">{tabTitle(active)}</span></>}</div>
           <div className="note-actions">{activeNote&&<div className="view-modes" aria-label="Note mode"><IconButton label="Source mode" onClick={()=>setMode('source')} active={mode==='source'} testid="mode-source"><Code2 size={16}/></IconButton><IconButton label="Live editing" onClick={()=>setMode('live')} active={mode==='live'} testid="mode-live"><Pencil size={15}/></IconButton><IconButton label="Reading view" onClick={()=>setMode('reading')} active={mode==='reading'} testid="mode-reading"><BookOpen size={16}/></IconButton></div>}<IconButton label="More actions" onClick={()=>setPalette('commands')}><MoreHorizontal size={19}/></IconButton></div>
-        </div>
+        </div></>}
         {error&&<div className="error-banner" role="alert"><span>{error}</span><button onClick={()=>setError('')} aria-label="Dismiss error"><X size={16}/></button></div>}
         {loading?<div className="workspace-loading"><div className="skeleton-list"><i/><i/><i/></div><p>Opening vault…</p></div>:<Suspense fallback={<div className="workspace-loading"><p>Opening view…</p></div>}><div className={'panes '+(split?'split':'')}><section className="workspace-pane">{tabs.map(path=>{const view=pluginViewFor(path);return view?<div key={path} className="retained-plugin-view" hidden={path!==active}><PluginViewHost path={path} viewType={view.viewType} controller={pluginStops.current.get(view.pluginId)} leafId={view.leafId}/></div>:null;})}{showNote(active)}</section>{split&&<section className="workspace-pane secondary-pane"><header><span>{title(split)}</span><button aria-label="Close split pane" onClick={()=>setSplit(null)}><X size={15}/></button></header>{showNote(split,true)}</section>}</div></Suspense>}
       </main>
@@ -987,22 +1011,22 @@ export function App(){
         <footer className="context-footer"><div><Network size={15}/><span>Everything connects</span></div><p>Follow a link. Find a new perspective.</p>{enabled('graph')&&activeNote&&<button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button>}</footer>
       </aside>}
     </div>
-    <footer className="statusbar"><span><span className={'status-dot '+(dirtyCount?'pending':'')}/>{dirtyCount?`${dirtyCount} unsaved`:persistent?'Saved locally':'Preview vault'}</span><span>{uiStatus.map(item=><span key={item.id} title={item.label}>{item.text}</span>)}{activeMarkdown&&enabled('words')?<>{words.toLocaleString()} words<span className="status-divider"/>{characters.toLocaleString()} characters</>:activeNote?active.split('.').pop()?.toUpperCase():''}</span><span>{recording&&<button onClick={audio}><Square size={12}/>Recording · Stop</button>}{mode==='reading'?'Reading':mode==='live'?'Live editing':'Source'}<span className="status-divider"/>{persistent?'Local-first':'Changes reset on refresh'}</span></footer>
-    {nativeAndroid&&<div className="mobile-plugin-actions" aria-label="Plugin actions">
-      {uiRibbon.map(item=><IconButton key={item.id} label={item.label} onClick={item.run}><Sparkles size={20}/></IconButton>)}
-      <div id="plugin-ribbon" aria-label="Plugin ribbon"/>
-    </div>}
-    {nativeAndroid&&<nav className="mobile-nav" aria-label="Mobile navigation">
-      <button aria-label="Mobile files" aria-pressed={left&&sideTab==='files'} onClick={()=>{setRight(false);setSideTab('files');setLeft(value=>sideTab!=='files'||!value);}}><Files size={21}/><span>Files</span></button>
-      <button aria-label="Mobile search" disabled={!enabled('search')} aria-pressed={left&&sideTab==='search'} onClick={()=>{if(enabled('search')){setRight(false);setSideTab('search');setLeft(true);}}}><Search size={21}/><span>Search</span></button>
-      <button aria-label="Mobile commands" disabled={!enabled('commands')} onClick={()=>{if(enabled('commands')){setLeft(false);setRight(false);setPalette('commands');}}}><Terminal size={21}/><span>Commands</span></button>
-      <button aria-label="Mobile settings" onClick={()=>{setLeft(false);setRight(false);setShowSettings(true);}}><SettingsIcon size={21}/><span>Settings</span></button>
-    </nav>}
-    {enabled('graph')&&activeNote&&<nav className="compact-context" aria-label="Compact note context"><button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button></nav>}
+    {!nativeAndroid&&<footer className="statusbar"><span><span className={'status-dot '+(dirtyCount?'pending':'')}/>{dirtyCount?`${dirtyCount} unsaved`:persistent?'Saved locally':'Preview vault'}</span><span>{uiStatus.map(item=><span key={item.id} title={item.label}>{item.text}</span>)}{activeMarkdown&&enabled('words')?<>{words.toLocaleString()} words<span className="status-divider"/>{characters.toLocaleString()} characters</>:activeNote?active.split('.').pop()?.toUpperCase():''}</span><span>{recording&&<button onClick={audio}><Square size={12}/>Recording · Stop</button>}{mode==='reading'?'Reading':mode==='live'?'Live editing':'Source'}<span className="status-divider"/>{persistent?'Local-first':'Changes reset on refresh'}</span></footer>}
+    {nativeAndroid&&<MobileNavigation count={tabs.length} canBack={historyIndex.current>0} canForward={historyIndex.current<history.current.length-1}
+      searchEnabled={enabled('search')} loading={loading} onBack={()=>back(-1)} onForward={()=>back(1)}
+      onSearch={()=>{setRight(false);setSideTab('search');setLeft(true);}} onNew={()=>createNote()}
+      onTabs={()=>openMobileSheet('tabs')} onTools={()=>openMobileSheet('tools')}/>}
+    {nativeAndroid&&<MobileSheet sheet={mobileSheet} onClose={()=>setMobileSheet(null)} tabs={tabs} active={active} tabTitle={tabTitle} onOpen={open} onCloseTab={closeTab}
+      actions={mobileActions} mode={mode} saveStatus={dirtyCount?`${dirtyCount} unsaved`:'Saved locally'}>
+      <div className="mobile-plugin-actions" aria-label="Plugin actions">{uiRibbon.map(item=><IconButton key={item.id} label={item.label} onClick={()=>{setMobileSheet(null);item.run();}}><Sparkles size={20}/></IconButton>)}<div id="plugin-ribbon" aria-label="Plugin ribbon"/></div>
+      <div aria-label="Workspace status">{uiStatus.map(item=><span key={item.id} title={item.label}>{item.text} </span>)}{recording&&<button onClick={audio}><Square size={12}/>Recording · Stop</button>}</div>
+      <div id="plugin-status" aria-label="Plugin status"/>
+    </MobileSheet>}
+    {!nativeAndroid&&enabled('graph')&&activeNote&&<nav className="compact-context" aria-label="Compact note context"><button onClick={()=>open('@local:'+active)}>Explore local graph<ArrowRight size={13}/></button></nav>}
     <div id="plugin-views" aria-label="Plugin views"/>
-    <div id="plugin-status" aria-label="Plugin status"/>
+    {!nativeAndroid&&<div id="plugin-status" aria-label="Plugin status"/>}
     {notice&&<div className="toast" role="status"><Check size={15}/>{notice}</div>}
-    {context&&<div className="context-menu" style={{left:context.x,top:context.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>{open(context.path);setContext(null);}}><FileText size={14}/>Open</button><button onClick={()=>{setSplit(context.path);setContext(null);}}><PanelRightOpen size={14}/>Open in split</button><button onClick={()=>{setContext(null);renamePath(context.path);}}><Pencil size={14}/>Rename or move</button><button onClick={()=>{if(!bookmarkPaths().includes(context.path))toggleBookmarkPath(context.path);setContext(null);}}><Bookmark size={14}/>Bookmark</button><button onClick={()=>{navigator.clipboard?.writeText(context.path);setContext(null);}}><Copy size={14}/>Copy path</button><hr/><button className="danger-text" onClick={()=>deletePath(context.path)}><Trash2 size={14}/>Move to trash</button>{context.menu?.items.map((item,index)=>item.separator?<hr key={'plugin-'+index}/>:<button key={'plugin-'+index} disabled={item.disabled} onClick={event=>{item.callback?.(event.nativeEvent);setContext(null);}}>{item.title}</button>)}</div>}
+    {context&&<div className="context-menu" style={{left:context.x,top:context.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>{open(context.path);setContext(null);}}><FileText size={14}/>Open</button>{!nativeAndroid&&<button onClick={()=>{setSplit(context.path);setContext(null);}}><PanelRightOpen size={14}/>Open in split</button>}<button onClick={()=>{setContext(null);renamePath(context.path);}}><Pencil size={14}/>Rename or move</button><button onClick={()=>{if(!bookmarkPaths().includes(context.path))toggleBookmarkPath(context.path);setContext(null);}}><Bookmark size={14}/>Bookmark</button><button onClick={()=>{navigator.clipboard?.writeText(context.path);setContext(null);}}><Copy size={14}/>Copy path</button><hr/><button className="danger-text" onClick={()=>deletePath(context.path)}><Trash2 size={14}/>Move to trash</button>{context.menu?.items.map((item,index)=>item.separator?<hr key={'plugin-'+index}/>:<button key={'plugin-'+index} disabled={item.disabled} onClick={event=>{item.callback?.(event.nativeEvent);setContext(null);}}>{item.title}</button>)}</div>}
     {palette&&<Palette key={palette} title={palette==='commands'?'Command palette':palette==='files'?'Quick switcher':palette==='templates'?'Insert template':palette==='merge'?'Merge into note':'Load workspace'} items={paletteItems} onClose={()=>setPalette(null)} onCreate={palette==='files'?name=>createNote(name):undefined}/>}
     {showSettings&&<Settings value={settings} onChange={s=>{setSettings(s);if(s.mode!==settings.mode)setMode(s.mode);}} onClose={()=>setShowSettings(false)} nativeSettings={uiSettings} plugins={pluginList.map(p=>p.manifest)} enabled={enabledPlugins} onTogglePlugin={togglePlugin} pluginTabs={Object.values(pluginTabs).flat()} modes={pluginModes} onMode={(id,mode)=>{if(!enabledPlugins.includes(id)&&!pluginStarting.current.has(id))setPluginModes(m=>({...m,[id]:mode}));}}/>}
     {recovery&&<div className="modal-backdrop"><section className="modal recovery-modal" role="dialog" aria-label="File recovery"><header><h2>File recovery</h2><button onClick={()=>setRecovery(null)} aria-label="Close recovery"><X size={18}/></button></header><p>Previous saved versions of {active}. Restoring a version also snapshots the current content.</p>{recovery.length?recovery.map(s=><button key={s.id} onClick={()=>restoreSnapshot(s.id)}><Clock size={15}/>{new Date(s.time).toLocaleString()}<span>Restore</span></button>):<div className="empty"><Clock size={25}/><p>No previous versions yet. Snapshots are created when saved content changes.</p></div>}</section></div>}

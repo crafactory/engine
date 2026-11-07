@@ -133,8 +133,18 @@ function png(width,height){
   const rows=Buffer.alloc(height*(1+width*3));for(let y=0;y<height;y++)for(let x=0;x<width;x++){const p=y*(1+width*3)+1+x*3;rows[p]=115;rows[p+1]=88;rows[p+2]=190;}
   return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(rows)),chunk('IEND',Buffer.alloc(0))]);
 }
+async function tools(){
+  if(!await page.getByRole('dialog',{name:'Mobile tools',exact:true}).isVisible())await page.getByRole('button',{name:'Mobile tools',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Mobile tools',exact:true})).toBeVisible();
+}
+async function mobileSettings(){
+  await tools();await page.getByRole('button',{name:'Mobile settings',exact:true}).click();
+}
+async function mobileMode(name){
+  await tools();await page.getByRole('button',{name,exact:true}).click();
+}
 async function community(){
-  await page.getByRole('button',{name:'Mobile settings',exact:true}).click();
+  await mobileSettings();
   await page.getByRole('button',{name:'Community plugins',exact:true}).click();
 }
 async function enable(name,mode='renderer'){
@@ -147,7 +157,7 @@ async function enable(name,mode='renderer'){
 }
 async function closeSettings(){await page.getByTestId('settings-close').click();}
 async function command(text){
-  await page.getByRole('button',{name:'Mobile commands',exact:true}).click();
+  await tools();await page.getByRole('button',{name:'Mobile commands',exact:true}).click();
   await page.locator('.palette input').click();
   await page.locator('.palette input').fill(text);
   await expect.poll(keyboardVisibility,{timeout:10000}).toEqual({native:true,reported:true});
@@ -194,11 +204,12 @@ try{
     metadata.webView=browser.version();
     assert.equal(new URL(page.url()).origin,'https://localhost');
     assert.deepEqual(await page.evaluate(()=>({platform:window.engine.platform,persistent:window.engine.persistent,desktop:window.engine.desktop,node:typeof window.require})),{platform:'android',persistent:true,desktop:false,node:'undefined'});
-    await expect(page.locator('.statusbar')).toContainText('Saved locally');
+    await tools();await expect(page.getByRole('status',{name:'Save status'})).toContainText('Saved locally');
+    await page.getByRole('button',{name:'Close mobile sheet',exact:true}).click();
     await expect(page.locator('.note-title h1')).toHaveText('Native Probe');
-    await expect(page.locator('.ribbon')).toBeHidden();
+    for(const selector of ['.ribbon','.tabbar','.note-toolbar','.statusbar','.secondary-pane'])await expect(page.locator(selector)).toHaveCount(0);
     const targets=await page.locator('.mobile-nav button').evaluateAll(buttons=>buttons.map(button=>{const r=button.getBoundingClientRect();return {width:r.width,height:r.height};}));
-    assert.equal(targets.length,4);assert(targets.every(target=>target.width>=44&&target.height>=44));
+    assert.equal(targets.length,6);assert(targets.every(target=>target.width>=44&&target.height>=44));
     await page.screenshot({path:path.join(output,'android-workspace.png')});
   });
   await step('native filesystem overwrite, Unicode composition and real keyboard/back',async()=>{
@@ -297,13 +308,14 @@ try{
     shell('input keyevent 4');await expect.poll(keyboardVisibility).toEqual({native:false,reported:false});
     await expect(page.locator('.left-sidebar')).toBeVisible();
     shell('input keyevent 4');await expect(page.locator('.left-sidebar')).toHaveCount(0);
-    await page.getByRole('button',{name:'Mobile settings',exact:true}).click();
+    await mobileSettings();
     assert(await page.locator('.settings-modal>nav>button').evaluateAll(buttons=>buttons.every(button=>button.scrollWidth<=button.clientWidth+1)),'Mobile settings labels must not overlap');
     await page.getByRole('button',{name:'Core plugins',exact:true}).click();
     await page.getByRole('switch',{name:'Enable Search',exact:true}).uncheck();
     await page.getByRole('switch',{name:'Enable Command palette',exact:true}).uncheck();
     await closeSettings();
     await expect(page.getByRole('button',{name:'Mobile search',exact:true})).toBeDisabled();
+    await tools();
     await expect(page.getByRole('button',{name:'Mobile commands',exact:true})).toBeDisabled();
     await page.getByRole('button',{name:'Mobile settings',exact:true}).click();
     await page.getByRole('button',{name:'Core plugins',exact:true}).click();
@@ -348,7 +360,7 @@ try{
     await closeSettings();
   });
   await step('native save failure retains draft and refuses root Back until recovery',async()=>{
-    await page.getByRole('button',{name:'Source mode',exact:true}).click();
+    await mobileMode('Source mode');
     const editor=page.locator('.editor .cm-content').first();
     await editor.click();await page.keyboard.press('Control+End');
     shell(`run-as ${APP} mv ${quote('files/vault/'+notePath)} ${quote('files/vault/'+notePath+'.blocked')}`);
@@ -376,7 +388,7 @@ try{
     await expect(page.locator('.error-banner')).toHaveCount(0);
   });
   await step('background flush does not unload plugins; restart keeps values but not trust',async()=>{
-    await page.getByRole('button',{name:'Source mode',exact:true}).click();
+    await mobileMode('Source mode');
     await page.locator('.editor .cm-content').first().click();await page.keyboard.press('Control+End');
     // Hold 500ms autosaves beyond this entire assertion window: only native lifecycle
     // persistence can satisfy the exact-byte check. Restore the timer API afterward.

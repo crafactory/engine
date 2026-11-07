@@ -9,7 +9,7 @@ export interface Settings {
 }
 export type PropertyType = 'text' | 'number' | 'checkbox' | 'date' | 'datetime' | 'list';
 export interface Workspace {tabs: string[]; active: string; split: string | null; left: boolean; right: boolean; mode: Settings['mode']}
-export interface VaultState {settings: Settings; bookmarks: string[]; workspaces: Record<string,Workspace>; recent: string[]; propertyTypes?: Record<string, PropertyType>;layout?:Workspace}
+export interface VaultState {settings: Settings; bookmarks: string[]; workspaces: Record<string,Workspace>; recent: string[]; propertyTypes?: Record<string, PropertyType>;layout?:Workspace;mobileLayout?:Workspace}
 export interface PluginManifest {id: string; name: string; version: string; description?: string; engine?: string; permissions?: string[];isDesktopOnly?:boolean}
 export interface Bridge {
   desktop: boolean;
