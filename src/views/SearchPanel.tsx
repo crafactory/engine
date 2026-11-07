@@ -63,7 +63,7 @@ export default function SearchPanel({
             {query && (
               <p>
                 {frontmatter(note.content)
-                  .body.replace(/[#*`\[\]]/g, '')
+                  .body.replace(/[#*`[\]]/g, '')
                   .slice(0, 140)}
               </p>
             )}

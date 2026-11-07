@@ -33,6 +33,7 @@ function relative(value: string) {
     typeof value !== 'string' ||
     !value ||
     value.length > 4096 ||
+    // oxlint-disable-next-line no-control-regex -- Reject control characters at the filesystem boundary.
     /[\\\u0000-\u001f]/.test(value) ||
     value.split('/').some((part) => !part || part === '.' || part === '..') ||
     value.includes(':')
@@ -406,6 +407,7 @@ export async function createMobileStorage(fs: MobileFilesystem): Promise<Bridge>
           name
             .split(/[\\/]/)
             .pop()
+            // oxlint-disable-next-line no-control-regex -- Sanitize imported attachment filenames.
             ?.replace(/[\u0000-\u001f:]/g, '_') || 'attachment';
         let path = folder + '/' + base,
           full = await target(path);

@@ -17,9 +17,13 @@ were added and fresh native acceptance passed. See PR #78 for review exception/e
 
 Branch `chore/oxc-source-policy` now introduces exact-pinned oxlint 1.92.0 / oxfmt 0.77.0,
 check wiring, explicit 500-line defaults/legacy ceilings and source placement guard.
-Open draft early, then apply separately reviewable mechanical formatting and intentional
-lint repairs. Inventory export parser now tolerates formatting and has regressions.
-Do not merge until an effective review, repairs and all exact-head gates pass.
+PR #79 opened draft early. Mechanical conversion is a separate commit; 216 executable
+JS/TS files match compiled ASTs after documented syntactic/JSX-text normalization.
+Intentional lint cleanup is separate. Inventory and CSP extraction tolerate formatter
+whitespace without relaxing capability assertions. Format/lint/structure/inventory,
+942 units and build pass locally; negative format/lint probes fail as expected.
+There are 17 explicit oversized legacy ceilings. Effective CodeRabbit review and
+full exact-head cloud/native gates remain; do not merge until they pass.
 
 ## Next work
 

@@ -19,6 +19,7 @@ export function inlineLinks(text: string): InlineLink[] {
     try {
       target = decodeURIComponent(raw);
     } catch {}
+    // oxlint-disable-next-line no-control-regex -- Reject unsafe URI control characters.
     if (!target || /[\u0000-\u001f\u007f]/.test(target) || target.trim() !== target) continue;
     const scheme = target.match(/^([a-z][a-z\d+.-]*):/i)?.[1].toLowerCase();
     if (scheme && !['http', 'https', 'mailto'].includes(scheme)) continue;

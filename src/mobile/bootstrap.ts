@@ -142,6 +142,7 @@ export async function bootstrapAndroid(): Promise<Bridge> {
         await retainExportCache(exports, content.size, async (path) => {
           await Filesystem.rmdir({ path, directory: Directory.Cache, recursive: true });
         });
+        // oxlint-disable-next-line no-control-regex -- Strip control characters from exported filenames.
         const safe = name.replace(/[\\/\u0000-\u001f:]/g, '_') || 'vault.zip';
         const path = 'exports/' + crypto.randomUUID() + '/' + safe;
         await Filesystem.writeFile({

@@ -11,9 +11,6 @@ import {
   Puzzle,
   Info,
   Folder,
-  HardDrive,
-  Check,
-  Download,
   Blocks,
 } from 'lucide-react';
 import type { Settings as Preferences, PluginManifest } from './types';

@@ -44,20 +44,13 @@ import {
   Check,
   HardDrive,
   Clock,
-  Pin,
-  Download,
   Trash2,
   Copy,
-  Scissors,
   Mic,
   Square,
   Table2,
   ExternalLink,
-  RefreshCw,
-  Star,
   Globe,
-  Presentation,
-  Menu,
 } from 'lucide-react';
 import { bridge, defaults } from './bridge';
 import { renameDestination } from './file-path';
@@ -155,7 +148,6 @@ import {
   type DailyNotesRuntime,
   type NavigationRuntime,
   type CommandsRuntime,
-  type CommandsService,
   type NativeCommand,
   type AppStorageRuntime,
   type StoredNote,
@@ -2615,7 +2607,7 @@ export function App() {
     const resolvedView = allowed ? activeView : 'markdown';
     const View = viewComponent(resolvedView);
     const pluginBases: Record<string, { controller: PluginController; id: string }> = {};
-    for (const [pluginId, controller] of pluginStops.current)
+    for (const controller of pluginStops.current.values())
       for (const viewId of controller.basesViews?.() ?? [])
         pluginBases[viewId] = { controller, id: viewId };
     const viewProps = {
@@ -2867,7 +2859,8 @@ export function App() {
         onToggleFolder: (path: string) =>
           setExpanded((current) => {
             const next = new Set(current);
-            next.has(path) ? next.delete(path) : next.add(path);
+            if (next.has(path)) next.delete(path);
+            else next.add(path);
             return next;
           }),
         onOpenFile: open,

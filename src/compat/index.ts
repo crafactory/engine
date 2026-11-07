@@ -1,10 +1,5 @@
 import { Kernel } from '../kernel';
-import {
-  COMPAT_CONTRACT,
-  COMPAT_VERSION,
-  compatPlugin,
-  type CompatService,
-} from '../services/compat';
+import { COMPAT_CONTRACT, compatPlugin, type CompatService } from '../services/compat';
 import { ENGINE_VERSION } from '../services/version';
 import { createCompatService } from './service';
 

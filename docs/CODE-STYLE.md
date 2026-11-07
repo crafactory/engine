@@ -23,7 +23,7 @@ and [ignore behavior](https://oxc.rs/docs/guide/usage/formatter/ignore-files).
 
 ## File budgets and placement
 
-Owned JS/TS/CSS/Java source and root tool configurations default to **500 lines**,
+Owned JS/TS/CSS/Java/HTML source and root tool configurations default to **500 lines**,
 including blank/comment lines. The small structure gate covers CSS/Java as well as
 JavaScript instead of duplicating two different length policies.
 `.source-policy.json` records exact-path legacy ceilings measured after formatting;

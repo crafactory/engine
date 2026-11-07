@@ -1,4 +1,4 @@
-import type { Bridge, Entry, Note, Snapshot, VaultState, Settings } from './types';
+import type { Bridge, Entry, VaultState, Settings } from './types';
 import { demo } from './demo';
 export const defaults: Settings = {
   theme: 'dark',

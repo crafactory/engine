@@ -12,8 +12,11 @@ describe('source structure budgets', () => {
   it('checks owned source but never generated assets or upstream plugin bundles', () => {
     for (const file of [
       'src/components/ui/button.tsx',
+      'src/services/module.mts',
+      'src/services/module.cts',
       'bin/engine.mjs',
       'vite.config.ts',
+      'index.html',
       'scripts/android-fixtures/Probe.java',
       'android/app/src/main/java/com/crafactory/engine/MainActivity.java',
     ])

@@ -142,7 +142,6 @@ export function guardCompatibilityObject<T extends object>(
     },
   });
 }
-const guard = guardCompatibilityObject;
 export const supportedExports = [
   'Plugin',
   'Component',
@@ -1638,7 +1637,7 @@ export function createCompatibilityRuntime(
     rebuildLinks();
     if (events) {
       initEditor();
-      for (const { entry, file } of removedEntries) if (file) vault.trigger('delete', file);
+      for (const { file } of removedEntries) if (file) vault.trigger('delete', file);
       for (const entry of createdEntries) {
         const file = objects.get(entry.path);
         if (file) vault.trigger('create', file);

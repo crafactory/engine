@@ -1,10 +1,10 @@
 import { it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-/** Read the Content-Security-Policy meta tag from a built application entry. */
+/** Read the Content-Security-Policy meta tag from an application entry. */
 function csp(file: string) {
   const html = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
-  const match = html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/);
+  const match = html.match(/http-equiv="Content-Security-Policy"\s+content="([^"]+)"/);
   expect(match).not.toBeNull();
   return match![1];
 }

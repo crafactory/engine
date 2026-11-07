@@ -1328,6 +1328,7 @@ test('unsafe-eval is opt-in, desktop-only and applies after restart', async () =
         new Promise((resolve) =>
           setTimeout(() => {
             try {
+              // oxlint-disable-next-line no-eval -- Deliberate CSP denial probe, not untrusted code.
               resolve(eval('2 + 2'));
             } catch {
               resolve('blocked');
@@ -1373,6 +1374,7 @@ test('unsafe-eval is opt-in, desktop-only and applies after restart', async () =
         new Promise((resolve) =>
           setTimeout(() => {
             try {
+              // oxlint-disable-next-line no-eval -- Verify explicitly granted unsafe-eval after restart.
               resolve(eval('2 + 2'));
             } catch (error) {
               resolve(String(error));
