@@ -1,18 +1,9 @@
 /* Structured diagnostics for native plugin assembly. */
 
 export type DiagnosticCode =
-  | 'invalid-manifest'
-  | 'duplicate-plugin'
-  | 'engine-mismatch'
-  | 'unknown-contract'
-  | 'missing-provider'
-  | 'duplicate-provider'
-  | 'version-mismatch'
-  | 'dependency-cycle'
-  | 'activation-failure'
-  | 'cleanup-failure'
-  | 'late-registration'
-  | 'dependency-disabled';
+  | 'invalid-manifest' | 'duplicate-plugin' | 'engine-mismatch' | 'unknown-contract'
+  | 'missing-provider' | 'duplicate-provider' | 'version-mismatch' | 'dependency-cycle'
+  | 'activation-failure' | 'cleanup-failure' | 'late-registration' | 'dependency-disabled';
 
 export type DiagnosticSeverity = 'error' | 'warning';
 
@@ -40,21 +31,11 @@ export class AssemblyError extends Error {
 
 /** Render a diagnostic as a stable single-line string for messages and logs. */
 export function formatDiagnostic(diagnostic: Diagnostic): string {
-  const location = [
-    diagnostic.plugin && `plugin=${diagnostic.plugin}`,
-    diagnostic.contract && `contract=${diagnostic.contract}`,
-    diagnostic.scope && `scope=${diagnostic.scope}`,
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const location = [diagnostic.plugin && `plugin=${diagnostic.plugin}`, diagnostic.contract && `contract=${diagnostic.contract}`, diagnostic.scope && `scope=${diagnostic.scope}`].filter(Boolean).join(' ');
   return `[${diagnostic.severity}] ${diagnostic.code}${location ? ' ' + location : ''}: ${diagnostic.message}${diagnostic.cause ? ` (${diagnostic.cause})` : ''}`;
 }
 
 /** Create an error diagnostic, filling the severity default. */
-export function errorDiagnostic(
-  code: DiagnosticCode,
-  message: string,
-  extra: Omit<Diagnostic, 'code' | 'severity' | 'message'> = {},
-): Diagnostic {
-  return { code, severity: 'error', message, ...extra };
+export function errorDiagnostic(code: DiagnosticCode, message: string, extra: Omit<Diagnostic, 'code' | 'severity' | 'message'> = {}): Diagnostic {
+  return {code, severity: 'error', message, ...extra};
 }

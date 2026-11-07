@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 /** Owned source files only: generated Android assets and pinned plugin inputs are excluded. */
 export const ownedSource = (file) =>
   (/^(?:src|core|electron|scripts|bin|tests|e2e|e2e-desktop)\//.test(file) &&
-    /\.(?:[cm]?[jt]s|tsx|css|java|html)$/.test(file)) ||
+    /\.(?:[cm]?[jt]s|[jt]sx|css|java|html)$/.test(file)) ||
   /^[^/]+\.config\.[cm]?[jt]s$/.test(file) ||
   /^[^/]+\.html$/.test(file) ||
   /^android\/app\/src\/main\/java\/.*\.java$/.test(file);

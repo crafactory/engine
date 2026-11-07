@@ -3,18 +3,18 @@
  * This module is type-only: it imports React types and the shared note/entry types, but it
  * is not imported by the kernel or any native service provider.
  */
-import type { ComponentType } from 'react';
-import type { Entry, Note, Settings } from '../types';
-import type { PagePreviewService } from '../services/page-preview';
-import type { ViewContribution } from '../services/views';
-import type { HoverLinkPayload, PluginController } from '../plugins';
-import type { EditorHandle } from '../Editor';
-import type { EditorSession } from '../services/editor';
-import type { SlashCommandsService } from '../services/slash-commands';
-import type { BlockContribution } from '../services/ui';
-import type { Extension } from '@codemirror/state';
-import type { CompletionContext, CompletionResult } from '@codemirror/autocomplete';
-import type { IndexService } from '../services/notes-index';
+import type {ComponentType} from 'react';
+import type {Entry, Note, Settings} from '../types';
+import type {PagePreviewService} from '../services/page-preview';
+import type {ViewContribution} from '../services/views';
+import type {HoverLinkPayload,PluginController} from '../plugins';
+import type {EditorHandle} from '../Editor';
+import type {EditorSession} from '../services/editor';
+import type {SlashCommandsService} from '../services/slash-commands';
+import type {BlockContribution} from '../services/ui';
+import type {Extension} from '@codemirror/state';
+import type {CompletionContext,CompletionResult} from '@codemirror/autocomplete';
+import type {IndexService} from '../services/notes-index';
 
 /** Props every reading-surface view receives from the application host. */
 export interface ReadingViewProps {
@@ -24,8 +24,8 @@ export interface ReadingViewProps {
   path: string;
   mode: Settings['mode'];
   previews?: PagePreviewService;
-  pluginBases?: Record<string, { controller: PluginController; id: string }>;
-  onHoverLink?: (payload: Omit<HoverLinkPayload, 'source'>) => void;
+  pluginBases?: Record<string,{controller:PluginController;id:string}>;
+  onHoverLink?: (payload:Omit<HoverLinkPayload,'source'>)=>void;
   onOpen(target: string): void;
   /** Markdown-link semantics: may resolve or create a note. */
   onOpenLink(target: string): void;
@@ -42,7 +42,7 @@ export interface EditorViewProps {
   notes: Note[];
   settings: Settings;
   /** Attachment metadata identity, independent of current-document typing. */
-  assetVersions?: ReadonlyMap<string, string>;
+  assetVersions?: ReadonlyMap<string,string>;
   pluginExtensions?: Extension[];
   session?: EditorSession;
   slashCommands?: SlashCommandsService;
@@ -51,44 +51,18 @@ export interface EditorViewProps {
   onOpen: (target: string) => void;
   onCommand: (command: string) => void;
   onHandle?: (handle: EditorHandle | null) => void;
-  suggest?: (
-    context: CompletionContext,
-  ) => CompletionResult | null | Promise<CompletionResult | null>;
+  suggest?: (context: CompletionContext) => CompletionResult | null | Promise<CompletionResult | null>;
 }
 
 /** Props for the synthetic graph view. */
-export interface GraphViewProps {
-  notes: Note[];
-  index: IndexService;
-  active: string;
-  local: boolean;
-  onOpen: (path: string) => void;
-}
+export interface GraphViewProps {notes:Note[];index:IndexService;active:string;local:boolean;onOpen:(path:string)=>void}
 
 /** Props for a sidebar/panel view contribution. */
-export type SidePanelTab =
-  | 'files'
-  | 'search'
-  | 'bookmarks'
-  | 'recent'
-  | 'tags'
-  | 'outline'
-  | 'backlinks'
-  | 'outgoing'
-  | 'footnotes';
+export type SidePanelTab = 'files' | 'search' | 'bookmarks' | 'recent' | 'tags' | 'outline' | 'backlinks' | 'outgoing' | 'footnotes';
 
-export interface PanelHeading {
-  level: number;
-  text: string;
-  offset: number;
-}
+export interface PanelHeading {level: number; text: string; offset: number}
 
-export interface PanelLink {
-  target: string;
-  label: string;
-  embed: boolean;
-  fragment: string;
-}
+export interface PanelLink {target: string; label: string; embed: boolean; fragment: string}
 
 export interface PanelViewProps {
   sideTab: SidePanelTab;
@@ -106,22 +80,22 @@ export interface PanelViewProps {
   fileSort?: string;
   expanded?: Set<string>;
   loading?: boolean;
-  childrenFor?: (parent: string) => Entry[];
-  onToggleFolder?: (path: string) => void;
-  onOpenFile?: (path: string) => void;
-  onFileContextMenu?: (path: string, x: number, y: number) => void;
-  onDropFile?: (from: string, folder: string) => void;
-  onCollapseAll?: () => void;
-  onFileSortChange?: (sort: string) => void;
-  onCreateNote?: () => void;
+  childrenFor?: (parent:string)=>Entry[];
+  onToggleFolder?: (path:string)=>void;
+  onOpenFile?: (path:string)=>void;
+  onFileContextMenu?: (path:string,x:number,y:number)=>void;
+  onDropFile?: (from:string,folder:string)=>void;
+  onCollapseAll?: ()=>void;
+  onFileSortChange?: (sort:string)=>void;
+  onCreateNote?: ()=>void;
   query?: string;
   caseSensitive?: boolean;
   searchSort?: string;
   results?: Note[];
-  onQuery?: (query: string) => void;
-  onToggleCase?: () => void;
-  onSearchSort?: (sort: string) => void;
-  onCopy?: () => void;
+  onQuery?: (query:string)=>void;
+  onToggleCase?: ()=>void;
+  onSearchSort?: (sort:string)=>void;
+  onCopy?: ()=>void;
   outgoing: PanelLink[];
   onOpen(path: string): void;
   onRemoveBookmark(path: string): void;
@@ -129,26 +103,20 @@ export interface PanelViewProps {
   onJumpHeading(heading: PanelHeading): void;
   onOpenLink(target: string): void;
   /** The host rejects stale content/path before revealing a source position. */
-  onJumpFootnote?(path: string, base: string, offset: number): void;
+  onJumpFootnote?(path:string,base:string,offset:number):void;
 }
 
 export type PanelComponent = ComponentType<PanelViewProps>;
 
 /** React component types include functions and exotic objects such as memo/forwardRef. */
 function isComponent(candidate: unknown): candidate is ViewComponent {
-  return (
-    typeof candidate === 'function' ||
-    (typeof candidate === 'object' && candidate !== null && '$$typeof' in candidate)
-  );
+  return typeof candidate === 'function' || (typeof candidate === 'object' && candidate !== null && '$$typeof' in candidate);
 }
 
 /** Interpret an opaque loader result as a view component. */
 export async function loadViewComponent(contribution: ViewContribution): Promise<ViewComponent> {
   const module = await contribution.load();
-  const candidate = isComponent(module)
-    ? module
-    : (module as { default?: unknown } | null)?.default;
-  if (!isComponent(candidate))
-    throw new Error(`View ${contribution.viewType} did not provide a component`);
+  const candidate = isComponent(module) ? module : (module as {default?: unknown} | null)?.default;
+  if (!isComponent(candidate)) throw new Error(`View ${contribution.viewType} did not provide a component`);
   return candidate as ViewComponent;
 }

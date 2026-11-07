@@ -1,315 +1,144 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {describe,it,expect,beforeEach,afterEach,vi} from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { Vault } from '../core/vault.mjs';
-let root, vault, outside;
-beforeEach(async () => {
-  root = await fs.mkdtemp(path.join(os.tmpdir(), 'engine-vault-'));
-  outside = await fs.mkdtemp(path.join(os.tmpdir(), 'engine-outside-'));
-  vault = await new Vault(root).init();
-});
-afterEach(async () => {
-  await fs.rm(root, { recursive: true, force: true });
-  await fs.rm(outside, { recursive: true, force: true });
-});
-describe('local vault storage', () => {
-  it('documents the accepted final-check binary deletion race without claiming conditional publication', async () => {
-    const target = path.join(root, 'image.bin'),
-      original = fs.rename;
-    await vault.writeBinary('image.bin', new Uint8Array([1, 2, 255]), 'create');
-    let injected = false;
-    const rename = vi.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
-      if (to === target && String(from).startsWith(target + '.engine-')) {
-        injected = true;
-        await fs.unlink(target);
-      }
-      return original(from, to);
+import {Vault} from '../core/vault.mjs';
+let root,vault,outside;
+beforeEach(async()=>{root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-vault-'));outside=await fs.mkdtemp(path.join(os.tmpdir(),'engine-outside-'));vault=await new Vault(root).init();});
+afterEach(async()=>{await fs.rm(root,{recursive:true,force:true});await fs.rm(outside,{recursive:true,force:true});});
+describe('local vault storage',()=>{
+  it('documents the accepted final-check binary deletion race without claiming conditional publication',async()=>{
+    const target=path.join(root,'image.bin'),original=fs.rename;
+    await vault.writeBinary('image.bin',new Uint8Array([1,2,255]),'create');
+    let injected=false;
+    const rename=vi.spyOn(fs,'rename').mockImplementation(async(from,to)=>{
+      if(to===target&&String(from).startsWith(target+'.engine-')){injected=true;await fs.unlink(target);}
+      return original(from,to);
     });
-    try {
-      await vault.writeBinary('image.bin', new Uint8Array([9, 8]), 'modify');
+    try{
+      await vault.writeBinary('image.bin',new Uint8Array([9,8]),'modify');
       expect(injected).toBe(true);
-      expect([...new Uint8Array(await vault.readBinary('image.bin'))]).toEqual([9, 8]);
-      expect((await fs.readdir(root)).some((name) => name.includes('.engine-'))).toBe(false);
-    } finally {
-      rename.mockRestore();
-    }
+      expect([...new Uint8Array(await vault.readBinary('image.bin'))]).toEqual([9,8]);
+      expect((await fs.readdir(root)).some(name=>name.includes('.engine-'))).toBe(false);
+    }finally{rename.mockRestore();}
   });
-  it('keeps original binary bytes on partial temporary-write failures and cleans debris', async () => {
-    const original = fs.writeFile;
-    await vault.writeBinary('image.bin', new Uint8Array([1, 2, 255]), 'create');
-    const write = vi.spyOn(fs, 'writeFile').mockImplementation(async (file, data, options) => {
-      if (String(file).includes('.engine-')) {
-        await original(file, new Uint8Array([8]), options);
-        throw new Error('Injected disk-full failure');
-      }
-      return original(file, data, options);
+  it('keeps original binary bytes on partial temporary-write failures and cleans debris',async()=>{
+    const original=fs.writeFile;
+    await vault.writeBinary('image.bin',new Uint8Array([1,2,255]),'create');
+    const write=vi.spyOn(fs,'writeFile').mockImplementation(async(file,data,options)=>{
+      if(String(file).includes('.engine-')){await original(file,new Uint8Array([8]),options);throw new Error('Injected disk-full failure');}
+      return original(file,data,options);
     });
-    try {
-      for (const mode of ['modify', 'write']) {
-        await expect(vault.writeBinary('image.bin', new Uint8Array([9, 9]), mode)).rejects.toThrow(
-          'disk-full',
-        );
-        expect([...new Uint8Array(await vault.readBinary('image.bin'))]).toEqual([1, 2, 255]);
-        expect((await fs.readdir(root)).some((name) => name.includes('.engine-'))).toBe(false);
+    try{
+      for(const mode of ['modify','write']){
+        await expect(vault.writeBinary('image.bin',new Uint8Array([9,9]),mode)).rejects.toThrow('disk-full');
+        expect([...new Uint8Array(await vault.readBinary('image.bin'))]).toEqual([1,2,255]);
+        expect((await fs.readdir(root)).some(name=>name.includes('.engine-'))).toBe(false);
       }
-      await expect(vault.writeBinary('new.bin', new Uint8Array([9]), 'create')).rejects.toThrow(
-        'disk-full',
-      );
-      await expect(fs.stat(path.join(root, 'new.bin'))).rejects.toThrow();
-    } finally {
-      write.mockRestore();
-    }
+      await expect(vault.writeBinary('new.bin',new Uint8Array([9]),'create')).rejects.toThrow('disk-full');
+      await expect(fs.stat(path.join(root,'new.bin'))).rejects.toThrow();
+    }finally{write.mockRestore();}
   });
-  it('excludes a plugin whose stylesheet exceeds the bounded reader limit', async () => {
-    const dir = path.join(root, '.crafactory/plugins/oversized');
-    await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(
-      path.join(dir, 'manifest.json'),
-      JSON.stringify({ id: 'oversized', name: 'Oversized', version: '1' }),
-    );
-    await fs.writeFile(path.join(dir, 'main.js'), 'module.exports={};');
-    await fs.writeFile(path.join(dir, 'styles.css'), Buffer.alloc(4 * 1024 * 1024 + 1));
+  it('excludes a plugin whose stylesheet exceeds the bounded reader limit',async()=>{
+    const dir=path.join(root,'.crafactory/plugins/oversized');await fs.mkdir(dir,{recursive:true});
+    await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id:'oversized',name:'Oversized',version:'1'}));await fs.writeFile(path.join(dir,'main.js'),'module.exports={};');await fs.writeFile(path.join(dir,'styles.css'),Buffer.alloc(4*1024*1024+1));
     expect(await vault.plugins()).toEqual([]);
   });
-  it('does not recreate a modify target deleted while its replacement was staged', async () => {
-    const full = path.join(root, 'removed.bin');
-    await fs.writeFile(full, new Uint8Array([1]));
-    const original = fs.writeFile,
-      write = vi.spyOn(fs, 'writeFile').mockImplementation(async (file, ...args) => {
-        const result = await original(file, ...args);
-        if (String(file).startsWith(full + '.engine-')) await fs.unlink(full);
-        return result;
-      });
-    try {
-      await expect(
-        vault.writeBinary('removed.bin', new Uint8Array([2]), 'modify'),
-      ).rejects.toThrow();
-      await expect(fs.stat(full)).rejects.toThrow();
-      expect((await fs.readdir(root)).filter((name) => name.includes('.engine-'))).toEqual([]);
-    } finally {
-      write.mockRestore();
-    }
+  it('does not recreate a modify target deleted while its replacement was staged',async()=>{
+    const full=path.join(root,'removed.bin');await fs.writeFile(full,new Uint8Array([1]));
+    const original=fs.writeFile,write=vi.spyOn(fs,'writeFile').mockImplementation(async(file,...args)=>{const result=await original(file,...args);if(String(file).startsWith(full+'.engine-'))await fs.unlink(full);return result;});
+    try{await expect(vault.writeBinary('removed.bin',new Uint8Array([2]),'modify')).rejects.toThrow();await expect(fs.stat(full)).rejects.toThrow();expect((await fs.readdir(root)).filter(name=>name.includes('.engine-'))).toEqual([]);}finally{write.mockRestore();}
   });
-  it('round-trips exact binary view slices with create-only and modify-existing semantics', async () => {
-    const buffer = new Uint8Array([99, 0, 255, 128, 99]),
-      slice = buffer.subarray(1, 4);
-    await vault.writeBinary('assets/image.bin', slice, 'create');
-    expect([...new Uint8Array(await vault.readBinary('assets/image.bin'))]).toEqual([0, 255, 128]);
-    await expect(
-      vault.writeBinary('assets/image.bin', new Uint8Array([4]), 'create'),
-    ).rejects.toThrow();
-    expect([...new Uint8Array(await vault.readBinary('assets/image.bin'))]).toEqual([0, 255, 128]);
-    await vault.writeBinary('assets/image.bin', new Uint8Array([7]), 'modify');
+  it('round-trips exact binary view slices with create-only and modify-existing semantics',async()=>{
+    const buffer=new Uint8Array([99,0,255,128,99]),slice=buffer.subarray(1,4);
+    await vault.writeBinary('assets/image.bin',slice,'create');
+    expect([...new Uint8Array(await vault.readBinary('assets/image.bin'))]).toEqual([0,255,128]);
+    await expect(vault.writeBinary('assets/image.bin',new Uint8Array([4]),'create')).rejects.toThrow();
+    expect([...new Uint8Array(await vault.readBinary('assets/image.bin'))]).toEqual([0,255,128]);
+    await vault.writeBinary('assets/image.bin',new Uint8Array([7]),'modify');
     expect([...new Uint8Array(await vault.readBinary('assets/image.bin'))]).toEqual([7]);
-    await expect(vault.writeBinary('missing.bin', slice, 'modify')).rejects.toThrow();
-    await expect(fs.stat(path.join(root, 'missing.bin'))).rejects.toThrow();
+    await expect(vault.writeBinary('missing.bin',slice,'modify')).rejects.toThrow();
+    await expect(fs.stat(path.join(root,'missing.bin'))).rejects.toThrow();
   });
-  it('rejects unsafe binary paths, buffers and oversized data', async () => {
-    for (const name of ['../escape.bin', '.crafactory/secret.bin']) {
-      await expect(vault.writeBinary(name, new Uint8Array([1]))).rejects.toThrow();
+  it('rejects unsafe binary paths, buffers and oversized data',async()=>{
+    for(const name of ['../escape.bin','.crafactory/secret.bin']){
+      await expect(vault.writeBinary(name,new Uint8Array([1]))).rejects.toThrow();
       await expect(vault.readBinary(name)).rejects.toThrow();
     }
-    await expect(vault.writeBinary('bad.bin', 'text')).rejects.toThrow();
-    await expect(
-      vault.writeBinary('large.bin', new Uint8Array(64 * 1024 * 1024 + 1)),
-    ).rejects.toThrow();
-    await expect(
-      vault.writeBinary('shared.bin', new Uint8Array(new SharedArrayBuffer(1))),
-    ).rejects.toThrow();
-    await fs.writeFile(path.join(outside, 'external.bin'), new Uint8Array([9]));
-    await fs.symlink(path.join(outside, 'external.bin'), path.join(root, 'link.bin'));
+    await expect(vault.writeBinary('bad.bin','text')).rejects.toThrow();
+    await expect(vault.writeBinary('large.bin',new Uint8Array(64*1024*1024+1))).rejects.toThrow();
+    await expect(vault.writeBinary('shared.bin',new Uint8Array(new SharedArrayBuffer(1)))).rejects.toThrow();
+    await fs.writeFile(path.join(outside,'external.bin'),new Uint8Array([9]));
+    await fs.symlink(path.join(outside,'external.bin'),path.join(root,'link.bin'));
     await expect(vault.readBinary('link.bin')).rejects.toThrow();
-    await expect(vault.writeBinary('link.bin', new Uint8Array([1]))).rejects.toThrow();
-    expect([...(await fs.readFile(path.join(outside, 'external.bin')))]).toEqual([9]);
+    await expect(vault.writeBinary('link.bin',new Uint8Array([1]))).rejects.toThrow();
+    expect([...await fs.readFile(path.join(outside,'external.bin'))]).toEqual([9]);
   });
-  it('plugin create never overwrites existing content, including competing creates', async () => {
-    const results = await Promise.allSettled([
-      vault.create('Create.md', 'first'),
-      vault.create('Create.md', 'second'),
-    ]);
-    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
-    expect((await vault.read('Create.md')).content).toBe('first');
-    await expect(vault.create('Create.md', 'overwrite')).rejects.toThrow('exists');
+  it('plugin create never overwrites existing content, including competing creates',async()=>{
+    const results=await Promise.allSettled([vault.create('Create.md','first'),vault.create('Create.md','second')]);
+    expect(results.filter(r=>r.status==='fulfilled')).toHaveLength(1);expect((await vault.read('Create.md')).content).toBe('first');
+    await expect(vault.create('Create.md','overwrite')).rejects.toThrow('exists');
   });
-  it('plugin append serializes concurrent updates and rejects missing files', async () => {
-    await vault.create('Append.md', 'start');
-    await Promise.all([vault.append('Append.md', ' A'), vault.append('Append.md', ' B')]);
-    expect((await vault.read('Append.md')).content).toBe('start A B');
-    await expect(vault.append('Missing.md', 'x')).rejects.toThrow();
+  it('plugin append serializes concurrent updates and rejects missing files',async()=>{
+    await vault.create('Append.md','start');await Promise.all([vault.append('Append.md',' A'),vault.append('Append.md',' B')]);
+    expect((await vault.read('Append.md')).content).toBe('start A B');await expect(vault.append('Missing.md','x')).rejects.toThrow();
   });
-  it('plugin data is persisted as JSON and isolated by id', async () => {
-    expect(await vault.pluginData('alpha')).toBeNull();
-    await vault.pluginData('alpha', { a: 1 }, true);
-    await vault.pluginData('beta', { b: 2 }, true);
-    expect(await vault.pluginData('alpha')).toEqual({ a: 1 });
-    expect(await vault.pluginData('beta')).toEqual({ b: 2 });
-    expect((await vault.list()).some((e) => e.path.includes('data.json'))).toBe(false);
+  it('plugin data is persisted as JSON and isolated by id',async()=>{
+    expect(await vault.pluginData('alpha')).toBeNull();await vault.pluginData('alpha',{a:1},true);await vault.pluginData('beta',{b:2},true);
+    expect(await vault.pluginData('alpha')).toEqual({a:1});expect(await vault.pluginData('beta')).toEqual({b:2});
+    expect((await vault.list()).some(e=>e.path.includes('data.json'))).toBe(false);
   });
-  it('plugin data rejects traversal, non-JSON values and oversized payloads', async () => {
-    for (const id of ['../beta', 'Alpha', 'a/b', '', null])
-      await expect(vault.pluginData(id, {}, true)).rejects.toThrow('id');
-    await expect(vault.pluginData('alpha', undefined, true)).rejects.toThrow('Invalid');
-    await expect(vault.pluginData('alpha', 'x'.repeat(1024 * 1024), true)).rejects.toThrow(
-      'oversized',
-    );
+  it('plugin data rejects traversal, non-JSON values and oversized payloads',async()=>{
+    for(const id of ['../beta','Alpha','a/b','',null])await expect(vault.pluginData(id,{},true)).rejects.toThrow('id');
+    await expect(vault.pluginData('alpha',undefined,true)).rejects.toThrow('Invalid');
+    await expect(vault.pluginData('alpha','x'.repeat(1024*1024),true)).rejects.toThrow('oversized');
   });
-  it('plugin data rejects in-vault cross-plugin symlinks', async () => {
-    await vault.pluginData('beta', { secret: 1 }, true);
-    await fs.symlink(
-      path.join(root, '.crafactory/plugins/beta'),
-      path.join(root, '.crafactory/plugins/alpha'),
-    );
+  it('plugin data rejects in-vault cross-plugin symlinks',async()=>{
+    await vault.pluginData('beta',{secret:1},true);
+    await fs.symlink(path.join(root,'.crafactory/plugins/beta'),path.join(root,'.crafactory/plugins/alpha'));
     await expect(vault.pluginData('alpha')).rejects.toThrow('symlink');
-    await expect(vault.pluginData('alpha', { bad: 1 }, true)).rejects.toThrow('symlink');
-    expect(await vault.pluginData('beta')).toEqual({ secret: 1 });
+    await expect(vault.pluginData('alpha',{bad:1},true)).rejects.toThrow('symlink');
+    expect(await vault.pluginData('beta')).toEqual({secret:1});
   });
-  it('plugin data refuses a data-file symlink to another namespace', async () => {
-    await vault.pluginData('beta', { secret: 1 }, true);
-    await fs.mkdir(path.join(root, '.crafactory/plugins/alpha'));
-    await fs.symlink(
-      path.join(root, '.crafactory/plugins/beta/data.json'),
-      path.join(root, '.crafactory/plugins/alpha/data.json'),
-    );
+  it('plugin data refuses a data-file symlink to another namespace',async()=>{
+    await vault.pluginData('beta',{secret:1},true);await fs.mkdir(path.join(root,'.crafactory/plugins/alpha'));
+    await fs.symlink(path.join(root,'.crafactory/plugins/beta/data.json'),path.join(root,'.crafactory/plugins/alpha/data.json'));
     await expect(vault.pluginData('alpha')).rejects.toThrow('symlink');
   });
-  it('preserves Unicode filenames and note content', async () => {
-    const name = '想法/你好世界.md';
-    await vault.write(name, '# 你好世界\n\n中文内容。');
-    expect((await vault.read(name)).content).toBe('# 你好世界\n\n中文内容。');
-    expect((await vault.list()).some((e) => e.path === name)).toBe(true);
-  });
-  it('creates and reads plain Markdown with fingerprints', async () => {
-    const n = await vault.write('Ideas/Hello.md', '# Hello');
-    expect(n.version).toHaveLength(64);
-    expect(await fs.readFile(path.join(root, 'Ideas/Hello.md'), 'utf8')).toBe('# Hello');
-    expect(await vault.read('Ideas/Hello.md')).toEqual(n);
-  });
-  it('lists folders and attachments while hiding metadata', async () => {
-    await vault.write('One.md', 'one');
-    await vault.mkdir('Empty');
-    expect((await vault.list()).map((e) => e.path)).toEqual(['Empty', 'One.md']);
-  });
-  it('rejects parent traversal, hidden paths, absolute paths, and NUL bytes', async () => {
-    for (const p of [
-      '../escaped.md',
-      'A/../../escaped.md',
-      '/tmp/escaped.md',
-      '.crafactory/state.json',
-      'A/../escaped.md',
-      'bad\0.md',
-    ])
-      await expect(vault.write(p, 'bad')).rejects.toThrow();
-  });
-  it('rejects symlinks that leave the vault', async () => {
-    await fs.symlink(outside, path.join(root, 'External'));
-    await expect(vault.write('External/Test.md', 'bad')).rejects.toThrow('Symlink');
-  });
-  it('protects metadata against symlink escapes', async () => {
-    await fs.rm(path.join(root, '.crafactory'), { recursive: true });
-    await fs.symlink(outside, path.join(root, '.crafactory'));
-    await expect(vault.saveState({})).rejects.toThrow('Symlink');
-  });
-  it('detects external changes without overwriting them', async () => {
-    const first = await vault.write('One.md', 'one');
-    await fs.writeFile(path.join(root, 'One.md'), 'external');
-    await expect(vault.write('One.md', 'mine', first.version)).rejects.toThrow('CONFLICT');
-    expect((await vault.read('One.md')).content).toBe('external');
-  });
-  it('detects externally deleted files', async () => {
-    const first = await vault.write('One.md', 'one');
-    await fs.rm(path.join(root, 'One.md'));
-    await expect(vault.write('One.md', 'mine', first.version)).rejects.toThrow('CONFLICT');
-  });
-  it('serializes competing writes and preserves optimistic concurrency', async () => {
-    const first = await vault.write('One.md', 'one');
-    const results = await Promise.allSettled([
-      vault.write('One.md', 'two', first.version),
-      vault.write('One.md', 'three', first.version),
-    ]);
-    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
-  });
-  it('snapshots previous content and restores safely', async () => {
-    const first = await vault.write('One.md', 'one');
-    await vault.write('One.md', 'two', first.version);
-    const snapshots = await vault.snapshots('One.md');
-    expect(snapshots).toHaveLength(1);
-    expect((await vault.restore(snapshots[0].id)).content).toBe('one');
-    expect(await vault.snapshots('One.md')).toHaveLength(2);
-  });
-  it('does not snapshot unchanged content', async () => {
-    const first = await vault.write('One.md', 'one');
-    await vault.write('One.md', 'one', first.version);
-    expect(await vault.snapshots('One.md')).toEqual([]);
-  });
-  it('rejects recovery path injection', async () =>
-    expect(vault.restore('../../secret')).rejects.toThrow('Invalid snapshot'));
-  it('renames without overwriting another file', async () => {
-    await vault.write('One.md', 'one');
-    await vault.write('Two.md', 'two');
-    await expect(vault.rename('One.md', 'Two.md')).rejects.toThrow('already exists');
-    await vault.rename('One.md', 'Folder/New.md');
-    expect((await vault.read('Folder/New.md')).content).toBe('one');
-  });
-  it('moves deleted files to recoverable trash', async () => {
-    await vault.write('One.md', 'one');
-    await vault.trash('One.md');
-    expect(await vault.list()).toEqual([]);
-    const names = await fs.readdir(path.join(root, '.crafactory/trash'));
-    const id = names.find((n) => !n.endsWith('.json'));
-    expect(await fs.readFile(path.join(root, '.crafactory/trash', id), 'utf8')).toBe('one');
-  });
-  it('protects root directory', async () => {
-    await expect(vault.trash('')).rejects.toThrow('root');
-    await expect(vault.rename('', 'A')).rejects.toThrow('root');
-  });
-  it('persists settings in vault-local metadata', async () => {
-    await vault.saveState({ settings: { theme: 'light' } });
-    expect(await vault.loadState()).toEqual({ settings: { theme: 'light' } });
-  });
-  it('imports attachments and avoids filename collisions', async () => {
-    const a = await vault.attach('image.png', [1, 2, 3]);
-    const b = await vault.attach('image.png', [4]);
-    expect(a).not.toBe(b);
-    expect(await vault.asset(a)).toBe('data:image/png;base64,AQID');
-  });
-  it('validates attachment bytes', async () => {
-    await expect(vault.attach('bad.png', [300])).rejects.toThrow();
-  });
-  it('honors the configured attachment folder', async () => {
-    await vault.saveState({ settings: { attachmentFolder: 'Media' } });
-    expect(await vault.attach('x.png', [1])).toBe('Media/x.png');
-  });
-  it('rejects writes to executable formats', async () =>
-    expect(vault.write('run.sh', 'rm')).rejects.toThrow('Unsupported'));
-  it('loads only matching plugin manifests', async () => {
-    await fs.mkdir(path.join(root, '.crafactory/plugins/example'), { recursive: true });
-    await fs.writeFile(
-      path.join(root, '.crafactory/plugins/example/manifest.json'),
-      JSON.stringify({ id: 'example', name: 'Example', version: '1' }),
-    );
-    await fs.writeFile(
-      path.join(root, '.crafactory/plugins/example/main.js'),
-      'engine.notice("Hi");',
-    );
+  it('preserves Unicode filenames and note content',async()=>{const name='想法/你好世界.md';await vault.write(name,'# 你好世界\n\n中文内容。');expect((await vault.read(name)).content).toBe('# 你好世界\n\n中文内容。');expect((await vault.list()).some(e=>e.path===name)).toBe(true);});
+  it('creates and reads plain Markdown with fingerprints',async()=>{const n=await vault.write('Ideas/Hello.md','# Hello');expect(n.version).toHaveLength(64);expect(await fs.readFile(path.join(root,'Ideas/Hello.md'),'utf8')).toBe('# Hello');expect(await vault.read('Ideas/Hello.md')).toEqual(n);});
+  it('lists folders and attachments while hiding metadata',async()=>{await vault.write('One.md','one');await vault.mkdir('Empty');expect((await vault.list()).map(e=>e.path)).toEqual(['Empty','One.md']);});
+  it('rejects parent traversal, hidden paths, absolute paths, and NUL bytes',async()=>{for(const p of ['../escaped.md','A/../../escaped.md','/tmp/escaped.md','.crafactory/state.json','A/../escaped.md','bad\0.md'])await expect(vault.write(p,'bad')).rejects.toThrow();});
+  it('rejects symlinks that leave the vault',async()=>{await fs.symlink(outside,path.join(root,'External'));await expect(vault.write('External/Test.md','bad')).rejects.toThrow('Symlink');});
+  it('protects metadata against symlink escapes',async()=>{await fs.rm(path.join(root,'.crafactory'),{recursive:true});await fs.symlink(outside,path.join(root,'.crafactory'));await expect(vault.saveState({})).rejects.toThrow('Symlink');});
+  it('detects external changes without overwriting them',async()=>{const first=await vault.write('One.md','one');await fs.writeFile(path.join(root,'One.md'),'external');await expect(vault.write('One.md','mine',first.version)).rejects.toThrow('CONFLICT');expect((await vault.read('One.md')).content).toBe('external');});
+  it('detects externally deleted files',async()=>{const first=await vault.write('One.md','one');await fs.rm(path.join(root,'One.md'));await expect(vault.write('One.md','mine',first.version)).rejects.toThrow('CONFLICT');});
+  it('serializes competing writes and preserves optimistic concurrency',async()=>{const first=await vault.write('One.md','one');const results=await Promise.allSettled([vault.write('One.md','two',first.version),vault.write('One.md','three',first.version)]);expect(results.filter(r=>r.status==='fulfilled')).toHaveLength(1);});
+  it('snapshots previous content and restores safely',async()=>{const first=await vault.write('One.md','one');await vault.write('One.md','two',first.version);const snapshots=await vault.snapshots('One.md');expect(snapshots).toHaveLength(1);expect((await vault.restore(snapshots[0].id)).content).toBe('one');expect(await vault.snapshots('One.md')).toHaveLength(2);});
+  it('does not snapshot unchanged content',async()=>{const first=await vault.write('One.md','one');await vault.write('One.md','one',first.version);expect(await vault.snapshots('One.md')).toEqual([]);});
+  it('rejects recovery path injection',async()=>expect(vault.restore('../../secret')).rejects.toThrow('Invalid snapshot'));
+  it('renames without overwriting another file',async()=>{await vault.write('One.md','one');await vault.write('Two.md','two');await expect(vault.rename('One.md','Two.md')).rejects.toThrow('already exists');await vault.rename('One.md','Folder/New.md');expect((await vault.read('Folder/New.md')).content).toBe('one');});
+  it('moves deleted files to recoverable trash',async()=>{await vault.write('One.md','one');await vault.trash('One.md');expect(await vault.list()).toEqual([]);const names=await fs.readdir(path.join(root,'.crafactory/trash'));const id=names.find(n=>!n.endsWith('.json'));expect(await fs.readFile(path.join(root,'.crafactory/trash',id),'utf8')).toBe('one');});
+  it('protects root directory',async()=>{await expect(vault.trash('')).rejects.toThrow('root');await expect(vault.rename('','A')).rejects.toThrow('root');});
+  it('persists settings in vault-local metadata',async()=>{await vault.saveState({settings:{theme:'light'}});expect(await vault.loadState()).toEqual({settings:{theme:'light'}});});
+  it('imports attachments and avoids filename collisions',async()=>{const a=await vault.attach('image.png',[1,2,3]);const b=await vault.attach('image.png',[4]);expect(a).not.toBe(b);expect(await vault.asset(a)).toBe('data:image/png;base64,AQID');});
+  it('validates attachment bytes',async()=>{await expect(vault.attach('bad.png',[300])).rejects.toThrow();});
+  it('honors the configured attachment folder',async()=>{await vault.saveState({settings:{attachmentFolder:'Media'}});expect(await vault.attach('x.png',[1])).toBe('Media/x.png');});
+  it('rejects writes to executable formats',async()=>expect(vault.write('run.sh','rm')).rejects.toThrow('Unsupported'));
+  it('loads only matching plugin manifests',async()=>{
+    await fs.mkdir(path.join(root,'.crafactory/plugins/example'),{recursive:true});
+    await fs.writeFile(path.join(root,'.crafactory/plugins/example/manifest.json'),JSON.stringify({id:'example',name:'Example',version:'1'}));
+    await fs.writeFile(path.join(root,'.crafactory/plugins/example/main.js'),'engine.notice("Hi");');
     expect(await vault.plugins()).toHaveLength(1);
   });
-  it('discovers optional package styles and refuses oversized or escaped stylesheet packages', async () => {
-    const dir = path.join(root, '.crafactory/plugins/styled');
-    await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(
-      path.join(dir, 'manifest.json'),
-      JSON.stringify({ id: 'styled', name: 'Styled', version: '1' }),
-    );
-    await fs.writeFile(path.join(dir, 'main.js'), 'module.exports={};');
+  it('discovers optional package styles and refuses oversized or escaped stylesheet packages',async()=>{
+    const dir=path.join(root,'.crafactory/plugins/styled');await fs.mkdir(dir,{recursive:true});
+    await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id:'styled',name:'Styled',version:'1'}));await fs.writeFile(path.join(dir,'main.js'),'module.exports={};');
     expect((await vault.plugins())[0]).not.toHaveProperty('styles');
-    await fs.writeFile(path.join(dir, 'styles.css'), '.fixture {color:red}');
+    await fs.writeFile(path.join(dir,'styles.css'),'.fixture {color:red}');
     expect((await vault.plugins())[0].styles).toBe('.fixture {color:red}');
-    await fs.writeFile(path.join(dir, 'styles.css'), 'x'.repeat(4 * 1024 * 1024 + 1));
-    expect(await vault.plugins()).toEqual([]);
-    await fs.rm(path.join(dir, 'styles.css'));
-    await fs.writeFile(path.join(outside, 'private.css'), 'private');
-    await fs.symlink(path.join(outside, 'private.css'), path.join(dir, 'styles.css'));
-    expect(await vault.plugins()).toEqual([]);
+    await fs.writeFile(path.join(dir,'styles.css'),'x'.repeat(4*1024*1024+1));expect(await vault.plugins()).toEqual([]);
+    await fs.rm(path.join(dir,'styles.css'));await fs.writeFile(path.join(outside,'private.css'),'private');
+    await fs.symlink(path.join(outside,'private.css'),path.join(dir,'styles.css'));expect(await vault.plugins()).toEqual([]);
   });
 });

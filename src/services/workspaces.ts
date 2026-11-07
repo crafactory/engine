@@ -4,9 +4,9 @@
  * record into render state via `subscribe`; persistence stays application-side until the
  * state store is migrated.
  */
-import { Kernel, type PluginDefinition } from '../kernel';
-import type { Workspace } from '../types';
-import { ENGINE_VERSION } from './version';
+import {Kernel, type PluginDefinition} from '../kernel';
+import type {Workspace} from '../types';
+import {ENGINE_VERSION} from './version';
 
 export const WORKSPACES_CONTRACT = 'engine.workspaces/v1';
 export const WORKSPACES_VERSION = '1.0.0';
@@ -27,14 +27,10 @@ export class WorkspaceStore implements WorkspacesService {
   private readonly listeners = new Set<(record: Record<string, Workspace>) => void>();
 
   /** @param initial Seed record; invalid entries are discarded. */
-  constructor(initial: Record<string, Workspace> = {}) {
-    this.items = sanitize(initial);
-  }
+  constructor(initial: Record<string, Workspace> = {}) { this.items = sanitize(initial); }
 
   /** Saved workspace names in insertion order. */
-  list(): string[] {
-    return Object.keys(this.items);
-  }
+  list(): string[] { return Object.keys(this.items); }
 
   /** A workspace snapshot, or undefined when the name is unknown. */
   get(name: string): Workspace | undefined {
@@ -66,9 +62,7 @@ export class WorkspaceStore implements WorkspacesService {
   /** Observe changes; the returned disposer stops the subscription. */
   subscribe(listener: (record: Record<string, Workspace>) => void): () => void {
     this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+    return () => { this.listeners.delete(listener); };
   }
 
   /** Notify every listener with its own deep snapshot. */
@@ -80,41 +74,26 @@ export class WorkspaceStore implements WorkspacesService {
 /** Keep only object-valued workspace entries in a prototype-free record. */
 function sanitize(record: Record<string, Workspace>): Record<string, Workspace> {
   const result = Object.create(null) as Record<string, Workspace>;
-  for (const [name, workspace] of Object.entries(record ?? {}))
-    if (name && workspace && typeof workspace === 'object')
-      result[name] = structuredClone(workspace);
+  for (const [name, workspace] of Object.entries(record ?? {})) if (name && workspace && typeof workspace === 'object') result[name] = structuredClone(workspace);
   return result;
 }
 
 /** Wrap a workspaces service as a runtime-scoped native plugin. */
 export function workspacesPlugin(service: WorkspacesService): PluginDefinition {
   return {
-    manifest: {
-      id: 'engine.workspaces',
-      name: 'Workspaces',
-      version: WORKSPACES_VERSION,
-      scopes: ['runtime'],
-      provides: [{ contract: WORKSPACES_CONTRACT, version: WORKSPACES_VERSION }],
-    },
-    setup(context) {
-      context.provide(WORKSPACES_CONTRACT, WORKSPACES_VERSION, service);
-    },
+    manifest: {id: 'engine.workspaces', name: 'Workspaces', version: WORKSPACES_VERSION, scopes: ['runtime'], provides: [{contract: WORKSPACES_CONTRACT, version: WORKSPACES_VERSION}]},
+    setup(context) { context.provide(WORKSPACES_CONTRACT, WORKSPACES_VERSION, service); }
   };
 }
 
-export interface WorkspacesRuntime {
-  kernel: Kernel;
-  service: WorkspacesService;
-}
+export interface WorkspacesRuntime {kernel: Kernel; service: WorkspacesService}
 
 /** Build and start a kernel exposing the workspaces service. */
-export async function createWorkspacesRuntime(
-  options: { engineVersion?: string; initial?: Record<string, Workspace> } = {},
-): Promise<WorkspacesRuntime> {
-  const kernel = new Kernel({ engineVersion: options.engineVersion ?? ENGINE_VERSION });
+export async function createWorkspacesRuntime(options: {engineVersion?: string; initial?: Record<string, Workspace>} = {}): Promise<WorkspacesRuntime> {
+  const kernel = new Kernel({engineVersion: options.engineVersion ?? ENGINE_VERSION});
   kernel.register(workspacesPlugin(new WorkspaceStore(options.initial)));
   await kernel.start();
   const resolved = kernel.runtime.services.resolve(WORKSPACES_CONTRACT, '^1.0.0');
   if (!resolved.ok) throw new Error('Workspaces service was not provided');
-  return { kernel, service: resolved.binding.value as WorkspacesService };
+  return {kernel, service: resolved.binding.value as WorkspacesService};
 }

@@ -17,12 +17,19 @@ were added and fresh native acceptance passed. See PR #78 for review exception/e
 
 Branch `chore/oxc-source-policy` now introduces exact-pinned oxlint 1.92.0 / oxfmt 0.77.0,
 check wiring, explicit 500-line defaults/legacy ceilings and source placement guard.
-PR #79 opened draft early. Mechanical conversion is a separate commit; 216 executable
-JS/TS files match compiled ASTs after documented syntactic/JSX-text normalization.
+PR #79 opened draft early. Full 233-file conversion exceeded CodeRabbit's 100-file
+limit, so no effective initial review occurred and no merge exception applies.
+Resize #79 to 94 changed files; 140 existing paths temporarily excluded from formatting,
+never new files or whole source directories. Full snapshot is local branch
+`backup/oxc-full-2c34e97`; deferred path data is `/tmp/engine-formatter-adoption-remaining.json`.
+Next batches restore those paths from the snapshot, remove exact exclusions and review
+updated mechanical-only ceilings. 216 executable files in the original full conversion
+match compiled ASTs after documented syntactic/JSX-text normalization.
 Intentional lint cleanup is separate. Inventory and CSP extraction tolerate formatter
 whitespace without relaxing capability assertions. Format/lint/structure/inventory,
 942 units and build pass locally; negative format/lint probes fail as expected.
-There are 17 explicit oversized legacy ceilings. Effective CodeRabbit review and
+There are 8 explicit oversized legacy ceilings in the resized increment. JSX now has
+explicit structure/length regressions. Effective CodeRabbit review and
 full exact-head cloud/native gates remain; do not merge until they pass.
 
 ## Next work

@@ -1,4 +1,4 @@
-export const demo: Record<string, string> = {
+export const demo: Record<string,string> = {
   'Welcome.md': `---
 tags: [getting-started, thinking]
 status: evergreen
@@ -200,52 +200,9 @@ date: "{{date}}"
 `,
   'Templates/Daily.md': `---\ntags: [daily]\n---\n# {{date}}\n\n## Today\n\n- [ ] \n\n## Notes\n\n`,
   'Projects/Library.base': `views:\n  - type: table\n    name: All notes\n    order: [file.name, note.status, note.tags, file.folder]\n`,
-  'Projects/Engine.canvas': JSON.stringify(
-    {
-      nodes: [
-        {
-          id: 'one',
-          type: 'text',
-          x: 80,
-          y: 100,
-          width: 290,
-          height: 200,
-          color: '4',
-          text: '# Crafactory Engine\n\nPlain files. Connected ideas.\nAn open home for your thinking.',
-        },
-        {
-          id: 'two',
-          type: 'file',
-          file: 'Ideas/Connected thinking.md',
-          x: 510,
-          y: 40,
-          width: 300,
-          height: 250,
-        },
-        {
-          id: 'three',
-          type: 'text',
-          x: 510,
-          y: 360,
-          width: 300,
-          height: 180,
-          color: '5',
-          text: '## Next questions\n\n- What is worth keeping?\n- What does it connect to?\n- How will I find it again?',
-        },
-      ],
-      edges: [
-        {
-          id: 'e1',
-          fromNode: 'one',
-          fromSide: 'right',
-          toNode: 'two',
-          toSide: 'left',
-          label: 'connect',
-        },
-        { id: 'e2', fromNode: 'two', fromSide: 'bottom', toNode: 'three', toSide: 'top' },
-      ],
-    },
-    null,
-    2,
-  ),
+  'Projects/Engine.canvas': JSON.stringify({nodes:[
+    {id:'one',type:'text',x:80,y:100,width:290,height:200,color:'4',text:'# Crafactory Engine\n\nPlain files. Connected ideas.\nAn open home for your thinking.'},
+    {id:'two',type:'file',file:'Ideas/Connected thinking.md',x:510,y:40,width:300,height:250},
+    {id:'three',type:'text',x:510,y:360,width:300,height:180,color:'5',text:'## Next questions\n\n- What is worth keeping?\n- What does it connect to?\n- How will I find it again?'}
+  ],edges:[{id:'e1',fromNode:'one',fromSide:'right',toNode:'two',toSide:'left',label:'connect'},{id:'e2',fromNode:'two',fromSide:'bottom',toNode:'three',toSide:'top'}]},null,2)
 };

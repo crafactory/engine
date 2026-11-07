@@ -1,94 +1,53 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { fileURLToPath } from 'node:url';
-const runFile = promisify(execFile),
-  styleReader = fileURLToPath(new URL('./plugin-styles.cjs', import.meta.url));
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {fileURLToPath} from 'node:url';
+const runFile=promisify(execFile),styleReader=fileURLToPath(new URL('./plugin-styles.cjs',import.meta.url));
 
-const textExtensions = new Set([
-  '.md',
-  '.markdown',
-  '.txt',
-  '.canvas',
-  '.base',
-  '.csv',
-  '.json',
-  '.css',
-  '.js',
-  '.mjs',
-]);
+const textExtensions = new Set(['.md', '.markdown', '.txt', '.canvas', '.base', '.csv', '.json', '.css', '.js', '.mjs']);
 const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
 export class Vault {
-  constructor(root) {
-    this.root = path.resolve(root);
-    this.queue = Promise.resolve();
-  }
+  constructor(root) {this.root = path.resolve(root); this.queue = Promise.resolve();}
   async safe(relative, allowHidden = false) {
-    if (
-      typeof relative !== 'string' ||
-      relative.includes('\0') ||
-      path.isAbsolute(relative) ||
-      relative.split(/[\\/]/).some((p) => p === '..' || (!allowHidden && p.startsWith('.')))
-    ) {
+    if (typeof relative !== 'string' || relative.includes('\0') || path.isAbsolute(relative)
+      || relative.split(/[\\/]/).some(p => p === '..' || (!allowHidden && p.startsWith('.')))) {
       throw new Error('Invalid vault path');
     }
     const full = path.resolve(this.root, relative);
-    if (full !== this.root && !full.startsWith(this.root + path.sep))
-      throw new Error('Path escapes vault');
+    if (full !== this.root && !full.startsWith(this.root + path.sep)) throw new Error('Path escapes vault');
     let probe = full;
     while (probe.startsWith(this.root)) {
       try {
         const real = await fs.realpath(probe);
         const realRoot = await fs.realpath(this.root);
-        if (real !== realRoot && !real.startsWith(realRoot + path.sep))
-          throw new Error('Symlink escapes vault');
+        if (real !== realRoot && !real.startsWith(realRoot + path.sep)) throw new Error('Symlink escapes vault');
         break;
-      } catch (e) {
-        if (e.code !== 'ENOENT') throw e;
-        probe = path.dirname(probe);
-      }
+      } catch (e) {if (e.code !== 'ENOENT') throw e; probe = path.dirname(probe);}
     }
     return full;
   }
   /** Initialize storage and retain the canonical root identity for isolated stylesheet reads. */
-  async init() {
-    await fs.mkdir(this.root, { recursive: true });
-    await fs.mkdir(path.join(this.root, '.crafactory'), { recursive: true });
-    const realRoot = await fs.realpath(this.root),
-      stat = await fs.stat(realRoot, { bigint: true });
-    this.stylesRoot = { path: realRoot, dev: String(stat.dev), ino: String(stat.ino) };
-    return this;
-  }
+  async init() {await fs.mkdir(this.root, {recursive:true}); await fs.mkdir(path.join(this.root,'.crafactory'),{recursive:true});const realRoot=await fs.realpath(this.root),stat=await fs.stat(realRoot,{bigint:true});this.stylesRoot={path:realRoot,dev:String(stat.dev),ino:String(stat.ino)};return this;}
   async list() {
     const result = [];
     const walk = async (dir, prefix = '') => {
-      for (const item of await fs.readdir(dir, { withFileTypes: true })) {
+      for (const item of await fs.readdir(dir,{withFileTypes:true})) {
         if (item.name.startsWith('.') || item.isSymbolicLink()) continue;
         const relative = prefix + item.name;
-        const stat = await fs.stat(path.join(dir, item.name));
-        result.push({
-          path: relative,
-          name: item.name,
-          folder: item.isDirectory(),
-          size: stat.size,
-          mtime: stat.mtimeMs,
-          ctime: stat.birthtimeMs,
-        });
-        if (item.isDirectory()) await walk(path.join(dir, item.name), relative + '/');
+        const stat = await fs.stat(path.join(dir,item.name));
+        result.push({path:relative,name:item.name,folder:item.isDirectory(),size:stat.size,mtime:stat.mtimeMs,ctime:stat.birthtimeMs});
+        if (item.isDirectory()) await walk(path.join(dir,item.name), relative + '/');
       }
     };
     await walk(this.root);
-    return result.sort(
-      (a, b) => Number(b.folder) - Number(a.folder) || a.path.localeCompare(b.path),
-    );
+    return result.sort((a,b) => Number(b.folder)-Number(a.folder) || a.path.localeCompare(b.path));
   }
   async read(relative) {
-    if (!textExtensions.has(path.extname(relative).toLowerCase()))
-      throw new Error('Not a text file');
-    const content = await fs.readFile(await this.safe(relative), 'utf8');
-    return { path: relative, content, version: hash(content) };
+    if (!textExtensions.has(path.extname(relative).toLowerCase())) throw new Error('Not a text file');
+    const content = await fs.readFile(await this.safe(relative),'utf8');
+    return {path:relative,content,version:hash(content)};
   }
   serialize(fn) {
     const next = this.queue.then(fn);
@@ -96,320 +55,164 @@ export class Vault {
     return next;
   }
   async write(relative, content, version, createOnly = false) {
-    return this.serialize(() => this.writeUnlocked(relative, content, version, createOnly));
+    return this.serialize(()=>this.writeUnlocked(relative,content,version,createOnly));
   }
   async writeUnlocked(relative, content, version, createOnly = false) {
-    if (typeof content !== 'string' || Buffer.byteLength(content) > 32 * 1024 * 1024)
-      throw new Error('Invalid or oversized text');
-    if (!textExtensions.has(path.extname(relative).toLowerCase()))
-      throw new Error('Unsupported text format');
-    const full = await this.safe(relative);
-    let previous;
-    try {
-      previous = await fs.readFile(full, 'utf8');
-    } catch (e) {
-      if (e.code !== 'ENOENT') throw e;
-    }
-    if (createOnly && previous !== undefined) throw new Error('File already exists');
-    if (version && (previous === undefined || hash(previous) !== version))
-      throw new Error('CONFLICT: File changed on disk. Reload or save a separate copy.');
-    if (previous !== undefined && previous !== content) await this.snapshot(relative, previous);
-    await fs.mkdir(path.dirname(full), { recursive: true });
-    const temporary = full + '.engine-' + crypto.randomUUID();
-    try {
-      await fs.writeFile(temporary, content, { flag: 'wx' });
-      if (createOnly) await fs.link(temporary, full);
-      else await fs.rename(temporary, full);
-    } finally {
-      await fs.rm(temporary, { force: true });
-    }
-    return { path: relative, content, version: hash(content) };
+      if (typeof content !== 'string' || Buffer.byteLength(content) > 32*1024*1024) throw new Error('Invalid or oversized text');
+      if (!textExtensions.has(path.extname(relative).toLowerCase())) throw new Error('Unsupported text format');
+      const full = await this.safe(relative);
+      let previous;
+      try {previous = await fs.readFile(full,'utf8');} catch(e) {if (e.code !== 'ENOENT') throw e;}
+      if (createOnly && previous !== undefined) throw new Error('File already exists');
+      if (version && (previous === undefined || hash(previous) !== version)) throw new Error('CONFLICT: File changed on disk. Reload or save a separate copy.');
+      if (previous !== undefined && previous !== content) await this.snapshot(relative,previous);
+      await fs.mkdir(path.dirname(full),{recursive:true});
+      const temporary = full + '.engine-' + crypto.randomUUID();
+      try {await fs.writeFile(temporary,content,{flag:'wx'}); if(createOnly)await fs.link(temporary,full);else await fs.rename(temporary,full);}
+      finally {await fs.rm(temporary,{force:true});}
+      return {path:relative,content,version:hash(content)};
   }
-  async create(relative, content) {
-    return this.write(relative, content, undefined, true);
-  }
+  async create(relative, content) {return this.write(relative,content,undefined,true);}
   /** Return bounded exact file bytes after the normal vault path checks. */
   async readBinary(relative) {
-    const full = await this.safe(relative),
-      stat = await fs.stat(full);
-    if (!stat.isFile() || stat.size > 64 * 1024 * 1024)
-      throw new Error('Invalid or oversized binary file');
-    const data = await fs.readFile(full);
-    if (data.byteLength > 64 * 1024 * 1024)
-      throw new Error('Binary file grew beyond the size limit');
-    return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    const full=await this.safe(relative),stat=await fs.stat(full);
+    if(!stat.isFile()||stat.size>64*1024*1024)throw new Error('Invalid or oversized binary file');
+    const data=await fs.readFile(full);
+    if(data.byteLength>64*1024*1024)throw new Error('Binary file grew beyond the size limit');
+    return data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength);
   }
   /** Stage exact bytes; preserve create-only checks and the documented accepted modify race. */
-  async writeBinary(relative, data, mode = 'write') {
-    if (!['write', 'create', 'modify'].includes(mode)) throw new Error('Invalid binary write mode');
-    if (!(data instanceof ArrayBuffer) && !ArrayBuffer.isView(data))
-      throw new Error('Binary data must be an ArrayBuffer or view');
-    if (ArrayBuffer.isView(data) && !(data.buffer instanceof ArrayBuffer))
-      throw new Error('Shared binary buffers are unsupported');
-    if (data.byteLength > 64 * 1024 * 1024) throw new Error('Binary data is too large');
-    const bytes = Buffer.from(
-      ArrayBuffer.isView(data)
-        ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
-        : new Uint8Array(data),
-    );
-    return this.serialize(async () => {
-      const full = await this.safe(relative);
-      await fs.mkdir(path.dirname(full), { recursive: true });
-      const original = mode === 'modify' ? await fs.stat(full) : null;
-      if (original && !original.isFile()) throw new Error('Not a file');
-      const temporary = full + '.engine-' + crypto.randomUUID();
+  async writeBinary(relative,data,mode='write') {
+    if(!['write','create','modify'].includes(mode))throw new Error('Invalid binary write mode');
+    if(!(data instanceof ArrayBuffer)&&!ArrayBuffer.isView(data))throw new Error('Binary data must be an ArrayBuffer or view');
+    if(ArrayBuffer.isView(data)&&!(data.buffer instanceof ArrayBuffer))throw new Error('Shared binary buffers are unsupported');
+    if(data.byteLength>64*1024*1024)throw new Error('Binary data is too large');
+    const bytes=Buffer.from(ArrayBuffer.isView(data)?new Uint8Array(data.buffer,data.byteOffset,data.byteLength):new Uint8Array(data));
+    return this.serialize(async()=>{
+      const full=await this.safe(relative);await fs.mkdir(path.dirname(full),{recursive:true});
+      const original=mode==='modify'?await fs.stat(full):null;
+      if(original&&!original.isFile())throw new Error('Not a file');
+      const temporary=full+'.engine-'+crypto.randomUUID();
       // This catches changes during staging, not a deletion between the final stat and rename.
       // Portable Node rename is not an atomic replace-only-if-existing operation.
       // The maintainer explicitly accepts this remaining recreation race; retain staged writes.
-      try {
-        await fs.writeFile(temporary, bytes, { flag: 'wx' });
-        if (original) {
-          const current = await fs.stat(full);
-          if (!current.isFile() || current.dev !== original.dev || current.ino !== original.ino)
-            throw new Error('CONFLICT: Binary target changed before publication');
-        }
-        if (mode === 'create') await fs.link(temporary, full);
-        else await fs.rename(temporary, full);
-      } finally {
-        await fs.rm(temporary, { force: true });
-      }
-      return { path: relative, version: hash(bytes) };
+      try{await fs.writeFile(temporary,bytes,{flag:'wx'});if(original){const current=await fs.stat(full);if(!current.isFile()||current.dev!==original.dev||current.ino!==original.ino)throw new Error('CONFLICT: Binary target changed before publication');}if(mode==='create')await fs.link(temporary,full);else await fs.rename(temporary,full);}
+      finally{await fs.rm(temporary,{force:true});}
+      return {path:relative,version:hash(bytes)};
     });
   }
   async append(relative, content) {
-    if (typeof content !== 'string') throw new Error('Invalid text');
-    return this.serialize(async () => {
-      const before = await this.read(relative);
-      return this.writeUnlocked(relative, before.content + content, before.version);
+    if(typeof content!=='string')throw new Error('Invalid text');
+    return this.serialize(async()=>{
+      const before=await this.read(relative);
+      return this.writeUnlocked(relative,before.content+content,before.version);
     });
   }
   async pluginData(id, data, write = false) {
-    if (typeof id !== 'string' || !/^[a-z0-9-]+$/.test(id)) throw new Error('Invalid plugin id');
-    const relative = `.crafactory/plugins/${id}/data.json`;
-    const full = await this.safe(relative, true);
+    if(typeof id!=='string'||!/^[a-z0-9-]+$/.test(id))throw new Error('Invalid plugin id');
+    const relative=`.crafactory/plugins/${id}/data.json`;
+    const full=await this.safe(relative,true);
     // Even an in-vault symlink must not cross another plugin's data namespace.
-    for (const part of [
-      '.crafactory',
-      '.crafactory/plugins',
-      `.crafactory/plugins/${id}`,
-      relative,
-    ]) {
-      try {
-        if ((await fs.lstat(path.join(this.root, part))).isSymbolicLink())
-          throw new Error('Plugin data symlink forbidden');
-      } catch (e) {
-        if (e.code !== 'ENOENT') throw e;
-      }
+    for(const part of ['.crafactory','.crafactory/plugins',`.crafactory/plugins/${id}`,relative]){
+      try{if((await fs.lstat(path.join(this.root,part))).isSymbolicLink())throw new Error('Plugin data symlink forbidden');}
+      catch(e){if(e.code!=='ENOENT')throw e;}
     }
-    if (!write) {
-      try {
-        return JSON.parse(await fs.readFile(full, 'utf8'));
-      } catch (e) {
-        if (e.code === 'ENOENT') return null;
-        throw e;
-      }
-    }
-    const json = JSON.stringify(data);
-    if (json === undefined || Buffer.byteLength(json) > 1024 * 1024)
-      throw new Error('Invalid or oversized plugin data');
-    return this.serialize(async () => {
-      await fs.mkdir(path.dirname(full), { recursive: true });
-      const temporary = full + '.engine-' + crypto.randomUUID();
-      try {
-        await fs.writeFile(temporary, json, { flag: 'wx' });
-        await fs.rename(temporary, full);
-      } finally {
-        await fs.rm(temporary, { force: true });
-      }
+    if(!write){try{return JSON.parse(await fs.readFile(full,'utf8'));}catch(e){if(e.code==='ENOENT')return null;throw e;}}
+    const json=JSON.stringify(data);
+    if(json===undefined||Buffer.byteLength(json)>1024*1024)throw new Error('Invalid or oversized plugin data');
+    return this.serialize(async()=>{
+      await fs.mkdir(path.dirname(full),{recursive:true});
+      const temporary=full+'.engine-'+crypto.randomUUID();
+      try{await fs.writeFile(temporary,json,{flag:'wx'});await fs.rename(temporary,full);}
+      finally{await fs.rm(temporary,{force:true});}
     });
   }
-  async mkdir(relative) {
-    await fs.mkdir(await this.safe(relative), { recursive: true });
-  }
-  async rename(from, to) {
+  async mkdir(relative) {await fs.mkdir(await this.safe(relative),{recursive:true});}
+  async rename(from,to) {
     return this.serialize(async () => {
-      const source = await this.safe(from),
-        target = await this.safe(to);
+      const source = await this.safe(from), target = await this.safe(to);
       if (source === this.root || target === this.root) throw new Error('Cannot rename vault root');
-      try {
-        await fs.access(target);
-        throw new Error('Destination already exists');
-      } catch (e) {
-        if (e.code !== 'ENOENT') throw e;
-      }
-      await fs.mkdir(path.dirname(target), { recursive: true });
-      await fs.rename(source, target);
+      try {await fs.access(target); throw new Error('Destination already exists');} catch(e) {if (e.code !== 'ENOENT') throw e;}
+      await fs.mkdir(path.dirname(target),{recursive:true}); await fs.rename(source,target);
     });
   }
   async trash(relative) {
     return this.serialize(async () => {
       const full = await this.safe(relative);
       if (full === this.root) throw new Error('Cannot delete vault root');
-      const dir = await this.safe('.crafactory/trash', true);
-      await fs.mkdir(dir, { recursive: true });
+      const dir = await this.safe('.crafactory/trash',true); await fs.mkdir(dir,{recursive:true});
       const id = crypto.randomUUID();
-      await fs.rename(full, path.join(dir, id));
-      await fs.writeFile(
-        path.join(dir, id + '.json'),
-        JSON.stringify({ path: relative, time: Date.now() }),
-      );
+      await fs.rename(full,path.join(dir,id));
+      await fs.writeFile(path.join(dir,id+'.json'),JSON.stringify({path:relative,time:Date.now()}));
     });
   }
-  async snapshot(relative, content) {
-    const dir = await this.safe('.crafactory/recovery', true);
-    await fs.mkdir(dir, { recursive: true });
+  async snapshot(relative,content) {
+    const dir = await this.safe('.crafactory/recovery',true); await fs.mkdir(dir,{recursive:true});
     const id = `${Date.now()}-${crypto.randomUUID()}`;
-    await fs.writeFile(
-      path.join(dir, id + '.json'),
-      JSON.stringify({ id, path: relative, time: Date.now(), content }),
-    );
+    await fs.writeFile(path.join(dir,id+'.json'),JSON.stringify({id,path:relative,time:Date.now(),content}));
     const all = await this.snapshots(relative);
-    for (const old of all.slice(100))
-      await fs.rm(path.join(dir, old.id + '.json'), { force: true });
+    for (const old of all.slice(100)) await fs.rm(path.join(dir,old.id+'.json'),{force:true});
   }
   async snapshots(relative) {
-    const dir = await this.safe('.crafactory/recovery', true);
-    let names;
-    try {
-      names = await fs.readdir(dir);
-    } catch (e) {
-      if (e.code === 'ENOENT') return [];
-      throw e;
-    }
-    const items = await Promise.all(
-      names
-        .filter((n) => n.endsWith('.json'))
-        .map(async (name) => {
-          const data = JSON.parse(await fs.readFile(path.join(dir, name), 'utf8'));
-          return { id: data.id, path: data.path, time: data.time };
-        }),
-    );
-    return items.filter((s) => s.path === relative).sort((a, b) => b.time - a.time);
+    const dir = await this.safe('.crafactory/recovery',true);
+    let names; try {names = await fs.readdir(dir);} catch(e) {if(e.code === 'ENOENT') return []; throw e;}
+    const items = await Promise.all(names.filter(n => n.endsWith('.json')).map(async name => {
+      const data = JSON.parse(await fs.readFile(path.join(dir,name),'utf8'));
+      return {id:data.id,path:data.path,time:data.time};
+    }));
+    return items.filter(s => s.path === relative).sort((a,b) => b.time-a.time);
   }
   async restore(id) {
     if (!/^\d+-[a-f0-9-]+$/.test(id)) throw new Error('Invalid snapshot');
-    const record = JSON.parse(
-      await fs.readFile(await this.safe(`.crafactory/recovery/${id}.json`, true), 'utf8'),
-    );
-    return this.write(record.path, record.content);
+    const record = JSON.parse(await fs.readFile(await this.safe(`.crafactory/recovery/${id}.json`,true),'utf8'));
+    return this.write(record.path,record.content);
   }
   async loadState() {
-    try {
-      return JSON.parse(await fs.readFile(await this.safe('.crafactory/state.json', true), 'utf8'));
-    } catch (e) {
-      if (e.code === 'ENOENT') return {};
-      throw e;
-    }
+    try {return JSON.parse(await fs.readFile(await this.safe('.crafactory/state.json',true),'utf8'));}
+    catch(e) {if(e.code==='ENOENT') return {}; throw e;}
   }
   async saveState(state) {
     return this.serialize(async () => {
-      const full = await this.safe('.crafactory/state.json', true),
-        temp = full + '.tmp';
-      await fs.writeFile(temp, JSON.stringify(state, null, 2));
-      await fs.rename(temp, full);
+      const full = await this.safe('.crafactory/state.json',true), temp = full+'.tmp';
+      await fs.writeFile(temp,JSON.stringify(state,null,2)); await fs.rename(temp,full);
     });
   }
   async asset(relative) {
     const full = await this.safe(relative);
-    const stat = await fs.stat(full);
-    if (stat.size > 64 * 1024 * 1024) throw new Error('Attachment exceeds 64 MB');
+    const stat = await fs.stat(full); if(stat.size > 64*1024*1024) throw new Error('Attachment exceeds 64 MB');
     const ext = path.extname(relative).slice(1).toLowerCase();
-    const mime =
-      {
-        png: 'image/png',
-        jpg: 'image/jpeg',
-        jpeg: 'image/jpeg',
-        gif: 'image/gif',
-        webp: 'image/webp',
-        svg: 'image/svg+xml',
-        pdf: 'application/pdf',
-        mp3: 'audio/mpeg',
-        webm: 'audio/webm',
-        wav: 'audio/wav',
-        ogg: 'audio/ogg',
-        mp4: 'video/mp4',
-      }[ext] || 'application/octet-stream';
+    const mime = {png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',svg:'image/svg+xml',pdf:'application/pdf',mp3:'audio/mpeg',webm:'audio/webm',wav:'audio/wav',ogg:'audio/ogg',mp4:'video/mp4'}[ext] || 'application/octet-stream';
     return `data:${mime};base64,${(await fs.readFile(full)).toString('base64')}`;
   }
-  async attach(name, data) {
-    if (
-      typeof name !== 'string' ||
-      !Array.isArray(data) ||
-      data.length > 64 * 1024 * 1024 ||
-      data.some((n) => !Number.isInteger(n) || n < 0 || n > 255)
-    )
-      throw new Error('Invalid attachment');
+  async attach(name,data) {
+    if (typeof name !== 'string' || !Array.isArray(data) || data.length > 64*1024*1024 || data.some(n => !Number.isInteger(n) || n<0 || n>255)) throw new Error('Invalid attachment');
     const state = await this.loadState();
     const folder = state.settings?.attachmentFolder || 'Attachments';
-    const base = path.basename(name).replace(/[^a-zA-Z0-9_.\-\u0080-\uffff]/g, '_') || 'attachment';
-    let relative = `${folder}/${base}`,
-      full = await this.safe(relative);
-    try {
-      await fs.access(full);
-      relative = `${folder}/${crypto.randomUUID()}-${base}`;
-      full = await this.safe(relative);
-    } catch (e) {
-      if (e.code !== 'ENOENT') throw e;
-    }
-    await fs.mkdir(path.dirname(full), { recursive: true });
-    await fs.writeFile(full, Buffer.from(data), { flag: 'wx' });
+    const base = path.basename(name).replace(/[^a-zA-Z0-9_.\-\u0080-\uffff]/g,'_') || 'attachment';
+    let relative = `${folder}/${base}`, full = await this.safe(relative);
+    try {await fs.access(full); relative = `${folder}/${crypto.randomUUID()}-${base}`; full = await this.safe(relative);} catch(e) {if(e.code!=='ENOENT') throw e;}
+    await fs.mkdir(path.dirname(full),{recursive:true}); await fs.writeFile(full,Buffer.from(data),{flag:'wx'});
     return relative;
   }
   /** Discover physical plugin packages and read optional bounded CSS in an anchored child. */
   async plugins() {
-    const dir = await this.safe('.crafactory/plugins', true);
-    let names;
-    try {
-      names = await fs.readdir(dir, { withFileTypes: true });
-    } catch (e) {
-      if (e.code === 'ENOENT') return [];
-      throw e;
-    }
-    const result = [];
-    for (const entry of names.filter((e) => e.isDirectory() && /^[a-z0-9-]+$/.test(e.name))) {
-      const manifestPath = await this.safe(`.crafactory/plugins/${entry.name}/manifest.json`, true);
-      const codePath = await this.safe(`.crafactory/plugins/${entry.name}/main.js`, true);
+    const dir = await this.safe('.crafactory/plugins',true);
+    let names; try {names=await fs.readdir(dir,{withFileTypes:true});} catch(e) {if(e.code==='ENOENT')return[];throw e;}
+    const result=[];
+    for(const entry of names.filter(e=>e.isDirectory() && /^[a-z0-9-]+$/.test(e.name))) {
+      const manifestPath = await this.safe(`.crafactory/plugins/${entry.name}/manifest.json`,true);
+      const codePath = await this.safe(`.crafactory/plugins/${entry.name}/main.js`,true);
       try {
-        const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
-        if (
-          manifest.id !== entry.name ||
-          typeof manifest.name !== 'string' ||
-          typeof manifest.version !== 'string'
-        )
-          continue;
-        let styles = '';
-        try {
-          const anchor = this.stylesRoot;
-          if (!anchor) throw new Error('Vault is not initialized');
-          const env = { ELECTRON_RUN_AS_NODE: '1' };
-          for (const key of ['SystemRoot', 'SYSTEMROOT', 'TEMP', 'TMP'])
-            if (process.env[key]) env[key] = process.env[key];
-          const result = await runFile(
-            process.execPath,
-            [
-              styleReader,
-              anchor.path,
-              JSON.stringify({ dev: anchor.dev, ino: anchor.ino }),
-              entry.name,
-            ],
-            {
-              cwd: anchor.path,
-              env,
-              encoding: 'buffer',
-              maxBuffer: 4 * 1024 * 1024 + 1024,
-              timeout: 10000,
-              windowsHide: true,
-            },
-          );
-          styles = result.stdout.toString('utf8');
-        } catch (error) {
-          if (error.code !== 2) throw error;
-        }
-        result.push({
-          manifest,
-          code: await fs.readFile(codePath, 'utf8'),
-          ...(styles ? { styles } : {}),
-        });
+        const manifest=JSON.parse(await fs.readFile(manifestPath,'utf8'));
+        if(manifest.id!==entry.name || typeof manifest.name!=='string' || typeof manifest.version!=='string') continue;
+        let styles='';
+        try{
+          const anchor=this.stylesRoot;if(!anchor)throw new Error('Vault is not initialized');
+          const env={ELECTRON_RUN_AS_NODE:'1'};for(const key of ['SystemRoot','SYSTEMROOT','TEMP','TMP'])if(process.env[key])env[key]=process.env[key];
+          const result=await runFile(process.execPath,[styleReader,anchor.path,JSON.stringify({dev:anchor.dev,ino:anchor.ino}),entry.name],{cwd:anchor.path,env,encoding:'buffer',maxBuffer:4*1024*1024+1024,timeout:10000,windowsHide:true});
+          styles=result.stdout.toString('utf8');
+        }catch(error){if(error.code!==2)throw error;}
+        result.push({manifest,code:await fs.readFile(codePath,'utf8'),...(styles?{styles}:{})});
       } catch {}
     }
     return result;

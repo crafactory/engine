@@ -12,6 +12,7 @@ describe('source structure budgets', () => {
   it('checks owned source but never generated assets or upstream plugin bundles', () => {
     for (const file of [
       'src/components/ui/button.tsx',
+      'src/components/ui/control.jsx',
       'src/services/module.mts',
       'src/services/module.cts',
       'bin/engine.mjs',
@@ -40,6 +41,11 @@ describe('source structure budgets', () => {
   });
   it('rejects new flat source files, unknown domains and excessive nesting', () => {
     expect(structureIssues('src/New.ts', 'x', policy)).toHaveLength(1);
+    expect(ownedSource('src/New.jsx')).toBe(true);
+    expect(structureIssues('src/New.jsx', 'x', policy)).toHaveLength(1);
+    expect(structureIssues('src/components/ui/control.jsx', 'a\nb\nc\nd\n', policy)).toHaveLength(
+      1,
+    );
     expect(structureIssues('src/new-domain/file.ts', 'x', policy)).toHaveLength(1);
     expect(structureIssues('src/components/a/b/c/file.ts', 'x', policy)).toHaveLength(1);
     expect(structureIssues('src/components/ui/button.tsx', 'x', policy)).toEqual([]);

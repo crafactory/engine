@@ -6,13 +6,7 @@
  * the plugin to the declared set.
  */
 
-export const PLUGIN_PERMISSIONS = [
-  'vault:read',
-  'vault:write',
-  'vault:trash',
-  'editor:write',
-  'storage:plugin-data',
-] as const;
+export const PLUGIN_PERMISSIONS = ['vault:read', 'vault:write', 'vault:trash', 'editor:write', 'storage:plugin-data'] as const;
 
 export type PluginPermission = (typeof PLUGIN_PERMISSIONS)[number];
 
@@ -53,22 +47,17 @@ export function requiredPermission(operation: string): PluginPermission | null {
  * Legacy manifests without `permissions` are unrestricted; otherwise the operation is
  * rejected unless the manifest declares the required permission.
  */
-export function checkPermission(manifest: { permissions?: string[] }, operation: string): void {
+export function checkPermission(manifest: {permissions?: string[]}, operation: string): void {
   if (manifest.permissions === undefined) return;
   const required = requiredPermission(operation);
-  if (required && !manifest.permissions.includes(required))
-    throw new Error(`Plugin lacks the ${required} permission for ${operation}`);
+  if (required && !manifest.permissions.includes(required)) throw new Error(`Plugin lacks the ${required} permission for ${operation}`);
 }
 
 /**
  * Strip note content and editor state from a startup/sync snapshot unless the manifest is
  * allowed to read the vault. Entry metadata is retained; legacy manifests stay unrestricted.
  */
-export function readableSnapshot<T extends { notes: unknown[]; editor: unknown }>(
-  snapshot: T,
-  manifest: { permissions?: string[] },
-): T {
-  if (manifest.permissions === undefined || manifest.permissions.includes('vault:read'))
-    return snapshot;
-  return { ...snapshot, notes: [], editor: null } as T;
+export function readableSnapshot<T extends {notes: unknown[]; editor: unknown}>(snapshot: T, manifest: {permissions?: string[]}): T {
+  if (manifest.permissions === undefined || manifest.permissions.includes('vault:read')) return snapshot;
+  return {...snapshot, notes: [], editor: null} as T;
 }

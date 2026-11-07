@@ -10,44 +10,21 @@
  * The contract does not render anything and does not touch the DOM; the running
  * application's CodeMirror view is wired in later work.
  */
-import { EditorState } from '@codemirror/state';
-import { Kernel, type PluginDefinition } from '../kernel';
-import { ENGINE_VERSION } from './version';
+import {EditorState} from '@codemirror/state';
+import {Kernel, type PluginDefinition} from '../kernel';
+import {ENGINE_VERSION} from './version';
 
 export const EDITOR_CONTRACT = 'engine.editor/v1';
 export const EDITOR_VERSION = '1.0.0';
 export const CODEMIRROR_EDITOR_CONTRACT = 'engine.editor.codemirror/v1';
 export const CODEMIRROR_EDITOR_VERSION = '1.0.0';
 
-export interface EditorSelection {
-  anchor: number;
-  head: number;
-}
-export interface EditorViewport {
-  anchor: number;
-  head: number;
-}
-export interface EditorChange {
-  from: number;
-  to: number;
-  inserted: number;
-}
-export interface EditorDraft {
-  path: string;
-  text: string;
-  selection: EditorSelection;
-  viewport: EditorViewport;
-  version: string;
-  dirty: boolean;
-}
-export interface EditorCapabilities {
-  codeMirrorExtensions: boolean;
-  livePreview: boolean;
-}
-export interface EditorOpenOptions {
-  text: string;
-  version: string;
-}
+export interface EditorSelection {anchor: number; head: number}
+export interface EditorViewport {anchor: number; head: number}
+export interface EditorChange {from: number; to: number; inserted: number}
+export interface EditorDraft {path: string; text: string; selection: EditorSelection; viewport: EditorViewport; version: string; dirty: boolean}
+export interface EditorCapabilities {codeMirrorExtensions: boolean; livePreview: boolean}
+export interface EditorOpenOptions {text: string; version: string}
 
 /** One editable document bound to a provider. All positions are UTF-16 offsets. */
 export interface EditorSession {
@@ -55,7 +32,7 @@ export interface EditorSession {
   text(): string;
   version(): string;
   isDirty(): boolean;
-  setText(text: string, options?: { expected?: string }): boolean;
+  setText(text: string, options?: {expected?: string}): boolean;
   track(text: string, changes?: readonly EditorChange[]): void;
   insert(text: string): boolean;
   selection(): EditorSelection;
@@ -77,30 +54,18 @@ export interface EditorProvider {
   openDraft(draft: EditorDraft): EditorSession;
 }
 
-interface HistoryEntry {
-  text: string;
-  selection: EditorSelection;
-}
+interface HistoryEntry {text: string; selection: EditorSelection}
 
 /** Clamp a selection or viewport into the document bounds. */
 function clamp(range: EditorSelection, length: number): EditorSelection {
-  return {
-    anchor: Math.max(0, Math.min(length, range.anchor)),
-    head: Math.max(0, Math.min(length, range.head)),
-  };
+  return {anchor: Math.max(0, Math.min(length, range.anchor)), head: Math.max(0, Math.min(length, range.head))};
 }
 
 /** Convert a view offset (excluding a hidden frontmatter prefix) to a full-document offset. */
-export function toDocumentOffset(viewOffset: number, prefixLength: number): number {
-  return viewOffset + prefixLength;
-}
+export function toDocumentOffset(viewOffset: number, prefixLength: number): number { return viewOffset + prefixLength; }
 
 /** Convert a full-document offset to a view offset, clamping into the visible document. */
-export function toViewOffset(
-  documentOffset: number,
-  prefixLength: number,
-  viewLength: number,
-): number {
+export function toViewOffset(documentOffset: number, prefixLength: number, viewLength: number): number {
   return Math.max(0, Math.min(viewLength, documentOffset - prefixLength));
 }
 
@@ -128,73 +93,47 @@ function adjustOffset(offset: number, from: number, to: number, inserted: number
 }
 
 /** Adjust a viewport after an edit so it keeps pointing at the same text. */
-function adjustViewport(
-  viewport: EditorViewport,
-  from: number,
-  to: number,
-  inserted: number,
-): EditorViewport {
-  return {
-    anchor: adjustOffset(viewport.anchor, from, to, inserted),
-    head: adjustOffset(viewport.head, from, to, inserted),
-  };
+function adjustViewport(viewport: EditorViewport, from: number, to: number, inserted: number): EditorViewport {
+  return {anchor: adjustOffset(viewport.anchor, from, to, inserted), head: adjustOffset(viewport.head, from, to, inserted)};
 }
 
 /** Shared editing behavior over an abstract text/selection store. */
 abstract class EditorSessionBase implements EditorSession {
   protected dirty = false;
-  protected viewportValue: EditorViewport = { anchor: 0, head: 0 };
+  protected viewportValue: EditorViewport = {anchor: 0, head: 0};
   private savedVersion: string;
   private past: HistoryEntry[] = [];
   private future: HistoryEntry[] = [];
 
-  constructor(
-    readonly path: string,
-    version: string,
-  ) {
-    this.savedVersion = version;
-  }
+  constructor(readonly path: string, version: string) { this.savedVersion = version; }
 
   /** Read the current text and selection from the provider-specific store. */
-  protected abstract read(): { text: string; selection: EditorSelection };
+  protected abstract read(): {text: string; selection: EditorSelection};
   /** Write text and selection into the provider-specific store. */
   protected abstract write(text: string, selection: EditorSelection): void;
 
-  text(): string {
-    return this.read().text;
-  }
-  version(): string {
-    return this.savedVersion;
-  }
-  isDirty(): boolean {
-    return this.dirty;
-  }
-  selection(): EditorSelection {
-    return this.read().selection;
-  }
+  text(): string { return this.read().text; }
+  version(): string { return this.savedVersion; }
+  isDirty(): boolean { return this.dirty; }
+  selection(): EditorSelection { return this.read().selection; }
 
   /** Set the selection, clamped to the document. */
   setSelection(selection: EditorSelection): void {
-    const { text } = this.read();
+    const {text} = this.read();
     this.write(text, clamp(selection, text.length));
   }
 
   /** Replace the whole document, refusing when an expected base does not match. */
-  setText(text: string, options: { expected?: string } = {}): boolean {
+  setText(text: string, options: {expected?: string} = {}): boolean {
     const current = this.text();
     if (options.expected !== undefined && options.expected !== current) return false;
     if (text === current) return true;
-    this.past.push({ text: current, selection: this.selection() });
+    this.past.push({text: current, selection: this.selection()});
     this.future = [];
     const prefix = commonPrefix(current, text);
     const suffix = commonSuffix(current, text, prefix);
-    this.viewportValue = adjustViewport(
-      this.viewportValue,
-      prefix,
-      current.length - suffix,
-      text.length - prefix - suffix,
-    );
-    this.write(text, clamp({ anchor: 0, head: 0 }, text.length));
+    this.viewportValue = adjustViewport(this.viewportValue, prefix, current.length - suffix, text.length - prefix - suffix);
+    this.write(text, clamp({anchor: 0, head: 0}, text.length));
     this.dirty = true;
     return true;
   }
@@ -205,28 +144,18 @@ abstract class EditorSessionBase implements EditorSession {
    * shifts by the changed range.
    */
   track(text: string, changes: readonly EditorChange[] = []): void {
-    const { text: current, selection } = this.read();
+    const {text: current, selection} = this.read();
     if (text === current) return;
     if (changes.length) {
       let shift = 0;
       for (const change of changes) {
-        this.viewportValue = adjustViewport(
-          this.viewportValue,
-          change.from + shift,
-          change.to + shift,
-          change.inserted,
-        );
+        this.viewportValue = adjustViewport(this.viewportValue, change.from + shift, change.to + shift, change.inserted);
         shift += change.inserted - (change.to - change.from);
       }
     } else {
       const prefix = commonPrefix(current, text);
       const suffix = commonSuffix(current, text, prefix);
-      this.viewportValue = adjustViewport(
-        this.viewportValue,
-        prefix,
-        current.length - suffix,
-        text.length - prefix - suffix,
-      );
+      this.viewportValue = adjustViewport(this.viewportValue, prefix, current.length - suffix, text.length - prefix - suffix);
     }
     this.write(text, clamp(selection, text.length));
     this.dirty = true;
@@ -234,14 +163,13 @@ abstract class EditorSessionBase implements EditorSession {
 
   /** Insert text at the current selection, replacing it. */
   insert(inserted: string): boolean {
-    const { text, selection } = this.read();
-    const from = Math.min(selection.anchor, selection.head),
-      to = Math.max(selection.anchor, selection.head);
-    this.past.push({ text, selection });
+    const {text, selection} = this.read();
+    const from = Math.min(selection.anchor, selection.head), to = Math.max(selection.anchor, selection.head);
+    this.past.push({text, selection});
     this.future = [];
     const caret = from + inserted.length;
     this.viewportValue = adjustViewport(this.viewportValue, from, to, inserted.length);
-    this.write(text.slice(0, from) + inserted + text.slice(to), { anchor: caret, head: caret });
+    this.write(text.slice(0, from) + inserted + text.slice(to), {anchor: caret, head: caret});
     this.dirty = true;
     return true;
   }
@@ -267,37 +195,22 @@ abstract class EditorSessionBase implements EditorSession {
   }
 
   /** Mark the document saved at the given version. */
-  markSaved(version: string): void {
-    this.savedVersion = version;
-    this.dirty = false;
-  }
+  markSaved(version: string): void { this.savedVersion = version; this.dirty = false; }
 
   /** Current scroll anchor pair, clamped to the document. */
-  viewport(): EditorViewport {
-    return clamp(this.viewportValue, this.text().length);
-  }
+  viewport(): EditorViewport { return clamp(this.viewportValue, this.text().length); }
 
   /** Move the scroll anchor pair, clamped to the document. */
-  setViewport(viewport: EditorViewport): void {
-    this.viewportValue = clamp(viewport, this.text().length);
-  }
+  setViewport(viewport: EditorViewport): void { this.viewportValue = clamp(viewport, this.text().length); }
 
   /** Serialize the session for draft recovery or provider migration. */
   draft(): EditorDraft {
-    return {
-      path: this.path,
-      text: this.text(),
-      selection: this.selection(),
-      viewport: this.viewport(),
-      version: this.savedVersion,
-      dirty: this.dirty,
-    };
+    return {path: this.path, text: this.text(), selection: this.selection(), viewport: this.viewport(), version: this.savedVersion, dirty: this.dirty};
   }
 
   /** Restore a serialized draft, replacing text, selection, viewport and dirty state. */
   restore(draft: EditorDraft): void {
-    if (draft.path !== this.path)
-      throw new Error(`Draft path ${draft.path} does not match session path ${this.path}`);
+    if (draft.path !== this.path) throw new Error(`Draft path ${draft.path} does not match session path ${this.path}`);
     this.past = [];
     this.future = [];
     this.write(draft.text, clamp(draft.selection, draft.text.length));
@@ -313,19 +226,16 @@ class StateEditorSession extends EditorSessionBase {
 
   constructor(path: string, options: EditorOpenOptions) {
     super(path, options.version);
-    this.state = EditorState.create({ doc: options.text });
+    this.state = EditorState.create({doc: options.text});
   }
 
-  protected read(): { text: string; selection: EditorSelection } {
+  protected read(): {text: string; selection: EditorSelection} {
     const main = this.state.selection.main;
-    return { text: this.state.doc.toString(), selection: { anchor: main.anchor, head: main.head } };
+    return {text: this.state.doc.toString(), selection: {anchor: main.anchor, head: main.head}};
   }
 
   protected write(text: string, selection: EditorSelection): void {
-    this.state = this.state.update({
-      changes: { from: 0, to: this.state.doc.length, insert: text },
-      selection: { anchor: selection.anchor, head: selection.head },
-    }).state;
+    this.state = this.state.update({changes: {from: 0, to: this.state.doc.length, insert: text}, selection: {anchor: selection.anchor, head: selection.head}}).state;
   }
 }
 
@@ -337,16 +247,11 @@ class PlainEditorSession extends EditorSessionBase {
   constructor(path: string, options: EditorOpenOptions) {
     super(path, options.version);
     this.value = options.text;
-    this.cursor = { anchor: 0, head: 0 };
+    this.cursor = {anchor: 0, head: 0};
   }
 
-  protected read(): { text: string; selection: EditorSelection } {
-    return { text: this.value, selection: { ...this.cursor } };
-  }
-  protected write(text: string, selection: EditorSelection): void {
-    this.value = text;
-    this.cursor = { anchor: selection.anchor, head: selection.head };
-  }
+  protected read(): {text: string; selection: EditorSelection} { return {text: this.value, selection: {...this.cursor}}; }
+  protected write(text: string, selection: EditorSelection): void { this.value = text; this.cursor = {anchor: selection.anchor, head: selection.head}; }
 }
 
 /** Abstract provider that shares draft restoration across implementations. */
@@ -357,7 +262,7 @@ abstract class BaseEditorProvider implements EditorProvider {
 
   /** Reopen a session from a serialized draft. */
   openDraft(draft: EditorDraft): EditorSession {
-    const session = this.open(draft.path, { text: draft.text, version: draft.version });
+    const session = this.open(draft.path, {text: draft.text, version: draft.version});
     session.restore(draft);
     return session;
   }
@@ -366,51 +271,32 @@ abstract class BaseEditorProvider implements EditorProvider {
 /** Default CodeMirror-state editor provider. */
 export class CodeMirrorEditorProvider extends BaseEditorProvider {
   readonly id = 'engine.editor.codemirror';
-  capabilities(): EditorCapabilities {
-    return { codeMirrorExtensions: true, livePreview: true };
-  }
-  open(path: string, options: EditorOpenOptions): EditorSession {
-    return new StateEditorSession(path, options);
-  }
+  capabilities(): EditorCapabilities { return {codeMirrorExtensions: true, livePreview: true}; }
+  open(path: string, options: EditorOpenOptions): EditorSession { return new StateEditorSession(path, options); }
 }
 
 /** Replacement plain-text editor provider without CodeMirror capabilities. */
 export class PlainEditorProvider extends BaseEditorProvider {
   readonly id = 'engine.editor.plain';
-  capabilities(): EditorCapabilities {
-    return { codeMirrorExtensions: false, livePreview: false };
-  }
-  open(path: string, options: EditorOpenOptions): EditorSession {
-    return new PlainEditorSession(path, options);
-  }
+  capabilities(): EditorCapabilities { return {codeMirrorExtensions: false, livePreview: false}; }
+  open(path: string, options: EditorOpenOptions): EditorSession { return new PlainEditorSession(path, options); }
 }
 
 /** Move a session to another provider, preserving text, version, selection, viewport and dirty state. */
-export function migrateSession(from: EditorSession, to: EditorProvider): EditorSession {
-  return to.openDraft(from.draft());
-}
+export function migrateSession(from: EditorSession, to: EditorProvider): EditorSession { return to.openDraft(from.draft()); }
 
 /** CodeMirror editor provider plugin; provides the base and optional capability contracts. */
 export function createCodeMirrorEditorPlugin(): PluginDefinition {
   return {
     manifest: {
-      id: 'engine.editor.codemirror',
-      name: 'CodeMirror editor',
-      version: EDITOR_VERSION,
-      scopes: ['runtime'],
-      provides: [
-        { contract: EDITOR_CONTRACT, version: EDITOR_VERSION },
-        { contract: CODEMIRROR_EDITOR_CONTRACT, version: CODEMIRROR_EDITOR_VERSION },
-      ],
+      id: 'engine.editor.codemirror', name: 'CodeMirror editor', version: EDITOR_VERSION, scopes: ['runtime'],
+      provides: [{contract: EDITOR_CONTRACT, version: EDITOR_VERSION}, {contract: CODEMIRROR_EDITOR_CONTRACT, version: CODEMIRROR_EDITOR_VERSION}]
     },
     setup(context) {
       const provider = new CodeMirrorEditorProvider();
       context.provide(EDITOR_CONTRACT, EDITOR_VERSION, provider);
-      context.provide(CODEMIRROR_EDITOR_CONTRACT, CODEMIRROR_EDITOR_VERSION, {
-        providerId: provider.id,
-        capabilities: provider.capabilities(),
-      });
-    },
+      context.provide(CODEMIRROR_EDITOR_CONTRACT, CODEMIRROR_EDITOR_VERSION, {providerId: provider.id, capabilities: provider.capabilities()});
+    }
   };
 }
 
@@ -418,32 +304,21 @@ export function createCodeMirrorEditorPlugin(): PluginDefinition {
 export function createPlainEditorPlugin(): PluginDefinition {
   return {
     manifest: {
-      id: 'engine.editor.plain',
-      name: 'Plain editor',
-      version: EDITOR_VERSION,
-      scopes: ['runtime'],
-      provides: [{ contract: EDITOR_CONTRACT, version: EDITOR_VERSION }],
+      id: 'engine.editor.plain', name: 'Plain editor', version: EDITOR_VERSION, scopes: ['runtime'],
+      provides: [{contract: EDITOR_CONTRACT, version: EDITOR_VERSION}]
     },
-    setup(context) {
-      context.provide(EDITOR_CONTRACT, EDITOR_VERSION, new PlainEditorProvider());
-    },
+    setup(context) { context.provide(EDITOR_CONTRACT, EDITOR_VERSION, new PlainEditorProvider()); }
   };
 }
 
-export interface EditorRuntime {
-  kernel: Kernel;
-  provider: EditorProvider;
-}
+export interface EditorRuntime {kernel: Kernel; provider: EditorProvider}
 
 /** Build and start an editor kernel with the requested provider. */
-export async function createEditorRuntime(
-  kind: 'codemirror' | 'plain' = 'codemirror',
-  options: { engineVersion?: string } = {},
-): Promise<EditorRuntime> {
-  const kernel = new Kernel({ engineVersion: options.engineVersion ?? ENGINE_VERSION });
+export async function createEditorRuntime(kind: 'codemirror' | 'plain' = 'codemirror', options: {engineVersion?: string} = {}): Promise<EditorRuntime> {
+  const kernel = new Kernel({engineVersion: options.engineVersion ?? ENGINE_VERSION});
   kernel.register(kind === 'plain' ? createPlainEditorPlugin() : createCodeMirrorEditorPlugin());
   await kernel.start();
   const resolved = kernel.runtime.services.resolve(EDITOR_CONTRACT, '^1.0.0');
   if (!resolved.ok) throw new Error('Editor service was not provided');
-  return { kernel, provider: resolved.binding.value as EditorProvider };
+  return {kernel, provider: resolved.binding.value as EditorProvider};
 }

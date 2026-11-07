@@ -1,566 +1,265 @@
-import {
-  test,
-  expect,
-  _electron as electron,
-  type ElectronApplication,
-  type Page,
-} from '@playwright/test';
+import {test,expect,_electron as electron,type ElectronApplication,type Page} from '@playwright/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-let root: string, userData: string, app: ElectronApplication, page: Page;
-test.beforeEach(async () => {
-  root = await fs.mkdtemp(path.join(os.tmpdir(), 'engine-native-'));
-  userData = await fs.mkdtemp(path.join(os.tmpdir(), 'engine-profile-'));
-  await fs.writeFile(path.join(root, 'Persist.md'), '# Persist\n\nOriginal content.\n');
-  const executablePath = process.env.E2E_EXECUTABLE_PATH;
-  app = await electron.launch({
-    executablePath,
-    args: [
-      '--no-sandbox',
-      ...(executablePath ? [] : [path.resolve('electron/main.cjs')]),
-      '--vault',
-      root,
-      '--user-data-dir=' + userData,
-    ],
-    timeout: 45000,
-    env: { ...process.env, ENGINE_DEV: '0' },
-  });
-  page = await app.firstWindow();
-  await expect(page.locator('.note-title h1')).toHaveText('Persist');
+let root:string,userData:string,app:ElectronApplication,page:Page;
+test.beforeEach(async()=>{
+  root=await fs.mkdtemp(path.join(os.tmpdir(),'engine-native-'));
+  userData=await fs.mkdtemp(path.join(os.tmpdir(),'engine-profile-'));
+  await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\nOriginal content.\n');
+  const executablePath=process.env.E2E_EXECUTABLE_PATH;
+  app=await electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+userData],timeout:45000,env:{...process.env,ENGINE_DEV:'0'}});
+  page=await app.firstWindow();await expect(page.locator('.note-title h1')).toHaveText('Persist');
 });
-test.afterEach(async () => {
-  await app?.close();
-  await fs.rm(root, { recursive: true, force: true });
-  await fs.rm(userData, { recursive: true, force: true });
-});
-test('binary preload preserves exact bytes and enforces vault mutation boundaries', async () => {
-  const result = await page.evaluate(async () => {
-    const bridge = window.engine!,
-      bytes = new Uint8Array([91, 0, 255, 128, 92]).subarray(1, 4);
-    await bridge.createBinary!('attachments/probe.bin', bytes);
-    const first = Array.from(new Uint8Array(await bridge.readBinary!('attachments/probe.bin')));
-    const fails = async (fn: () => Promise<unknown>) => {
-      try {
-        await fn();
-        return false;
-      } catch {
-        return true;
-      }
-    };
-    const noOverwrite = await fails(() =>
-      bridge.createBinary!('attachments/probe.bin', new Uint8Array([9])),
-    );
-    const noCreate = await fails(() => bridge.modifyBinary!('attachments/missing.bin', bytes));
-    const noEscape = await fails(() => bridge.writeBinary!('../escape.bin', bytes));
-    await bridge.modifyBinary!('attachments/probe.bin', new Uint8Array([7]));
-    const modified = Array.from(new Uint8Array(await bridge.readBinary!('attachments/probe.bin')));
-    await bridge.writeBinary!(
-      'attachments/probe.bin',
-      new DataView(new Uint8Array([90, 3, 4, 91]).buffer, 1, 2),
-    );
-    const written = Array.from(new Uint8Array(await bridge.readBinary!('attachments/probe.bin')));
-    return { first, noOverwrite, noCreate, noEscape, modified, written };
+test.afterEach(async()=>{await app?.close();await fs.rm(root,{recursive:true,force:true});await fs.rm(userData,{recursive:true,force:true});});
+test('binary preload preserves exact bytes and enforces vault mutation boundaries',async()=>{
+  const result=await page.evaluate(async()=>{
+    const bridge=window.engine!,bytes=new Uint8Array([91,0,255,128,92]).subarray(1,4);
+    await bridge.createBinary!('attachments/probe.bin',bytes);
+    const first=Array.from(new Uint8Array(await bridge.readBinary!('attachments/probe.bin')));
+    const fails=async(fn:()=>Promise<unknown>)=>{try{await fn();return false;}catch{return true;}};
+    const noOverwrite=await fails(()=>bridge.createBinary!('attachments/probe.bin',new Uint8Array([9])));
+    const noCreate=await fails(()=>bridge.modifyBinary!('attachments/missing.bin',bytes));
+    const noEscape=await fails(()=>bridge.writeBinary!('../escape.bin',bytes));
+    await bridge.modifyBinary!('attachments/probe.bin',new Uint8Array([7]));
+    const modified=Array.from(new Uint8Array(await bridge.readBinary!('attachments/probe.bin')));
+    await bridge.writeBinary!('attachments/probe.bin',new DataView(new Uint8Array([90,3,4,91]).buffer,1,2));
+    const written=Array.from(new Uint8Array(await bridge.readBinary!('attachments/probe.bin')));
+    return {first,noOverwrite,noCreate,noEscape,modified,written};
   });
-  expect(result).toEqual({
-    first: [0, 255, 128],
-    noOverwrite: true,
-    noCreate: true,
-    noEscape: true,
-    modified: [7],
-    written: [3, 4],
-  });
-  expect([...(await fs.readFile(path.join(root, 'attachments/probe.bin')))]).toEqual([3, 4]);
-  expect(await fs.stat(path.join(root, 'attachments/missing.bin')).catch(() => null)).toBeNull();
+  expect(result).toEqual({first:[0,255,128],noOverwrite:true,noCreate:true,noEscape:true,modified:[7],written:[3,4]});
+  expect([...await fs.readFile(path.join(root,'attachments/probe.bin'))]).toEqual([3,4]);
+  expect(await fs.stat(path.join(root,'attachments/missing.bin')).catch(()=>null)).toBeNull();
 });
-test('native renderer opens under secure app protocol and writes real Markdown', async () => {
+test('native renderer opens under secure app protocol and writes real Markdown',async()=>{
   expect(page.url()).toBe('engine://app/index.html');
-  expect(await page.evaluate(() => !!window.engine?.desktop)).toBe(true);
-  await page.getByTestId('mode-source').click();
-  await page.getByTestId('note-editor').click();
-  await page.keyboard.press('Control+End');
-  await page.keyboard.type('Saved by desktop.');
-  await expect
-    .poll(async () => fs.readFile(path.join(root, 'Persist.md'), 'utf8'))
-    .toContain('Saved by desktop.');
-  await page.getByTestId('mode-reading').click();
-  await expect(page.locator('.markdown')).toContainText('Saved by desktop.');
-  const records = await fs.readdir(path.join(root, '.crafactory/recovery'));
-  expect(records.length).toBeGreaterThan(0);
+  expect(await page.evaluate(()=>!!window.engine?.desktop)).toBe(true);
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+End');await page.keyboard.type('Saved by desktop.');
+  await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('Saved by desktop.');
+  await page.getByTestId('mode-reading').click();await expect(page.locator('.markdown')).toContainText('Saved by desktop.');
+  const records=await fs.readdir(path.join(root,'.crafactory/recovery'));expect(records.length).toBeGreaterThan(0);
 });
-test('native live editing retains table geometry, decoded local images and diagram identity', async () => {
+test('native live editing retains table geometry, decoded local images and diagram identity',async()=>{
   await page.getByTestId('mode-source').click();
-  await fs.writeFile(
-    path.join(root, 'pixel.svg'),
-    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect width="24" height="24"/></svg>',
-  );
-  await fs.writeFile(
-    path.join(root, 'Persist.md'),
-    '# Persist\n\nLead.\n\n| A | Longer header |\n| --- | --- |\n| Short | Value |\n\nBefore ![pixel](pixel.svg) after.\n\n```mermaid\nflowchart LR\nA-->B\n```\n\nTail',
-  );
+  await fs.writeFile(path.join(root,'pixel.svg'),'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect width="24" height="24"/></svg>');
+  await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\nLead.\n\n| A | Longer header |\n| --- | --- |\n| Short | Value |\n\nBefore ![pixel](pixel.svg) after.\n\n```mermaid\nflowchart LR\nA-->B\n```\n\nTail');
   await expect(page.getByTestId('note-editor')).toContainText('Tail');
   await page.getByTestId('mode-live').click();
-  const svg = page.locator('.live-block-diagram .mermaid svg'),
-    image = page.locator('.live-inline-image');
-  await expect(svg.locator('g.node text')).toHaveText(['A', 'B']);
+  const svg=page.locator('.live-block-diagram .mermaid svg'),image=page.locator('.live-inline-image');
+  await expect(svg.locator('g.node text')).toHaveText(['A','B']);
   await expect(image).toBeVisible();
-  await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(24);
-  const widths = await page
-      .locator('.live-table th')
-      .evaluateAll((nodes) => nodes.map((el) => el.getBoundingClientRect().width)),
-    before = await svg.boundingBox();
-  await page.getByRole('button', { name: 'Edit cell row 2 column 1', exact: true }).click();
-  await expect(
-    page.getByRole('textbox', { name: 'Cell row 2 column 1', exact: true }),
-  ).toBeFocused();
-  const during = await page
-    .locator('.live-table th')
-    .evaluateAll((nodes) => nodes.map((el) => el.getBoundingClientRect().width));
-  for (let i = 0; i < widths.length; i++)
-    expect(Math.abs(during[i] - widths[i])).toBeLessThanOrEqual(1);
-  expect(Math.abs((await svg.boundingBox())!.y - before!.y)).toBeLessThanOrEqual(1);
+  await expect.poll(()=>image.evaluate(el=>(el as HTMLImageElement).naturalWidth)).toBe(24);
+  const widths=await page.locator('.live-table th').evaluateAll(nodes=>nodes.map(el=>el.getBoundingClientRect().width)),before=await svg.boundingBox();
+  await page.getByRole('button',{name:'Edit cell row 2 column 1',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Cell row 2 column 1',exact:true})).toBeFocused();
+  const during=await page.locator('.live-table th').evaluateAll(nodes=>nodes.map(el=>el.getBoundingClientRect().width));
+  for(let i=0;i<widths.length;i++)expect(Math.abs(during[i]-widths[i])).toBeLessThanOrEqual(1);
+  expect(Math.abs((await svg.boundingBox())!.y-before!.y)).toBeLessThanOrEqual(1);
   await page.keyboard.press('Escape');
-  const imageNode = await image.elementHandle(),
-    diagramNode = await svg.elementHandle();
-  await page.getByTestId('note-editor').press('Control+Home');
-  await page.keyboard.insertText('Inserted prefix ');
-  expect(await imageNode!.evaluate((el) => el.isConnected)).toBe(true);
-  expect(await diagramNode!.evaluate((el) => el.isConnected)).toBe(true);
-  await fs.writeFile(path.join(root, 'Other.md'), '# Unrelated external note\n');
+  const imageNode=await image.elementHandle(),diagramNode=await svg.elementHandle();
+  await page.getByTestId('note-editor').press('Control+Home');await page.keyboard.insertText('Inserted prefix ');
+  expect(await imageNode!.evaluate(el=>el.isConnected)).toBe(true);
+  expect(await diagramNode!.evaluate(el=>el.isConnected)).toBe(true);
+  await fs.writeFile(path.join(root,'Other.md'),'# Unrelated external note\n');
   await expect(page.getByTestId('file-Other.md')).toBeVisible();
-  expect(await diagramNode!.evaluate((el) => el.isConnected)).toBe(true);
-  await page.screenshot({ path: test.info().outputPath('live-stability.png') });
-  await image.click();
-  await expect(image).toHaveCount(0);
+  expect(await diagramNode!.evaluate(el=>el.isConnected)).toBe(true);
+  await page.screenshot({path:test.info().outputPath('live-stability.png')});
+  await image.click();await expect(image).toHaveCount(0);
   await expect(page.getByTestId('note-editor')).toContainText('![pixel](pixel.svg)');
-  await expect
-    .poll(async () => fs.readFile(path.join(root, 'Persist.md'), 'utf8'))
-    .toContain('Inserted prefix # Persist');
+  await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('Inserted prefix # Persist');
 });
-test('native watcher reloads external edits', async () => {
-  await fs.writeFile(path.join(root, 'Persist.md'), '# Persist\n\nEdited externally.\n');
+test('native watcher reloads external edits',async()=>{
+  await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\nEdited externally.\n');
   await expect(page.getByTestId('note-editor')).toContainText('Edited externally.');
 });
-test('native footnotes edit exact source bytes and restore after process restart', async () => {
-  const content =
-    '# Persist\n\n中文😀 first[^a] repeated[^a]. Inline ^[inline **bold**].\n\n[^a]: original content\n    continued\n\n[^orphan]: unused text\n';
+test('native footnotes edit exact source bytes and restore after process restart',async()=>{
+  const content='# Persist\n\n中文😀 first[^a] repeated[^a]. Inline ^[inline **bold**].\n\n[^a]: original content\n    continued\n\n[^orphan]: unused text\n';
   await page.getByTestId('mode-source').click();
-  await fs.writeFile(path.join(root, 'Persist.md'), content);
+  await fs.writeFile(path.join(root,'Persist.md'),content);
   await expect(page.getByTestId('note-editor')).toContainText('original content');
-  await page.getByRole('button', { name: 'Footnotes tab', exact: true }).click();
+  await page.getByRole('button',{name:'Footnotes tab',exact:true}).click();
   await expect(page.locator('.footnotes-list li')).toHaveCount(3);
   await page.getByTestId('mode-reading').click();
-  await page.getByRole('button', { name: 'Edit footnote a', exact: true }).click();
-  await expect(page.getByTestId('note-editor')).toBeFocused();
-  await page.keyboard.insertText('Edited ');
-  let expected = content.replace('[^a]: original', '[^a]: Edited original');
-  await expect.poll(() => fs.readFile(path.join(root, 'Persist.md'), 'utf8')).toBe(expected);
-  await page.getByRole('button', { name: 'Go to reference 2 of footnote a', exact: true }).click();
-  await page.keyboard.insertText('REF ');
-  expected = expected.replace('repeated[^a]', 'repeatedREF [^a]');
-  await expect.poll(() => fs.readFile(path.join(root, 'Persist.md'), 'utf8')).toBe(expected);
-  await page.getByRole('button', { name: 'Edit footnote inline 2', exact: true }).click();
-  await page.keyboard.insertText('Changed ');
-  expected = expected.replace('^[inline', '^[Changed inline');
-  await expect.poll(() => fs.readFile(path.join(root, 'Persist.md'), 'utf8')).toBe(expected);
+  await page.getByRole('button',{name:'Edit footnote a',exact:true}).click();
+  await expect(page.getByTestId('note-editor')).toBeFocused();await page.keyboard.insertText('Edited ');
+  let expected=content.replace('[^a]: original','[^a]: Edited original');
+  await expect.poll(()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toBe(expected);
+  await page.getByRole('button',{name:'Go to reference 2 of footnote a',exact:true}).click();await page.keyboard.insertText('REF ');
+  expected=expected.replace('repeated[^a]','repeatedREF [^a]');
+  await expect.poll(()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toBe(expected);
+  await page.getByRole('button',{name:'Edit footnote inline 2',exact:true}).click();await page.keyboard.insertText('Changed ');
+  expected=expected.replace('^[inline','^[Changed inline');
+  await expect.poll(()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toBe(expected);
   await app.close();
-  const executablePath = process.env.E2E_EXECUTABLE_PATH;
-  app = await electron.launch({
-    executablePath,
-    args: [
-      '--no-sandbox',
-      ...(executablePath ? [] : [path.resolve('electron/main.cjs')]),
-      '--vault',
-      root,
-      '--user-data-dir=' + userData,
-    ],
-    timeout: 45000,
-    env: { ...process.env, ENGINE_DEV: '0' },
-  });
-  page = await app.firstWindow();
-  await expect(page.locator('.note-title h1')).toHaveText('Persist');
-  await page.getByRole('button', { name: 'Footnotes tab', exact: true }).click();
+  const executablePath=process.env.E2E_EXECUTABLE_PATH;
+  app=await electron.launch({executablePath,args:['--no-sandbox',...(executablePath?[]:[path.resolve('electron/main.cjs')]),'--vault',root,'--user-data-dir='+userData],timeout:45000,env:{...process.env,ENGINE_DEV:'0'}});
+  page=await app.firstWindow();await expect(page.locator('.note-title h1')).toHaveText('Persist');
+  await page.getByRole('button',{name:'Footnotes tab',exact:true}).click();
   await expect(page.locator('.footnotes-list li')).toHaveCount(3);
-  await expect(page.getByRole('button', { name: 'Edit footnote a', exact: true })).toContainText(
-    'Edited original content',
-  );
-  await expect(
-    page.getByRole('button', { name: 'Edit footnote inline 2', exact: true }),
-  ).toContainText('Changed inline bold');
-  await fs.writeFile(path.join(root, 'Persist.md'), '# Persist\n\nNo footnotes remain.\n');
-  await expect(page.getByRole('region', { name: 'Footnotes', exact: true })).toContainText(
-    'This note has no footnotes.',
-  );
-  await page.screenshot({ path: test.info().outputPath('native-footnotes.png') });
+  await expect(page.getByRole('button',{name:'Edit footnote a',exact:true})).toContainText('Edited original content');
+  await expect(page.getByRole('button',{name:'Edit footnote inline 2',exact:true})).toContainText('Changed inline bold');
+  await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\nNo footnotes remain.\n');
+  await expect(page.getByRole('region',{name:'Footnotes',exact:true})).toContainText('This note has no footnotes.');
+  await page.screenshot({path:test.info().outputPath('native-footnotes.png')});
 });
-test('native inline image reuse still reloads changed asset bytes', async () => {
+test('native inline image reuse still reloads changed asset bytes',async()=>{
   await page.getByTestId('mode-source').click();
-  const pixel = (width: number) =>
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="24"><rect width="${width}" height="24"/></svg>`;
-  await fs.writeFile(path.join(root, 'pixel.svg'), pixel(24));
-  await fs.writeFile(path.join(root, 'Other.svg'), pixel(12));
-  await fs.writeFile(
-    path.join(root, 'Persist.md'),
-    '# Persist\n\nBefore ![bare](pixel.svg) ![relative](./pixel.svg) ![absolute](/pixel.svg) ![unrelated](Other.svg) after.\n\nTail',
-  );
+  const pixel=(width:number)=>`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="24"><rect width="${width}" height="24"/></svg>`;
+  await fs.writeFile(path.join(root,'pixel.svg'),pixel(24));
+  await fs.writeFile(path.join(root,'Other.svg'),pixel(12));
+  await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\nBefore ![bare](pixel.svg) ![relative](./pixel.svg) ![absolute](/pixel.svg) ![unrelated](Other.svg) after.\n\nTail');
   await expect(page.getByTestId('note-editor')).toContainText('Tail');
   await page.getByTestId('mode-live').click();
-  const image = page.locator('.live-inline-image');
-  await expect
-    .poll(() =>
-      image.evaluateAll((nodes) => nodes.map((el) => (el as HTMLImageElement).naturalWidth)),
-    )
-    .toEqual([24, 24, 24, 12]);
-  const other = await image.last().elementHandle();
-  await fs.writeFile(path.join(root, 'pixel.svg'), pixel(48));
-  await expect
-    .poll(() =>
-      image.evaluateAll((nodes) => nodes.map((el) => (el as HTMLImageElement).naturalWidth)),
-    )
-    .toEqual([48, 48, 48, 12]);
-  expect(await other!.evaluate((el) => el.isConnected)).toBe(true);
+  const image=page.locator('.live-inline-image');
+  await expect.poll(()=>image.evaluateAll(nodes=>nodes.map(el=>(el as HTMLImageElement).naturalWidth))).toEqual([24,24,24,12]);
+  const other=await image.last().elementHandle();
+  await fs.writeFile(path.join(root,'pixel.svg'),pixel(48));
+  await expect.poll(()=>image.evaluateAll(nodes=>nodes.map(el=>(el as HTMLImageElement).naturalWidth))).toEqual([48,48,48,12]);
+  expect(await other!.evaluate(el=>el.isConnected)).toBe(true);
 });
-test('native embedded tasks cannot mutate a different host task or embedded source', async () => {
-  const canvas = JSON.stringify(
-    {
-      nodes: [
-        {
-          id: 'task',
-          type: 'text',
-          x: 0,
-          y: 0,
-          width: 260,
-          height: 160,
-          text: '- [ ] Canvas task',
-        },
-      ],
-      edges: [],
-    },
-    null,
-    2,
-  );
-  const embedded = '- [ ] Embedded task\n';
-  const source =
-    '---\nstatus: pending\n---\n# Persist\n\n- [ ] First\n\n![[Tasks.canvas]]\n\n![[Embedded.md]]\n\n- [ ] Second\n\n> - [ ] Quoted\n\n1. [ ] Ordered\n'.replace(
-      /\n/g,
-      '\r\n',
-    );
+test('native embedded tasks cannot mutate a different host task or embedded source',async()=>{
+  const canvas=JSON.stringify({nodes:[{id:'task',type:'text',x:0,y:0,width:260,height:160,text:'- [ ] Canvas task'}],edges:[]},null,2);
+  const embedded='- [ ] Embedded task\n';
+  const source='---\nstatus: pending\n---\n# Persist\n\n- [ ] First\n\n![[Tasks.canvas]]\n\n![[Embedded.md]]\n\n- [ ] Second\n\n> - [ ] Quoted\n\n1. [ ] Ordered\n'.replace(/\n/g,'\r\n');
   await page.getByTestId('mode-source').click();
-  await fs.writeFile(path.join(root, 'Tasks.canvas'), canvas);
-  await fs.writeFile(path.join(root, 'Embedded.md'), embedded);
-  await fs.writeFile(path.join(root, 'Persist.md'), source);
-  await expect
-    .poll(async () =>
-      (await page.getByTestId('note-editor').locator('.cm-line').allTextContents()).join('\n'),
-    )
-    .toBe(source.replace(/\r\n/g, '\n'));
-  await expect(page.getByTestId('file-Tasks.canvas')).toBeVisible();
-  await expect(page.getByTestId('file-Embedded.md')).toBeVisible();
+  await fs.writeFile(path.join(root,'Tasks.canvas'),canvas);await fs.writeFile(path.join(root,'Embedded.md'),embedded);
+  await fs.writeFile(path.join(root,'Persist.md'),source);
+  await expect.poll(async()=>(await page.getByTestId('note-editor').locator('.cm-line').allTextContents()).join('\n')).toBe(source.replace(/\r\n/g,'\n'));
+  await expect(page.getByTestId('file-Tasks.canvas')).toBeVisible();await expect(page.getByTestId('file-Embedded.md')).toBeVisible();
   await page.getByTestId('mode-reading').click();
-  await expect(page.getByRole('checkbox', { name: 'Canvas task', exact: true })).toBeDisabled();
-  await expect(page.getByRole('checkbox', { name: 'Embedded task', exact: true })).toBeDisabled();
-  for (const name of ['Second', 'Quoted', 'Ordered'])
-    await page.getByRole('checkbox', { name, exact: true }).check();
-  await expect(page.getByRole('checkbox', { name: 'First', exact: true })).not.toBeChecked();
-  await expect
-    .poll(async () => fs.readFile(path.join(root, 'Persist.md'), 'utf8'))
-    .toBe(
-      source
-        .replace('- [ ] Second', '- [x] Second')
-        .replace('- [ ] Quoted', '- [x] Quoted')
-        .replace('1. [ ] Ordered', '1. [x] Ordered'),
-    );
-  expect(await fs.readFile(path.join(root, 'Tasks.canvas'), 'utf8')).toBe(canvas);
-  expect(await fs.readFile(path.join(root, 'Embedded.md'), 'utf8')).toBe(embedded);
+  await expect(page.getByRole('checkbox',{name:'Canvas task',exact:true})).toBeDisabled();
+  await expect(page.getByRole('checkbox',{name:'Embedded task',exact:true})).toBeDisabled();
+  for(const name of ['Second','Quoted','Ordered'])await page.getByRole('checkbox',{name,exact:true}).check();
+  await expect(page.getByRole('checkbox',{name:'First',exact:true})).not.toBeChecked();
+  await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toBe(source.replace('- [ ] Second','- [x] Second').replace('- [ ] Quoted','- [x] Quoted').replace('1. [ ] Ordered','1. [x] Ordered'));
+  expect(await fs.readFile(path.join(root,'Tasks.canvas'),'utf8')).toBe(canvas);
+  expect(await fs.readFile(path.join(root,'Embedded.md'),'utf8')).toBe(embedded);
 });
-test('native Canvas embed and rename preserve exact JSON bytes and file type', async () => {
-  const content = JSON.stringify(
-    {
-      custom: 'retain me',
-      nodes: [
-        { id: 'a', type: 'text', x: 0, y: 0, width: 260, height: 160, text: '# Canvas marker' },
-      ],
-      edges: [],
-    },
-    null,
-    2,
-  );
-  await fs.writeFile(path.join(root, 'Board.canvas'), content);
-  await fs.writeFile(path.join(root, 'Persist.md'), '# Persist\n\n![[Board.canvas]]');
+test('native Canvas embed and rename preserve exact JSON bytes and file type',async()=>{
+  const content=JSON.stringify({custom:'retain me',nodes:[{id:'a',type:'text',x:0,y:0,width:260,height:160,text:'# Canvas marker'}],edges:[]},null,2);
+  await fs.writeFile(path.join(root,'Board.canvas'),content);
+  await fs.writeFile(path.join(root,'Persist.md'),'# Persist\n\n![[Board.canvas]]');
   await expect(page.getByTestId('file-Board.canvas')).toBeVisible();
   await page.getByTestId('mode-reading').click();
   await expect(page.locator('.embedded-note .react-flow__node')).toHaveCount(1);
   await expect(page.locator('.embedded-note .canvas-markdown')).toContainText('Canvas marker');
   await expect(page.locator('.embedded-note .canvas-edit')).toHaveCount(0);
-  expect(await fs.readFile(path.join(root, 'Board.canvas'), 'utf8')).toBe(content);
-  await page.locator('.embed-title').click();
-  await expect(page.getByTestId('canvas-add-text')).toBeVisible();
-  await page.getByRole('button', { name: 'Command palette', exact: true }).click();
-  await page.getByTestId('palette-input').fill('Rename or move current file');
-  await page.keyboard.press('Enter');
-  await page.getByTestId('dialog-input').fill('Renamed');
-  await page.getByTestId('dialog-submit').click();
-  await expect
-    .poll(async () => fs.readFile(path.join(root, 'Renamed.canvas'), 'utf8').catch(() => null))
-    .toBe(content);
-  expect(await fs.stat(path.join(root, 'Renamed.md')).catch(() => null)).toBeNull();
-  expect(await fs.stat(path.join(root, 'Board.canvas')).catch(() => null)).toBeNull();
-  await expect
-    .poll(async () => fs.readFile(path.join(root, 'Persist.md'), 'utf8'))
-    .toContain('![[Renamed.canvas]]');
-  await page.getByTestId('file-Persist.md').click();
-  await page.getByTestId('mode-live').click();
+  expect(await fs.readFile(path.join(root,'Board.canvas'),'utf8')).toBe(content);
+  await page.locator('.embed-title').click();await expect(page.getByTestId('canvas-add-text')).toBeVisible();
+  await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Rename or move current file');await page.keyboard.press('Enter');
+  await page.getByTestId('dialog-input').fill('Renamed');await page.getByTestId('dialog-submit').click();
+  await expect.poll(async()=>fs.readFile(path.join(root,'Renamed.canvas'),'utf8').catch(()=>null)).toBe(content);
+  expect(await fs.stat(path.join(root,'Renamed.md')).catch(()=>null)).toBeNull();
+  expect(await fs.stat(path.join(root,'Board.canvas')).catch(()=>null)).toBeNull();
+  await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('![[Renamed.canvas]]');
+  await page.getByTestId('file-Persist.md').click();await page.getByTestId('mode-live').click();
   await expect(page.locator('.embedded-note .react-flow__node')).toHaveCount(1);
-  await page.locator('.embed-title').click();
-  await expect(page.getByTestId('canvas-add-text')).toBeVisible();
-  expect(await fs.readFile(path.join(root, 'Renamed.canvas'), 'utf8')).toBe(content);
+  await page.locator('.embed-title').click();await expect(page.getByTestId('canvas-add-text')).toBeVisible();
+  expect(await fs.readFile(path.join(root,'Renamed.canvas'),'utf8')).toBe(content);
 });
-test('native rename rewrites resolved links and trash preserves content', async () => {
-  await fs.writeFile(path.join(root, 'Ref.md'), '# Ref\n\n[[Persist]]\n');
+test('native rename rewrites resolved links and trash preserves content',async()=>{
+  await fs.writeFile(path.join(root,'Ref.md'),'# Ref\n\n[[Persist]]\n');
   await expect(page.getByTestId('file-Ref.md')).toBeVisible();
-  await page.getByRole('button', { name: 'Command palette', exact: true }).click();
-  await page.getByTestId('palette-input').fill('Rename or move current file');
-  await page.keyboard.press('Enter');
-  await page.getByTestId('dialog-input').fill('Moved.md');
-  await page.getByTestId('dialog-submit').click();
-  await expect
-    .poll(async () => fs.readFile(path.join(root, 'Ref.md'), 'utf8'))
-    .toContain('[[Moved]]');
-  await page.getByRole('button', { name: 'Command palette', exact: true }).click();
-  await page.getByTestId('palette-input').fill('Move current file to trash');
-  await page.keyboard.press('Enter');
-  await page.getByTestId('dialog-submit').click();
-  await expect(page.getByTestId('file-Moved.md')).toHaveCount(0);
-  expect((await fs.readdir(path.join(root, '.crafactory/trash'))).length).toBe(2);
+  await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Rename or move current file');await page.keyboard.press('Enter');
+  await page.getByTestId('dialog-input').fill('Moved.md');await page.getByTestId('dialog-submit').click();await expect.poll(async()=>fs.readFile(path.join(root,'Ref.md'),'utf8')).toContain('[[Moved]]');
+  await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Move current file to trash');await page.keyboard.press('Enter');await page.getByTestId('dialog-submit').click();
+  await expect(page.getByTestId('file-Moved.md')).toHaveCount(0);expect((await fs.readdir(path.join(root,'.crafactory/trash'))).length).toBe(2);
 });
-test('window close flushes a just-typed draft before exiting', async () => {
-  await page.getByTestId('mode-source').click();
-  await page.getByTestId('note-editor').click();
-  await page.keyboard.press('Control+End');
-  await page.keyboard.type('Immediate close draft.');
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
-  await expect
-    .poll(async () => fs.readFile(path.join(root, 'Persist.md'), 'utf8'))
-    .toContain('Immediate close draft.');
+test('window close flushes a just-typed draft before exiting',async()=>{
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+End');await page.keyboard.type('Immediate close draft.');
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close());
+  await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('Immediate close draft.');
 });
-test('Unicode filename and content round-trip through native UI and disk', async () => {
-  await page.getByRole('button', { name: 'New note', exact: true }).click();
-  await page.getByTestId('dialog-input').fill('想法/你好.md');
-  await page.getByTestId('dialog-submit').click();
-  await expect(page.locator('.note-title h1')).toHaveText('你好');
-  await page.getByTestId('note-editor').click();
-  await page.keyboard.press('Control+End');
-  await page.keyboard.insertText('中文内容保留。');
-  await expect
-    .poll(async () => fs.readFile(path.join(root, '想法/你好.md'), 'utf8'))
-    .toContain('中文内容保留。');
+test('Unicode filename and content round-trip through native UI and disk',async()=>{
+  await page.getByRole('button',{name:'New note',exact:true}).click();await page.getByTestId('dialog-input').fill('想法/你好.md');await page.getByTestId('dialog-submit').click();await expect(page.locator('.note-title h1')).toHaveText('你好');
+  await page.getByTestId('note-editor').click();await page.keyboard.press('Control+End');await page.keyboard.insertText('中文内容保留。');await expect.poll(async()=>fs.readFile(path.join(root,'想法/你好.md'),'utf8')).toContain('中文内容保留。');
 });
-test('opt-in local plugin runs its independent Worker command', async () => {
-  const dir = path.join(root, '.crafactory/plugins/example');
-  await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(
-    path.join(dir, 'manifest.json'),
-    JSON.stringify({ id: 'example', name: 'Example', version: '1.0.0' }),
-  );
-  await fs.writeFile(
-    path.join(dir, 'main.js'),
-    'engine.registerCommand("make", "Example: create note", () => engine.write("Plugin.md", "# Plugin\\n\\nWritten by Worker."));',
-  );
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByRole('button', { name: 'Community plugins', exact: true }).click();
-  await page.getByRole('switch', { name: 'Enable Example', exact: true }).click();
-  await page.getByTestId('dialog-submit').click();
-  await expect(page.getByRole('switch', { name: 'Enable Example', exact: true })).toBeChecked();
-  await page.getByTestId('settings-close').click();
-  await page.getByRole('button', { name: 'Command palette', exact: true }).click();
-  await page.getByTestId('palette-input').fill('Example: create note');
-  await page.keyboard.press('Enter');
-  await expect
-    .poll(async () => fs.readFile(path.join(root, 'Plugin.md'), 'utf8').catch(() => ''))
-    .toContain('Written by Worker.');
+test('opt-in local plugin runs its independent Worker command',async()=>{
+  const dir=path.join(root,'.crafactory/plugins/example');await fs.mkdir(dir,{recursive:true});
+  await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id:'example',name:'Example',version:'1.0.0'}));
+  await fs.writeFile(path.join(dir,'main.js'),'engine.registerCommand("make", "Example: create note", () => engine.write("Plugin.md", "# Plugin\\n\\nWritten by Worker."));');
+  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();
+  await page.getByRole('switch',{name:'Enable Example',exact:true}).click();await page.getByTestId('dialog-submit').click();await expect(page.getByRole('switch',{name:'Enable Example',exact:true})).toBeChecked();await page.getByTestId('settings-close').click();
+  await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill('Example: create note');await page.keyboard.press('Enter');
+  await expect.poll(async()=>fs.readFile(path.join(root,'Plugin.md'),'utf8').catch(()=>'' )).toContain('Written by Worker.');
 });
-test('native live table and task edits persist exact Markdown without the custom header', async () => {
+test('native live table and task edits persist exact Markdown without the custom header',async()=>{
   await expect(page.locator('.titlebar')).toHaveCount(0);
-  await page.getByTestId('mode-source').click();
-  await page.getByTestId('note-editor').click();
-  await page.keyboard.press('Control+a');
-  await page.keyboard.insertText(
-    '---\naliases: [Original]\n---\n# Persist\n\n| Name | State |\n| --- | --- |\n| One | Open |\n\n- [ ] Verify native save\n\nEnd.\n',
-  );
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('Control+a');
+  await page.keyboard.insertText('---\naliases: [Original]\n---\n# Persist\n\n| Name | State |\n| --- | --- |\n| One | Open |\n\n- [ ] Verify native save\n\nEnd.\n');
   await page.getByTestId('mode-live').click();
-  await page.getByRole('button', { name: 'Edit cell row 2 column 2', exact: true }).click();
-  await page
-    .getByRole('textbox', { name: 'Cell row 2 column 2', exact: true })
-    .fill('Saved | native');
-  await page.keyboard.press('Enter');
-  await page
-    .getByRole('checkbox', { name: 'Toggle task: Verify native save', exact: true })
-    .check();
-  await expect
-    .poll(async () => fs.readFile(path.join(root, 'Persist.md'), 'utf8'))
-    .toContain('| One | Saved \\| native |');
-  const content = await fs.readFile(path.join(root, 'Persist.md'), 'utf8');
-  expect(content).toContain('- [x] Verify native save');
-  expect(content).toContain('aliases: [Original]');
+  await page.getByRole('button',{name:'Edit cell row 2 column 2',exact:true}).click();
+  await page.getByRole('textbox',{name:'Cell row 2 column 2',exact:true}).fill('Saved | native');await page.keyboard.press('Enter');
+  await page.getByRole('checkbox',{name:'Toggle task: Verify native save',exact:true}).check();
+  await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('| One | Saved \\| native |');
+  const content=await fs.readFile(path.join(root,'Persist.md'),'utf8');expect(content).toContain('- [x] Verify native save');expect(content).toContain('aliases: [Original]');
 });
 /** Install an original compatibility fixture into the temporary native vault. */
-async function installCompat(code?: string, id = 'compat-fixture', name = 'Compatibility fixture') {
-  const dir = path.join(root, '.crafactory/plugins', id);
-  await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(
-    path.join(dir, 'manifest.json'),
-    JSON.stringify({ id, name, version: '1.0.0' }),
-  );
-  await fs.writeFile(
-    path.join(dir, 'main.js'),
-    code ?? (await fs.readFile('examples/plugins/compat-fixture/main.js', 'utf8')),
-  );
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByRole('button', { name: 'Community plugins', exact: true }).click();
-  await page.getByRole('switch', { name: 'Enable ' + name, exact: true }).click();
-  await page.getByTestId('dialog-submit').click();
-  return page.getByRole('switch', { name: 'Enable ' + name, exact: true });
+async function installCompat(code?:string,id='compat-fixture',name='Compatibility fixture'){
+  const dir=path.join(root,'.crafactory/plugins',id);await fs.mkdir(dir,{recursive:true});
+  await fs.writeFile(path.join(dir,'manifest.json'),JSON.stringify({id,name,version:'1.0.0'}));
+  await fs.writeFile(path.join(dir,'main.js'),code??await fs.readFile('examples/plugins/compat-fixture/main.js','utf8'));
+  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();
+  await page.getByRole('switch',{name:'Enable '+name,exact:true}).click();await page.getByTestId('dialog-submit').click();
+  return page.getByRole('switch',{name:'Enable '+name,exact:true});
 }
 /** Invoke a compatibility-fixture command through the visible palette. */
-async function pluginCommand(name: string) {
-  await page.getByRole('button', { name: 'Command palette', exact: true }).click();
-  await page.getByTestId('palette-input').fill(name);
-  await page.keyboard.press('Enter');
+async function pluginCommand(name:string){
+  await page.getByRole('button',{name:'Command palette',exact:true}).click();await page.getByTestId('palette-input').fill(name);await page.keyboard.press('Enter');
 }
-test('CommonJS plugin loads through the packaged worker and persists text/data on unload', async () => {
-  const control = await installCompat();
-  await expect(control).toBeChecked();
-  await page.getByTestId('settings-close').click();
+test('CommonJS plugin loads through the packaged worker and persists text/data on unload',async()=>{
+  const control=await installCompat();await expect(control).toBeChecked();await page.getByTestId('settings-close').click();
   await pluginCommand('Compatibility fixture: Create a test note');
-  await expect
-    .poll(async () => fs.readFile(path.join(root, 'Compatibility.md'), 'utf8').catch(() => ''))
-    .toContain('Original plugin, independent runtime.');
-  await expect
-    .poll(async () =>
-      JSON.parse(
-        await fs.readFile(path.join(root, '.crafactory/plugins/compat-fixture/data.json'), 'utf8'),
-      ),
-    )
-    .toEqual({ loads: 1, unloaded: false });
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByRole('button', { name: 'Community plugins', exact: true }).click();
-  await control.click();
-  await expect(control).not.toBeChecked();
-  await expect
-    .poll(async () =>
-      JSON.parse(
-        await fs.readFile(path.join(root, '.crafactory/plugins/compat-fixture/data.json'), 'utf8'),
-      ),
-    )
-    .toEqual({ loads: 1, unloaded: true });
-  await control.click();
-  await page.getByTestId('dialog-submit').click();
-  await expect(control).toBeChecked();
-  await expect
-    .poll(
-      async () =>
-        JSON.parse(
-          await fs.readFile(
-            path.join(root, '.crafactory/plugins/compat-fixture/data.json'),
-            'utf8',
-          ),
-        ).loads,
-    )
-    .toBe(2);
+  await expect.poll(async()=>fs.readFile(path.join(root,'Compatibility.md'),'utf8').catch(()=>'' )).toContain('Original plugin, independent runtime.');
+  await expect.poll(async()=>JSON.parse(await fs.readFile(path.join(root,'.crafactory/plugins/compat-fixture/data.json'),'utf8'))).toEqual({loads:1,unloaded:false});
+  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();
+  await control.click();await expect(control).not.toBeChecked();
+  await expect.poll(async()=>JSON.parse(await fs.readFile(path.join(root,'.crafactory/plugins/compat-fixture/data.json'),'utf8'))).toEqual({loads:1,unloaded:true});
+  await control.click();await page.getByTestId('dialog-submit').click();await expect(control).toBeChecked();
+  await expect.poll(async()=>JSON.parse(await fs.readFile(path.join(root,'.crafactory/plugins/compat-fixture/data.json'),'utf8')).loads).toBe(2);
 });
-test('CommonJS editor callback replaces the actual source selection and saves', async () => {
-  const control = await installCompat();
-  await expect(control).toBeChecked();
-  await page.getByTestId('settings-close').click();
-  await page.getByTestId('mode-source').click();
-  await page.getByTestId('note-editor').click();
-  await page.keyboard.press('ControlOrMeta+a');
+test('CommonJS editor callback replaces the actual source selection and saves',async()=>{
+  const control=await installCompat();await expect(control).toBeChecked();await page.getByTestId('settings-close').click();
+  await page.getByTestId('mode-source').click();await page.getByTestId('note-editor').click();await page.keyboard.press('ControlOrMeta+a');
   await pluginCommand('Compatibility fixture: Replace the selection');
-  await expect.poll(async () => fs.readFile(path.join(root, 'Persist.md'), 'utf8')).toBe('PLUGIN');
+  await expect.poll(async()=>fs.readFile(path.join(root,'Persist.md'),'utf8')).toBe('PLUGIN');
   await expect(page.getByTestId('note-editor')).toHaveText('PLUGIN');
 });
-for (const [name, code, expected] of [
-  [
-    'DOM',
-    'const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.addStatusBarItem();}};',
-    'Plugin.addStatusBarItem',
-  ],
-  ['Node', 'require("fs");', 'require fs'],
-  ['Export', 'const {Modal}=require("obsidian");', 'export Modal'],
-  [
-    'Editor extension',
-    'const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.registerEditorExtension([]);}};',
-    'Plugin.registerEditorExtension',
-  ],
-  [
-    'Bases view',
-    'const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.registerBasesView("test",{});}};',
-    'Plugin.registerBasesView',
-  ],
-])
-  test(`unsupported ${name} plugin is refused without becoming enabled`, async () => {
-    const control = await installCompat(code, 'negative', 'Negative');
-    await expect(control).not.toBeChecked();
-    await expect(page.locator('.error-banner')).toContainText(expected);
-    expect(await fs.readFile(path.join(root, 'Persist.md'), 'utf8')).toContain('Original content.');
-  });
-test('plugin unload finishes persistent data when the window closes', async () => {
-  const control = await installCompat();
-  await expect(control).toBeChecked();
-  await page.getByTestId('settings-close').click();
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
-  await expect
-    .poll(
-      async () =>
-        JSON.parse(
-          await fs.readFile(
-            path.join(root, '.crafactory/plugins/compat-fixture/data.json'),
-            'utf8',
-          ),
-        ).unloaded,
-    )
-    .toBe(true);
+for(const [name,code,expected] of [
+  ['DOM','const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.addStatusBarItem();}};','Plugin.addStatusBarItem'],
+  ['Node','require("fs");','require fs'],
+  ['Export','const {Modal}=require("obsidian");','export Modal'],
+  ['Editor extension','const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.registerEditorExtension([]);}};','Plugin.registerEditorExtension'],
+  ['Bases view','const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.registerBasesView("test",{});}};','Plugin.registerBasesView']
+])test(`unsupported ${name} plugin is refused without becoming enabled`,async()=>{
+  const control=await installCompat(code,'negative','Negative');await expect(control).not.toBeChecked();
+  await expect(page.locator('.error-banner')).toContainText(expected);
+  expect(await fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('Original content.');
 });
-test('failed plugin command cannot overwrite an existing note and is disabled', async () => {
-  const control = await installCompat(
-    'const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.addCommand({id:"bad",name:"Overwrite",callback:()=>this.app.vault.create("Persist.md","BAD")});}};',
-    'collision',
-    'Collision',
-  );
-  await expect(control).toBeChecked();
-  await page.getByTestId('settings-close').click();
-  await pluginCommand('Collision: Overwrite');
+test('plugin unload finishes persistent data when the window closes',async()=>{
+  const control=await installCompat();await expect(control).toBeChecked();await page.getByTestId('settings-close').click();
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close());
+  await expect.poll(async()=>JSON.parse(await fs.readFile(path.join(root,'.crafactory/plugins/compat-fixture/data.json'),'utf8')).unloaded).toBe(true);
+});
+test('failed plugin command cannot overwrite an existing note and is disabled',async()=>{
+  const control=await installCompat('const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.addCommand({id:"bad",name:"Overwrite",callback:()=>this.app.vault.create("Persist.md","BAD")});}};','collision','Collision');
+  await expect(control).toBeChecked();await page.getByTestId('settings-close').click();await pluginCommand('Collision: Overwrite');
   await expect(page.locator('.toast')).toContainText('exists');
-  expect(await fs.readFile(path.join(root, 'Persist.md'), 'utf8')).toContain('Original content.');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByRole('button', { name: 'Community plugins', exact: true }).click();
-  await expect(control).not.toBeChecked();
+  expect(await fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('Original content.');
+  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Community plugins',exact:true}).click();await expect(control).not.toBeChecked();
 });
-test('plugin traversal command is refused without writing outside the vault', async () => {
-  const target = '../' + path.basename(root) + '-escape.md';
-  const control = await installCompat(
-    `const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.addCommand({id:"bad",name:"Traverse",callback:()=>this.app.vault.create(${JSON.stringify(target)},"BAD")});}};`,
-    'traversal',
-    'Traversal',
-  );
-  await expect(control).toBeChecked();
-  await page.getByTestId('settings-close').click();
-  await pluginCommand('Traversal: Traverse');
+test('plugin traversal command is refused without writing outside the vault',async()=>{
+  const target='../'+path.basename(root)+'-escape.md';
+  const control=await installCompat(`const {Plugin}=require("obsidian");module.exports=class extends Plugin{onload(){this.addCommand({id:"bad",name:"Traverse",callback:()=>this.app.vault.create(${JSON.stringify(target)},"BAD")});}};`,'traversal','Traversal');
+  await expect(control).toBeChecked();await page.getByTestId('settings-close').click();await pluginCommand('Traversal: Traverse');
   await expect(page.locator('.toast')).toContainText('Invalid plugin vault path');
-  expect(await fs.readFile(path.join(root, 'Persist.md'), 'utf8')).toContain('Original content.');
-  await expect(fs.access(path.resolve(root, target))).rejects.toThrow();
+  expect(await fs.readFile(path.join(root,'Persist.md'),'utf8')).toContain('Original content.');
+  await expect(fs.access(path.resolve(root,target))).rejects.toThrow();
 });
-test('editor command is unavailable in reading mode and returns in source mode', async () => {
-  const control = await installCompat();
-  await expect(control).toBeChecked();
-  await page.getByTestId('settings-close').click();
-  await page.getByTestId('mode-reading').click();
-  await page.getByRole('button', { name: 'Command palette', exact: true }).click();
-  await page.getByTestId('palette-input').fill('Compatibility fixture: Replace the selection');
-  await expect(page.locator('.palette-list button')).toHaveCount(0);
-  await page.keyboard.press('Escape');
-  await page.getByTestId('mode-source').click();
-  await page.getByRole('button', { name: 'Command palette', exact: true }).click();
-  await page.getByTestId('palette-input').fill('Compatibility fixture: Replace the selection');
-  await expect(page.locator('.palette-list button')).toHaveCount(1);
+test('editor command is unavailable in reading mode and returns in source mode',async()=>{
+  const control=await installCompat();await expect(control).toBeChecked();await page.getByTestId('settings-close').click();
+  await page.getByTestId('mode-reading').click();await page.getByRole('button',{name:'Command palette',exact:true}).click();
+  await page.getByTestId('palette-input').fill('Compatibility fixture: Replace the selection');await expect(page.locator('.palette-list button')).toHaveCount(0);await page.keyboard.press('Escape');
+  await page.getByTestId('mode-source').click();await page.getByRole('button',{name:'Command palette',exact:true}).click();
+  await page.getByTestId('palette-input').fill('Compatibility fixture: Replace the selection');await expect(page.locator('.palette-list button')).toHaveCount(1);
 });

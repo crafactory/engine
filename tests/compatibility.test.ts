@@ -1,924 +1,352 @@
-import { describe, it, expect, vi } from 'vitest';
-import {
-  createCompatibilityRuntime,
-  Component,
-  Events,
-  Editor,
-  TFile,
-  TFolder,
-  supportedExports,
-  CompatibilityError,
-  guardCompatibilityObject,
-  type PluginSnapshot,
-} from '../src/compat-core';
+import {describe,it,expect,vi} from 'vitest';
+import {createCompatibilityRuntime,Component,Events,Editor,TFile,TFolder,supportedExports,CompatibilityError,guardCompatibilityObject,type PluginSnapshot} from '../src/compat-core';
 import inventory from '../docs/compatibility/obsidian-exports.json';
 import memberContracts from '../docs/compatibility/member-contracts.json';
 
-const manifest = { id: 'fixture', name: 'Fixture', version: '1.0.0' };
-const initial = (): PluginSnapshot => ({
-  name: 'Test vault',
-  active: 'Folder/One.md',
-  entries: [
-    { path: 'Folder', name: 'Folder', folder: true, size: 0, ctime: 1, mtime: 2 },
-    { path: 'Folder/One.md', name: 'One.md', folder: false, size: 5, ctime: 1, mtime: 2 },
-    { path: 'Two.md', name: 'Two.md', folder: false, size: 3, ctime: 1, mtime: 2 },
-  ],
-  notes: [
-    { path: 'Folder/One.md', content: 'hello' },
-    { path: 'Two.md', content: 'two' },
-  ],
-  editor: { text: 'hello', from: 1, to: 3 },
-});
-function harness(failRename = false) {
-  let snapshot = initial();
-  const calls: { operation: string; args: unknown[] }[] = [],
-    notices: string[] = [];
-  let commands: { id: string; name: string }[] = [],
-    data: unknown = null;
-  const runtime: any = createCompatibilityRuntime(manifest, snapshot, {
-    commands(next) {
-      commands = next;
-    },
-    notice(message) {
-      notices.push(message);
-    },
-    async request(operation, args) {
-      calls.push({ operation, args });
-      if (operation === 'readBinary') return new Uint8Array([0, 255]).buffer;
-      if (['createBinary', 'modifyBinary', 'writeBinary'].includes(operation)) return;
-      const path = args[0] as string;
-      if (operation === 'read') {
-        const n = snapshot.notes.find((n) => n.path === path);
-        if (!n) throw new Error('Missing');
-        return n.content;
+const manifest={id:'fixture',name:'Fixture',version:'1.0.0'};
+const initial=():PluginSnapshot=>({name:'Test vault',active:'Folder/One.md',
+  entries:[{path:'Folder',name:'Folder',folder:true,size:0,ctime:1,mtime:2},{path:'Folder/One.md',name:'One.md',folder:false,size:5,ctime:1,mtime:2},{path:'Two.md',name:'Two.md',folder:false,size:3,ctime:1,mtime:2}],
+  notes:[{path:'Folder/One.md',content:'hello'},{path:'Two.md',content:'two'}],editor:{text:'hello',from:1,to:3}});
+function harness(failRename=false){
+  let snapshot=initial();const calls:{operation:string;args:unknown[]}[]=[],notices:string[]=[];
+  let commands:{id:string;name:string}[]=[],data:unknown=null;
+  const runtime:any=createCompatibilityRuntime(manifest,snapshot,{
+    commands(next){commands=next;},notice(message){notices.push(message);},
+    async request(operation,args){
+      calls.push({operation,args});
+      if(operation==='readBinary')return new Uint8Array([0,255]).buffer;
+      if(['createBinary','modifyBinary','writeBinary'].includes(operation))return;
+      const path=args[0] as string;
+      if(operation==='read'){const n=snapshot.notes.find(n=>n.path===path);if(!n)throw new Error('Missing');return n.content;}
+      if(operation==='loadData')return data;
+      if(operation==='saveData'){data=args[0];return;}
+      if(operation==='open'){snapshot={...snapshot,active:path};runtime.sync(snapshot);return;}
+      if(operation==='rename'){
+        if(failRename)throw new Error('rename failed');
+        const [from,to]=args as [string,string];
+        const moved=(p:string)=>p===from||p.startsWith(from+'/');
+        snapshot={...snapshot,entries:snapshot.entries.map(e=>moved(e.path)?{...e,path:to+e.path.slice(from.length),name:(to+e.path.slice(from.length)).split('/').pop()!}:e),notes:snapshot.notes.map(n=>moved(n.path)?{...n,path:to+n.path.slice(from.length)}:n)};
+        runtime.sync(snapshot);return;
       }
-      if (operation === 'loadData') return data;
-      if (operation === 'saveData') {
-        data = args[0];
-        return;
+      if(operation==='trash'){const removed=(p:string)=>p===path||p.startsWith(path+'/');snapshot={...snapshot,entries:snapshot.entries.filter(e=>!removed(e.path)),notes:snapshot.notes.filter(n=>!removed(n.path))};runtime.sync(snapshot);return;}
+      if(operation==='asset')return 'data:text/plain;base64,'+Buffer.from(path).toString('base64');
+      if(operation==='editor'){snapshot={...snapshot,editor:{text:args[2] as string,from:args[3] as number,to:args[4] as number}};runtime.sync(snapshot);return;}
+      if(operation==='mkdir'){snapshot={...snapshot,entries:[...snapshot.entries,{path,name:path,folder:true,size:0,ctime:1,mtime:2}]};runtime.sync(snapshot);return;}
+      if(['create','modify','append'].includes(operation)){
+        const previous=snapshot.notes.find(n=>n.path===path);
+        if(operation==='create'&&previous)throw new Error('Already exists');
+        if(operation!=='create'&&!previous)throw new Error('Missing');
+        const content=operation==='append'?previous!.content+args[1]:args[1] as string;
+        snapshot={...snapshot,notes:[...snapshot.notes.filter(n=>n.path!==path),{path,content}],
+          entries:previous?snapshot.entries:[...snapshot.entries,{path,name:path.split('/').pop()!,folder:false,size:content.length,ctime:1,mtime:2}]};
+        runtime.sync(snapshot);return;
       }
-      if (operation === 'open') {
-        snapshot = { ...snapshot, active: path };
-        runtime.sync(snapshot);
-        return;
-      }
-      if (operation === 'rename') {
-        if (failRename) throw new Error('rename failed');
-        const [from, to] = args as [string, string];
-        const moved = (p: string) => p === from || p.startsWith(from + '/');
-        snapshot = {
-          ...snapshot,
-          entries: snapshot.entries.map((e) =>
-            moved(e.path)
-              ? {
-                  ...e,
-                  path: to + e.path.slice(from.length),
-                  name: (to + e.path.slice(from.length)).split('/').pop()!,
-                }
-              : e,
-          ),
-          notes: snapshot.notes.map((n) =>
-            moved(n.path) ? { ...n, path: to + n.path.slice(from.length) } : n,
-          ),
-        };
-        runtime.sync(snapshot);
-        return;
-      }
-      if (operation === 'trash') {
-        const removed = (p: string) => p === path || p.startsWith(path + '/');
-        snapshot = {
-          ...snapshot,
-          entries: snapshot.entries.filter((e) => !removed(e.path)),
-          notes: snapshot.notes.filter((n) => !removed(n.path)),
-        };
-        runtime.sync(snapshot);
-        return;
-      }
-      if (operation === 'asset')
-        return 'data:text/plain;base64,' + Buffer.from(path).toString('base64');
-      if (operation === 'editor') {
-        snapshot = {
-          ...snapshot,
-          editor: { text: args[2] as string, from: args[3] as number, to: args[4] as number },
-        };
-        runtime.sync(snapshot);
-        return;
-      }
-      if (operation === 'mkdir') {
-        snapshot = {
-          ...snapshot,
-          entries: [
-            ...snapshot.entries,
-            { path, name: path, folder: true, size: 0, ctime: 1, mtime: 2 },
-          ],
-        };
-        runtime.sync(snapshot);
-        return;
-      }
-      if (['create', 'modify', 'append'].includes(operation)) {
-        const previous = snapshot.notes.find((n) => n.path === path);
-        if (operation === 'create' && previous) throw new Error('Already exists');
-        if (operation !== 'create' && !previous) throw new Error('Missing');
-        const content = operation === 'append' ? previous!.content + args[1] : (args[1] as string);
-        snapshot = {
-          ...snapshot,
-          notes: [...snapshot.notes.filter((n) => n.path !== path), { path, content }],
-          entries: previous
-            ? snapshot.entries
-            : [
-                ...snapshot.entries,
-                {
-                  path,
-                  name: path.split('/').pop()!,
-                  folder: false,
-                  size: content.length,
-                  ctime: 1,
-                  mtime: 2,
-                },
-              ],
-        };
-        runtime.sync(snapshot);
-        return;
-      }
-      throw new Error('Unexpected host operation ' + operation);
-    },
+      throw new Error('Unexpected host operation '+operation);
+    }
   });
-  return {
-    runtime,
-    api: runtime.api as any,
-    calls,
-    notices,
-    get commands() {
-      return commands;
-    },
-    get data() {
-      return data;
-    },
-    sync(next: PluginSnapshot) {
-      snapshot = next;
-      runtime.sync(next);
-    },
-  };
+  return {runtime,api:runtime.api as any,calls,notices,get commands(){return commands;},get data(){return data;},sync(next:PluginSnapshot){snapshot=next;runtime.sync(next);}};
 }
-describe('public export inventory and explicit boundaries', () => {
-  it('pins unique documented symbols and references', () => {
+describe('public export inventory and explicit boundaries',()=>{
+  it('pins unique documented symbols and references',()=>{
     expect(inventory.symbols).toHaveLength(271);
-    expect(new Set(inventory.symbols.map((s) => s.name)).size).toBe(271);
-    expect(inventory.symbols.filter((s) => s.runtime)).toHaveLength(154);
-    for (const name of supportedExports)
-      expect(
-        inventory.symbols.some((s) => s.runtime && s.name === name),
-        name,
-      ).toBe(true);
+    expect(new Set(inventory.symbols.map(s=>s.name)).size).toBe(271);
+    expect(inventory.symbols.filter(s=>s.runtime)).toHaveLength(154);
+    for(const name of supportedExports)expect(inventory.symbols.some(s=>s.runtime&&s.name===name),name).toBe(true);
   });
-  for (const symbol of inventory.symbols) {
-    it(`API export ${symbol.name}: ${symbol.runtime ? 'runtime surface' : 'type only, not a runtime export'}`, () => {
-      const h = harness();
-      if ((supportedExports as readonly string[]).includes(symbol.name))
-        expect(h.api[symbol.name]).toBeDefined();
-      else expect(() => h.api[symbol.name]).toThrow(CompatibilityError);
+  for(const symbol of inventory.symbols){
+    it(`API export ${symbol.name}: ${symbol.runtime?'runtime surface':'type only, not a runtime export'}`,()=>{
+      const h=harness();
+      if((supportedExports as readonly string[]).includes(symbol.name))expect(h.api[symbol.name]).toBeDefined();
+      else expect(()=>h.api[symbol.name]).toThrow(CompatibilityError);
     });
   }
-  it('exports no undocumented or extra runtime names', () =>
-    expect(harness().runtime.getExports().sort()).toEqual([...supportedExports].sort()));
-  it('CommonJS interop metadata is not mistaken for a missing Obsidian API', () => {
-    const h = harness();
-    expect(h.api.__esModule).toBe(false);
-    expect(Object.keys(h.api)).not.toContain('__esModule');
+  it('exports no undocumented or extra runtime names',()=>expect(harness().runtime.getExports().sort()).toEqual([...supportedExports].sort()));
+  it('CommonJS interop metadata is not mistaken for a missing Obsidian API',()=>{const h=harness();expect(h.api.__esModule).toBe(false);expect(Object.keys(h.api)).not.toContain('__esModule');});
+  it('does not impersonate a full Obsidian API version',()=>{const h=harness();expect(h.api.apiVersion).toBe('0.0.0');expect(h.api.requireApiVersion('1.0.0')).toBe(false);});
+  for(const item of memberContracts.classes)it(`member inventory ${item.name} has bounded, nonoverlapping classifications`,()=>{
+    const all=[...item.subset,...item.rejected];expect(new Set(all).size).toBe(all.length);
+    expect(item.limits.length).toBeGreaterThan(10);expect(item.source).toMatch(/^https:\/\/docs\.obsidian\.md\//);
+    expect(inventory.symbols.some(s=>s.name===item.name)).toBe(true);
   });
-  it('does not impersonate a full Obsidian API version', () => {
-    const h = harness();
-    expect(h.api.apiVersion).toBe('0.0.0');
-    expect(h.api.requireApiVersion('1.0.0')).toBe(false);
+  for(const item of memberContracts.classes)for(const member of item.rejected)it(`documented rejection ${item.name}.${member}`,()=>{
+    const h=harness();
+    const object:any=item.name==='Vault'?h.runtime.app.vault:item.name==='Workspace'?h.runtime.app.workspace:
+      item.name==='MetadataCache'?h.runtime.app.metadataCache:item.name==='Editor'?new Editor({text:'',from:0,to:0},()=>{}):
+      item.name==='Notice'?new h.api.Notice('test'):item.name==='MarkdownView'?new h.api.MarkdownView():new h.api[item.name]();
+    expect(()=>{const value=object[member];if(typeof value==='function')value.call(object);}).toThrow(CompatibilityError);
   });
-  for (const item of memberContracts.classes)
-    it(`member inventory ${item.name} has bounded, nonoverlapping classifications`, () => {
-      const all = [...item.subset, ...item.rejected];
-      expect(new Set(all).size).toBe(all.length);
-      expect(item.limits.length).toBeGreaterThan(10);
-      expect(item.source).toMatch(/^https:\/\/docs\.obsidian\.md\//);
-      expect(inventory.symbols.some((s) => s.name === item.name)).toBe(true);
-    });
-  for (const item of memberContracts.classes)
-    for (const member of item.rejected)
-      it(`documented rejection ${item.name}.${member}`, () => {
-        const h = harness();
-        const object: any =
-          item.name === 'Vault'
-            ? h.runtime.app.vault
-            : item.name === 'Workspace'
-              ? h.runtime.app.workspace
-              : item.name === 'MetadataCache'
-                ? h.runtime.app.metadataCache
-                : item.name === 'Editor'
-                  ? new Editor({ text: '', from: 0, to: 0 }, () => {})
-                  : item.name === 'Notice'
-                    ? new h.api.Notice('test')
-                    : item.name === 'MarkdownView'
-                      ? new h.api.MarkdownView()
-                      : new h.api[item.name]();
-        expect(() => {
-          const value = object[member];
-          if (typeof value === 'function') value.call(object);
-        }).toThrow(CompatibilityError);
-      });
 });
-describe('metadata cache events', () => {
-  it('emits changed, deleted and resolved with a null cache', async () => {
-    const h = harness(),
-      events: string[] = [];
+describe('metadata cache events',()=>{
+  it('emits changed, deleted and resolved with a null cache',async()=>{
+    const h=harness(),events:string[]=[];
     class Fixture extends h.api.Plugin {
-      onload() {
-        this.registerEvent(this.app.metadataCache.on('resolved', () => events.push('resolved')));
-        this.registerEvent(
-          this.app.metadataCache.on('changed', (file: any, data: string) =>
-            events.push('changed:' + file.path + ':' + data),
-          ),
-        );
-        this.registerEvent(
-          this.app.metadataCache.on('deleted', (file: any) => events.push('deleted:' + file.path)),
-        );
+      onload(){
+        this.registerEvent(this.app.metadataCache.on('resolved',()=>events.push('resolved')));
+        this.registerEvent(this.app.metadataCache.on('changed',(file:any,data:string)=>events.push('changed:'+file.path+':'+data)));
+        this.registerEvent(this.app.metadataCache.on('deleted',(file:any)=>events.push('deleted:'+file.path)));
       }
     }
     await h.runtime.boot(Fixture);
     expect(events).toContain('resolved');
-    h.runtime.sync({
-      ...initial(),
-      notes: [
-        { path: 'Folder/One.md', content: 'changed' },
-        { path: 'Two.md', content: 'two' },
-      ],
-    });
+    h.runtime.sync({...initial(),notes:[{path:'Folder/One.md',content:'changed'},{path:'Two.md',content:'two'}]});
     expect(events).toContain('changed:Folder/One.md:changed');
     expect(events).not.toContain('changed:Two.md:two');
-    h.runtime.sync({ ...initial(), notes: [{ path: 'Folder/One.md', content: 'changed' }] });
+    h.runtime.sync({...initial(),notes:[{path:'Folder/One.md',content:'changed'}]});
     expect(events).toContain('deleted:Two.md');
   });
-  it('rejects other metadata cache events and invalid cache readers', () => {
-    const h = harness();
-    expect(() => h.runtime.app.metadataCache.on('file-open', () => {})).toThrow(
-      'MetadataCache event file-open',
-    );
+  it('rejects other metadata cache events and invalid cache readers',()=>{
+    const h=harness();
+    expect(()=>h.runtime.app.metadataCache.on('file-open',()=>{})).toThrow('MetadataCache event file-open');
     expect(h.runtime.app.metadataCache.getFileCache(h.runtime.app.vault.getFiles()[0])).toBeNull();
-    expect(() => h.runtime.app.metadataCache.getFileCache()).toThrow(
-      'File does not belong to this vault',
-    );
+    expect(()=>h.runtime.app.metadataCache.getFileCache()).toThrow('File does not belong to this vault');
   });
 });
 
-describe('documented command callback rules', () => {
-  it('prefixes commands and prioritizes editorCheckCallback', async () => {
-    const h = harness(),
-      seen: string[] = [];
-    class P extends h.api.Plugin {
-      onload() {
-        this.addCommand({
-          id: 'go',
-          name: 'Go',
-          callback: () => seen.push('callback'),
-          checkCallback: () => seen.push('check'),
-          editorCallback: () => seen.push('editor'),
-          editorCheckCallback: (checking: boolean) => {
-            seen.push(checking ? 'editor-check' : 'editor-run');
-            return true;
-          },
-        });
-      }
-    }
-    await h.runtime.boot(P);
-    expect(h.commands).toEqual([{ id: 'go', name: 'Fixture: Go' }]);
-    await h.runtime.run('go');
-    expect(seen).not.toContain('callback');
-    expect(seen).not.toContain('check');
-    expect(seen).not.toContain('editor');
-    expect(seen).toContain('editor-run');
-    await h.runtime.stop();
-    expect(h.commands).toEqual([]);
+describe('documented command callback rules',()=>{
+  it('prefixes commands and prioritizes editorCheckCallback',async()=>{
+    const h=harness(),seen:string[]=[];
+    class P extends h.api.Plugin {onload(){this.addCommand({id:'go',name:'Go',callback:()=>seen.push('callback'),checkCallback:()=>seen.push('check'),editorCallback:()=>seen.push('editor'),editorCheckCallback:(checking:boolean)=>{seen.push(checking?'editor-check':'editor-run');return true;}});}}
+    await h.runtime.boot(P);expect(h.commands).toEqual([{id:'go',name:'Fixture: Go'}]);await h.runtime.run('go');
+    expect(seen).not.toContain('callback');expect(seen).not.toContain('check');expect(seen).not.toContain('editor');expect(seen).toContain('editor-run');
+    await h.runtime.stop();expect(h.commands).toEqual([]);
   });
-  it('editorCallback takes precedence and is hidden without an editor', async () => {
-    const h = harness(),
-      seen: string[] = [];
-    class P extends h.api.Plugin {
-      onload() {
-        this.addCommand({
-          id: 'e',
-          name: 'Edit',
-          checkCallback: () => {
-            seen.push('check');
-            return true;
-          },
-          editorCallback: () => seen.push('edit'),
-        });
-      }
-    }
-    await h.runtime.boot(P);
-    await h.runtime.run('e');
-    expect(seen).toEqual(['edit']);
-    h.sync({ ...initial(), editor: null });
-    expect(h.commands).toEqual([]);
-    await expect(h.runtime.run('e')).rejects.toThrow('unavailable');
+  it('editorCallback takes precedence and is hidden without an editor',async()=>{
+    const h=harness(),seen:string[]=[];
+    class P extends h.api.Plugin {onload(){this.addCommand({id:'e',name:'Edit',checkCallback:()=>{seen.push('check');return true;},editorCallback:()=>seen.push('edit')});}}
+    await h.runtime.boot(P);await h.runtime.run('e');expect(seen).toEqual(['edit']);
+    h.sync({...initial(),editor:null});expect(h.commands).toEqual([]);await expect(h.runtime.run('e')).rejects.toThrow('unavailable');
   });
-  it('checkCallback must return true to expose a command', async () => {
-    const h = harness(),
-      checks: boolean[] = [];
-    class P extends h.api.Plugin {
-      onload() {
-        this.addCommand({
-          id: 'yes',
-          name: 'Yes',
-          checkCallback: (checking: boolean) => {
-            checks.push(checking);
-            return true;
-          },
-        });
-        this.addCommand({ id: 'no', name: 'No', checkCallback: () => false });
-        this.addCommand({ id: 'undefined', name: 'No result', checkCallback: () => undefined });
-      }
-    }
-    await h.runtime.boot(P);
-    expect(h.commands.map((c) => c.id)).toEqual(['yes']);
-    await h.runtime.run('yes');
-    expect(checks).toContain(false);
+  it('checkCallback must return true to expose a command',async()=>{
+    const h=harness(),checks:boolean[]=[];
+    class P extends h.api.Plugin {onload(){
+      this.addCommand({id:'yes',name:'Yes',checkCallback:(checking:boolean)=>{checks.push(checking);return true;}});
+      this.addCommand({id:'no',name:'No',checkCallback:()=>false});
+      this.addCommand({id:'undefined',name:'No result',checkCallback:()=>undefined});
+    }}
+    await h.runtime.boot(P);expect(h.commands.map(c=>c.id)).toEqual(['yes']);await h.runtime.run('yes');expect(checks).toContain(false);
   });
-  it('ordinary callback executes once and removeCommand unregisters', async () => {
-    const h = harness(),
-      callback = vi.fn();
-    let p: any;
-    class P extends h.api.Plugin {
-      onload() {
-        p = this;
-        this.addCommand({ id: 'c', name: 'Callback', callback });
-      }
-    }
-    await h.runtime.boot(P);
-    await h.runtime.run('c');
-    expect(callback).toHaveBeenCalledTimes(1);
-    p.removeCommand('fixture:c');
-    expect(h.commands).toEqual([]);
+  it('ordinary callback executes once and removeCommand unregisters',async()=>{
+    const h=harness(),callback=vi.fn();let p:any;
+    class P extends h.api.Plugin {onload(){p=this;this.addCommand({id:'c',name:'Callback',callback});}}
+    await h.runtime.boot(P);await h.runtime.run('c');expect(callback).toHaveBeenCalledTimes(1);p.removeCommand('fixture:c');expect(h.commands).toEqual([]);
   });
-  it('accepts command icon and hotkey metadata', async () => {
-    const h = harness();
-    class P extends h.api.Plugin {
-      onload() {
-        this.addCommand({
-          id: 'icon',
-          name: 'Icon',
-          icon: 'star',
-          hotkeys: [{ modifiers: ['Mod'], key: 'k' }],
-          callback: () => {},
-        });
-      }
-    }
-    await h.runtime.boot(P);
-    expect(h.commands).toEqual([{ id: 'icon', name: 'Fixture: Icon' }]);
+  it('accepts command icon and hotkey metadata',async()=>{const h=harness();class P extends h.api.Plugin{onload(){this.addCommand({id:'icon',name:'Icon',icon:'star',hotkeys:[{modifiers:['Mod'],key:'k'}],callback:()=>{}});}}await h.runtime.boot(P);expect(h.commands).toEqual([{id:'icon',name:'Fixture: Icon'}]);});
+  for(const option of ['repeatable','mobileOnly'])it(`rejects command option ${option} instead of ignoring it`,async()=>{
+    const h=harness();class P extends h.api.Plugin {onload(){this.addCommand({id:'x',name:'X',[option]:true});}}
+    await expect(h.runtime.boot(P)).rejects.toThrow('Unsupported');
   });
-  for (const option of ['repeatable', 'mobileOnly'])
-    it(`rejects command option ${option} instead of ignoring it`, async () => {
-      const h = harness();
-      class P extends h.api.Plugin {
-        onload() {
-          this.addCommand({ id: 'x', name: 'X', [option]: true });
-        }
-      }
-      await expect(h.runtime.boot(P)).rejects.toThrow('Unsupported');
-    });
-  it('rejects asynchronous checking and non-Plugin default exports', async () => {
-    const h = harness();
-    class P extends h.api.Plugin {
-      onload() {
-        this.addCommand({ id: 'x', name: 'X', checkCallback: async () => true });
-      }
-    }
-    await expect(h.runtime.boot(P)).rejects.toThrow('async checking');
-    await expect(h.runtime.boot(class {})).rejects.toThrow('extend Plugin');
+  it('rejects asynchronous checking and non-Plugin default exports',async()=>{
+    const h=harness();class P extends h.api.Plugin {onload(){this.addCommand({id:'x',name:'X',checkCallback:async()=>true});}}
+    await expect(h.runtime.boot(P)).rejects.toThrow('async checking');await expect(h.runtime.boot(class{})).rejects.toThrow('extend Plugin');
   });
 });
-describe('lifecycle, data and event registration', () => {
-  it('keeps owned child lifecycle separate from subclass tree data through guarded receivers', async () => {
-    const seen: string[] = [];
-    class Tree extends Component {
-      children = ['configuration'];
-    }
-    class Child extends Component {
-      onload() {
-        seen.push('load');
-      }
-      onunload() {
-        seen.push('unload');
-      }
-    }
-    const parent = guardCompatibilityObject(new Tree(), 'Tree'),
-      child = new Child();
-    parent.addChild(child);
-    expect(parent.children).toEqual(['configuration']);
-    await parent.load();
-    expect(seen).toEqual(['load']);
-    parent.children.push('second');
-    await parent.unload();
-    expect(seen).toEqual(['load', 'unload']);
-    expect(parent.children).toEqual(['configuration', 'second']);
+describe('lifecycle, data and event registration',()=>{
+  it('keeps owned child lifecycle separate from subclass tree data through guarded receivers',async()=>{
+    const seen:string[]=[];
+    class Tree extends Component{children=['configuration'];}
+    class Child extends Component{onload(){seen.push('load');}onunload(){seen.push('unload');}}
+    const parent=guardCompatibilityObject(new Tree(),'Tree'),child=new Child();
+    parent.addChild(child);expect(parent.children).toEqual(['configuration']);
+    await parent.load();expect(seen).toEqual(['load']);parent.children.push('second');
+    await parent.unload();expect(seen).toEqual(['load','unload']);expect(parent.children).toEqual(['configuration','second']);
   });
-  it('loads once, cleans children and registered callbacks in reverse order', async () => {
-    const seen: string[] = [];
-    class C extends Component {
-      onload() {
-        seen.push('load');
-      }
-      onunload() {
-        seen.push('unload');
-      }
-    }
-    const parent = new C(),
-      child = new C();
-    parent.addChild(child);
-    parent.register(() => seen.push('first'));
-    parent.register(() => seen.push('last'));
-    await parent.load();
-    await parent.load();
-    await parent.unload();
-    await parent.unload();
-    expect(seen).toEqual(['load', 'load', 'unload', 'unload', 'last', 'first']);
+  it('loads once, cleans children and registered callbacks in reverse order',async()=>{
+    const seen:string[]=[];class C extends Component {onload(){seen.push('load');}onunload(){seen.push('unload');}}
+    const parent=new C(),child=new C();parent.addChild(child);parent.register(()=>seen.push('first'));parent.register(()=>seen.push('last'));
+    await parent.load();await parent.load();await parent.unload();await parent.unload();expect(seen).toEqual(['load','load','unload','unload','last','first']);
   });
-  it('event context, off, offref and cleanup are effective', async () => {
-    const events = new Events(),
-      callback = vi.fn(function (this: any) {
-        return this.label;
-      }),
-      ctx = { label: 'ctx' };
-    const ref = events.on('go', callback, ctx);
-    events.trigger('go', 1);
-    expect(callback.mock.contexts[0]).toBe(ctx);
-    events.offref(ref);
-    events.trigger('go');
-    expect(callback).toHaveBeenCalledTimes(1);
-    const c = new Component();
-    await c.load();
-    c.registerEvent(events.on('go', callback));
-    await c.unload();
-    events.trigger('go');
-    expect(callback).toHaveBeenCalledTimes(1);
-    events.on('go', callback);
-    events.off('go', callback);
-    events.trigger('go');
-    expect(callback).toHaveBeenCalledTimes(1);
+  it('event context, off, offref and cleanup are effective',async()=>{
+    const events=new Events(),callback=vi.fn(function(this:any){return this.label;}),ctx={label:'ctx'};
+    const ref=events.on('go',callback,ctx);events.trigger('go',1);expect(callback.mock.contexts[0]).toBe(ctx);
+    events.offref(ref);events.trigger('go');expect(callback).toHaveBeenCalledTimes(1);
+    const c=new Component();await c.load();c.registerEvent(events.on('go',callback));await c.unload();events.trigger('go');expect(callback).toHaveBeenCalledTimes(1);
+    events.on('go',callback);events.off('go',callback);events.trigger('go');expect(callback).toHaveBeenCalledTimes(1);
   });
-  it('tryTrigger catches an event error without throwing to its caller', () => {
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const e = new Events();
-    expect(() =>
-      e.tryTrigger(
-        e.on('x', () => {
-          throw new Error('event');
-        }),
-        [],
-      ),
-    ).not.toThrow();
-    expect(error).toHaveBeenCalledOnce();
-    error.mockRestore();
+  it('tryTrigger catches an event error without throwing to its caller',()=>{const error=vi.spyOn(console,'error').mockImplementation(()=>{});const e=new Events();expect(()=>e.tryTrigger(e.on('x',()=>{throw new Error('event');}),[])).not.toThrow();expect(error).toHaveBeenCalledOnce();error.mockRestore();});
+  it('registered intervals stop on unload',async()=>{vi.useFakeTimers();try{const c=new Component(),callback=vi.fn();await c.load();c.registerInterval(setInterval(callback,10));vi.advanceTimersByTime(20);await c.unload();vi.advanceTimersByTime(20);expect(callback).toHaveBeenCalledTimes(2);}finally{vi.useRealTimers();}});
+  it('saves data on load and unload and awaits lifecycle promises',async()=>{
+    const h=harness();class P extends h.api.Plugin {async onload(){expect(await this.loadData()).toBeNull();await this.saveData({enabled:true});}async onunload(){await this.saveData({enabled:false});}}
+    await h.runtime.boot(P);expect(h.data).toEqual({enabled:true});await h.runtime.stop();expect(h.data).toEqual({enabled:false});
   });
-  it('registered intervals stop on unload', async () => {
-    vi.useFakeTimers();
-    try {
-      const c = new Component(),
-        callback = vi.fn();
-      await c.load();
-      c.registerInterval(setInterval(callback, 10));
-      vi.advanceTimersByTime(20);
-      await c.unload();
-      vi.advanceTimersByTime(20);
-      expect(callback).toHaveBeenCalledTimes(2);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-  it('saves data on load and unload and awaits lifecycle promises', async () => {
-    const h = harness();
-    class P extends h.api.Plugin {
-      async onload() {
-        expect(await this.loadData()).toBeNull();
-        await this.saveData({ enabled: true });
-      }
-      async onunload() {
-        await this.saveData({ enabled: false });
-      }
-    }
-    await h.runtime.boot(P);
-    expect(h.data).toEqual({ enabled: true });
-    await h.runtime.stop();
-    expect(h.data).toEqual({ enabled: false });
-  });
-  it('failed startup removes registered commands and cleanup runs', async () => {
-    const h = harness(),
-      cleanup = vi.fn();
-    class P extends h.api.Plugin {
-      onload() {
-        this.register(cleanup);
-        this.addCommand({ id: 'x', name: 'X', callback() {} });
-        throw new Error('load failed');
-      }
-    }
-    await expect(h.runtime.boot(P)).rejects.toThrow('load failed');
-    await h.runtime.stop();
-    expect(cleanup).toHaveBeenCalledTimes(1);
-    expect(h.commands).toEqual([]);
+  it('failed startup removes registered commands and cleanup runs',async()=>{
+    const h=harness(),cleanup=vi.fn();class P extends h.api.Plugin {onload(){this.register(cleanup);this.addCommand({id:'x',name:'X',callback(){}});throw new Error('load failed');}}
+    await expect(h.runtime.boot(P)).rejects.toThrow('load failed');await h.runtime.stop();expect(cleanup).toHaveBeenCalledTimes(1);expect(h.commands).toEqual([]);
   });
 });
-describe('vault, workspace and text operations', () => {
-  it('preserves file identities, root, folders, parents and stat fields', () => {
-    const h = harness(),
-      v = h.runtime.app.vault,
-      f = v.getFileByPath('Folder/One.md');
-    expect(f).toBeInstanceOf(TFile);
-    expect(f.basename).toBe('One');
-    expect(f.extension).toBe('md');
-    expect(f.stat.size).toBe(5);
-    expect(f.parent).toBeInstanceOf(TFolder);
-    expect(v.getRoot().isRoot()).toBe(true);
-    expect(v.getAllFolders()).toHaveLength(1);
-    expect(v.getAllFolders(true)).toHaveLength(2);
-    expect(v.getFiles()).toHaveLength(2);
-    expect(v.getMarkdownFiles()).toHaveLength(2);
-    expect(v.getAllLoadedFiles()).toHaveLength(4);
-    expect(v.getFolderByPath(f.path)).toBeNull();
-    expect(v.getFileByPath('Folder')).toBeNull();
-    h.sync(initial());
-    expect(v.getFileByPath(f.path)).toBe(f);
+describe('vault, workspace and text operations',()=>{
+  it('preserves file identities, root, folders, parents and stat fields',()=>{
+    const h=harness(),v=h.runtime.app.vault,f=v.getFileByPath('Folder/One.md');expect(f).toBeInstanceOf(TFile);
+    expect(f.basename).toBe('One');expect(f.extension).toBe('md');expect(f.stat.size).toBe(5);expect(f.parent).toBeInstanceOf(TFolder);
+    expect(v.getRoot().isRoot()).toBe(true);expect(v.getAllFolders()).toHaveLength(1);expect(v.getAllFolders(true)).toHaveLength(2);
+    expect(v.getFiles()).toHaveLength(2);expect(v.getMarkdownFiles()).toHaveLength(2);expect(v.getAllLoadedFiles()).toHaveLength(4);
+    expect(v.getFolderByPath(f.path)).toBeNull();expect(v.getFileByPath('Folder')).toBeNull();
+    h.sync(initial());expect(v.getFileByPath(f.path)).toBe(f);
   });
-  it('reads cached snapshots and fresh host text, creates/copies/modifies/appends', async () => {
-    const h = harness(),
-      v = h.runtime.app.vault,
-      f = v.getFileByPath('Folder/One.md')!;
-    expect(await v.cachedRead(f)).toBe('hello');
-    expect(h.calls).toHaveLength(0);
-    expect(await v.read(f)).toBe('hello');
-    const made = await v.create('New.md', 'new');
-    expect(made).toBeInstanceOf(TFile);
-    await v.modify(made, 'changed');
-    await v.append(made, '!');
-    expect(await v.read(made)).toBe('changed!');
-    expect(await v.copy(made, 'Copy.md')).toBeInstanceOf(TFile);
-    await v.createFolder('Empty');
-    expect(v.getFolderByPath('Empty')).toBeInstanceOf(TFolder);
-    await expect(v.create('New.md', 'overwrite')).rejects.toThrow('exists');
+  it('reads cached snapshots and fresh host text, creates/copies/modifies/appends',async()=>{
+    const h=harness(),v=h.runtime.app.vault,f=v.getFileByPath('Folder/One.md')!;
+    expect(await v.cachedRead(f)).toBe('hello');expect(h.calls).toHaveLength(0);expect(await v.read(f)).toBe('hello');
+    const made=await v.create('New.md','new');expect(made).toBeInstanceOf(TFile);await v.modify(made,'changed');await v.append(made,'!');
+    expect(await v.read(made)).toBe('changed!');expect(await v.copy(made,'Copy.md')).toBeInstanceOf(TFile);await v.createFolder('Empty');
+    expect(v.getFolderByPath('Empty')).toBeInstanceOf(TFolder);await expect(v.create('New.md','overwrite')).rejects.toThrow('exists');
   });
-  it('emits modify only for changed existing notes and unregisters on stop', async () => {
-    const h = harness(),
-      seen = vi.fn();
-    class P extends h.api.Plugin {
-      onload() {
-        this.registerEvent(this.app.vault.on('modify', seen));
-      }
-    }
-    await h.runtime.boot(P);
-    h.sync({
-      ...initial(),
-      notes: initial().notes.map((n) => ({ ...n, content: n.content + '!' })),
-    });
-    expect(seen).toHaveBeenCalledTimes(2);
-    await h.runtime.stop();
-    h.sync(initial());
-    expect(seen).toHaveBeenCalledTimes(2);
+  it('emits modify only for changed existing notes and unregisters on stop',async()=>{
+    const h=harness(),seen=vi.fn();class P extends h.api.Plugin {onload(){this.registerEvent(this.app.vault.on('modify',seen));}}
+    await h.runtime.boot(P);h.sync({...initial(),notes:initial().notes.map(n=>({...n,content:n.content+'!'}))});expect(seen).toHaveBeenCalledTimes(2);
+    await h.runtime.stop();h.sync(initial());expect(seen).toHaveBeenCalledTimes(2);
   });
-  it('workspace file-open, MarkdownView and existing-file links use host navigation', async () => {
-    const h = harness(),
-      w = h.runtime.app.workspace,
-      callback = vi.fn(),
-      ready = vi.fn();
-    w.onLayoutReady(ready);
-    expect(ready).toHaveBeenCalledOnce();
-    expect(w.getActiveFile().path).toBe('Folder/One.md');
-    expect(w.getActiveViewOfType(h.api.MarkdownView).getViewType()).toBe('markdown');
-    expect(w.activeEditor.editor).toBeInstanceOf(Editor);
-    w.on('file-open', callback);
-    await w.openLinkText('Two', 'Folder/One.md');
-    expect(callback.mock.calls[0][0].path).toBe('Two.md');
-    expect(h.runtime.app.metadataCache.getFirstLinkpathDest('One', 'Two.md').path).toBe(
-      'Folder/One.md',
-    );
-    await expect(w.openLinkText('Missing', 'Two.md')).rejects.toThrow('not found');
-    await expect(w.openLinkText('Two', 'Two.md', true)).rejects.toThrow('Unsupported');
+  it('workspace file-open, MarkdownView and existing-file links use host navigation',async()=>{
+    const h=harness(),w=h.runtime.app.workspace,callback=vi.fn(),ready=vi.fn();
+    w.onLayoutReady(ready);expect(ready).toHaveBeenCalledOnce();expect(w.getActiveFile().path).toBe('Folder/One.md');
+    expect(w.getActiveViewOfType(h.api.MarkdownView).getViewType()).toBe('markdown');expect(w.activeEditor.editor).toBeInstanceOf(Editor);
+    w.on('file-open',callback);await w.openLinkText('Two','Folder/One.md');expect(callback.mock.calls[0][0].path).toBe('Two.md');
+    expect(h.runtime.app.metadataCache.getFirstLinkpathDest('One','Two.md').path).toBe('Folder/One.md');
+    await expect(w.openLinkText('Missing','Two.md')).rejects.toThrow('not found');
+    await expect(w.openLinkText('Two','Two.md',true)).rejects.toThrow('Unsupported');
   });
-  it('rejects foreign file objects and unsupported data-write options', async () => {
-    const h = harness(),
-      v = h.runtime.app.vault;
-    await expect(v.read(new TFile('Two.md', {}))).rejects.toThrow('belong');
-    await expect(v.read(new TFile('Two.md', v))).rejects.toThrow('belong');
-    await expect(v.create('X.md', 'x', { mtime: 4 })).rejects.toThrow('Unsupported');
+  it('rejects foreign file objects and unsupported data-write options',async()=>{
+    const h=harness(),v=h.runtime.app.vault;
+    await expect(v.read(new TFile('Two.md',{}))).rejects.toThrow('belong');
+    await expect(v.read(new TFile('Two.md',v))).rejects.toThrow('belong');
+    await expect(v.create('X.md','x',{mtime:4})).rejects.toThrow('Unsupported');
   });
 });
-describe('vault rename, trash and resource paths', () => {
-  it('renames a file through the native host and keeps object identity', async () => {
-    const h = harness(),
-      v = h.runtime.app.vault,
-      file = v.getFileByPath('Folder/One.md');
-    await v.rename(file, 'Folder/Renamed.md');
-    expect(file.path).toBe('Folder/Renamed.md');
-    expect(file.name).toBe('Renamed.md');
+describe('vault rename, trash and resource paths',()=>{
+  it('renames a file through the native host and keeps object identity',async()=>{
+    const h=harness(),v=h.runtime.app.vault,file=v.getFileByPath('Folder/One.md');
+    await v.rename(file,'Folder/Renamed.md');
+    expect(file.path).toBe('Folder/Renamed.md');expect(file.name).toBe('Renamed.md');
     expect(v.getFileByPath('Folder/Renamed.md')).toBe(file);
-    expect(h.calls).toContainEqual({
-      operation: 'rename',
-      args: ['Folder/One.md', 'Folder/Renamed.md'],
-    });
+    expect(h.calls).toContainEqual({operation:'rename',args:['Folder/One.md','Folder/Renamed.md']});
   });
-  it('rejects root rename and trash', async () => {
-    const h = harness(),
-      root = h.runtime.app.vault.getRoot();
-    await expect(h.runtime.app.vault.rename(root, 'Moved')).rejects.toThrow('Unsupported');
+  it('rejects root rename and trash',async()=>{
+    const h=harness(),root=h.runtime.app.vault.getRoot();
+    await expect(h.runtime.app.vault.rename(root,'Moved')).rejects.toThrow('Unsupported');
     await expect(h.runtime.app.vault.trash(root)).rejects.toThrow('Unsupported');
   });
-  it('reconciles folder children after rename', async () => {
-    const h = harness(),
-      v = h.runtime.app.vault,
-      file = v.getFileByPath('Folder/One.md'),
-      folder = v.getFolderByPath('Folder');
-    await v.rename(file, 'Folder/Renamed.md');
-    expect(folder.children.filter((child: any) => child.path === 'Folder/Renamed.md')).toEqual([
-      file,
-    ]);
-    expect(folder.children.some((child: any) => child.path === 'Folder/One.md')).toBe(false);
+  it('reconciles folder children after rename',async()=>{
+    const h=harness(),v=h.runtime.app.vault,file=v.getFileByPath('Folder/One.md'),folder=v.getFolderByPath('Folder');
+    await v.rename(file,'Folder/Renamed.md');
+    expect(folder.children.filter((child: any)=>child.path==='Folder/Renamed.md')).toEqual([file]);
+    expect(folder.children.some((child: any)=>child.path==='Folder/One.md')).toBe(false);
     expect(folder.children.includes(file)).toBe(true);
   });
-  it('propagates a host rename failure without moving the object', async () => {
-    const h = harness(true),
-      v = h.runtime.app.vault,
-      file = v.getFileByPath('Folder/One.md');
-    await expect(v.rename(file, 'Folder/Renamed.md')).rejects.toThrow('rename failed');
+  it('propagates a host rename failure without moving the object',async()=>{
+    const h=harness(true),v=h.runtime.app.vault,file=v.getFileByPath('Folder/One.md');
+    await expect(v.rename(file,'Folder/Renamed.md')).rejects.toThrow('rename failed');
     expect(file.path).toBe('Folder/One.md');
     expect(v.getFileByPath('Folder/One.md')).toBe(file);
   });
-  it('trashes a file', async () => {
-    const h = harness(),
-      v = h.runtime.app.vault,
-      two = v.getFileByPath('Two.md');
+  it('trashes a file',async()=>{
+    const h=harness(),v=h.runtime.app.vault,two=v.getFileByPath('Two.md');
     await v.trash(two);
     expect(v.getFileByPath('Two.md')).toBeNull();
-    expect(h.calls).toContainEqual({ operation: 'trash', args: ['Two.md'] });
+    expect(h.calls).toContainEqual({operation:'trash',args:['Two.md']});
   });
-  it('renames and trashes a folder subtree while retaining child identity', async () => {
-    const h = harness(),
-      v = h.runtime.app.vault,
-      folder = v.getFolderByPath('Folder'),
-      child = v.getFileByPath('Folder/One.md');
-    await v.rename(folder, 'Moved');
-    expect(folder.path).toBe('Moved');
-    expect(folder.name).toBe('Moved');
+  it('renames and trashes a folder subtree while retaining child identity',async()=>{
+    const h=harness(),v=h.runtime.app.vault,folder=v.getFolderByPath('Folder'),child=v.getFileByPath('Folder/One.md');
+    await v.rename(folder,'Moved');
+    expect(folder.path).toBe('Moved');expect(folder.name).toBe('Moved');
     expect(child.path).toBe('Moved/One.md');
-    expect(v.getFolderByPath('Moved')).toBe(folder);
-    expect(v.getFileByPath('Moved/One.md')).toBe(child);
+    expect(v.getFolderByPath('Moved')).toBe(folder);expect(v.getFileByPath('Moved/One.md')).toBe(child);
     expect(folder.children).toContain(child);
     await v.trash(folder);
-    expect(v.getFolderByPath('Moved')).toBeNull();
-    expect(v.getFileByPath('Moved/One.md')).toBeNull();
+    expect(v.getFolderByPath('Moved')).toBeNull();expect(v.getFileByPath('Moved/One.md')).toBeNull();
   });
-  it('returns the host resource URL through the storage service', async () => {
-    const h = harness(),
-      file = h.runtime.app.vault.getFileByPath('Folder/One.md');
+  it('returns the host resource URL through the storage service',async()=>{
+    const h=harness(),file=h.runtime.app.vault.getFileByPath('Folder/One.md');
     expect(await h.runtime.app.vault.getResourcePath(file)).toMatch(/^data:text\/plain;base64,/);
-    expect(h.calls).toContainEqual({ operation: 'asset', args: ['Folder/One.md'] });
+    expect(h.calls).toContainEqual({operation:'asset',args:['Folder/One.md']});
   });
 });
 
-describe('editor snapshot contract', () => {
-  it('positions are zero-based UTF-16 offsets, reversed selections retain anchor/head', () => {
-    const sent = vi.fn(),
-      e = new Editor({ text: '😀 hi\n世界', from: 5, to: 2 }, sent);
-    expect(e.lineCount()).toBe(2);
-    expect(e.lastLine()).toBe(1);
-    expect(e.getLine(1)).toBe('世界');
-    expect(e.getSelection()).toBe(' hi');
-    expect(e.getCursor('anchor')).toEqual({ line: 0, ch: 5 });
-    expect(e.getCursor('head')).toEqual({ line: 0, ch: 2 });
-    expect(e.offsetToPos(6)).toEqual({ line: 1, ch: 0 });
-    expect(e.posToOffset({ line: 1, ch: 1 })).toBe(7);
-    expect(e.getRange({ line: 1, ch: 0 }, { line: 1, ch: 2 })).toBe('世界');
-    expect(e.somethingSelected()).toBe(true);
-    expect(e.listSelections()).toHaveLength(1);
+describe('editor snapshot contract',()=>{
+  it('positions are zero-based UTF-16 offsets, reversed selections retain anchor/head',()=>{
+    const sent=vi.fn(),e=new Editor({text:'😀 hi\n世界',from:5,to:2},sent);
+    expect(e.lineCount()).toBe(2);expect(e.lastLine()).toBe(1);expect(e.getLine(1)).toBe('世界');
+    expect(e.getSelection()).toBe(' hi');expect(e.getCursor('anchor')).toEqual({line:0,ch:5});expect(e.getCursor('head')).toEqual({line:0,ch:2});
+    expect(e.offsetToPos(6)).toEqual({line:1,ch:0});expect(e.posToOffset({line:1,ch:1})).toBe(7);
+    expect(e.getRange({line:1,ch:0},{line:1,ch:2})).toBe('世界');expect(e.somethingSelected()).toBe(true);expect(e.listSelections()).toHaveLength(1);
   });
-  it('mutations carry expected-base text and preserve single selection', () => {
-    const sent = vi.fn(),
-      e = new Editor({ text: 'hello\nworld', from: 1, to: 3 }, sent);
-    e.replaceSelection('X');
-    expect(e.getValue()).toBe('hXlo\nworld');
-    expect(sent.mock.calls[0]).toEqual(['hello\nworld', 'hXlo\nworld', 2, 2]);
-    e.setCursor(1, 2);
-    expect(e.getCursor()).toEqual({ line: 1, ch: 2 });
-    e.setLine(1, 'new');
-    expect(e.getLine(1)).toBe('new');
-    e.setValue('done');
-    expect(e.getValue()).toBe('done');
-    expect(e.getCursor()).toEqual({ line: 0, ch: 0 });
+  it('mutations carry expected-base text and preserve single selection',()=>{
+    const sent=vi.fn(),e=new Editor({text:'hello\nworld',from:1,to:3},sent);
+    e.replaceSelection('X');expect(e.getValue()).toBe('hXlo\nworld');expect(sent.mock.calls[0]).toEqual(['hello\nworld','hXlo\nworld',2,2]);
+    e.setCursor(1,2);expect(e.getCursor()).toEqual({line:1,ch:2});e.setLine(1,'new');expect(e.getLine(1)).toBe('new');
+    e.setValue('done');expect(e.getValue()).toBe('done');expect(e.getCursor()).toEqual({line:0,ch:0});
   });
-  it('editorCallback mutation reaches the serialized host', async () => {
-    const h = harness();
-    class P extends h.api.Plugin {
-      onload() {
-        this.addCommand({
-          id: 'edit',
-          name: 'Edit',
-          editorCallback: (e: Editor) => e.replaceSelection('X'),
-        });
-      }
-    }
-    await h.runtime.boot(P);
-    await h.runtime.run('edit');
-    expect(h.calls).toContainEqual({
-      operation: 'editor',
-      args: ['Folder/One.md', 'hello', 'hXlo', 2, 2],
-    });
+  it('editorCallback mutation reaches the serialized host',async()=>{
+    const h=harness();class P extends h.api.Plugin {onload(){this.addCommand({id:'edit',name:'Edit',editorCallback:(e:Editor)=>e.replaceSelection('X')});}}
+    await h.runtime.boot(P);await h.runtime.run('edit');expect(h.calls).toContainEqual({operation:'editor',args:['Folder/One.md','hello','hXlo',2,2]});
   });
 });
-describe('unsupported methods fail, not no-op', () => {
-  const pluginMethods = ['registerDomEvent', 'onExternalSettingsChange'];
-  for (const method of pluginMethods)
-    it(`Plugin.${method} is explicitly rejected`, () => {
-      const h = harness();
-      expect(() => new h.api.Plugin()[method]()).toThrow(CompatibilityError);
-    });
-  const rendererOnly = [
-    'addRibbonIcon',
-    'addSettingTab',
-    'addStatusBarItem',
-    'registerView',
-    'registerExtensions',
-    'registerEditorExtension',
-    'registerEditorSuggest',
-    'registerObsidianProtocolHandler',
-    'registerHoverLinkSource',
-    'registerBasesView',
-    'registerMarkdownPostProcessor',
-    'registerMarkdownCodeBlockProcessor',
-  ];
-  for (const method of rendererOnly)
-    it(`Plugin.${method} requires a renderer UI host`, () => {
-      const h = harness();
-      expect(() => new h.api.Plugin()[method]()).toThrow(CompatibilityError);
-    });
-  for (const method of ['delete', 'process', 'appendBinary'])
-    it(`Vault.${method} is explicitly rejected`, () => {
-      const h = harness();
-      expect(() => h.runtime.app.vault[method]()).toThrow(CompatibilityError);
-    });
-  it('binary methods dispatch through the serialized host boundary and preserve TFile identity', async () => {
-    const h = harness(),
-      vault = h.runtime.app.vault,
-      bytes = new Uint8Array([0, 255]),
-      file = vault.getFileByPath('Folder/One.md');
-    await vault.readBinary(file);
-    await vault.modifyBinary(file, bytes);
-    const created = await vault.createBinary('image.bin', bytes);
-    expect(created).toBe(vault.getFileByPath('image.bin'));
-    await vault.adapter.readBinary('image.bin');
-    await vault.adapter.writeBinary('image.bin', bytes);
-    for (const operation of ['readBinary', 'modifyBinary', 'createBinary', 'writeBinary'])
-      expect(h.calls.some((call) => call.operation === operation)).toBe(true);
-    await expect(vault.modifyBinary(file, bytes, { mtime: 0 })).rejects.toThrow('options');
-    await expect(vault.readBinary({ path: file.path })).rejects.toThrow('does not belong');
+describe('unsupported methods fail, not no-op',()=>{
+  const pluginMethods=['registerDomEvent','onExternalSettingsChange'];
+  for(const method of pluginMethods)it(`Plugin.${method} is explicitly rejected`,()=>{const h=harness();expect(()=>new h.api.Plugin()[method]()).toThrow(CompatibilityError);});
+  const rendererOnly=['addRibbonIcon','addSettingTab','addStatusBarItem','registerView','registerExtensions','registerEditorExtension','registerEditorSuggest','registerObsidianProtocolHandler','registerHoverLinkSource','registerBasesView','registerMarkdownPostProcessor','registerMarkdownCodeBlockProcessor'];
+  for(const method of rendererOnly)it(`Plugin.${method} requires a renderer UI host`,()=>{const h=harness();expect(()=>new h.api.Plugin()[method]()).toThrow(CompatibilityError);});
+  for(const method of ['delete','process','appendBinary'])it(`Vault.${method} is explicitly rejected`,()=>{const h=harness();expect(()=>h.runtime.app.vault[method]()).toThrow(CompatibilityError);});
+  it('binary methods dispatch through the serialized host boundary and preserve TFile identity',async()=>{
+    const h=harness(),vault=h.runtime.app.vault,bytes=new Uint8Array([0,255]),file=vault.getFileByPath('Folder/One.md');
+    await vault.readBinary(file);await vault.modifyBinary(file,bytes);
+    const created=await vault.createBinary('image.bin',bytes);expect(created).toBe(vault.getFileByPath('image.bin'));
+    await vault.adapter.readBinary('image.bin');await vault.adapter.writeBinary('image.bin',bytes);
+    for(const operation of ['readBinary','modifyBinary','createBinary','writeBinary'])expect(h.calls.some(call=>call.operation===operation)).toBe(true);
+    await expect(vault.modifyBinary(file,bytes,{mtime:0})).rejects.toThrow('options');
+    await expect(vault.readBinary({path:file.path})).rejects.toThrow('does not belong');
   });
-  for (const method of [
-    'setSelections',
-    'transaction',
-    'exec',
-    'focus',
-    'blur',
-    'hasFocus',
-    'getScrollInfo',
-    'scrollTo',
-    'scrollIntoView',
-    'undo',
-    'redo',
-    'refresh',
-    'wordAt',
-    'processLines',
-  ])
-    it(`Editor.${method} is explicitly rejected`, () =>
-      expect(() => (new Editor({ text: '', from: 0, to: 0 }, () => {}) as any)[method]()).toThrow(
-        CompatibilityError,
-      ));
-  it('Editor.getDoc returns a bounded CodeMirror document adapter', () => {
-    const editor = new Editor({ text: 'one\ntwo', from: 0, to: 0 }, () => {}),
-      doc = editor.getDoc();
-    expect(doc.getValue()).toBe('one\ntwo');
-    expect(doc.lineCount()).toBe(2);
-    doc.replaceRange('X', { line: 0, ch: 0 });
-    expect(doc.getValue()).toBe('Xone\ntwo');
+  for(const method of ['setSelections','transaction','exec','focus','blur','hasFocus','getScrollInfo','scrollTo','scrollIntoView','undo','redo','refresh','wordAt','processLines'])it(`Editor.${method} is explicitly rejected`,()=>expect(()=>(new Editor({text:'',from:0,to:0},()=>{}) as any)[method]()).toThrow(CompatibilityError));
+  it('Editor.getDoc returns a bounded CodeMirror document adapter',()=>{
+    const editor=new Editor({text:'one\ntwo',from:0,to:0},()=>{}),doc=editor.getDoc();
+    expect(doc.getValue()).toBe('one\ntwo');expect(doc.lineCount()).toBe(2);
+    doc.replaceRange('X',{line:0,ch:0});expect(doc.getValue()).toBe('Xone\ntwo');
   });
-  it('Vault.getAvailablePath returns a collision-free extension path', () => {
-    const h = harness();
-    expect(h.runtime.app.vault.getAvailablePath('Folder/New', 'md')).toBe('Folder/New.md');
-    expect(h.runtime.app.vault.getAvailablePath('Folder/One', 'md')).toBe('Folder/One 1.md');
-    expect(h.runtime.app.vault.getAvailablePath('Folder/ONE', 'md')).toBe('Folder/ONE 1.md');
+  it('Vault.getAvailablePath returns a collision-free extension path',()=>{
+    const h=harness();
+    expect(h.runtime.app.vault.getAvailablePath('Folder/New','md')).toBe('Folder/New.md');
+    expect(h.runtime.app.vault.getAvailablePath('Folder/One','md')).toBe('Folder/One 1.md');
+    expect(h.runtime.app.vault.getAvailablePath('Folder/ONE','md')).toBe('Folder/ONE 1.md');
   });
-  it('workspace opens exact paths without link parsing', async () => {
-    const h = harness();
-    await h.runtime.app.workspace.openPath('C#.md');
-    expect(h.calls).toContainEqual({ operation: 'open', args: ['C#.md'] });
+  it('workspace opens exact paths without link parsing',async()=>{
+    const h=harness();await h.runtime.app.workspace.openPath('C#.md');
+    expect(h.calls).toContainEqual({operation:'open',args:['C#.md']});
   });
-  it('App.fileManager.renameFile routes to Vault.rename', async () => {
-    const h = harness(),
-      file = h.runtime.app.vault.getFileByPath('Two.md')!;
-    await h.runtime.app.fileManager.renameFile(file, 'Renamed.md');
-    expect(h.calls).toContainEqual({ operation: 'rename', args: ['Two.md', 'Renamed.md'] });
+  it('App.fileManager.renameFile routes to Vault.rename',async()=>{
+    const h=harness(),file=h.runtime.app.vault.getFileByPath('Two.md')!;
+    await h.runtime.app.fileManager.renameFile(file,'Renamed.md');
+    expect(h.calls).toContainEqual({operation:'rename',args:['Two.md','Renamed.md']});
     expect(h.runtime.app.vault.getFileByPath('Renamed.md')).toBe(file);
   });
-  it('exports a bounded moment compatibility variable', () => {
-    const h = harness();
+  it('exports a bounded moment compatibility variable',()=>{
+    const h=harness();
     expect(typeof h.api.moment).toBe('function');
-    expect(h.api.moment('2026-11-03', 'YYYY-MM-DD').format('YYYY-MM-DD')).toBe('2026-11-03');
+    expect(h.api.moment('2026-11-03','YYYY-MM-DD').format('YYYY-MM-DD')).toBe('2026-11-03');
   });
-  it('accepts the bounded vault lifecycle events', () => {
-    const h = harness();
-    for (const name of ['create', 'delete', 'rename', 'modify'])
-      expect(() => h.runtime.app.vault.on(name, () => {})).not.toThrow();
-  });
-  it('renderer-only workspace leaf methods require host.ui', () => {
-    const h = harness();
-    for (const method of ['getLeaf', 'getRightLeaf', 'getLeavesOfType', 'revealLeaf'])
-      expect(() => {
-        const value = (h.runtime.app.workspace as any)[method];
-        if (typeof value === 'function') value.call(h.runtime.app.workspace);
-      }).toThrow(CompatibilityError);
-  });
-  it('rejects undocumented app/workspace/cache access and unsupported events', () => {
-    const h = harness();
-    for (const op of [
-      () => h.runtime.app.fileManager.processFrontMatter,
-      () => h.runtime.app.metadataCache.fileToLinktext,
-      () => h.runtime.app.workspace.on('layout-change', () => {}),
-      () => h.runtime.app.workspace.on('hover-link', () => {}),
-    ])
-      expect(op).toThrow(CompatibilityError);
+  it('accepts the bounded vault lifecycle events',()=>{const h=harness();for(const name of ['create','delete','rename','modify'])expect(()=>h.runtime.app.vault.on(name,()=>{})).not.toThrow();});
+  it('renderer-only workspace leaf methods require host.ui',()=>{const h=harness();for(const method of ['getLeaf','getRightLeaf','getLeavesOfType','revealLeaf'])expect(()=>{const value=(h.runtime.app.workspace as any)[method];if(typeof value==='function')value.call(h.runtime.app.workspace);}).toThrow(CompatibilityError);});
+  it('rejects undocumented app/workspace/cache access and unsupported events',()=>{
+    const h=harness();
+    for(const op of [()=>h.runtime.app.fileManager.processFrontMatter,()=>h.runtime.app.metadataCache.fileToLinktext,()=>h.runtime.app.workspace.on('layout-change',()=>{}),()=>h.runtime.app.workspace.on('hover-link',()=>{})])expect(op).toThrow(CompatibilityError);
   });
 });
-describe('documented utility subsets', () => {
-  it('normalizes slash separators and parses link subpaths', () => {
-    const h = harness();
-    expect(h.api.normalizePath('/Folder\\\\One.md/')).toBe('Folder/One.md');
-    expect(h.api.parseLinktext('One#Heading')).toEqual({ path: 'One', subpath: '#Heading' });
-    expect(h.api.getLinkpath('One#^block')).toBe('One');
+describe('documented utility subsets',()=>{
+  it('normalizes slash separators and parses link subpaths',()=>{const h=harness();expect(h.api.normalizePath('/Folder\\\\One.md/')).toBe('Folder/One.md');expect(h.api.parseLinktext('One#Heading')).toEqual({path:'One',subpath:'#Heading'});expect(h.api.getLinkpath('One#^block')).toBe('One');});
+  it('YAML and frontmatter string/list helpers handle nulls and aliases',()=>{
+    const a=harness().api;expect(a.parseYaml(a.stringifyYaml({a:1}))).toEqual({a:1});
+    expect(a.parseFrontMatterAliases({alias:'A'})).toEqual(['A']);expect(a.parseFrontMatterTags({tags:['x','#y']})).toEqual(['#x','#y']);
+    expect(a.parseFrontMatterEntry({},'missing')).toBeNull();expect(a.parseFrontMatterStringArray({a:[1,'x']},'a')).toEqual(['x']);
+    expect(a.getAllTags({tags:[{tag:'#x'}],frontmatter:{tags:['x','y']}})).toEqual(['#x','#y']);
   });
-  it('YAML and frontmatter string/list helpers handle nulls and aliases', () => {
-    const a = harness().api;
-    expect(a.parseYaml(a.stringifyYaml({ a: 1 }))).toEqual({ a: 1 });
-    expect(a.parseFrontMatterAliases({ alias: 'A' })).toEqual(['A']);
-    expect(a.parseFrontMatterTags({ tags: ['x', '#y'] })).toEqual(['#x', '#y']);
-    expect(a.parseFrontMatterEntry({}, 'missing')).toBeNull();
-    expect(a.parseFrontMatterStringArray({ a: [1, 'x'] }, 'a')).toEqual(['x']);
-    expect(a.getAllTags({ tags: [{ tag: '#x' }], frontmatter: { tags: ['x', 'y'] } })).toEqual([
-      '#x',
-      '#y',
-    ]);
-  });
-  it('frontmatter offsets delimit contents excluding fences, including CRLF', () => {
-    const a = harness().api,
-      text = '---\r\na: 1\r\n---\r\nBody',
-      r = a.getFrontMatterInfo(text);
-    expect(text.slice(r.from, r.to)).toBe('a: 1');
-    expect(text.slice(r.contentStart)).toBe('Body');
-    expect(r.frontmatter).toBe('a: 1');
+  it('frontmatter offsets delimit contents excluding fences, including CRLF',()=>{
+    const a=harness().api,text='---\r\na: 1\r\n---\r\nBody',r=a.getFrontMatterInfo(text);
+    expect(text.slice(r.from,r.to)).toBe('a: 1');expect(text.slice(r.contentStart)).toBe('Body');expect(r.frontmatter).toBe('a: 1');
     expect(a.getFrontMatterInfo('Body').exists).toBe(false);
-    const empty = a.getFrontMatterInfo('---\n---\nBody');
-    expect(empty.exists).toBe(true);
-    expect(empty.frontmatter).toBe('');
-    expect(empty.contentStart).toBe(8);
+    const empty=a.getFrontMatterInfo('---\n---\nBody');expect(empty.exists).toBe(true);expect(empty.frontmatter).toBe('');expect(empty.contentStart).toBe(8);
   });
-  it('reference iteration returns its early-stop boolean', () => {
-    const a = harness().api,
-      seen: number[] = [];
-    expect(
-      a.iterateRefs([1, 2, 3], (n: number) => {
-        seen.push(n);
-        return n === 2;
-      }),
-    ).toBe(true);
-    expect(seen).toEqual([1, 2]);
-    expect(a.iterateCacheRefs({ links: [1], embeds: [2] }, () => false)).toBe(false);
+  it('reference iteration returns its early-stop boolean',()=>{
+    const a=harness().api,seen:number[]=[];expect(a.iterateRefs([1,2,3],(n:number)=>{seen.push(n);return n===2;})).toBe(true);expect(seen).toEqual([1,2]);
+    expect(a.iterateCacheRefs({links:[1],embeds:[2]},()=>false)).toBe(false);
   });
-  it('debounce schedules the latest arguments, cancellation prevents callbacks', () => {
-    vi.useFakeTimers();
-    try {
-      const a = harness().api,
-        callback = vi.fn(),
-        d = a.debounce(callback, 10, true);
-      d(1);
-      d(2);
-      vi.advanceTimersByTime(10);
-      expect(callback).toHaveBeenCalledWith(2);
-      d(3);
-      d.cancel();
-      vi.advanceTimersByTime(10);
-      expect(callback).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
-    }
+  it('debounce schedules the latest arguments, cancellation prevents callbacks',()=>{
+    vi.useFakeTimers();try{const a=harness().api,callback=vi.fn(),d=a.debounce(callback,10,true);d(1);d(2);vi.advanceTimersByTime(10);expect(callback).toHaveBeenCalledWith(2);d(3);d.cancel();vi.advanceTimersByTime(10);expect(callback).toHaveBeenCalledTimes(1);}finally{vi.useRealTimers();}
   });
-  it('text notices accept numeric durations while DOM, invalid durations and hide are rejected', () => {
-    const h = harness(),
-      notice = new h.api.Notice('one');
-    notice.setMessage('two');
-    new h.api.Notice('long', 100);
-    expect(h.notices).toEqual(['one', 'two', 'long']);
-    expect(() => notice.hide()).toThrow(CompatibilityError);
-    expect(() => new h.api.Notice({})).toThrow(CompatibilityError);
-    expect(() => new h.api.Notice('bad', false as unknown as number)).toThrow(CompatibilityError);
-  });
+  it('text notices accept numeric durations while DOM, invalid durations and hide are rejected',()=>{const h=harness(),notice=new h.api.Notice('one');notice.setMessage('two');new h.api.Notice('long',100);expect(h.notices).toEqual(['one','two','long']);expect(()=>notice.hide()).toThrow(CompatibilityError);expect(()=>new h.api.Notice({})).toThrow(CompatibilityError);expect(()=>new h.api.Notice('bad',false as unknown as number)).toThrow(CompatibilityError);});
 });

@@ -1,23 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { Kernel } from '../src/kernel';
-import {
-  NotesIndex,
-  indexPlugin,
-  createIndexRuntime,
-  INDEX_CONTRACT,
-  type IndexService,
-} from '../src/services';
+import {describe,it,expect} from 'vitest';
+import {Kernel} from '../src/kernel';
+import {NotesIndex, indexPlugin, createIndexRuntime, INDEX_CONTRACT, type IndexService} from '../src/services';
 
 const notes = [
-  {
-    path: 'Ideas/Alpha.md',
-    content:
-      '---\naliases: [A1, A2]\ntags: [project]\nstatus: active\n---\n# Alpha\n\nLink to [[Ideas/Beta|Beta alias]] and #inline.\n\n## Section\n',
-  },
-  { path: 'Ideas/Beta.md', content: '# Beta\n\nBack to [[Alpha]].\n' },
-  { path: 'Gamma.md', content: '# Gamma\n\nSee [[A1]] by alias.\n' },
-  { path: 'Notes/Quiet.md', content: '---\nalias: Whisper\n---\n# Quiet\n' },
-  { path: 'Search.md', content: '# Search\n\nneedle here and Needle too.\n' },
+  {path: 'Ideas/Alpha.md', content: '---\naliases: [A1, A2]\ntags: [project]\nstatus: active\n---\n# Alpha\n\nLink to [[Ideas/Beta|Beta alias]] and #inline.\n\n## Section\n'},
+  {path: 'Ideas/Beta.md', content: '# Beta\n\nBack to [[Alpha]].\n'},
+  {path: 'Gamma.md', content: '# Gamma\n\nSee [[A1]] by alias.\n'},
+  {path: 'Notes/Quiet.md', content: '---\nalias: Whisper\n---\n# Quiet\n'},
+  {path: 'Search.md', content: '# Search\n\nneedle here and Needle too.\n'}
 ];
 
 describe('notes index', () => {
@@ -30,8 +20,8 @@ describe('notes index', () => {
     expect(alpha.aliases).toEqual(['A1', 'A2']);
     expect(alpha.tags).toContain('project');
     expect(alpha.tags).toContain('inline');
-    expect(alpha.headings.map((heading) => heading.text)).toEqual(['Alpha', 'Section']);
-    expect(alpha.links.find((link) => link.target === 'Ideas/Beta')?.label).toBe('Beta alias');
+    expect(alpha.headings.map(heading => heading.text)).toEqual(['Alpha', 'Section']);
+    expect(alpha.links.find(link => link.target === 'Ideas/Beta')?.label).toBe('Beta alias');
     expect(alpha.properties.status).toBe('active');
     expect(alpha.body.startsWith('# Alpha')).toBe(true);
   });
@@ -51,25 +41,19 @@ describe('notes index', () => {
   });
   it('preserves ordered title/alias resolution across notes', () => {
     const index = new NotesIndex();
-    index.rebuild([
-      { path: 'One.md', content: '---\naliases: Shared\n---\n# One\n' },
-      { path: 'Folder/Shared.md', content: '# Shared\n' },
-    ]);
+    index.rebuild([{path: 'One.md', content: '---\naliases: Shared\n---\n# One\n'}, {path: 'Folder/Shared.md', content: '# Shared\n'}]);
     expect(index.resolve('Shared', 'Other.md')).toBe('One.md');
     index.remove('One.md');
     expect(index.resolve('Shared', 'Other.md')).toBe('Folder/Shared.md');
   });
   it('preserves substring matching for a string alias', () => {
     const index = new NotesIndex();
-    index.rebuild([{ path: 'Proj.md', content: '---\naliases: Project Alpha\n---\n# Proj\n' }]);
+    index.rebuild([{path: 'Proj.md', content: '---\naliases: Project Alpha\n---\n# Proj\n'}]);
     expect(index.resolve('Alpha', 'Other.md')).toBe('Proj.md');
   });
   it('deduplicates paths on rebuild, keeping the last entry', () => {
     const index = new NotesIndex();
-    index.rebuild([
-      { path: 'A.md', content: 'first' },
-      { path: 'A.md', content: 'second' },
-    ]);
+    index.rebuild([{path: 'A.md', content: 'first'}, {path: 'A.md', content: 'second'}]);
     expect(index.size()).toBe(1);
     expect(index.note('A.md')!.body).toContain('second');
   });
@@ -85,31 +69,23 @@ describe('notes index', () => {
   it('computes backlinks once per source and outgoing links per note', () => {
     const index = new NotesIndex();
     index.rebuild(notes);
-    expect(index.outgoing('Ideas/Alpha.md').map((link) => link.target)).toContain('Ideas/Beta');
-    const backlinks = index
-      .backlinks('Ideas/Alpha.md')
-      .map((entry) => entry.path)
-      .sort();
+    expect(index.outgoing('Ideas/Alpha.md').map(link => link.target)).toContain('Ideas/Beta');
+    const backlinks = index.backlinks('Ideas/Alpha.md').map(entry => entry.path).sort();
     expect(backlinks).toEqual(['Gamma.md', 'Ideas/Beta.md']);
-    expect(index.backlinks('Ideas/Beta.md').map((entry) => entry.path)).toEqual(['Ideas/Alpha.md']);
-    expect(
-      index.backlinks('Ideas/Alpha.md').find((entry) => entry.path === 'Gamma.md')?.context,
-    ).toBe('A1');
+    expect(index.backlinks('Ideas/Beta.md').map(entry => entry.path)).toEqual(['Ideas/Alpha.md']);
+    expect(index.backlinks('Ideas/Alpha.md').find(entry => entry.path === 'Gamma.md')?.context).toBe('A1');
   });
   it('aggregates tag counts', () => {
     const index = new NotesIndex();
     index.rebuild(notes);
     const tags = index.tags();
-    expect(tags).toContainEqual({ tag: 'project', count: 1 });
-    expect(tags).toContainEqual({ tag: 'inline', count: 1 });
+    expect(tags).toContainEqual({tag: 'project', count: 1});
+    expect(tags).toContainEqual({tag: 'inline', count: 1});
   });
   it('limits tag counts to the given paths', () => {
     const index = new NotesIndex();
     index.rebuild(notes);
-    expect(index.tags(['Ideas/Alpha.md'])).toEqual([
-      { tag: 'inline', count: 1 },
-      { tag: 'project', count: 1 },
-    ]);
+    expect(index.tags(['Ideas/Alpha.md'])).toEqual([{tag: 'inline', count: 1}, {tag: 'project', count: 1}]);
     expect(index.tags(['Ideas/Beta.md'])).toEqual([]);
   });
   it('exposes bounded CachedMetadata and invalidates it on update', () => {
@@ -117,12 +93,12 @@ describe('notes index', () => {
     index.rebuild(notes);
     const alpha = index.metadata('Ideas/Alpha.md')!;
     expect(alpha.frontmatter?.status).toBe('active');
-    expect(alpha.headings?.map((heading) => heading.heading)).toEqual(['Alpha', 'Section']);
-    expect(alpha.links?.map((link) => link.link)).toContain('Ideas/Beta');
-    expect(alpha.tags?.map((tag) => tag.tag)).toContain('#inline');
+    expect(alpha.headings?.map(heading => heading.heading)).toEqual(['Alpha', 'Section']);
+    expect(alpha.links?.map(link => link.link)).toContain('Ideas/Beta');
+    expect(alpha.tags?.map(tag => tag.tag)).toContain('#inline');
     index.update('Ideas/Alpha.md', '# Changed\n\nNew #tag.\n');
     expect(index.metadata('Ideas/Alpha.md')?.headings?.[0].heading).toBe('Changed');
-    expect(index.metadata('Ideas/Alpha.md')?.tags?.map((tag) => tag.tag)).toEqual(['#tag']);
+    expect(index.metadata('Ideas/Alpha.md')?.tags?.map(tag => tag.tag)).toEqual(['#tag']);
     expect(index.metadata('Missing.md')).toBeUndefined();
   });
   it('lists unique frontmatter property keys in first-seen order', () => {
@@ -134,9 +110,9 @@ describe('notes index', () => {
     const index = new NotesIndex();
     index.rebuild(notes);
     expect(index.search('needle')).toContain('Search.md');
-    expect(index.search('needle', { caseSensitive: true })).toContain('Search.md');
-    expect(index.search('NEEDLE', { caseSensitive: true })).not.toContain('Search.md');
-    expect(index.search('needle', { caseSensitive: true })).not.toContain('Ideas/Beta.md');
+    expect(index.search('needle', {caseSensitive: true})).toContain('Search.md');
+    expect(index.search('NEEDLE', {caseSensitive: true})).not.toContain('Search.md');
+    expect(index.search('needle', {caseSensitive: true})).not.toContain('Ideas/Beta.md');
   });
   it('passes search operators through to the note set', () => {
     const index = new NotesIndex();
@@ -170,27 +146,15 @@ describe('notes index plugin and dependency flow', () => {
   });
   it('serves a consumer and survives disable/enable rebinding', async () => {
     let probeSize = -1;
-    const kernel = new Kernel({ engineVersion: '1.0.0' });
+    const kernel = new Kernel({engineVersion: '1.0.0'});
     kernel.register(indexPlugin(new NotesIndex()));
-    kernel.register({
-      manifest: {
-        id: 'engine.probe',
-        name: 'Probe',
-        version: '1.0.0',
-        consumes: [{ contract: INDEX_CONTRACT }],
-      },
-      setup(context) {
-        probeSize = context.service<IndexService>(INDEX_CONTRACT).size();
-      },
-    });
+    kernel.register({manifest: {id: 'engine.probe', name: 'Probe', version: '1.0.0', consumes: [{contract: INDEX_CONTRACT}]}, setup(context) { probeSize = context.service<IndexService>(INDEX_CONTRACT).size(); }});
     await kernel.start();
     expect(probeSize).toBe(0);
     await kernel.disable('engine.index');
     expect(kernel.runtime.instances.has('engine.probe')).toBe(false);
     await kernel.enable('engine.index');
     expect(kernel.runtime.instances.has('engine.probe')).toBe(true);
-    expect(kernel.diagnostics.some((diagnostic) => diagnostic.code === 'dependency-disabled')).toBe(
-      true,
-    );
+    expect(kernel.diagnostics.some(diagnostic => diagnostic.code === 'dependency-disabled')).toBe(true);
   });
 });

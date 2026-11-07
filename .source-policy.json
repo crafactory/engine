@@ -47,22 +47,13 @@
     "src/workspace-layout.ts"
   ],
   "legacyLimits": {
-    "e2e-desktop/renderer-corpus.spec.ts": 1190,
     "e2e-desktop/renderer.spec.ts": 1387,
-    "e2e-desktop/vault.spec.ts": 566,
-    "scripts/android-acceptance.mjs": 1059,
+    "scripts/android-acceptance.mjs": 554,
     "scripts/inventory.mjs": 531,
     "src/App.tsx": 3846,
-    "src/LivePreview.tsx": 997,
-    "src/Markdown.tsx": 557,
     "src/Settings.tsx": 648,
     "src/compat-core.ts": 2017,
-    "src/compat-dom.ts": 2851,
-    "src/kernel/kernel.ts": 879,
-    "src/services/storage.ts": 502,
-    "src/style.css": 3074,
-    "tests/compatibility.test.ts": 924,
-    "tests/kernel.test.ts": 668,
-    "tests/renderer-contracts.test.ts": 744
+    "src/compat-dom.ts": 826,
+    "src/kernel/kernel.ts": 590
   }
 }
