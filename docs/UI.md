@@ -36,6 +36,9 @@ Tailwind preflight to avoid resetting editor and plugin DOM. Android composition
 stay in `src/mobile/shell.css`; desktop does not acquire the native layout.
 Registry source retains its MIT license in `src/components/ui/LICENSE`; the notices
 generator includes that license in the packaged third-party notices.
+Every build regenerates the dependency notices, then emits `LICENSE` and
+`THIRD_PARTY_NOTICES.md` into the web assets, including Android's packaged assets.
+Android CI compares both native asset copies byte-for-byte before building the APK.
 
 Follow the [official Vite installation](https://ui.shadcn.com/docs/installation/vite)
 and [Sheet documentation](https://ui.shadcn.com/docs/components/sheet) when adding widgets.

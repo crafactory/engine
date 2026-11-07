@@ -73,6 +73,19 @@ curl confirmed it, fresh-server replay fixed the environment and passed all case
 Current Vite command 86869, log `/tmp/engine-ui-review-dev.log`. No more source/docs
 writes during final browser replay; no overlapping build and desktop replay.
 
+Exact `2f9e500` browser passes 90/90, desktop/corpus 107/107, actual Linux package
+vault 24/24. Both Verify, three-OS builds and independent 11+11 corpus pass.
+First native attempt lost ADB (exit 255, then device offline); preserve artifact
+13583101629, not a pass. Same-head attempt 2 passes all 11 native groups, without
+weakened assertions; it still does not certify the subsequent distribution repair.
+Package inspection found the newly added cmdk missing from committed notices and
+Android missing full notice assets. Regenerate notices on every build and emit both
+license files into dist/native assets, with byte comparisons in Android CI.
+This narrow distribution repair requires a new committed head and fresh gates.
+Repaired source passes format/lint/structure/inventory, 944 units and build.
+The old dist lacked both license assets (negative control); both new dist assets
+compare byte-for-byte to their source files. No application runtime bundle changed.
+
 - No upstream plugin implementation inspection/copying or package modification.
 - Verify author AND committer before every commit/merge; never inspect credentials.
 - Follow CONTRIBUTING: effective initial review, bounded repairs, exact-head gates.
