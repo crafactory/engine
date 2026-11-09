@@ -291,6 +291,8 @@ svg {
 }
 .tree-row.selected {
   color: var(--text) !important;
+  box-shadow: inset 2px 0 0 var(--primary);
+  font-weight: 500;
 }
 .tree-row svg {
   color: var(--faint);

@@ -28,9 +28,11 @@ Use js_repl `metadataBrowser`, `metadataContext`, `metadataPage`, `metadataError
 PR #81 is ready for review. Implementation `4876307` passed full check and 95
 browser tests. Follow-up self-review repairs add explicit registry reset ownership,
 unowned-slot regression, missing Android spacing and native-hydration readiness.
-Their focused replay passed 21 tests. Freeze the next commit for full check,
-96 browser tests, all pinned-corpus Electron tests, Linux package replay and
-Android native gate. CodeRabbit review is still processing; no approval claimed.
+Their focused replay passed 21 tests. One effective CodeRabbit review then raised
+two minor issues; both reproduced and repaired with added regressions. Freeze the
+next commit for full check, 98 browser tests, all pinned-corpus Electron tests,
+Linux package replay and Android native gate. Subsequent bot review skipped after
+the included allowance; no approval claimed and no repeated review requests.
 Do not treat initial native failures or the interrupted Electron run as acceptance.
 
 ## Constraints

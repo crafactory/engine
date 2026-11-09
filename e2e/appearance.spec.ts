@@ -83,3 +83,30 @@ test('registry resets do not capture an unowned same-named data-slot', async ({ 
   });
   expect(styles[0]).toEqual(styles[1]);
 });
+
+test('unset theme keeps dark tokens and dark registry variants aligned', async ({ page }) => {
+  await page.getByRole('button', { name: 'New note', exact: true }).click();
+  const cancel = page.getByTestId('dialog-cancel');
+  const background = await cancel.evaluate((element) => getComputedStyle(element).backgroundColor);
+  const border = await cancel.evaluate((element) => getComputedStyle(element).borderTopColor);
+  await page.evaluate(() => document.documentElement.removeAttribute('data-theme'));
+  await expect(page.locator('body')).toHaveCSS('background-color', 'oklch(0.145 0 0)');
+  await expect(cancel).toHaveCSS('background-color', background);
+  await expect(cancel).toHaveCSS('border-top-color', border);
+});
+
+test('selected file remains distinct from hovered rows in both themes', async ({ page }) => {
+  for (const theme of ['Light', 'Dark']) {
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByRole('button', { name: theme, exact: true }).click();
+    await page.getByRole('button', { name: 'Close settings', exact: true }).click();
+    const selected = page.getByTestId('file-Welcome.md');
+    const hovered = page.locator('.tree-row:not(.selected)').first();
+    await hovered.hover();
+    await expect(selected).toHaveCSS('box-shadow', /inset/);
+    await expect(hovered).toHaveCSS('box-shadow', 'none');
+    await expect(selected).toHaveCSS('font-weight', '500');
+    await selected.hover();
+    await expect(selected).toHaveCSS('box-shadow', /inset/);
+  }
+});

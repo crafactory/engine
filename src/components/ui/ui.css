@@ -4,8 +4,8 @@
 @import 'tailwindcss/utilities.css' prefix(ui);
 @import 'tw-animate-css';
 
-/* Honor the app preference, not the operating system's independent color scheme. */
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+/* Match theme.css's dark fallback before the saved preference is applied. */
+@custom-variant dark (&:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *));
 
 /* Restore the registry's preflight assumptions only on owned primitives.
    Unlayered legacy composition rules must not redefine their appearance. */

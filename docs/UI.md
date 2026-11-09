@@ -35,6 +35,8 @@ The owner requires the standard New York/Neutral visual language, not the old
 custom theme applied to registry primitives. `src/ui/theme.css` takes the official
 [neutral semantic tokens and radius scale](https://ui.shadcn.com/docs/theming).
 Saved `data-theme` preferences and the dark startup fallback remain unchanged.
+The dark utility variant uses the same root-not-light selector as the tokens,
+including the interval before the saved theme effect runs.
 Legacy domain aliases point to those tokens rather than defining a second palette.
 `--accent` and `--muted` now have shadcn's surface semantics; domain text uses
 `--primary` and `--muted-foreground` instead.
@@ -44,6 +46,8 @@ Do not reintroduce unlayered `.icon-button`, settings-navigation, segmented-butt
 or native-select appearance overrides. Selected owned buttons use the standard
 secondary variant. The palette uses CommandItem directly, not a second Button
 styling layer; prompts use the registry Dialog close control.
+Legacy file navigation keeps a neutral inset active-file marker and medium label
+weight so an active file stays distinct from another hovered row in either theme.
 
 Only explicitly listed slots carrying `data-engine-ui` receive the minimal resets
 required without global preflight. Registry adapters carry that ownership marker;
