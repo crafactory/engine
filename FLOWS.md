@@ -1,5 +1,19 @@
 # Main flows
 
+## Standard shadcn appearance
+- The owner requires standard New York/Neutral visuals, not registry primitives
+  recolored with the old green visual system. Inspect desktop and native shells,
+  Settings, palette, prompts and Android Tools in both saved themes.
+- Compare rendered controls with registry defaults: neutral semantic colors,
+  visible solid borders, standard radii, padding and selected/hover states.
+- Scoped resets may restore registry preflight assumptions only on owned slots;
+  do not globally reset CodeMirror, Markdown or imperative plugin DOM.
+- Preserve separate desktop/native compositions, mobile pill/navigation, 44px
+  native targets, modal ownership, keyboard/IME and plugin DOM identity.
+- Check 1440px desktop, 375px phone and 844x390 short landscape; inspect real
+  screenshots, long labels, focus/hover/selected states and the actual native APK.
+- Remaining unmigrated forms/menus are still partial, not certified by a theme change.
+
 ## Shared editing and navigation
 - Open a vault, open and create notes, edit in Source/Live editing, switch to Reading view.
 - Expect exact persisted Markdown after reload, local assets decoded, and visible save errors rather than lost drafts.
