@@ -62,11 +62,13 @@ function CommandInput({
   return (
     <div
       data-slot="command-input-wrapper"
+      data-engine-ui=""
       className="ui:flex ui:h-9 ui:items-center ui:gap-2 ui:border-b ui:px-3"
     >
       <SearchIcon className="ui:size-4 ui:shrink-0 ui:opacity-50" />
       <CommandPrimitive.Input
         data-slot="command-input"
+        data-engine-ui=""
         className={cn(
           'ui:flex ui:h-10 ui:w-full ui:rounded-md ui:bg-transparent ui:py-3 ui:text-sm ui:outline-hidden ui:placeholder:text-muted-foreground ui:disabled:cursor-not-allowed ui:disabled:opacity-50',
           className,
@@ -133,6 +135,7 @@ function CommandItem({ className, ...props }: React.ComponentProps<typeof Comman
   return (
     <CommandPrimitive.Item
       data-slot="command-item"
+      data-engine-ui=""
       className={cn(
         'ui:relative ui:flex ui:cursor-default ui:items-center ui:gap-2 ui:rounded-sm ui:px-2 ui:py-1.5 ui:text-sm ui:outline-hidden ui:select-none ui:data-[disabled=true]:pointer-events-none ui:data-[disabled=true]:opacity-50 ui:data-[selected=true]:bg-accent ui:data-[selected=true]:text-accent-foreground ui:[&_svg]:pointer-events-none ui:[&_svg]:shrink-0 ui:[&_svg:not([class*=size-])]:size-4 ui:[&_svg:not([class*=text-])]:text-muted-foreground',
         className,

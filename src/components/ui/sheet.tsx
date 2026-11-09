@@ -50,6 +50,7 @@ const SheetContent = React.forwardRef<
       <SheetPrimitive.Content
         ref={ref}
         data-slot="sheet-content"
+        data-engine-ui=""
         className={cn(
           'ui:fixed ui:z-50 ui:flex ui:flex-col ui:gap-4 ui:bg-background ui:shadow-lg ui:transition ui:ease-in-out ui:data-[state=closed]:animate-out ui:data-[state=closed]:duration-300 ui:data-[state=open]:animate-in ui:data-[state=open]:duration-500',
           side === 'right' &&

@@ -10,26 +10,26 @@
 /* Restore the registry's preflight assumptions only on owned primitives.
    Unlayered legacy composition rules must not redefine their appearance. */
 @layer base {
-  [data-slot='button'],
-  [data-slot='dialog-close'],
-  [data-slot='dialog-content'],
-  [data-slot='sheet-content'],
-  [data-slot='switch'],
-  [data-slot='input'],
-  [data-slot='textarea'],
-  [data-slot='native-select'],
-  [data-slot='command-input'],
-  [data-slot='command-input-wrapper'],
-  [data-slot='command-item'] {
+  [data-engine-ui][data-slot='button'],
+  [data-engine-ui][data-slot='dialog-close'],
+  [data-engine-ui][data-slot='dialog-content'],
+  [data-engine-ui][data-slot='sheet-content'],
+  [data-engine-ui][data-slot='switch'],
+  [data-engine-ui][data-slot='input'],
+  [data-engine-ui][data-slot='textarea'],
+  [data-engine-ui][data-slot='native-select'],
+  [data-engine-ui][data-slot='command-input'],
+  [data-engine-ui][data-slot='command-input-wrapper'],
+  [data-engine-ui][data-slot='command-item'] {
     border: 0 solid var(--border);
   }
-  [data-slot='button'],
-  [data-slot='dialog-close'],
-  [data-slot='switch'],
-  [data-slot='input'],
-  [data-slot='textarea'],
-  [data-slot='native-select'],
-  [data-slot='command-input'] {
+  [data-engine-ui][data-slot='button'],
+  [data-engine-ui][data-slot='dialog-close'],
+  [data-engine-ui][data-slot='switch'],
+  [data-engine-ui][data-slot='input'],
+  [data-engine-ui][data-slot='textarea'],
+  [data-engine-ui][data-slot='native-select'],
+  [data-engine-ui][data-slot='command-input'] {
     margin: 0;
     padding: 0;
     font: inherit;

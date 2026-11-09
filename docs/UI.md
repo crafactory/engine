@@ -45,8 +45,10 @@ or native-select appearance overrides. Selected owned buttons use the standard
 secondary variant. The palette uses CommandItem directly, not a second Button
 styling layer; prompts use the registry Dialog close control.
 
-Only explicitly listed owned slots receive the minimal resets required without
-global preflight. Desktop and Android still compose different layouts; Android
+Only explicitly listed slots carrying `data-engine-ui` receive the minimal resets
+required without global preflight. Registry adapters carry that ownership marker;
+unowned same-named `data-slot` elements do not opt in. Desktop and Android still
+compose different layouts; Android
 retains its content-first shell, bottom navigation pill and minimum 44px targets.
 These are layout/accessibility exceptions, not another visual theme. A theme change
 does not complete the remaining legacy widget migrations or certify plugin parity.

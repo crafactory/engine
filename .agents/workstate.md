@@ -23,6 +23,16 @@ Use js_repl `metadataBrowser`, `metadataContext`, `metadataPage`, `metadataError
   checks/native acceptance, then merge before starting another increment.
 - Other forms/context menus/navigation and plugin partials remain incomplete.
 
+## Current checkpoint
+
+PR #81 is ready for review. Implementation `4876307` passed full check and 95
+browser tests. Follow-up self-review repairs add explicit registry reset ownership,
+unowned-slot regression, missing Android spacing and native-hydration readiness.
+Their focused replay passed 21 tests. Freeze the next commit for full check,
+96 browser tests, all pinned-corpus Electron tests, Linux package replay and
+Android native gate. CodeRabbit review is still processing; no approval claimed.
+Do not treat initial native failures or the interrupted Electron run as acceptance.
+
 ## Constraints
 
 - No agents, issues or upstream plugin implementation inspection/copying.

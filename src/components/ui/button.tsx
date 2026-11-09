@@ -46,6 +46,7 @@ const Button = React.forwardRef<
     <Comp
       ref={ref}
       data-slot="button"
+      data-engine-ui=""
       data-variant={variant}
       data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}

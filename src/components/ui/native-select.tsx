@@ -14,6 +14,7 @@ const NativeSelect = React.forwardRef<
       <select
         ref={ref}
         data-slot="native-select"
+        data-engine-ui=""
         data-size={size}
         className={cn(
           'ui:h-9 ui:w-full ui:min-w-0 ui:appearance-none ui:rounded-md ui:border ui:border-input ui:bg-transparent ui:px-3 ui:py-2 ui:pr-9 ui:text-sm ui:shadow-xs ui:transition-[color,box-shadow] ui:outline-none ui:selection:bg-primary ui:selection:text-primary-foreground ui:placeholder:text-muted-foreground ui:disabled:pointer-events-none ui:disabled:cursor-not-allowed ui:data-[size=sm]:h-8 ui:data-[size=sm]:py-1 ui:dark:bg-input/30 ui:dark:hover:bg-input/50',

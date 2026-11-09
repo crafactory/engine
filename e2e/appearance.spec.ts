@@ -67,3 +67,19 @@ test('palette uses registry command items without a second button styling system
   await expect(option).toHaveAttribute('data-selected', 'true');
   await expect(option).toHaveCSS('background-color', 'oklch(0.269 0 0)');
 });
+
+test('registry resets do not capture an unowned same-named data-slot', async ({ page }) => {
+  const styles = await page.evaluate(() => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    return [true, false].map((slotted) => {
+      const button = document.createElement('button');
+      if (slotted) button.dataset.slot = 'button';
+      button.textContent = 'Unowned fixture';
+      container.append(button);
+      const style = getComputedStyle(button);
+      return [style.padding, style.borderStyle, style.fontSize, style.color];
+    });
+  });
+  expect(styles[0]).toEqual(styles[1]);
+});

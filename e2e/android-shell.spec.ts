@@ -12,6 +12,8 @@ test('native chrome keeps the content-first layout with standard neutral control
   await expect(files).toHaveCSS('border-radius', '8px');
   await expect(files).toHaveCSS('border-top-style', 'solid');
   await expect(files).toHaveCSS('border-top-width', '1px');
+  await expect(page.locator('.mobile-topbar')).toHaveCSS('padding-right', '20px');
+  await expect(page.locator('.mobile-nav')).toHaveCSS('margin-left', '20px');
   await expect(page.locator('.mobile-nav button')).toHaveCount(6);
   await expect(page.locator('.ribbon,.tabs,.breadcrumbs,.statusbar')).toHaveCount(0);
   await page.getByRole('button', { name: 'Mobile tools', exact: true }).click();

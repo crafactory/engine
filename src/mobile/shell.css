@@ -28,10 +28,6 @@
   min-width: 44px;
   min-height: 44px;
 }
-.mobile-shell button:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
 .mobile-shell .mobile-unsaved-dot {
   position: absolute;
   right: 8px;
@@ -227,9 +223,6 @@
 .mobile-shell .mobile-tab-row small {
   color: var(--muted-foreground);
   font-size: var(--text-xs);
-}
-.mobile-shell .mobile-tab-row [aria-current='page'] {
-  color: var(--primary);
 }
 .mobile-shell .mobile-tab-row > button:last-child {
   display: flex;
