@@ -7,7 +7,7 @@ layout and domain behavior. This does not replace the Obsidian-compatible plugin
 ## Current migration
 
 - `components.json` records the New York registry style, `ui` utility prefix and aliases.
-- Button, Sheet, Dialog, Command, Input, Textarea, Switch and NativeSelect come from
+- Button, Sheet, Dialog, Command, Input, Textarea, Switch, NativeSelect, Checkbox and DropdownMenu come from
   shadcn CLI 4.23.0. Ref-consuming primitives use React 18 `forwardRef`.
 - The shared `IconButton` delegates to Button while retaining existing application classes.
 - Android header/navigation use Button, and its tab/Tools overlay uses Sheet (Radix Dialog).
@@ -19,6 +19,15 @@ layout and domain behavior. This does not replace the Obsidian-compatible plugin
   host fuzzy ranking and a 60-result cap; cmdk owns keyboard selection, not filtering.
   Close the palette/prompt synchronously before running actions that open another overlay.
 - Community settings is a separate module; Settings now fits the default 500-line budget.
+- Inline properties use registry Input/Checkbox/Button and a controlled, non-modal
+  DropdownMenu with radio selection, keyboard navigation and focus return.
+  Native Back dismisses the owned type menu before considering editor navigation.
+  Property CSS owns only row/chip layout and mobile hit targets, not control appearance.
+- Property IME composition does not commit partial scalar/list values. Escape cancels
+  local drafts. Empty explicitly numeric/date/datetime fields serialize as YAML null,
+  retaining their vault-wide explicit type. This is Engine's empty-value policy,
+  not a claim about undocumented reference serialization. Invalid numeric drafts
+  remain local with an accessible error rather than overwriting a saved number.
 - Settings intentionally uses a non-modal Radix Dialog and a presentational pointer scrim:
   imperative plugin modals portal to body and must retain focus and settings DOM identity.
   It does not advertise `aria-modal` or trap background keyboard focus. Plugin-modal

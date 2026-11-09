@@ -2708,13 +2708,11 @@ kbd {
   margin: 0 0 6px;
 }
 .inline-property-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(80px, 150px) minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  min-height: 34px;
-  padding: 0 4px;
-  border-radius: 5px;
-  position: relative;
+  gap: 8px;
+  padding: 4px 0;
 }
 .inline-property-row:hover {
   background: var(--hover);
@@ -2724,27 +2722,8 @@ kbd {
   color: var(--muted-foreground);
   padding: 5px 4px;
 }
-.property-type-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-.property-type {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 28px;
-  color: var(--faint);
-  border-radius: 4px;
-}
-.property-type:hover {
-  color: var(--primary);
-  background: var(--surface);
-}
 .property-key {
-  width: 150px;
-  min-width: 110px;
+  min-width: 0;
   color: var(--muted-foreground);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2758,76 +2737,44 @@ kbd {
   gap: 4px;
   flex-wrap: wrap;
 }
-.property-value input[type='text'],
-.property-value input[type='number'],
-.property-value input[type='date'],
-.property-value input[type='datetime-local'] {
-  width: 100%;
-  min-width: 80px;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  padding: 5px 4px;
-  border-radius: 4px;
-}
-.property-value input:focus {
-  outline: 1px solid var(--border);
-  background: var(--surface);
-}
-.property-value input[type='checkbox'] {
-  width: auto;
-  margin: 0;
-}
-.property-chip button {
+.property-checkbox-target {
   display: inline-flex;
   align-items: center;
-  margin-left: 3px;
-  color: var(--primary);
-  vertical-align: middle;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
 }
-.inline-property-remove {
-  visibility: hidden;
-  color: var(--faint);
-  padding: 3px;
+.property-value > [data-slot='input'] {
+  flex: 1 1 140px;
 }
-.inline-property-row:hover .inline-property-remove,
-.inline-property-remove:focus-visible {
-  visibility: visible;
+.property-list-item {
+  max-width: 100%;
 }
-.inline-add-property {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted-foreground);
-  padding: 6px 4px;
-  font-size: var(--text-sm);
+.property-list-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.inline-add-property:hover {
-  color: var(--primary);
+.native-android .inline-properties [data-slot='button'],
+.native-android .inline-properties [data-slot='input'],
+.native-android [data-engine-property-menu] [role='menuitemradio'] {
+  min-height: 44px;
 }
-.property-type-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 60;
-  min-width: 140px;
-  padding: 4px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow);
+.native-android .inline-properties [data-slot='button'] {
+  min-width: 44px;
 }
-.property-type-menu button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 7px 10px;
-  border-radius: 4px;
-  font-size: var(--text-xs);
-  color: var(--text);
-}
-.property-type-menu button:hover {
-  background: var(--hover);
+@media (max-width: 600px) {
+  .inline-property-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .property-value {
+    grid-column: 2 / 4;
+    grid-row: 2;
+  }
+  .property-remove {
+    grid-column: 3;
+    grid-row: 1;
+  }
 }
 .live-list-marker {
   display: inline-block;

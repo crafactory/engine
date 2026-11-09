@@ -8,7 +8,7 @@ registry property values/actions/type menu, composition confirmation and safe
 empty/invalid numeric editing. Preserve vault-wide explicit type persistence.
 Full Bases/query work and broad plugin partials stay outside this PR.
 
-Branch `refactor/shadcn-properties`, baseline main `26717a1`. No open PR at start.
+Branch `refactor/shadcn-properties`, baseline main `26717a1`. Draft PR #82 is open.
 Baseline menu captured at `/tmp/engine-properties-before-menu.png`.
 Existing Vite 5173 is healthy; js_repl `metadataBrowser`/`metadataPage` persist.
 
@@ -25,7 +25,16 @@ Existing Vite 5173 is healthy; js_repl `metadataBrowser`/`metadataPage` persist.
 
 ## Current checkpoint
 
-Scope recorded; implementation and negative controls pending.
+Registry properties and safe drafts implemented. Six corrected baseline negatives
+failed as intended (one earlier list locator was invalid and is excluded).
+Preliminary full check passed: 956 unit tests and build/style/structure/inventory.
+All seven property cases and native menu Back have passed across focused runs;
+new desktop exact-file restart passes. Two new browser fixture mistakes were
+corrected: collapsed desktop sidebars before narrow layout, and explicitly opening
+the native Note properties panel. No product relaxation/assertion weakening.
+Existing native IME driver and browser bridge fixture extracted intact; no frozen
+ceiling raised. Real APK property workflow remains unaccepted. Next: push,
+bounded review, then freeze and run full exact-head gates.
 
 ## Constraints
 

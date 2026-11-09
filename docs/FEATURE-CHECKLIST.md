@@ -133,8 +133,8 @@ Only bounded acceptance checkpoints may be checked. Parent areas stay unchecked 
   - Current scope: Note/heading/block transclusion, read-only Canvas geometry and image/audio/video; PDF download.
   - Remaining / boundary: Recursive embeds, Canvas file cards, interactive PDF, full wiki image sizing, embedded Bases and block edit actions.
 - [ ] **AREA-properties Properties**: partial. Reference: [public documentation](https://help.obsidian.md).
-  - Current scope: Typed YAML editing, add/remove, property search and indexed inference/overrides used by the facade.
-  - Remaining / boundary: Full reference type-manager semantics, date/link widgets, drag/reorder, completion and multi-file bulk edits.
+  - Current scope: Typed YAML editing, add/remove, property search and indexed inference/overrides used by the facade. Registry value/type controls, composition-safe drafts and null clearing for explicitly typed empty scalars; native type-menu Back handling.
+  - Remaining / boundary: Full reference type-manager semantics, rich date/link widgets, drag/reorder, completion and multi-file bulk edits. Empty-value serialization is an Engine policy, not verified reference equivalence.
 - [ ] **AREA-attachments Attachments**: partial. Reference: [public documentation](https://help.obsidian.md).
   - Current scope: Local asset import/display and ZIP inclusion; root paths and modified decoded assets repaired.
   - Remaining / boundary: Large-file streaming, PDF viewing/annotation, every drag/paste path and per-folder rules; Android picker flows unverified.

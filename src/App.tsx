@@ -1085,6 +1085,11 @@ export function App() {
       dialog.cancel();
       return true;
     }
+    const propertyMenu = document.querySelector('[data-engine-property-menu][data-state="open"]');
+    if (propertyMenu) {
+      propertyMenu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      return true;
+    }
     if (context) {
       setContext(null);
       return true;

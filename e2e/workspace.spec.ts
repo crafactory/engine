@@ -108,21 +108,21 @@ test('properties retain YAML types and bookmarks work', async ({ page }) => {
   };
   await add('rating');
   await page.getByRole('button', { name: 'Property type rating', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Number', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Number', exact: true }).click();
   await page.locator('input[aria-label="rating"]').fill('5');
   await page.locator('input[aria-label="rating"]').press('Enter');
   await add('done');
   await page.getByRole('button', { name: 'Property type done', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Checkbox', exact: true }).click();
-  await page.getByRole('switch', { name: 'done', exact: true }).check();
+  await page.getByRole('menuitemradio', { name: 'Checkbox', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'done', exact: true }).check();
   await add('published');
   await page.getByRole('button', { name: 'Property type published', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Date', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Date', exact: true }).click();
   await page.locator('input[aria-label="published"]').fill('2026-08-06');
   await page.locator('input[aria-label="published"]').press('Enter');
   await add('authors');
   await page.getByRole('button', { name: 'Property type authors', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'List', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'List', exact: true }).click();
   await page.locator('input[aria-label="authors"]').fill('Matt');
   await page.locator('input[aria-label="authors"]').press('Enter');
   await page.locator('input[aria-label="authors"]').fill('Ada');
@@ -146,7 +146,7 @@ test('explicit property types persist across notes and automatic infers again', 
   await page.getByTestId('dialog-input').fill('release');
   await page.getByTestId('dialog-submit').click();
   await page.getByRole('button', { name: 'Property type release', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Text', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Text', exact: true }).click();
   await page.locator('input[aria-label="release"]').fill('2026-08-06');
   await page.locator('input[aria-label="release"]').press('Enter');
   await expect(page.locator('input[aria-label="release"]')).toHaveAttribute('type', 'text');
@@ -154,7 +154,7 @@ test('explicit property types persist across notes and automatic infers again', 
   await page.getByTestId('file-Welcome.md').click();
   await expect(page.locator('input[aria-label="release"]')).toHaveAttribute('type', 'text');
   await page.getByRole('button', { name: 'Property type release', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Automatic', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Automatic', exact: true }).click();
   await expect(page.locator('input[aria-label="release"]')).toHaveAttribute('type', 'date');
 });
 test('rename updates links across notes', async ({ page }) => {
