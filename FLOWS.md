@@ -1,5 +1,18 @@
 # Main flows
 
+## Standard property editing
+- Use registry controls for inline values, actions and the type menu, without
+  legacy appearance overrides. Preserve Neutral themes and plugin DOM isolation.
+- Keyboard opens/navigates/selects a type and returns focus; Escape/outside dismiss.
+- IME confirmation must not commit partial text/list composition; Escape cancels
+  a local draft without changing committed values.
+- Empty explicit number/date/datetime values stay empty rather than becoming zero;
+  invalid/non-finite numbers cannot overwrite the previous saved value.
+- Add/remove/edit properties, switch notes/modes and restart; verify YAML values
+  and persisted vault-wide explicit types.
+- Inspect desktop dark/light, 375px phone and short landscape, menu containment
+  and native targets of at least 44px. Run the exact-head native gate.
+
 ## Standard shadcn appearance
 - The owner requires standard New York/Neutral visuals, not registry primitives
   recolored with the old green visual system. Inspect desktop and native shells,
