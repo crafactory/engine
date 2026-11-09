@@ -122,7 +122,7 @@ export function Graph({
       .append('circle')
       .attr('r', (d) => (d.id === active ? 8 : Math.min(7, 3.5 + d.count * 0.6)))
       .attr('fill', (d) =>
-        d.ghost ? 'var(--muted)' : d.id === active ? 'var(--accent)' : color(d.tag),
+        d.ghost ? 'var(--muted-foreground)' : d.id === active ? 'var(--primary)' : color(d.tag),
       )
       .attr('opacity', (d) => (d.ghost ? 0.5 : 0.9));
     points

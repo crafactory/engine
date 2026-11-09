@@ -29,9 +29,31 @@ layout and domain behavior. This does not replace the Obsidian-compatible plugin
 - Remaining legacy forms, contextual menus and navigation are not yet migrated.
   Migrate them in bounded follow-up PRs, not a claim that the whole UI is already shadcn.
 
+## Standard appearance
+
+The owner requires the standard New York/Neutral visual language, not the old
+custom theme applied to registry primitives. `src/ui/theme.css` takes the official
+[neutral semantic tokens and radius scale](https://ui.shadcn.com/docs/theming).
+Saved `data-theme` preferences and the dark startup fallback remain unchanged.
+Legacy domain aliases point to those tokens rather than defining a second palette.
+`--accent` and `--muted` now have shadcn's surface semantics; domain text uses
+`--primary` and `--muted-foreground` instead.
+
+Registry controls own their borders, padding, radius, hover and focus treatment.
+Do not reintroduce unlayered `.icon-button`, settings-navigation, segmented-button
+or native-select appearance overrides. Selected owned buttons use the standard
+secondary variant. The palette uses CommandItem directly, not a second Button
+styling layer; prompts use the registry Dialog close control.
+
+Only explicitly listed owned slots receive the minimal resets required without
+global preflight. Desktop and Android still compose different layouts; Android
+retains its content-first shell, bottom navigation pill and minimum 44px targets.
+These are layout/accessibility exceptions, not another visual theme. A theme change
+does not complete the remaining legacy widget migrations or certify plugin parity.
+
 ## Styling and provenance
 
-`ui.css` maps shadcn semantic colors to shared app tokens, prefixes utilities and omits
+`ui.css` consumes the standard semantic tokens, prefixes utilities and omits global
 Tailwind preflight to avoid resetting editor and plugin DOM. Android composition rules
 stay in `src/mobile/shell.css`; desktop does not acquire the native layout.
 Registry source retains its MIT license in `src/components/ui/LICENSE`; the notices

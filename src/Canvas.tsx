@@ -79,7 +79,7 @@ export function Canvas({
         targetHandle: 't-' + (edge.toSide || 'left'),
         label: edge.label,
         markerEnd: edge.toEnd === 'none' ? undefined : { type: MarkerType.ArrowClosed },
-        style: { stroke: canvasBackground(edge.color) || 'var(--muted)' },
+        style: { stroke: canvasBackground(edge.color) || 'var(--muted-foreground)' },
       })),
     );
   }, [parsed, notes, edit, onOpen, readOnly]);

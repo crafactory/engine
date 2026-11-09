@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { flushSync } from 'react-dom';
-import { X } from 'lucide-react';
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -54,7 +52,6 @@ function Prompt({
       <DialogContent
         className="app-prompt input-modal"
         overlayClassName="app-prompt-overlay"
-        showCloseButton={false}
         onEscapeKeyDown={(event) => event.stopPropagation()}
         onCloseAutoFocus={returnFocus}
         onOpenAutoFocus={(event) => {
@@ -69,13 +66,8 @@ function Prompt({
             finish(dialog.value ?? 'yes');
           }}
         >
-          <DialogHeader className="app-prompt-header">
+          <DialogHeader className="ui:pr-8 ui:text-left">
             <DialogTitle>{dialog.title}</DialogTitle>
-            <DialogClose asChild>
-              <Button type="button" variant="ghost" size="icon" aria-label="Close dialog">
-                <X />
-              </Button>
-            </DialogClose>
           </DialogHeader>
           <DialogDescription className={dialog.description ? '' : 'ui:sr-only'}>
             {dialog.description || 'Enter a value or cancel to leave the note unchanged.'}

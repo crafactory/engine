@@ -195,7 +195,7 @@ export function Settings({
             ['about', Info, 'About'],
           ].map(([id, Icon, label]) => (
             <Button
-              variant="ghost"
+              variant={tab === id ? 'secondary' : 'ghost'}
               key={String(id)}
               onClick={() => setTab(String(id))}
               className={tab === id ? 'selected' : ''}
@@ -220,6 +220,7 @@ export function Settings({
             </h2>
             <Button
               variant="ghost"
+              size="icon"
               onClick={onClose}
               aria-label="Close settings"
               data-testid="settings-close"
@@ -265,7 +266,8 @@ export function Settings({
                 'A quiet workspace in light or dark.',
                 <div className="segmented">
                   <Button
-                    variant="ghost"
+                    variant={value.theme === 'dark' ? 'secondary' : 'ghost'}
+                    size="sm"
                     className={value.theme === 'dark' ? 'selected' : ''}
                     onClick={() => update('theme', 'dark')}
                     data-testid="theme-dark"
@@ -274,7 +276,8 @@ export function Settings({
                     Dark
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant={value.theme === 'light' ? 'secondary' : 'ghost'}
+                    size="sm"
                     className={value.theme === 'light' ? 'selected' : ''}
                     onClick={() => update('theme', 'light')}
                     data-testid="theme-light"

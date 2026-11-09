@@ -205,8 +205,8 @@ function IconButton({
 }) {
   return (
     <Button
-      variant="ghost"
-      size="icon"
+      variant={active ? 'secondary' : 'ghost'}
+      size="icon-sm"
       className={'icon-button ' + (active ? 'active ' : '') + className}
       aria-label={label}
       title={label}

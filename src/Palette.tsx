@@ -15,6 +15,7 @@ import {
   CommandList,
   CommandItem,
   CommandEmpty,
+  CommandGroup,
   CommandShortcut,
 } from './components/ui/command';
 import { Button } from './components/ui/button';
@@ -107,29 +108,28 @@ export function Palette({
               </Button>
             </DialogClose>
           </div>
-          <div className="palette-title">{title}</div>
           <CommandList className="palette-list app-command-list">
             <CommandEmpty>
               <h3>No matches</h3>
               <p>{onCreate ? 'Press Enter to create this note.' : 'Try a shorter command name.'}</p>
             </CommandEmpty>
-            {filtered.map((item) => (
-              <CommandItem
-                key={item.id}
-                value={JSON.stringify(item.id)}
-                onSelect={() => run(item)}
-                asChild
-              >
-                <Button variant="ghost" data-testid={'palette-item-' + item.id}>
+            <CommandGroup heading={title}>
+              {filtered.map((item) => (
+                <CommandItem
+                  key={item.id}
+                  value={JSON.stringify(item.id)}
+                  onSelect={() => run(item)}
+                  data-testid={'palette-item-' + item.id}
+                >
                   {title === 'Quick switcher' ? <FileText /> : <Terminal />}
                   <span className="app-command-label">
                     <strong>{item.label}</strong>
                     {item.description && <small>{item.description}</small>}
                   </span>
                   {item.shortcut && <CommandShortcut>{item.shortcut}</CommandShortcut>}
-                </Button>
-              </CommandItem>
-            ))}
+                </CommandItem>
+              ))}
+            </CommandGroup>
           </CommandList>
           <footer>
             <span>

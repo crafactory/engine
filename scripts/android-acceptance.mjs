@@ -303,7 +303,7 @@ async function command(text) {
   shell('input keyevent 4');
   await expect.poll(keyboardVisibility).toEqual({ native: false, reported: false });
   await expect(page.locator('.palette')).toBeVisible();
-  await page.locator('.palette-list button').filter({ hasText: text }).first().click();
+  await page.locator('.palette-list [role="option"]').filter({ hasText: text }).first().click();
 }
 const effects = () =>
   page.evaluate(() =>

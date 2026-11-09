@@ -2,6 +2,24 @@ import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+test('native chrome keeps the content-first layout with standard neutral controls', async ({
+  page,
+}) => {
+  await fixture(page, { settings: { mode: 'source', theme: 'dark' } });
+  await expect(page.locator('body')).toHaveCSS('background-color', 'oklch(0.145 0 0)');
+  const files = page.getByRole('button', { name: 'Mobile files', exact: true });
+  await expect(files).toHaveCSS('border-radius', '8px');
+  await expect(files).toHaveCSS('border-top-style', 'solid');
+  await expect(files).toHaveCSS('border-top-width', '1px');
+  await expect(page.locator('.mobile-nav button')).toHaveCount(6);
+  await expect(page.locator('.ribbon,.tabs,.breadcrumbs,.statusbar')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Mobile tools', exact: true }).click();
+  await page.getByRole('button', { name: 'Mobile settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Light', exact: true }).click();
+  await expect(page.locator('body')).toHaveCSS('background-color', 'oklch(1 0 0)');
+});
+
 const desktopLayout = {
   tabs: ['A.md', 'B.md'],
   active: 'A.md',
@@ -125,7 +143,7 @@ async function command(page: Page, text: string) {
   await tools(page);
   await page.getByRole('button', { name: 'Mobile commands', exact: true }).click();
   await page.getByTestId('palette-input').fill(text);
-  await page.locator('.palette-list button').filter({ hasText: text }).first().click();
+  await page.locator('.palette-list [role="option"]').filter({ hasText: text }).first().click();
 }
 
 test('Android mounts only native chrome across portrait, landscape and tablet widths', async ({

@@ -49,7 +49,7 @@ export function MobileHeader({
   return (
     <header className="mobile-topbar">
       <Button
-        variant="ghost"
+        variant={filesOpen ? 'secondary' : 'outline'}
         size="icon"
         aria-label="Mobile files"
         title="Files"
@@ -263,7 +263,7 @@ export function MobileSheet({
                   tabs.map((path) => (
                     <div key={path} className="mobile-tab-row">
                       <Button
-                        variant="ghost"
+                        variant={active === path ? 'secondary' : 'ghost'}
                         aria-label={`Open tab ${path}`}
                         aria-current={active === path ? 'page' : undefined}
                         onClick={() => run(() => onOpen(path))}
@@ -294,7 +294,7 @@ export function MobileSheet({
                 <div className="mobile-menu-actions">
                   {actions.map((action) => (
                     <Button
-                      variant="ghost"
+                      variant={action.selected ? 'secondary' : 'outline'}
                       key={action.id}
                       aria-label={action.ariaLabel ?? action.label}
                       aria-pressed={action.selected}
