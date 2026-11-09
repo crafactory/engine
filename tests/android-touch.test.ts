@@ -29,6 +29,26 @@ describe('physical Android WebView touch coordinates', () => {
   it('rejects ambiguous WebViews', () => {
     expect(() => webViewBounds(node() + node(), 'com.crafactory.engine')).toThrow('one visible');
   });
+  it('uses the physical container rather than its nested accessibility WebView', () => {
+    const outer = node('com.crafactory.engine', '[0,128][1080,1928]').replace(' />', '>');
+    const xml =
+      outer +
+      '<node class="android.view.View">' +
+      node('com.crafactory.engine', '[0,128][1080,1930]') +
+      '</node></node>';
+    expect(webViewBounds(xml, 'com.crafactory.engine')).toEqual({
+      left: 0,
+      top: 128,
+      right: 1080,
+      bottom: 1928,
+    });
+  });
+  it('still rejects independent containers with nested accessibility WebViews', () => {
+    const container = node().replace(' />', '>') + node() + '</node>';
+    expect(() => webViewBounds(container + container, 'com.crafactory.engine')).toThrow(
+      'one visible',
+    );
+  });
   it('rejects empty native view geometry', () => {
     expect(() =>
       webViewBounds(node('com.crafactory.engine', '[0,0][0,0]'), 'com.crafactory.engine'),

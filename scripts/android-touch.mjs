@@ -2,9 +2,20 @@
 import assert from 'node:assert/strict';
 
 export function webViewBounds(xml, app) {
-  const views = (xml.match(/<node\b[^>]*>/g) ?? []).filter(
-    (node) => node.includes('class="android.webkit.WebView"') && node.includes(`package="${app}"`),
-  );
+  // Android exposes an accessibility WebView inside the native WebView container.
+  // Use the outer physical viewport, not that virtual child's slightly taller bounds.
+  const views = [];
+  const stack = [];
+  for (const node of xml.match(/<\/?node\b[^>]*>/g) ?? []) {
+    if (node.startsWith('</')) {
+      stack.pop();
+      continue;
+    }
+    const owned =
+      node.includes('class="android.webkit.WebView"') && node.includes(`package="${app}"`);
+    if (owned && !stack.includes(true)) views.push(node);
+    if (!node.endsWith('/>')) stack.push(owned);
+  }
   assert.equal(views.length, 1, 'Expected one visible application WebView');
   const match = /bounds="\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]"/.exec(views[0]);
   assert(match, 'Expected absolute native WebView bounds');

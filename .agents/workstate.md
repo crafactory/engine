@@ -48,8 +48,14 @@ count an automatic skip as approval. Repair-focused replay passed all 15 selecte
 browser cases, including the three review findings and empty-native-state Escape.
 The three parser/search/touch unit files passed 19 tests before the final Escape
 addition. Native acceptance is 1046/1068 lines and App 3836/3846.
-Next: push repair, resolve the three threads, then freeze and run complete
-exact-head acceptance. No product or native completion claimed until those pass.
+Three review threads resolved. At 307dc95, browser/Electron replays passed 114/108
+and desktop packaging passed on all three platforms. Native acceptance failed:
+UIAutomator reports both the physical WebView and a nested virtual accessibility
+WebView. Fixed ancestry selection while still rejecting independent containers;
+eight touch tests and the real failed XML pass. Freeze this follow-up for full
+new-head acceptance. The final PR #82 acceptance comment is authoritative for
+post-commit gates; this checkpoint deliberately records pre-acceptance evidence.
+No product or native completion claimed until those gates pass.
 
 ## Constraints
 
