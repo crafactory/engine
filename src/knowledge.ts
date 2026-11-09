@@ -281,6 +281,7 @@ function termMatch(note: Note, term: string, sensitive: boolean) {
     if (raw === 'null') return p[key] === null;
     const comparison = raw.match(/^([<>]=?)(-?\d+(?:\.\d+)?)$/);
     if (comparison) {
+      if (p[key] === null) return false;
       const v = Number(p[key]),
         n = Number(comparison[2]);
       return comparison[1] === '>'

@@ -33,8 +33,23 @@ new desktop exact-file restart passes. Two new browser fixture mistakes were
 corrected: collapsed desktop sidebars before narrow layout, and explicitly opening
 the native Note properties panel. No product relaxation/assertion weakening.
 Existing native IME driver and browser bridge fixture extracted intact; no frozen
-ceiling raised. Real APK property workflow remains unaccepted. Next: push,
-bounded review, then freeze and run full exact-head gates.
+ceiling raised. At 118fcdd, 106 browser and 108 Electron tests passed. Packaged
+suite was interrupted after 12 passes; it is not accepted. Android's first eleven
+groups passed, but property IME readiness failed: native taps omitted the WebView
+origin beneath system bars. Correcting against absolute UIAutomator WebView bounds
+and adding pure touch geometry regressions; actual rerun is still required.
+
+CodeRabbit completed one effective review of 118fcdd, three minor findings and a
+blur-test nit. All three reproduced with corrected negatives (the first search
+test used the wrong search signature and is excluded). Fixed null numeric search,
+same-type re-selection and commit-time live native validity. Added both blur tests.
+Included review allowance is now exhausted; do not request another review or
+count an automatic skip as approval. Repair-focused replay passed all 15 selected
+browser cases, including the three review findings and empty-native-state Escape.
+The three parser/search/touch unit files passed 19 tests before the final Escape
+addition. Native acceptance is 1046/1068 lines and App 3836/3846.
+Next: push repair, resolve the three threads, then freeze and run complete
+exact-head acceptance. No product or native completion claimed until those pass.
 
 ## Constraints
 

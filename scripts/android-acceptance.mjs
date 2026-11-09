@@ -11,6 +11,7 @@ import JSZip from 'jszip';
 import { imeInputViewVisible, launcherAnrVisible } from './android-ime-state.mjs';
 import { composeNative } from './android-compose.mjs';
 import { acceptProperties } from './android-properties.mjs';
+import { webViewBounds, nativeTouchPoint } from './android-touch.mjs';
 
 const APP = 'com.crafactory.engine',
   APK = path.resolve('android/app/build/outputs/apk/debug/app-debug.apk');
@@ -80,12 +81,16 @@ async function keyboardVisibility() {
   };
 }
 async function nativeTap(locator) {
+  await locator.scrollIntoViewIfNeeded();
+  const dumpPath = '/sdcard/engine-acceptance-window.xml';
+  shell(`rm -f ${dumpPath}; uiautomator dump ${dumpPath}`);
+  const xml = shell(`cat ${dumpPath}`);
+  await fs.writeFile(path.join(output, 'touch-window-latest.xml'), xml);
+  const bounds = webViewBounds(xml, APP);
   const rect = await locator.boundingBox(),
     ratio = await page.evaluate(() => devicePixelRatio);
-  assert(rect);
-  shell(
-    `input tap ${Math.round((rect.x + Math.min(rect.width / 2, 100)) * ratio)} ${Math.round((rect.y + Math.min(rect.height / 2, 100)) * ratio)}`,
-  );
+  const { x, y } = nativeTouchPoint(rect, ratio, bounds);
+  shell(`input tap ${x} ${y}`);
 }
 async function writeNative(relative, bytes) {
   const full = 'files/' + relative,

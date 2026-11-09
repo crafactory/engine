@@ -104,6 +104,7 @@ export function PropertiesEditor({
   };
   const convertTo = (key: string, type: PropertyType | 'automatic') => {
     setMenu(null);
+    if (type === (types[key] ?? 'automatic')) return;
     if (type === 'automatic') {
       onTypeChange(key, null);
       return;
@@ -221,17 +222,16 @@ function PropertyValue({
   const [draft, setDraft] = useState(() => propertyDraft(value, type));
   const [listDraft, setListDraft] = useState('');
   const [invalid, setInvalid] = useState(false);
-  const badInput = useRef(false);
+  const input = useRef<HTMLInputElement>(null);
   const composing = useRef(false);
   useEffect(() => {
     setDraft(propertyDraft(value, type));
     setInvalid(false);
-    badInput.current = false;
   }, [value, type]);
   const commit = (text = draft) => {
     if (composing.current) return;
     try {
-      if (badInput.current) throw new Error('Invalid number');
+      if (input.current?.validity.badInput) throw new Error('Invalid scalar value');
       const next = parsePropertyDraft(text, type);
       setInvalid(false);
       if (!Object.is(next, value)) onChange(next);
@@ -326,6 +326,7 @@ function PropertyValue({
   return (
     <>
       <Input
+        ref={input}
         aria-label={propertyKey}
         type={
           type === 'number'
@@ -343,7 +344,6 @@ function PropertyValue({
         aria-describedby={invalid ? `${listId}-error` : undefined}
         onChange={(event) => {
           setDraft(event.target.value);
-          badInput.current = event.target.validity.badInput;
           setInvalid(false);
         }}
         onCompositionStart={() => (composing.current = true)}
@@ -362,8 +362,10 @@ function PropertyValue({
           if (event.key === 'Escape') {
             event.preventDefault();
             event.stopPropagation();
-            setDraft(propertyDraft(value, type));
-            badInput.current = false;
+            const restored = propertyDraft(value, type);
+            // Number inputs can expose "" while still displaying an invalid "-" draft.
+            if (event.currentTarget.validity.badInput) event.currentTarget.value = restored;
+            setDraft(restored);
             setInvalid(false);
           }
           if (event.key === 'Enter') {

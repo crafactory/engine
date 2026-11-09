@@ -152,3 +152,83 @@ test('property menu closes on outside click and note switch in both themes at na
   await expect(page.getByRole('menu')).toHaveCount(0);
   await expect(page.locator('.note-title h1')).toHaveText('Connected thinking');
 });
+
+for (const type of ['Number', 'Date', 'Date & time']) {
+  test(`reselecting checked ${type} leaves a cleared property null`, async ({ page }) => {
+    await add(page, 'cleared', type);
+    const input = page.locator('input[aria-label="cleared"]');
+    await input.fill('');
+    await input.press('Enter');
+    await page.getByRole('button', { name: 'Property type cleared', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: type, exact: true }).click();
+    await expect(input).toHaveValue('');
+    await page.getByTestId('mode-source').click();
+    await expect(page.getByTestId('note-editor')).toContainText('cleared: null');
+  });
+}
+
+for (const fragment of ['-', 'e']) {
+  test(`a lone numeric ${fragment} draft cannot silently clear a saved value`, async ({ page }) => {
+    await add(page, 'rating', 'Number');
+    const rating = page.getByRole('spinbutton', { name: 'rating', exact: true });
+    await rating.fill('12.5');
+    await rating.press('Enter');
+    await rating.fill('');
+    await rating.pressSequentially(fragment);
+    await rating.press('Enter');
+    await expect(rating).toHaveAttribute('aria-invalid', 'true');
+    await rating.press('Escape');
+    await expect(rating).toHaveValue('12.5');
+    await page.getByTestId('mode-source').click();
+    await expect(page.getByTestId('note-editor')).toContainText('rating: 12.5');
+  });
+}
+
+test('scalar blur waits for final composition before committing the changed value', async ({
+  page,
+}) => {
+  const status = page.locator('input[aria-label="status"]');
+  await status.fill('2026-08-06');
+  await status.dispatchEvent('compositionstart');
+  await page.getByRole('combobox', { name: 'tags', exact: true }).focus();
+  await expect(status).toHaveAttribute('type', 'text');
+  await status.dispatchEvent('compositionend');
+  await expect(status).toHaveAttribute('type', 'date');
+  await page.getByTestId('mode-source').click();
+  await expect(page.getByTestId('note-editor')).toContainText('status: 2026-08-06');
+});
+
+test('list blur waits for final composition before publishing one completed chip', async ({
+  page,
+}) => {
+  const tags = page.getByRole('combobox', { name: 'tags', exact: true });
+  await tags.fill('中文');
+  await tags.dispatchEvent('compositionstart');
+  await page.getByRole('textbox', { name: 'status', exact: true }).focus();
+  const chip = page.getByRole('button', { name: 'Remove tags value 中文', exact: true });
+  await expect(chip).toHaveCount(0);
+  await tags.dispatchEvent('compositionend');
+  await expect(chip).toHaveCount(1);
+  await expect(tags).toHaveValue('');
+});
+
+test('Escape resets native invalid-number state even when the saved value is null', async ({
+  page,
+}) => {
+  await add(page, 'rating', 'Number');
+  const rating = page.getByRole('spinbutton', { name: 'rating', exact: true });
+  await rating.fill('');
+  await rating.press('Enter');
+  await rating.pressSequentially('-');
+  await rating.press('Enter');
+  await expect(rating).toHaveAttribute('aria-invalid', 'true');
+  await rating.press('Escape');
+  await expect(rating).not.toHaveAttribute('aria-invalid', 'true');
+  expect(await rating.evaluate((element: HTMLInputElement) => element.validity.badInput)).toBe(
+    false,
+  );
+  await page.getByRole('button', { name: 'Property type rating', exact: true }).focus();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.getByTestId('mode-source').click();
+  await expect(page.getByTestId('note-editor')).toContainText('rating: null');
+});
