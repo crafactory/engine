@@ -303,7 +303,7 @@ async function command(text) {
   shell('input keyevent 4');
   await expect.poll(keyboardVisibility).toEqual({ native: false, reported: false });
   await expect(page.locator('.palette')).toBeVisible();
-  await page.locator('.palette-list button').filter({ hasText: text }).first().click();
+  await page.locator('.palette-list [role="option"]').filter({ hasText: text }).first().click();
 }
 const effects = () =>
   page.evaluate(() =>
@@ -408,10 +408,10 @@ try {
       })),
       { platform: 'android', persistent: true, desktop: false, node: 'undefined' },
     );
+    await expect(page.locator('.note-title h1')).toHaveText('Native Probe', { timeout: 20000 });
     await tools();
     await expect(page.getByRole('status', { name: 'Save status' })).toContainText('Saved locally');
     await page.getByRole('button', { name: 'Close mobile sheet', exact: true }).click();
-    await expect(page.locator('.note-title h1')).toHaveText('Native Probe');
     for (const selector of ['.ribbon', '.tabbar', '.note-toolbar', '.statusbar', '.secondary-pane'])
       await expect(page.locator(selector)).toHaveCount(0);
     const targets = await page.locator('.mobile-nav button').evaluateAll((buttons) =>

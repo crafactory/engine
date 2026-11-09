@@ -4,7 +4,6 @@
   height: 100dvh;
 }
 .app.mobile-shell {
-  --mobile-chrome-shadow: 0 3px 18px color-mix(in srgb, var(--text) 7%, transparent);
   height: 100dvh;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
 }
@@ -15,12 +14,6 @@
   flex-shrink: 0;
   min-height: 72px;
   padding: var(--space-3) var(--space-5);
-}
-.mobile-shell .mobile-topbar > button,
-.mobile-shell .mobile-top-actions {
-  border-radius: 999px;
-  background: var(--panel);
-  box-shadow: var(--mobile-chrome-shadow);
 }
 .mobile-shell .mobile-top-actions {
   display: flex;
@@ -34,12 +27,6 @@
   justify-content: center;
   min-width: 44px;
   min-height: 44px;
-  color: var(--text);
-  border-radius: 999px;
-}
-.mobile-shell button:disabled {
-  opacity: 0.35;
-  cursor: default;
 }
 .mobile-shell .mobile-unsaved-dot {
   position: absolute;
@@ -48,7 +35,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--primary);
 }
 .mobile-shell .mobile-nav {
   display: flex;
@@ -61,8 +48,8 @@
   padding: var(--space-1);
   margin: var(--space-2) var(--space-5) calc(var(--space-3) + env(safe-area-inset-bottom));
   border-radius: 999px;
-  background: var(--panel);
-  box-shadow: var(--mobile-chrome-shadow);
+  background: var(--background);
+  border: 1px solid var(--border);
 }
 .mobile-shell .note-title h1 {
   font-size: var(--text-xl);
@@ -75,8 +62,6 @@
   min-height: 48px;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  color: var(--text);
 }
 .mobile-shell .mobile-tab-count {
   display: flex;
@@ -166,11 +151,6 @@
   max-height: calc(100dvh - env(safe-area-inset-top) - 24px);
   overflow: auto;
   padding: 0;
-  border: 0;
-  border-radius: 24px 24px 0 0;
-  background: var(--panel);
-  color: var(--text);
-  box-shadow: var(--shadow);
 }
 /* Close the focus/inert owner before a plugin opens its own modal in the same click. */
 .mobile-sheet[data-state],
@@ -201,7 +181,7 @@
   justify-content: center;
 }
 .mobile-shell .mobile-save-status {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: var(--text-sm);
   margin: var(--space-2) 0 var(--space-4);
 }
@@ -216,14 +196,6 @@
   overflow-wrap: anywhere;
   justify-content: flex-start;
   text-align: left;
-  padding: var(--space-3);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  font-size: var(--text-sm);
-}
-.mobile-shell .mobile-menu-actions button[aria-pressed='true'] {
-  color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
 }
 .mobile-shell .mobile-tab-row {
   display: flex;
@@ -249,11 +221,8 @@
   overflow-wrap: anywhere;
 }
 .mobile-shell .mobile-tab-row small {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: var(--text-xs);
-}
-.mobile-shell .mobile-tab-row [aria-current='page'] {
-  color: var(--accent);
 }
 .mobile-shell .mobile-tab-row > button:last-child {
   display: flex;
@@ -283,7 +252,7 @@
   flex-wrap: wrap;
   margin-top: var(--space-3);
   font-size: var(--text-sm);
-  color: var(--muted);
+  color: var(--muted-foreground);
 }
 .mobile-shell #plugin-status:empty,
 .mobile-shell .mobile-plugin-actions:not(:has(button)) {

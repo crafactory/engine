@@ -692,7 +692,7 @@ for (const plugin of corpus.plugins)
           .getByTestId('palette-input')
           .fill('Excalidraw: Create new drawing - IN A NEW TAB');
         await page
-          .locator('.palette-list button')
+          .locator('.palette-list [role="option"]')
           .filter({ hasText: /^Excalidraw: Create new drawing - IN A NEW TAB$/ })
           .click();
         await page.waitForTimeout(1000);
@@ -806,7 +806,7 @@ for (const plugin of corpus.plugins)
             .getByTestId('palette-input')
             .fill('Toggle between Excalidraw and Markdown mode');
           await page
-            .locator('.palette-list button')
+            .locator('.palette-list [role="option"]')
             .filter({ hasText: /Toggle between Excalidraw and Markdown mode$/ })
             .click();
         }
@@ -829,14 +829,14 @@ for (const plugin of corpus.plugins)
         await page.getByRole('button', { name: 'Command palette', exact: true }).click();
         await page.getByTestId('palette-input').fill('Git: Stage current file');
         await page
-          .locator('.palette-list button')
+          .locator('.palette-list [role="option"]')
           .filter({ hasText: 'Git: Stage current file' })
           .click();
         await expect.poll(() => git('diff', '--cached', '--name-only')).toContain('Test.md');
         await page.getByRole('button', { name: 'Command palette', exact: true }).click();
         await page.getByTestId('palette-input').fill('Git: Commit staged with specific message');
         await page
-          .locator('.palette-list button')
+          .locator('.palette-list [role="option"]')
           .filter({ hasText: 'Git: Commit staged with specific message' })
           .click();
         await expect(page.locator('.modal')).toBeVisible();
@@ -851,7 +851,7 @@ for (const plugin of corpus.plugins)
         await page.getByRole('button', { name: 'Command palette', exact: true }).click();
         await page.getByTestId('palette-input').fill('Git: Push');
         await page
-          .locator('.palette-list button')
+          .locator('.palette-list [role="option"]')
           .filter({ hasText: /^Git: Push$/ })
           .click();
         await expect.poll(() => git('ls-remote', 'origin', 'refs/heads/main')).toContain(committed);
@@ -868,7 +868,7 @@ for (const plugin of corpus.plugins)
         await page.getByRole('button', { name: 'Command palette', exact: true }).click();
         await page.getByTestId('palette-input').fill('Git: Pull');
         await page
-          .locator('.palette-list button')
+          .locator('.palette-list [role="option"]')
           .filter({ hasText: /^Git: Pull$/ })
           .click();
         await expect
@@ -891,7 +891,7 @@ for (const plugin of corpus.plugins)
         await page.getByRole('button', { name: 'Command palette', exact: true }).click();
         await page.getByTestId('palette-input').fill('Kanban: Create new board');
         await page
-          .locator('.palette-list button')
+          .locator('.palette-list [role="option"]')
           .filter({ hasText: /^Kanban: Create new board$/ })
           .click();
         await expect
@@ -1052,7 +1052,7 @@ for (const plugin of corpus.plugins)
           await page.getByRole('button', { name: 'Command palette', exact: true }).click();
           await page.getByTestId('palette-input').fill('Toggle between Kanban and markdown mode');
           await page
-            .locator('.palette-list button')
+            .locator('.palette-list [role="option"]')
             .filter({ hasText: /Toggle between Kanban and markdown mode$/ })
             .click();
         }

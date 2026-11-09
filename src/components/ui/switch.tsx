@@ -12,6 +12,7 @@ const Switch = React.forwardRef<
     <SwitchPrimitive.Root
       ref={ref}
       data-slot="switch"
+      data-engine-ui=""
       data-size={size}
       className={cn(
         'ui:peer ui:group/switch ui:inline-flex ui:shrink-0 ui:items-center ui:rounded-full ui:border ui:border-transparent ui:shadow-xs ui:transition-all ui:outline-none ui:focus-visible:border-ring ui:focus-visible:ring-[3px] ui:focus-visible:ring-ring/50 ui:disabled:cursor-not-allowed ui:disabled:opacity-50 ui:data-[size=default]:h-[1.15rem] ui:data-[size=default]:w-8 ui:data-[size=sm]:h-3.5 ui:data-[size=sm]:w-6 ui:data-[state=checked]:bg-primary ui:data-[state=unchecked]:bg-input ui:dark:data-[state=unchecked]:bg-input/80',

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import '@fontsource-variable/inter';
 import 'katex/dist/katex.min.css';
 import '@xyflow/react/dist/style.css';
+import './ui/theme.css';
 import './components/ui/ui.css';
 import './style.css';
 import './ui/overlays.css';

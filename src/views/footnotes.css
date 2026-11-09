@@ -23,7 +23,7 @@
   background: var(--hover);
 }
 .footnote-label {
-  color: var(--accent);
+  color: var(--primary);
   font-size: 12px;
   font-weight: 600;
 }
@@ -46,12 +46,12 @@
   gap: 4px;
   min-height: 44px;
   padding: 6px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 11px;
   border-radius: 4px;
 }
 .footnote-references > span {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 11px;
   padding: 6px;
 }

@@ -18,7 +18,7 @@ function DialogPortal({ ...props }: React.ComponentProps<typeof DialogPrimitive.
 }
 
 function DialogClose({ ...props }: React.ComponentProps<typeof DialogPrimitive.Close>) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
+  return <DialogPrimitive.Close data-slot="dialog-close" data-engine-ui="" {...props} />;
 }
 
 const DialogOverlay = React.forwardRef<
@@ -57,6 +57,7 @@ const DialogContent = React.forwardRef<
         <DialogPrimitive.Content
           ref={ref}
           data-slot="dialog-content"
+          data-engine-ui=""
           className={cn(
             'ui:fixed ui:top-[50%] ui:left-[50%] ui:z-50 ui:grid ui:w-full ui:max-w-[calc(100%-2rem)] ui:translate-x-[-50%] ui:translate-y-[-50%] ui:gap-4 ui:rounded-lg ui:border ui:bg-background ui:p-6 ui:shadow-lg ui:duration-200 ui:outline-none ui:data-[state=closed]:animate-out ui:data-[state=closed]:fade-out-0 ui:data-[state=closed]:zoom-out-95 ui:data-[state=open]:animate-in ui:data-[state=open]:fade-in-0 ui:data-[state=open]:zoom-in-95 ui:sm:max-w-lg',
             className,
@@ -67,6 +68,7 @@ const DialogContent = React.forwardRef<
           {showCloseButton && (
             <DialogPrimitive.Close
               data-slot="dialog-close"
+              data-engine-ui=""
               className="ui:absolute ui:top-4 ui:right-4 ui:rounded-xs ui:opacity-70 ui:ring-offset-background ui:transition-opacity ui:hover:opacity-100 ui:focus:ring-2 ui:focus:ring-ring ui:focus:ring-offset-2 ui:focus:outline-hidden ui:disabled:pointer-events-none ui:data-[state=open]:bg-accent ui:data-[state=open]:text-muted-foreground ui:[&_svg]:pointer-events-none ui:[&_svg]:shrink-0 ui:[&_svg:not([class*=size-])]:size-4"
             >
               <XIcon />

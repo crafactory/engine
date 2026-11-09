@@ -557,10 +557,10 @@ test('editor command is unavailable in reading mode and returns in source mode',
   await page.getByTestId('mode-reading').click();
   await page.getByRole('button', { name: 'Command palette', exact: true }).click();
   await page.getByTestId('palette-input').fill('Compatibility fixture: Replace the selection');
-  await expect(page.locator('.palette-list button')).toHaveCount(0);
+  await expect(page.locator('.palette-list [role="option"]')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await page.getByTestId('mode-source').click();
   await page.getByRole('button', { name: 'Command palette', exact: true }).click();
   await page.getByTestId('palette-input').fill('Compatibility fixture: Replace the selection');
-  await expect(page.locator('.palette-list button')).toHaveCount(1);
+  await expect(page.locator('.palette-list [role="option"]')).toHaveCount(1);
 });

@@ -95,7 +95,7 @@ test('footnotes core toggle gates the view and command and can be re-enabled', a
   await expect(page.getByRole('region', { name: 'Footnotes', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Command palette', exact: true }).click();
   await page.getByTestId('palette-input').fill('Show footnotes view');
-  await expect(page.locator('.palette-list button')).toHaveCount(0);
+  await expect(page.locator('.palette-list [role="option"]')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Core plugins', exact: true }).click();
