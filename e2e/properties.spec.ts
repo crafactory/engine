@@ -14,6 +14,10 @@ async function add(page: Page, key: string, type: string) {
     .getByRole('menuitemradio', { name: type, exact: true })
     .or(page.getByRole('menuitem', { name: type, exact: true }))
     .click();
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: `Property type ${key}`, exact: true }),
+  ).toBeFocused();
 }
 
 test('property controls and keyboard type menu use standard owned registry primitives', async ({

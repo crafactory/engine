@@ -55,7 +55,14 @@ WebView. Fixed ancestry selection while still rejecting independent containers;
 eight touch tests and the real failed XML pass. Freeze this follow-up for full
 new-head acceptance. The final PR #82 acceptance comment is authoritative for
 post-commit gates; this checkpoint deliberately records pre-acceptance evidence.
-No product or native completion claimed until those gates pass.
+At 10c2d28, local check/browser/source Electron passed 965/114/108 and three-platform
+packages passed. One Verify passed, another captured a rapid menu-exit fixture
+timing timeout (not reproduced in 25 local repeats). Require closed menu and
+restored trigger focus before fixture editing. Android then hit upstream 504 and
+two Gradle download timeouts before native execution; bounded curl retries and a
+60-second Gradle network timeout added without changing hashes/test assertions.
+The 10c2 packaged replay was intentionally interrupted at 56 passes, not accepted.
+No product or native completion claimed until the new-head gates pass.
 
 ## Constraints
 
