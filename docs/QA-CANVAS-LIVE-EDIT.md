@@ -2,6 +2,37 @@
 
 Status: bounded candidate coverage executed below; latest-head review/CI and packaged publication remain separate gates. This change does not certify full Obsidian parity.
 
+## Table composition continuity
+
+The post-#82 increment isolates premature table edit-session retirement during
+composition. Browser negative controls on baseline e594b90 reproduce five failures:
+candidate keys remove the input at desktop/phone widths, native composition guards
+are absent, and blur prematurely saves the unfinished draft. A separate ordinary
+Escape control passes. The initial multiline DOM assertion was corrected before
+counting these results; that harness failure is not a product defect.
+
+`src/ui/blocks/LiveTable.tsx` retains the prior measured-grid and ResizeObserver
+implementation. Its input now defers Enter/Tab/Escape while composing, guards
+native isComposing/keyCode 229, and commits a composing blur only at compositionend
+using the final DOM value. No widget ownership, document grammar or source ceiling
+is widened. Composition finishing in the focused cell does not itself save.
+
+- `e2e/live-table-composition.spec.ts`: input and following-code DOM identity,
+  columns/position within 1px at 1440/390, native flag fallback, deferred blur,
+  ordinary Escape cancellation and source lines.
+- `e2e-desktop/live-table-composition.spec.ts`: real Electron filesystem and
+  process restart with exact Markdown; compositionstart is a protocol fixture,
+  not a real desktop CJK input-method certification.
+- `scripts/android-live-table.mjs`: held owned debug InputConnection composition
+  and actual Android Enter/Tab/Escape events, unchanged private bytes before save,
+  final draft, keyboard Back, rotation, cancellation and restart. The held driver
+  is confined to debug fixtures; release builds contain no test IME.
+
+The new six-case browser file and the prior six stability cases pass together.
+Exact-head full-suite, package and actual-APK results must be recorded separately
+before accepting the increment. These are finite regressions, not a guarantee
+against every geometry shift, input method, Android version or theme.
+
 | Requirement | Functional acceptance | Visual state |
 | --- | --- | --- |
 | Canvas embed | Reading and Live modes render actual nodes and edges; opening the title opens the original Canvas; no editor controls or writes in an embed | Desktop dark/light, narrow screen; populated, empty and malformed Canvas |

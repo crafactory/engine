@@ -6,10 +6,11 @@ Owner asked to repair #82 and continue quality/function coverage. #82 is merged
 as e594b90, tree identical to accepted head 04cfb4f. Final evidence:
 https://github.com/crafactory/engine/pull/82#issuecomment-6759533823.
 
-Branch `fix/live-table-composition`, baseline main e594b90. Current app unchanged.
+Branch `fix/live-table-composition`, baseline main e594b90. Draft PR #83 is open.
 Interactive candidate Enter prematurely commits 中 and removes the table input.
 Five browser negative controls confirm composing-key and blur failures. Ordinary
 Escape check had a multiline textContent harness error, now corrected; not a bug.
+Corrected baseline: five failures and one pass.
 
 ## Scope and verification
 
@@ -25,10 +26,17 @@ Escape check had a multiline textContent harness error, now corrected; not a bug
 
 ## Current evidence
 
-Negative-control log `/tmp/engine-table-negative.log`; interactive baseline image
+Repair implemented, candidate full check 965, focused browser 12 and new desktop
+exact-byte/restart case 1 passed. Native held-composition helper implemented but
+not yet run. Next: ready PR, bounded review/fixes, exact-head all gates.
+
+Negative-control log `/tmp/engine-table-negative-corrected.log`; interactive baseline image
 `/tmp/engine-live-table-composition-before.png`. Corrected tests still need replay.
 Existing Vite 5173 remains running. Persistent js_repl `liveQualityBrowser`,
 `liveQualityContext`, `liveQualityPage` are owned QA handles.
+They now show a fresh Table continuity note, not the Welcome table restored on
+preview reload. Final phone draft/desktop Tab screenshots inspected; no page
+errors. Local check and desktop command finished, no build/test is running.
 
 Accepted #82 files are shared, but no results email has been sent for the current
 request yet. Fold this increment's outcome into a single private Chinese email;

@@ -30,7 +30,10 @@ public class CompositionIme extends InputMethodService {
     public static class Run extends BroadcastReceiver {
         @Override public void onReceive(Context context, Intent intent) {
             boolean probe = "com.crafactory.engine.TEST_COMPOSITION_READY".equals(intent.getAction());
-            if (!probe && !"com.crafactory.engine.TEST_COMPOSITION".equals(intent.getAction())) {
+            boolean hold = "com.crafactory.engine.TEST_COMPOSITION_HOLD".equals(intent.getAction());
+            boolean finish = "com.crafactory.engine.TEST_COMPOSITION_FINISH".equals(intent.getAction());
+            if (!probe && !hold && !finish
+                && !"com.crafactory.engine.TEST_COMPOSITION".equals(intent.getAction())) {
                 setResultCode(1); return;
             }
             CompositionIme service = current;
@@ -40,7 +43,13 @@ public class CompositionIme extends InputMethodService {
                 setResultCode(1); return;
             }
             if (probe) { setResultCode(0); return; }
+            if (finish) {
+                connection.setComposingText("中文", 1);
+                connection.commitText("中文", 1);
+                setResultCode(0); return;
+            }
             connection.setComposingText("中", 1);
+            if (hold) { setResultCode(0); return; }
             Handler handler = new Handler(Looper.getMainLooper());
             handler.postDelayed(() -> {
                 connection.setComposingText("中文", 1);

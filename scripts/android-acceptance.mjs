@@ -11,6 +11,7 @@ import JSZip from 'jszip';
 import { imeInputViewVisible, launcherAnrVisible } from './android-ime-state.mjs';
 import { composeNative } from './android-compose.mjs';
 import { acceptProperties } from './android-properties.mjs';
+import { acceptLiveTable } from './android-live-table.mjs';
 import { webViewBounds, nativeTouchPoint } from './android-touch.mjs';
 
 const APP = 'com.crafactory.engine',
@@ -963,23 +964,28 @@ try {
       'Footnote edits must not touch the other note',
     );
   });
+  const nativeEditing = {
+    getPage: () => page,
+    restart,
+    writeNative,
+    readNative,
+    readJSON,
+    shell,
+    quote,
+    APP,
+    output,
+    nativeTap,
+    keyboardVisibility,
+    recoverLauncherAnr,
+    metadata,
+    resumed,
+    command,
+  };
   await step('Property types, real Chinese composition, Back and exact private-file restart', () =>
-    acceptProperties({
-      getPage: () => page,
-      restart,
-      writeNative,
-      readNative,
-      readJSON,
-      shell,
-      quote,
-      APP,
-      output,
-      nativeTap,
-      keyboardVisibility,
-      recoverLauncherAnr,
-      metadata,
-      resumed,
-    }),
+    acceptProperties(nativeEditing),
+  );
+  await step('Live table held composition, native keys, rotation and exact restart bytes', () =>
+    acceptLiveTable(nativeEditing),
   );
   assert.deepEqual(errors, [], 'Native page errors');
   assert(
