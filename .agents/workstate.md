@@ -25,44 +25,27 @@ Existing Vite 5173 is healthy; js_repl `metadataBrowser`/`metadataPage` persist.
 
 ## Current checkpoint
 
-Registry properties and safe drafts implemented. Six corrected baseline negatives
-failed as intended (one earlier list locator was invalid and is excluded).
-Preliminary full check passed: 956 unit tests and build/style/structure/inventory.
-All seven property cases and native menu Back have passed across focused runs;
-new desktop exact-file restart passes. Two new browser fixture mistakes were
-corrected: collapsed desktop sidebars before narrow layout, and explicitly opening
-the native Note properties panel. No product relaxation/assertion weakening.
-Existing native IME driver and browser bridge fixture extracted intact; no frozen
-ceiling raised. At 118fcdd, 106 browser and 108 Electron tests passed. Packaged
-suite was interrupted after 12 passes; it is not accepted. Android's first eleven
-groups passed, but property IME readiness failed: native taps omitted the WebView
-origin beneath system bars. Correcting against absolute UIAutomator WebView bounds
-and adding pure touch geometry regressions; actual rerun is still required.
+Standard properties and safe drafts implemented. One effective CodeRabbit review
+produced three findings; all reproduced, repaired and threads resolved. Do not
+request another review or count a skip as approval. Corrected negative controls
+exclude an invalid list locator and the first wrong-signature search test.
 
-CodeRabbit completed one effective review of 118fcdd, three minor findings and a
-blur-test nit. All three reproduced with corrected negatives (the first search
-test used the wrong search signature and is excluded). Fixed null numeric search,
-same-type re-selection and commit-time live native validity. Added both blur tests.
-Included review allowance is now exhausted; do not request another review or
-count an automatic skip as approval. Repair-focused replay passed all 15 selected
-browser cases, including the three review findings and empty-native-state Escape.
-The three parser/search/touch unit files passed 19 tests before the final Escape
-addition. Native acceptance is 1046/1068 lines and App 3836/3846.
-Three review threads resolved. At 307dc95, browser/Electron replays passed 114/108
-and desktop packaging passed on all three platforms. Native acceptance failed:
-UIAutomator reports both the physical WebView and a nested virtual accessibility
-WebView. Fixed ancestry selection while still rejecting independent containers;
-eight touch tests and the real failed XML pass. Freeze this follow-up for full
-new-head acceptance. The final PR #82 acceptance comment is authoritative for
-post-commit gates; this checkpoint deliberately records pre-acceptance evidence.
-At 10c2d28, local check/browser/source Electron passed 965/114/108 and three-platform
-packages passed. One Verify passed, another captured a rapid menu-exit fixture
-timing timeout (not reproduced in 25 local repeats). Require closed menu and
-restored trigger focus before fixture editing. Android then hit upstream 504 and
-two Gradle download timeouts before native execution; bounded curl retries and a
-60-second Gradle network timeout added without changing hashes/test assertions.
-The 10c2 packaged replay was intentionally interrupted at 56 passes, not accepted.
-No product or native completion claimed until the new-head gates pass.
+At 5e6baab, local full check/browser/source Electron passed 965/114/108, with all
+eleven unchanged pinned inputs explicitly supplied to Electron. Both default
+Verify runs passed (86 Electron plus 22 corpus skips, not full-corpus evidence).
+Earlier actual APK failures prompted system-bar touch offsets and ancestry-based
+physical WebView selection, plus eight geometry regressions. The fixture waits
+for closed menus/restored focus. Native acceptance is 1046/1068 lines and App
+3836/3846; no ceiling increased.
+
+Owner resumed build repair on November 10 UTC. Download probe now matches pinned
+Templater bytes; one retry recovered all three desktop CI packages on 5e6baab.
+Android is still running. Local deb packaging exposed missing explicit homepage;
+adding canonical repository homepage makes local AppImage/deb succeed without
+checkout-specific repository inference. Freeze this follow-up for full new-head
+gates. Do not inherit older APK/package acceptance. Interrupted 118fcdd/10c2d28
+package runs were never accepted. Latest public checkpoint:
+https://github.com/crafactory/engine/pull/82#issuecomment-6733080362
 
 ## Constraints
 
