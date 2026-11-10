@@ -46,6 +46,18 @@ export function propertyDraft(value: unknown, type: PropertyValueType): string {
   return String(value ?? '');
 }
 
+/** Commit a scalar draft without silently replacing an empty/invalid number with zero. */
+export function parsePropertyDraft(draft: string, type: PropertyValueType): unknown {
+  if (type === 'number') {
+    if (!draft.trim()) return null;
+    const number = Number(draft);
+    if (!Number.isFinite(number)) throw new Error('Enter a finite number');
+    return number;
+  }
+  if (type === 'date' || type === 'datetime') return draft || null;
+  return draft;
+}
+
 /** Convert a value to the chosen explicit type without losing text-like content. */
 export function convertPropertyValue(value: unknown, type: PropertyType): unknown {
   switch (type) {

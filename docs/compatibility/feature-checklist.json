@@ -463,8 +463,8 @@
       "title": "Properties",
       "status": "partial",
       "reference": "https://help.obsidian.md",
-      "implemented": "Typed YAML editing, add/remove, property search and indexed inference/overrides used by the facade.",
-      "remaining": "Full reference type-manager semantics, date/link widgets, drag/reorder, completion and multi-file bulk edits.",
+      "implemented": "Typed YAML editing, add/remove, property search and indexed inference/overrides used by the facade. Registry value/type controls, composition-safe drafts and null clearing for explicitly typed empty scalars; native type-menu Back handling.",
+      "remaining": "Full reference type-manager semantics, rich date/link widgets, drag/reorder, completion and multi-file bulk edits. Empty-value serialization is an Engine policy, not verified reference equivalence.",
       "evidence": []
     },
     {

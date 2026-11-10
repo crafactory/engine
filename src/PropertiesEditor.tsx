@@ -19,6 +19,17 @@ import {
   type PropertyValueType,
 } from './properties';
 import type { Note, PropertyType } from './types';
+import { Button } from './components/ui/button';
+import { Input } from './components/ui/input';
+import { Checkbox } from './components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from './components/ui/dropdown-menu';
+import { parsePropertyDraft } from './properties';
 
 function typeIcon(type: PropertyValueType) {
   return type === 'list'
@@ -55,7 +66,6 @@ export function PropertiesEditor({
   ask: (title: string, value?: string, description?: string) => Promise<string | null>;
 }) {
   const [menu, setMenu] = useState<string | null>(null);
-  const section = useRef<HTMLElement>(null);
   const meta = frontmatter(note.content),
     properties = meta.properties ?? {};
   const suggestions = useMemo(() => {
@@ -78,20 +88,8 @@ export function PropertiesEditor({
     return result;
   }, [notes]);
   useEffect(() => {
-    if (menu === null) return;
-    const close = (event: PointerEvent) => {
-      if (!section.current?.contains(event.target as Node)) setMenu(null);
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMenu(null);
-    };
-    document.addEventListener('pointerdown', close);
-    document.addEventListener('keydown', escape);
-    return () => {
-      document.removeEventListener('pointerdown', close);
-      document.removeEventListener('keydown', escape);
-    };
-  }, [menu]);
+    setMenu(null);
+  }, [note.path]);
   const change = (next: Record<string, unknown>) => {
     try {
       onNoteChange(note.path, setProperties(note.content, next));
@@ -106,6 +104,7 @@ export function PropertiesEditor({
   };
   const convertTo = (key: string, type: PropertyType | 'automatic') => {
     setMenu(null);
+    if (type === (types[key] ?? 'automatic')) return;
     if (type === 'automatic') {
       onTypeChange(key, null);
       return;
@@ -125,51 +124,51 @@ export function PropertiesEditor({
       </div>
     );
   return (
-    <section ref={section} className="inline-properties" aria-label="Note properties">
+    <section className="inline-properties" aria-label="Note properties">
       <div className="inline-properties-heading">Properties</div>
       {Object.entries(properties).map(([key, value]) => {
         const type = types[key] ?? inferPropertyType(value),
           Icon = typeIcon(type);
         return (
           <div className="inline-property-row" key={key}>
-            <div className="property-type-wrap">
-              <button
-                type="button"
-                className="property-type"
+            <DropdownMenu
+              modal={false}
+              open={menu === key}
+              onOpenChange={(open) =>
+                setMenu((current) => (open ? key : current === key ? null : current))
+              }
+            >
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Property type ${key}`}
+                  title={propertyTypeLabel(type)}
+                >
+                  <Icon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                data-engine-property-menu=""
                 aria-label={`Property type ${key}`}
-                aria-haspopup="menu"
-                aria-expanded={menu === key}
-                title={propertyTypeLabel(type)}
-                onClick={() => setMenu(menu === key ? null : key)}
+                align="start"
+                collisionPadding={8}
+                onEscapeKeyDown={(event) => event.stopPropagation()}
               >
-                <Icon size={14} />
-              </button>
-              {menu === key && (
-                <div className="property-type-menu" role="menu">
-                  <button type="button" role="menuitem" onClick={() => convertTo(key, 'automatic')}>
-                    Automatic
-                  </button>
-                  <button type="button" role="menuitem" onClick={() => convertTo(key, 'checkbox')}>
-                    Checkbox
-                  </button>
-                  <button type="button" role="menuitem" onClick={() => convertTo(key, 'date')}>
-                    Date
-                  </button>
-                  <button type="button" role="menuitem" onClick={() => convertTo(key, 'datetime')}>
-                    Date &amp; time
-                  </button>
-                  <button type="button" role="menuitem" onClick={() => convertTo(key, 'list')}>
-                    List
-                  </button>
-                  <button type="button" role="menuitem" onClick={() => convertTo(key, 'number')}>
-                    Number
-                  </button>
-                  <button type="button" role="menuitem" onClick={() => convertTo(key, 'text')}>
-                    Text
-                  </button>
-                </div>
-              )}
-            </div>
+                <DropdownMenuRadioGroup
+                  value={types[key] ?? 'automatic'}
+                  onValueChange={(next) => convertTo(key, next as PropertyType | 'automatic')}
+                >
+                  {(
+                    ['automatic', 'checkbox', 'date', 'datetime', 'list', 'number', 'text'] as const
+                  ).map((option) => (
+                    <DropdownMenuRadioItem key={option} value={option}>
+                      {option === 'automatic' ? 'Automatic' : propertyTypeLabel(option)}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <span className="property-key" title={key}>
               {key}
             </span>
@@ -183,22 +182,24 @@ export function PropertiesEditor({
                 onChange={(next) => change({ ...properties, [key]: next })}
               />
             </div>
-            <button
+            <Button
               type="button"
-              className="inline-property-remove"
+              variant="ghost"
+              size="icon-sm"
+              className="property-remove"
               aria-label={`Remove ${key}`}
               title={`Remove ${key}`}
               onClick={() => remove(key)}
             >
               <X size={12} />
-            </button>
+            </Button>
           </div>
         );
       })}
-      <button type="button" className="add-property inline-add-property" onClick={addProperty}>
+      <Button type="button" variant="ghost" size="sm" onClick={addProperty}>
         <Plus size={13} />
         Add property
-      </button>
+      </Button>
     </section>
   );
 }
@@ -220,14 +221,23 @@ function PropertyValue({
   const listId = useId();
   const [draft, setDraft] = useState(() => propertyDraft(value, type));
   const [listDraft, setListDraft] = useState('');
+  const [invalid, setInvalid] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  const composing = useRef(false);
   useEffect(() => {
     setDraft(propertyDraft(value, type));
+    setInvalid(false);
   }, [value, type]);
-  const commit = () => {
-    if (type === 'number') onChange(Number(draft) || 0);
-    else if (type === 'date') onChange(draft);
-    else if (type === 'datetime') onChange(draft);
-    else if (draft !== String(value ?? '')) onChange(draft);
+  const commit = (text = draft) => {
+    if (composing.current) return;
+    try {
+      if (input.current?.validity.badInput) throw new Error('Invalid scalar value');
+      const next = parsePropertyDraft(text, type);
+      setInvalid(false);
+      if (!Object.is(next, value)) onChange(next);
+    } catch {
+      setInvalid(true);
+    }
   };
   if (type === 'object')
     return (
@@ -237,13 +247,13 @@ function PropertyValue({
     );
   if (type === 'checkbox')
     return (
-      <input
-        aria-label={propertyKey}
-        type="checkbox"
-        role="switch"
-        checked={value === true || value === 'true' || value === 1 || value === '1'}
-        onChange={(event) => onChange(event.target.checked)}
-      />
+      <label className="property-checkbox-target">
+        <Checkbox
+          aria-label={propertyKey}
+          checked={value === true || value === 'true' || value === 1 || value === '1'}
+          onCheckedChange={(checked) => onChange(checked === true)}
+        />
+      </label>
     );
   if (type === 'list') {
     const items = Array.isArray(value)
@@ -251,8 +261,9 @@ function PropertyValue({
       : value === null || value === undefined || value === ''
         ? []
         : [value];
-    const add = () => {
-      const next = listDraft.trim();
+    const add = (text = listDraft) => {
+      if (composing.current) return;
+      const next = text.trim();
       if (!next) return;
       if (!items.map(String).includes(next)) onChange([...items, next]);
       setListDraft('');
@@ -260,30 +271,49 @@ function PropertyValue({
     return (
       <>
         {items.map((item, index) => (
-          <span className="property-chip" key={index}>
-            {String(item)}
-            <button
-              type="button"
-              aria-label={`Remove ${propertyKey} value ${String(item)}`}
-              onClick={() => onChange(items.filter((_item, position) => position !== index))}
-            >
-              <X size={10} />
-            </button>
-          </span>
+          <Button
+            key={index}
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="property-list-item"
+            aria-label={`Remove ${propertyKey} value ${String(item)}`}
+            title={String(item)}
+            onClick={() => onChange(items.filter((_item, position) => position !== index))}
+          >
+            <span>{String(item)}</span>
+            <X />
+          </Button>
         ))}
-        <input
+        <Input
           aria-label={propertyKey}
           list={listId}
           value={listDraft}
           placeholder="Add value"
           onChange={(event) => setListDraft(event.target.value)}
+          onCompositionStart={() => (composing.current = true)}
+          onCompositionEnd={(event) => {
+            composing.current = false;
+            if (document.activeElement !== event.currentTarget) add(event.currentTarget.value);
+          }}
           onKeyDown={(event) => {
+            if (
+              composing.current ||
+              event.nativeEvent.isComposing ||
+              event.nativeEvent.keyCode === 229
+            )
+              return;
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              event.stopPropagation();
+              setListDraft('');
+            }
             if (event.key === 'Enter' || event.key === ',') {
               event.preventDefault();
               add();
             }
           }}
-          onBlur={add}
+          onBlur={() => add()}
         />
         <datalist id={listId}>
           {suggestions.map((item) => (
@@ -294,27 +324,63 @@ function PropertyValue({
     );
   }
   return (
-    <input
-      aria-label={propertyKey}
-      type={
-        type === 'number'
-          ? 'number'
-          : type === 'date'
-            ? 'date'
-            : type === 'datetime'
-              ? 'datetime-local'
-              : 'text'
-      }
-      value={draft}
-      placeholder="Empty"
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={commit}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          commit();
+    <>
+      <Input
+        ref={input}
+        aria-label={propertyKey}
+        type={
+          type === 'number'
+            ? 'number'
+            : type === 'date'
+              ? 'date'
+              : type === 'datetime'
+                ? 'datetime-local'
+                : 'text'
         }
-      }}
-    />
+        value={draft}
+        step={type === 'number' ? 'any' : undefined}
+        placeholder="Empty"
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? `${listId}-error` : undefined}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          setInvalid(false);
+        }}
+        onCompositionStart={() => (composing.current = true)}
+        onCompositionEnd={(event) => {
+          composing.current = false;
+          if (document.activeElement !== event.currentTarget) commit(event.currentTarget.value);
+        }}
+        onBlur={() => commit()}
+        onKeyDown={(event) => {
+          if (
+            composing.current ||
+            event.nativeEvent.isComposing ||
+            event.nativeEvent.keyCode === 229
+          )
+            return;
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            const restored = propertyDraft(value, type);
+            // Number inputs can expose "" while still displaying an invalid "-" draft.
+            if (event.currentTarget.validity.badInput) event.currentTarget.value = restored;
+            setDraft(restored);
+            setInvalid(false);
+          }
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            commit();
+          }
+        }}
+      />
+      {invalid && (
+        <span id={`${listId}-error`} role="alert" className="property-error">
+          {type === 'number'
+            ? 'Enter a finite number or clear the field.'
+            : 'Enter a complete date or clear the field.'}
+        </span>
+      )}
+    </>
   );
 }

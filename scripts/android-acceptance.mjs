@@ -8,11 +8,10 @@ import { setTimeout as wait } from 'node:timers/promises';
 import { deflateSync } from 'node:zlib';
 import { chromium, expect } from '@playwright/test';
 import JSZip from 'jszip';
-import {
-  imeInputViewVisible,
-  launcherAnrVisible,
-  imeCompositionReady,
-} from './android-ime-state.mjs';
+import { imeInputViewVisible, launcherAnrVisible } from './android-ime-state.mjs';
+import { composeNative } from './android-compose.mjs';
+import { acceptProperties } from './android-properties.mjs';
+import { webViewBounds, nativeTouchPoint } from './android-touch.mjs';
 
 const APP = 'com.crafactory.engine',
   APK = path.resolve('android/app/build/outputs/apk/debug/app-debug.apk');
@@ -82,12 +81,16 @@ async function keyboardVisibility() {
   };
 }
 async function nativeTap(locator) {
+  await locator.scrollIntoViewIfNeeded();
+  const dumpPath = '/sdcard/engine-acceptance-window.xml';
+  shell(`rm -f ${dumpPath}; uiautomator dump ${dumpPath}`);
+  const xml = shell(`cat ${dumpPath}`);
+  await fs.writeFile(path.join(output, 'touch-window-latest.xml'), xml);
+  const bounds = webViewBounds(xml, APP);
   const rect = await locator.boundingBox(),
     ratio = await page.evaluate(() => devicePixelRatio);
-  assert(rect);
-  shell(
-    `input tap ${Math.round((rect.x + Math.min(rect.width / 2, 100)) * ratio)} ${Math.round((rect.y + Math.min(rect.height / 2, 100)) * ratio)}`,
-  );
+  const { x, y } = nativeTouchPoint(rect, ratio, bounds);
+  shell(`input tap ${x} ${y}`);
 }
 async function writeNative(relative, bytes) {
   const full = 'files/' + relative,
@@ -498,61 +501,18 @@ try {
       await page.keyboard.press('Control+End');
       // CDP's Android composition emulation duplicated text in the first native run.
       // Use a debug-only owned IME through the real platform InputConnection instead.
-      const defaultIme = shell('settings get secure default_input_method').trim();
-      const fixtureIme = APP + '/.CompositionIme';
       metadata.compositionDriver = 'Android InputConnection (owned debug IME)';
-      try {
-        shell('ime enable ' + quote(fixtureIme));
-        shell('ime set ' + quote(fixtureIme));
-        await expect
-          .poll(
-            async () => {
-              await recoverLauncherAnr();
-              shell(`am start -n ${APP}/.MainActivity`);
-              if (shell('settings get secure default_input_method').trim() !== fixtureIme)
-                shell('ime set ' + quote(fixtureIme));
-              await editor.click();
-              await nativeTap(editor);
-              await page.keyboard.press('Control+End');
-              const dump = shell('dumpsys input_method');
-              await fs.writeFile(path.join(output, 'input-method-ready.txt'), dump);
-              if (!imeCompositionReady(dump)) return 'text editor connection pending';
-              return shell(
-                `am broadcast -a ${APP}.TEST_COMPOSITION_READY -n '${APP}/.CompositionIme$Run'`,
-              );
-            },
-            { timeout: 15000 },
-          )
-          .toContain('result=0');
-        await editor.evaluate((element) => {
-          window.__nativeComposition = [];
-          for (const type of ['compositionstart', 'compositionupdate', 'compositionend']) {
-            element.addEventListener(type, (event) =>
-              window.__nativeComposition.push({ type, data: event.data }),
-            );
-          }
-        });
-        assert(
-          shell(`am broadcast -a ${APP}.TEST_COMPOSITION -n '${APP}/.CompositionIme$Run'`).includes(
-            'result=0',
-          ),
-          'Ready native InputConnection accepts one composition',
-        );
-        await expect
-          .poll(
-            () =>
-              page.evaluate(() =>
-                window.__nativeComposition.some((event) => event.type === 'compositionend'),
-              ),
-            { timeout: 15000 },
-          )
-          .toBe(true);
-        await expect(editor).toContainText('中文');
-        metadata.compositionEvents = await page.evaluate(() => window.__nativeComposition);
-      } finally {
-        shell('ime set ' + quote(defaultIme));
-        shell('ime disable ' + quote(fixtureIme));
-      }
+      metadata.compositionEvents = await composeNative({
+        page,
+        target: editor,
+        shell,
+        quote,
+        APP,
+        output,
+        nativeTap,
+        recoverLauncherAnr,
+      });
+      await expect(editor).toContainText('中文');
       await page.keyboard.insertText(' Android persisted\n');
       expectedText = initial + '中文 Android persisted\n';
       await expect
@@ -1003,6 +963,24 @@ try {
       'Footnote edits must not touch the other note',
     );
   });
+  await step('Property types, real Chinese composition, Back and exact private-file restart', () =>
+    acceptProperties({
+      getPage: () => page,
+      restart,
+      writeNative,
+      readNative,
+      readJSON,
+      shell,
+      quote,
+      APP,
+      output,
+      nativeTap,
+      keyboardVisibility,
+      recoverLauncherAnr,
+      metadata,
+      resumed,
+    }),
+  );
   assert.deepEqual(errors, [], 'Native page errors');
   assert(
     !consoleErrors.some((error) => error.startsWith('Error injecting safe area CSS')),

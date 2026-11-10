@@ -11,6 +11,8 @@
    Unlayered legacy composition rules must not redefine their appearance. */
 @layer base {
   [data-engine-ui][data-slot='button'],
+  [data-engine-ui][data-slot='checkbox'],
+  [data-engine-ui][data-slot='dropdown-menu-content'],
   [data-engine-ui][data-slot='dialog-close'],
   [data-engine-ui][data-slot='dialog-content'],
   [data-engine-ui][data-slot='sheet-content'],
@@ -24,6 +26,7 @@
     border: 0 solid var(--border);
   }
   [data-engine-ui][data-slot='button'],
+  [data-engine-ui][data-slot='checkbox'],
   [data-engine-ui][data-slot='dialog-close'],
   [data-engine-ui][data-slot='switch'],
   [data-engine-ui][data-slot='input'],
@@ -34,6 +37,9 @@
     padding: 0;
     font: inherit;
     color: inherit;
+  }
+  [data-engine-ui][data-slot='checkbox'] {
+    background: transparent;
   }
 }
 
