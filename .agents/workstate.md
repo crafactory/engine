@@ -26,9 +26,19 @@ Corrected baseline: five failures and one pass.
 
 ## Current evidence
 
-Repair implemented, candidate full check 965, focused browser 12 and new desktop
-exact-byte/restart case 1 passed. Native held-composition helper implemented but
-not yet run. Next: ready PR, bounded review/fixes, exact-head all gates.
+At e44510d full check/browser/source Electron passed 965/120/109 with all eleven
+inputs. Three platform packages and actual APK thirteen groups passed too, but
+native screenshot exposed a clipped focused input behind landscape navigation.
+That first APK is not accepted. A browser negative control reproduces clipping;
+reflow now scrolls the same focused input fully into view. Seven new plus six
+original stability cases pass together. Browser/APK bounds now require the
+entire input between top and bottom bars.
+
+CodeRabbit completed one effective review (COMMENTED, zero inline findings).
+Default docstring warning handled with helper comments. Allowance exhausted;
+do not request another review or treat a skip as approval. Next: freeze follow-up,
+all exact-head gates, inspect the new APK and actual package, then merge.
+First e44510d package replay stopped after 32 cases (exit143), not accepted.
 
 Negative-control log `/tmp/engine-table-negative-corrected.log`; interactive baseline image
 `/tmp/engine-live-table-composition-before.png`. Corrected tests still need replay.
@@ -36,7 +46,10 @@ Existing Vite 5173 remains running. Persistent js_repl `liveQualityBrowser`,
 `liveQualityContext`, `liveQualityPage` are owned QA handles.
 They now show a fresh Table continuity note, not the Welcome table restored on
 preview reload. Final phone draft/desktop Tab screenshots inspected; no page
-errors. Local check and desktop command finished, no build/test is running.
+errors. Initial source full 109 passed; package was stopped for the visual fix.
+No build/test currently running. New focused log:
+`/tmp/engine-83-landscape-focused.log`; negative log:
+`/tmp/engine-83-landscape-negative.log`.
 
 Accepted #82 files are shared, but no results email has been sent for the current
 request yet. Fold this increment's outcome into a single private Chinese email;

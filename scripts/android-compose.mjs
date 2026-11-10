@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
 import { imeCompositionReady } from './android-ime-state.mjs';
 
+/** Drive real Android composition, optionally holding it while native-key assertions run. */
 export async function composeNative({
   page,
   target,

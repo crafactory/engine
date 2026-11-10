@@ -1,8 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
+import { fixture } from './android-fixture';
 
 const source =
   '# Top\n\n| A | Longer column name |\n| --- | --- |\n| Short | Value |\n\n```js\nconst following = 1;\n```\n\nTail';
 
+/** Create a finite two-column source fixture through the real editor controls. */
 async function prepare(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'New note', exact: true }).click();
@@ -109,4 +111,32 @@ test('table composition ends locally and ordinary Escape still cancels', async (
   ).toHaveText('Short');
   await page.getByTestId('mode-source').click();
   await expect(page.getByTestId('note-editor').locator('.cm-line')).toHaveText(source.split('\n'));
+});
+
+test('native landscape keeps the entire active table input above its navigation', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await fixture(page, { settings: { mode: 'source', theme: 'light' } });
+  await page.getByTestId('note-editor').press('ControlOrMeta+a');
+  await page.keyboard.insertText(source);
+  await page.getByRole('button', { name: 'Mobile tools', exact: true }).click();
+  await page.getByRole('button', { name: 'Live editing', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit cell row 2 column 1', exact: true }).click();
+  const input = page.getByRole('textbox', { name: 'Cell row 2 column 1', exact: true });
+  await input.fill('中文 draft');
+  const node = await input.elementHandle();
+  await page.setViewportSize({ width: 844, height: 344 });
+  await expect
+    .poll(async () => {
+      const box = await input.boundingBox();
+      const nav = await page.locator('.mobile-nav').boundingBox();
+      const top = await page.locator('.mobile-topbar').boundingBox();
+      return !!box && !!nav && !!top && box.y >= top.y + top.height && box.y + box.height <= nav.y;
+    })
+    .toBe(true);
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue('中文 draft');
+  expect(await node!.evaluate((element) => element.isConnected)).toBe(true);
+  await page.screenshot({ path: test.info().outputPath('native-table-landscape.png') });
 });

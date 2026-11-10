@@ -28,10 +28,17 @@ is widened. Composition finishing in the focused cell does not itself save.
   final draft, keyboard Back, rotation, cancellation and restart. The held driver
   is confined to debug fixtures; release builds contain no test IME.
 
-The new six-case browser file and the prior six stability cases pass together.
+The initial six-case browser file and six prior stability cases pass together.
+Visual review of the first actual APK exposed a seventh regression: rotation
+retained the draft but clipped the active input behind bottom navigation. A
+separate native-shell browser negative control reproduces it; reflow now reveals
+the existing focused input without replacing it. Browser and actual APK checks
+require the entire input above navigation, not merely a retained value.
+
 Exact-head full-suite, package and actual-APK results must be recorded separately
-before accepting the increment. These are finite regressions, not a guarantee
-against every geometry shift, input method, Android version or theme.
+before accepting the increment. The first APK and interrupted first-package
+replay are not final-head acceptance. These are finite regressions, not a
+guarantee against every geometry shift, input method, Android version or theme.
 
 | Requirement | Functional acceptance | Visual state |
 | --- | --- | --- |

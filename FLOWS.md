@@ -12,6 +12,9 @@
 - Desktop source and actual package must persist exact Markdown across restart.
   Android must use a held real InputConnection composition, native key events,
   keyboard Back, rotation and restart, not a CDP-only composition fixture.
+- In short native landscape, require the entire focused input to remain between
+  the top bar and bottom navigation after rotation; retaining its value alone
+  does not certify visibility. Do not hide an occluded input in a passing screenshot.
 
 ## Standard property editing
 - Use registry controls for inline values, actions and the type menu, without

@@ -48,6 +48,10 @@ export function LiveTable({
       button?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
     onMeasure();
+    // A resized native viewport can clip the still-focused input behind navigation.
+    const input = host.current?.querySelector('input');
+    if (input && document.activeElement === input)
+      input.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [content, onMeasure, edit?.columns]);
   useEffect(() => {
     if (!edit || edit.base !== content) return;

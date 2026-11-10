@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
 import { composeNative } from './android-compose.mjs';
 
+/** Verify real composing keys, visible rotation drafts and exact private bytes after restart. */
 export async function acceptLiveTable({
   getPage,
   restart,
@@ -91,6 +92,16 @@ export async function acceptLiveTable({
     await expect.poll(() => page.evaluate(() => innerWidth > innerHeight)).toBe(true);
     await expect(input).toHaveValue('中文');
     assert(await node.evaluate((element) => element.isConnected), 'Rotation retains draft input');
+    await expect
+      .poll(async () => {
+        const box = await input.boundingBox();
+        const nav = await page.locator('.mobile-nav').boundingBox();
+        const top = await page.locator('.mobile-topbar').boundingBox();
+        return (
+          !!box && !!nav && !!top && box.y >= top.y + top.height && box.y + box.height <= nav.y
+        );
+      })
+      .toBe(true);
     assert.equal(readNative('vault/' + file), original, 'Rotation does not commit');
     await page.screenshot({ path: path.join(output, 'android-table-landscape.png') });
   } finally {
