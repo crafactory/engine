@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
 import { imeCompositionReady } from './android-ime-state.mjs';
 
+/** Drive real Android composition, optionally holding it while native-key assertions run. */
 export async function composeNative({
   page,
   target,
@@ -14,6 +15,7 @@ export async function composeNative({
   output,
   nativeTap,
   recoverLauncherAnr,
+  whileComposing,
 }) {
   const defaultIme = shell('settings get secure default_input_method').trim();
   const fixtureIme = APP + '/.CompositionIme';
@@ -49,11 +51,30 @@ export async function composeNative({
       }
     });
     assert(
-      shell(`am broadcast -a ${APP}.TEST_COMPOSITION -n '${APP}/.CompositionIme$Run'`).includes(
-        'result=0',
-      ),
+      shell(
+        `am broadcast -a ${APP}.TEST_COMPOSITION${whileComposing ? '_HOLD' : ''} -n '${APP}/.CompositionIme$Run'`,
+      ).includes('result=0'),
       'Ready native InputConnection accepts one composition',
     );
+    if (whileComposing) {
+      try {
+        await expect
+          .poll(() =>
+            page.evaluate(() =>
+              window.__nativeComposition.some((event) => event.type === 'compositionstart'),
+            ),
+          )
+          .toBe(true);
+        await whileComposing();
+      } finally {
+        assert(
+          shell(
+            `am broadcast -a ${APP}.TEST_COMPOSITION_FINISH -n '${APP}/.CompositionIme$Run'`,
+          ).includes('result=0'),
+          'Held native InputConnection commits its final composition',
+        );
+      }
+    }
     await expect
       .poll(
         () =>

@@ -1,5 +1,21 @@
 # Main flows
 
+## Live table composition continuity
+- Open a cell in Live editing at 1440px and 390px. Start Chinese composition:
+  candidate Enter, Tab and Escape must not save, navigate, cancel or replace
+  the focused input. Retain measured columns and the following block's position.
+- After composition ends, keep the final draft until an ordinary Enter or blur
+  saves it; an ordinary Escape cancels. A composing blur must defer saving until
+  compositionend and use the final DOM value, not the earlier React draft.
+- Preserve native isComposing and legacy keyCode 229 guards, last-cell Tab row
+  insertion, Shift+Tab navigation, source delimiters and unrelated block identity.
+- Desktop source and actual package must persist exact Markdown across restart.
+  Android must use a held real InputConnection composition, native key events,
+  keyboard Back, rotation and restart, not a CDP-only composition fixture.
+- In short native landscape, require the entire focused input to remain between
+  the top bar and bottom navigation after rotation; retaining its value alone
+  does not certify visibility. Do not hide an occluded input in a passing screenshot.
+
 ## Standard property editing
 - Use registry controls for inline values, actions and the type menu, without
   legacy appearance overrides. Preserve Neutral themes and plugin DOM isolation.
