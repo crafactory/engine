@@ -7,6 +7,11 @@
   back to the note, and no leaked view or focus after closing the diff.
 - Stage/unstage through the source control UI and compare the real Git index;
   inspect commit history and a historical file diff without modifying the vault.
+- Keep staged and working bytes deliberately different; staged diff must show the
+  index. A staged-only commit must retain both an untracked file and an unstaged
+  modification to an already tracked file.
+- Adapter rereads advance only that plugin's observed write version. Reject a
+  later unseen disk edit; a plugin read must not bless a stale native editor draft.
 - Keep existing local stage/commit/push/pull workflows and all main flows below.
 - Inspect populated desktop and short/narrow layouts; this desktop Node workflow
   does not claim Android Git support or authenticated/conflicted remote safety.

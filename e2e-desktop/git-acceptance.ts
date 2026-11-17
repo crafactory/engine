@@ -26,6 +26,7 @@ export async function acceptGitWorkflow({
     diff = page.locator('.plugin-view-pane[data-type="split-diff-view"]'),
     history = page.locator('.plugin-view-pane[data-type="git-history-view"]');
   const row = () => source.locator('[aria-label="Test.md"]');
+  const stagedRow = () => row().filter({ has: page.locator('[aria-label="Unstage"]') });
   // Query rendered lines, not private plugin/editor objects. These fixtures fit in the viewport.
   const lines = (editor: Locator) => editor.locator('.cm-line').allTextContents();
   const expectDiff = async (before: string, after: string) => {
@@ -65,18 +66,28 @@ export async function acceptGitWorkflow({
   await row().locator('[aria-label="Stage"]').click();
   await expect.poll(() => git('show', ':Test.md')).toBe(saved);
   await expect(row().locator('[aria-label="Unstage"]')).toBeVisible();
-  await row().getByText('Test', { exact: true }).click();
+  await fs.writeFile(file, saved + 'Working tree only sentinel\n');
+  await expect(page.getByRole('textbox', { name: 'Note editor', exact: true })).toContainText(
+    'Working tree only sentinel',
+  );
+  await stagedRow().getByText('Test', { exact: true }).click();
   await expectDiff(original, saved);
   await closeDiff();
-  await row().locator('[aria-label="Unstage"]').click();
+  await fs.writeFile(file, saved);
+  await expect(page.getByRole('textbox', { name: 'Note editor', exact: true })).not.toContainText(
+    'Working tree only sentinel',
+  );
+  await stagedRow().locator('[aria-label="Unstage"]').click();
   await expect.poll(() => git('diff', '--cached', '--name-only')).toBe('');
   expect(await fs.readFile(file, 'utf8')).toBe(saved);
   await expect(row().locator('[aria-label="Stage"]')).toBeVisible();
   await command('Git: Stage current file');
   await expect.poll(() => git('show', ':Test.md')).toBe(saved);
 
-  const unstaged = path.join(root, 'Unstaged.md');
+  const unstaged = path.join(root, 'Unstaged.md'),
+    tracked = path.join(root, 'Tracked.md');
   await fs.writeFile(unstaged, 'Unstaged sentinel 中文\n');
+  await fs.writeFile(tracked, 'Tracked unstaged sentinel 中文\n');
   await command('Git: Commit staged with specific message');
   await expect(page.locator('.modal')).toBeVisible();
   await page.locator('.modal input').fill('Native Git fixture commit');
@@ -85,7 +96,10 @@ export async function acceptGitWorkflow({
   expect(git('show', 'HEAD:Test.md')).toBe(saved);
   expect(git('ls-tree', '--name-only', 'HEAD')).not.toContain('Unstaged.md');
   expect(await fs.readFile(unstaged, 'utf8')).toBe('Unstaged sentinel 中文\n');
+  expect(git('show', 'HEAD:Tracked.md')).toBe('Tracked baseline\n');
+  expect(await fs.readFile(tracked, 'utf8')).toBe('Tracked unstaged sentinel 中文\n');
   await fs.unlink(unstaged);
+  await fs.writeFile(tracked, 'Tracked baseline\n');
   const committed = git('rev-parse', 'HEAD').trim();
   await command('Git: Push');
   await expect.poll(() => git('ls-remote', 'origin', 'refs/heads/main')).toContain(committed);

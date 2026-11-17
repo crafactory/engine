@@ -106,7 +106,8 @@ for (const plugin of corpus.plugins)
       git('config', 'commit.gpgSign', 'false');
       git('config', 'core.hooksPath', os.platform() === 'win32' ? 'NUL' : '/dev/null');
       await fs.writeFile(path.join(root, '.gitignore'), '.crafactory/\n');
-      git('add', 'Test.md', '.gitignore');
+      await fs.writeFile(path.join(root, 'Tracked.md'), 'Tracked baseline\n');
+      git('add', 'Test.md', '.gitignore', 'Tracked.md');
       git('commit', '-m', 'Fixture initial commit');
       git('init', '--bare', gitRemote);
       git('remote', 'add', 'origin', gitRemote);

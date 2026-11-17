@@ -176,3 +176,45 @@ test('adapter writes preserve exact text, reject unsafe paths and refresh native
     '# Adapter 中文\n\nSaved from adapter\n',
   );
 });
+
+test('adapter reread advances its observed version without accepting unseen external bytes', async () => {
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
+  const write = (data: string) =>
+    page.evaluate((data) => (window as any).app.vault.adapter.write('Fixture.json', data), data);
+  const read = () => page.evaluate(() => (window as any).app.vault.adapter.read('Fixture.json'));
+  await write('{"version":1}\n');
+  await fs.writeFile(path.join(root, 'Fixture.json'), '{"version":2}\n');
+  expect(await read()).toBe('{"version":2}\n');
+  await write('{"version":3}\n');
+  await fs.writeFile(path.join(root, 'Fixture.json'), '{"version":4}\n');
+  await expect(write('{"version":5}\n')).rejects.toThrow('CONFLICT');
+  expect(await fs.readFile(path.join(root, 'Fixture.json'), 'utf8')).toBe('{"version":4}\n');
+  expect(await read()).toBe('{"version":4}\n');
+  await write('{"version":5}\n');
+  expect(await fs.readFile(path.join(root, 'Fixture.json'), 'utf8')).toBe('{"version":5}\n');
+});
+
+test('plugin reads do not advance the native editor draft save version', async () => {
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
+  const editor = page.getByRole('textbox', { name: 'Note editor', exact: true });
+  await editor.press('ControlOrMeta+End');
+  await editor.pressSequentially('Native unsaved draft');
+  const external = '# External authoritative content\n';
+  await fs.writeFile(path.join(root, 'Test.md'), external);
+  expect(await page.evaluate(() => (window as any).app.vault.adapter.read('Test.md'))).toBe(
+    external,
+  );
+  await editor.press('ControlOrMeta+s');
+  await expect(page.locator('[role="alert"]')).toContainText('CONFLICT');
+  expect(await fs.readFile(path.join(root, 'Test.md'), 'utf8')).toBe(external);
+  await expect(editor).toContainText('Native unsaved draft');
+  // Restore the original fixture version so normal close can flush the protected draft.
+  await fs.writeFile(path.join(root, 'Test.md'), '# Root contract\n');
+  await page.clock.resume();
+  await editor.press('ControlOrMeta+s');
+  await expect
+    .poll(() => fs.readFile(path.join(root, 'Test.md'), 'utf8'))
+    .toContain('Native unsaved draft');
+});

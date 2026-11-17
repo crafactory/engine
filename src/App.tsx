@@ -53,7 +53,8 @@ import {
   Globe,
 } from 'lucide-react';
 import { bridge, defaults } from './bridge';
-import { renameDestination } from './file-path';
+import { renameDestination, validPath } from './file-path';
+import { observePluginText } from './compat/observed-text';
 import { flushIndependent } from './services/flush-independent';
 import { readWorkspaceLayout } from './workspace-layout';
 import {
@@ -170,12 +171,6 @@ const Editor = lazy(() => import('./Editor').then((m) => ({ default: m.Editor })
 const Graph = lazy(() => import('./Graph').then((m) => ({ default: m.Graph })));
 
 const textFile = (path: string) => /\.(md|markdown|canvas|base|txt|csv|json|css)$/i.test(path);
-const validPath = (path: string) =>
-  path &&
-  !path.startsWith('/') &&
-  !path.includes('\\') &&
-  !path.split('/').some((p) => !p || p.startsWith('.')) &&
-  !path.includes('\0');
 function Logo() {
   return (
     <svg viewBox="0 0 32 32" fill="none" aria-label="Crafactory Engine">
@@ -1808,7 +1803,8 @@ export function App() {
       else if (name === 'modify') {
         const version = expectedVersion ?? (await storage().read(path)).version;
         result = await storage().write(path, text, version);
-      } else result = await storage().write(path, text, versions.current.get(path));
+      } else
+        result = await storage().write(path, text, expectedVersion ?? versions.current.get(path));
       savedContent.current.set(path, result.content);
       versions.current.set(path, result.version);
       const existing = notesRef.current.find((n) => n.path === path);
@@ -1847,6 +1843,14 @@ export function App() {
       await refreshEntries();
       return result;
     };
+    const pluginText = observePluginText(
+      async (path) => {
+        checkPath(path);
+        return storage().read(path);
+      },
+      (path, text, version) => mutateText('writeText', path, text, version),
+      ensureOpen,
+    );
     const host: CompatHost = {
       loadData: async (pluginId) => {
         ensureOpen();
@@ -1856,16 +1860,8 @@ export function App() {
         ensureOpen();
         return storage().pluginData(pluginId, data, true);
       },
-      read: async (path) => {
-        ensureOpen();
-        checkPath(path);
-        return (await storage().read(path)).content;
-      },
-      readVersioned: async (path) => {
-        ensureOpen();
-        checkPath(path);
-        return storage().read(path);
-      },
+      read: pluginText.read,
+      readVersioned: pluginText.readVersioned,
       readBinary: async (path) => {
         ensureOpen();
         checkPath(path);
@@ -1885,7 +1881,7 @@ export function App() {
       modify: (path, text, expectedVersion) => mutateText('modify', path, text, expectedVersion),
       append: (path, text) => mutateText('append', path, text),
       writeLegacy: (path, text) => mutateText('writeLegacy', path, text),
-      writeText: (path, text) => mutateText('writeText', path, text),
+      writeText: pluginText.write,
       rename: async (from, to) => {
         ensureOpen();
         checkPath(from);
