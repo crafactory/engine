@@ -1792,7 +1792,7 @@ export function App() {
       setEntries(next);
     };
     const mutateText = async (
-      name: 'create' | 'modify' | 'append' | 'writeLegacy',
+      name: 'create' | 'modify' | 'append' | 'writeLegacy' | 'writeText',
       path: string,
       text: string,
       expectedVersion?: string,
@@ -1885,6 +1885,7 @@ export function App() {
       modify: (path, text, expectedVersion) => mutateText('modify', path, text, expectedVersion),
       append: (path, text) => mutateText('append', path, text),
       writeLegacy: (path, text) => mutateText('writeLegacy', path, text),
+      writeText: (path, text) => mutateText('writeText', path, text),
       rename: async (from, to) => {
         ensureOpen();
         checkPath(from);

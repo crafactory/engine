@@ -741,6 +741,7 @@ export function createCompatibilityRuntime(
   const adapter = new FileSystemAdapter(host.native?.basePath, {
     read: (path) => request('readBinary', [path]) as Promise<ArrayBuffer>,
     readText: (path) => request('read', [path]) as Promise<string>,
+    writeText: (path, data) => mutate('writeText', [path, data]),
     write: (path, data) => mutate('writeBinary', [path, data]),
     exists: (path) => request('exists', [path]) as Promise<boolean>,
   });

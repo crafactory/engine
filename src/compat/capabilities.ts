@@ -16,6 +16,7 @@ export class FileSystemAdapter {
     private readonly files?: {
       read: (path: string) => Promise<ArrayBuffer>;
       readText: (path: string) => Promise<string>;
+      writeText: (path: string, data: string) => Promise<unknown>;
       write: (path: string, data: ArrayBuffer | ArrayBufferView) => Promise<unknown>;
       exists: (path: string) => Promise<boolean>;
     },
@@ -35,6 +36,11 @@ export class FileSystemAdapter {
   async read(path: string) {
     if (!this.files) return unsupported('FileSystemAdapter.read');
     return this.files.readText(path);
+  }
+  async write(path: string, data: string, options?: unknown) {
+    if (options !== undefined) return unsupported('FileSystemAdapter.write options');
+    if (!this.files) return unsupported('FileSystemAdapter.write');
+    await this.files.writeText(path, data);
   }
   async writeBinary(path: string, data: ArrayBuffer | ArrayBufferView) {
     if (!this.files) return unsupported('FileSystemAdapter.writeBinary');

@@ -36,9 +36,11 @@ for (const plugin of corpus.plugins)
     const dir = path.join(root, '.crafactory/plugins', manifest.id);
     await fs.mkdir(dir, { recursive: true });
     const note =
-      plugin.name === 'Dataview'
-        ? '# Test\n\n#alpha\n\n```dataview\nTABLE file.name AS "Name", file.mtime AS "Modified"\n```\n\n```dataview\nTASK\n```\n\n```dataview\nLIST FROM "Folder"\n```\n\n```dataview\nLIST\nWHERE file.name = "Second"\n```\n\n```dataview\nLIST FROM ""\nSORT file.name DESC\nLIMIT 2\n```\n\n```dataview\nTABLE rows.file.name AS "Files", length(rows) AS "Count"\nGROUP BY file.folder\n```\n\n```dataview\nTABLE WITHOUT ID file.name AS "Name", Tag\nFLATTEN file.etags AS Tag\n```\n\n```dataviewjs\ndv.paragraph("JS " + dv.current().file.name)\n```\n\n```dataviewjs\nawait dv.view("View", {name: "Test"})\n```\n\nInline: `= this.file.name`\n\n- [ ] Task one\n- [x] Task two\n'
-        : Array(400).fill('word').join(' ');
+      plugin.name === 'Git'
+        ? '# Git baseline 中文\n\nOriginal second line\n'
+        : plugin.name === 'Dataview'
+          ? '# Test\n\n#alpha\n\n```dataview\nTABLE file.name AS "Name", file.mtime AS "Modified"\n```\n\n```dataview\nTASK\n```\n\n```dataview\nLIST FROM "Folder"\n```\n\n```dataview\nLIST\nWHERE file.name = "Second"\n```\n\n```dataview\nLIST FROM ""\nSORT file.name DESC\nLIMIT 2\n```\n\n```dataview\nTABLE rows.file.name AS "Files", length(rows) AS "Count"\nGROUP BY file.folder\n```\n\n```dataview\nTABLE WITHOUT ID file.name AS "Name", Tag\nFLATTEN file.etags AS Tag\n```\n\n```dataviewjs\ndv.paragraph("JS " + dv.current().file.name)\n```\n\n```dataviewjs\nawait dv.view("View", {name: "Test"})\n```\n\nInline: `= this.file.name`\n\n- [ ] Task one\n- [x] Task two\n'
+          : Array(400).fill('word').join(' ');
     await fs.writeFile(
       path.join(root, 'Test.md'),
       plugin.name === 'Templater'

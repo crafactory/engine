@@ -38,6 +38,7 @@ export function requiredPermission(operation: string): PluginPermission | null {
     case 'createBinary':
     case 'modifyBinary':
     case 'writeLegacy':
+    case 'writeText':
     case 'mkdir':
     case 'rename':
       return 'vault:write';

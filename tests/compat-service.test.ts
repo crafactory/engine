@@ -56,6 +56,30 @@ describe('engine.compat/v1', () => {
     expect(exists).toHaveBeenCalledTimes(2);
     await expect(start(['vault:read'])('exists', ['present'])).rejects.toThrow('unavailable');
   });
+  it('gates adapter text writes without requiring read permission', async () => {
+    const worker = vi.fn((..._args: any[]) => controller),
+      writeText = vi.fn(async () => undefined),
+      service = createCompatService({ worker });
+    const start = (permissions: string[], extra: Partial<CompatHost> = {}) => {
+      service.start({
+        package: { manifest: { ...manifest, permissions }, code: '' },
+        mode: 'worker',
+        callbacks: { ...callbacks, host: { ...host, ...extra } },
+      });
+      return worker.mock.calls.at(-1)![4] as (name: string, args: unknown[]) => Promise<unknown>;
+    };
+    const operation = start(['vault:write'], { writeText });
+    await operation('writeText', ['settings.json', '{"中文":true}\n']);
+    expect(writeText).toHaveBeenCalledWith('settings.json', '{"中文":true}\n');
+    await expect(operation('writeText', ['test.md', null])).rejects.toThrow('Invalid plugin text');
+    await expect(
+      start(['vault:read'], { writeText })('writeText', ['test.md', 'x']),
+    ).rejects.toThrow('vault:write');
+    await expect(start(['vault:write'])('writeText', ['test.md', 'x'])).rejects.toThrow(
+      'unavailable',
+    );
+    expect(writeText).toHaveBeenCalledOnce();
+  });
   it('gates binary operations, validates buffers and preserves the host receiver', async () => {
     const worker = vi.fn((..._args: any[]) => controller),
       bytes = new Uint8Array([0, 255]);

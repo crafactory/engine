@@ -150,3 +150,29 @@ test('reused view refreshes its host title and close label without replacing the
   await page.getByRole('button', { name: 'Close After 中文', exact: true }).click();
   await expect(page.locator('.plugin-view-pane')).toHaveCount(0);
 });
+
+test('adapter writes preserve exact text, reject unsafe paths and refresh native notes', async () => {
+  const write = (name: string, data: string) =>
+    page.evaluate(({ name, data }) => (window as any).app.vault.adapter.write(name, data), {
+      name,
+      data,
+    });
+  await write('Test.md', '# Adapter 中文\n\nSaved from adapter\n');
+  expect(await fs.readFile(path.join(root, 'Test.md'), 'utf8')).toBe(
+    '# Adapter 中文\n\nSaved from adapter\n',
+  );
+  await expect(page.getByRole('textbox', { name: 'Note editor', exact: true })).toContainText(
+    'Saved from adapter',
+  );
+  await write('Fixture.json', '{"中文":true}\n');
+  await write('Fixture.json', '{"中文":false}\n');
+  expect(await fs.readFile(path.join(root, 'Fixture.json'), 'utf8')).toBe('{"中文":false}\n');
+  for (const unsafe of ['../escape.md', '.crafactory/state.json', 'image.bin'])
+    await expect(write(unsafe, 'do not write')).rejects.toThrow();
+  await expect(
+    page.evaluate(() => (window as any).app.vault.adapter.write('Test.md', 'bad', { mtime: 0 })),
+  ).rejects.toThrow('options');
+  expect(await fs.readFile(path.join(root, 'Test.md'), 'utf8')).toBe(
+    '# Adapter 中文\n\nSaved from adapter\n',
+  );
+});
