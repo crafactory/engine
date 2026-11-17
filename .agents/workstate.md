@@ -5,7 +5,7 @@
 Owner requested continuing after #83. Main baseline is f55bcfc; branch
 `fix/git-diff-workflow`, ready PR https://github.com/crafactory/engine/pull/84.
 Candidate 847037d received one effective CodeRabbit review; its valid findings
-and both test nits are fixed locally. No agents or upstream implementation
+and both test nits were fixed in 6ecc8ce and both threads resolved. No agents or upstream implementation
 inspection. Opaque pinned Git 2.42.0 runs only in a disposable native-trust desktop
 profile with synthetic identity and local bare remote, never personal credentials.
 
@@ -28,7 +28,7 @@ index stage/unstage, staged-only commit preserving an unstaged sentinel, local
 push/pull and child history excluding later work edits. Five of the six cases are
 owned contracts. Interactive dark/light and resized narrow/short desktop were
 inspected; narrow desktop navigation must close to expose overlay plugin panes.
-New deterministic adapter reread, unseen-write conflict and native draft
+New adapter reread, unseen-write conflict and native draft
 isolation contracts pass with the strengthened opaque Git workflow. Per-plugin
 observed versions are separate from native editor save versions. Staged diff now
 uses different working bytes, and staged-only commit preserves an unstaged
@@ -39,11 +39,16 @@ not a host fix or full history certification.
 
 ## Next checks
 
-- Commit/push review fixes and close handled threads. Included CodeRabbit quota is
+- Commit/push the clock setup fix; review threads are already handled. Included CodeRabbit quota is
   exhausted after one effective round; do not churn requests. Freeze final head and run
   full check/browser/source Electron with all eleven corpus inputs, all platform
   builds/Android gates and downloaded Linux package replay. Merge that exact head.
-- Android candidate847037d attempt2 passed; final-head native run must pass too.
+- Candidate6ecc8ce local 972-unit/121-browser/116-source gates, three-platform
+  builds and Android passed, but both CI Verify runs failed a new clock setup
+  race ("Cannot fast-forward to the past"). Fixed-epoch future-pause setup
+  passed five repeats of both contracts (10/10) before a new frozen head. Its package run was interrupted,
+  not accepted. Do not reuse old-head results as final acceptance.
+- Android candidate6ecc8ce passed; final-head native run must pass too.
   Do not waive the gate or confuse old-head/partial passes with it.
 - Preserve accepted evidence/corpus; free disk currently about 1.9 GiB. No overlapping
   local builds/Electron tests or watched source/docs writes during replays.

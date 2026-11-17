@@ -11,6 +11,12 @@ import os from 'node:os';
 import { nativeTestEnv } from './native-env';
 
 let root: string, profile: string, app: ElectronApplication, page: Page;
+async function pauseRendererClock() {
+  const time = new Date('2026-01-01T00:00:00Z');
+  await page.clock.install({ time });
+  // Stay ahead of the advancing installed clock without comparing process clocks.
+  await page.clock.pauseAt(new Date(time.getTime() + 60_000));
+}
 test.beforeEach(async () => {
   root = await fs.mkdtemp(path.join(os.tmpdir(), 'engine-root-contract-'));
   profile = await fs.mkdtemp(path.join(os.tmpdir(), 'engine-root-profile-'));
@@ -178,8 +184,7 @@ test('adapter writes preserve exact text, reject unsafe paths and refresh native
 });
 
 test('adapter reread advances its observed version without accepting unseen external bytes', async () => {
-  await page.clock.install();
-  await page.clock.pauseAt(new Date());
+  await pauseRendererClock();
   const write = (data: string) =>
     page.evaluate((data) => (window as any).app.vault.adapter.write('Fixture.json', data), data);
   const read = () => page.evaluate(() => (window as any).app.vault.adapter.read('Fixture.json'));
@@ -196,8 +201,7 @@ test('adapter reread advances its observed version without accepting unseen exte
 });
 
 test('plugin reads do not advance the native editor draft save version', async () => {
-  await page.clock.install();
-  await page.clock.pauseAt(new Date());
+  await pauseRendererClock();
   const editor = page.getByRole('textbox', { name: 'Note editor', exact: true });
   await editor.press('ControlOrMeta+End');
   await editor.pressSequentially('Native unsaved draft');
