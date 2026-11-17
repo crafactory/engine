@@ -1872,6 +1872,12 @@ export function App() {
         if (!bridge.readBinary) throw new Error('Binary vault reads are unavailable on this host');
         return bridge.readBinary(path);
       },
+      exists: async (path) => {
+        ensureOpen();
+        if (path !== '') checkPath(path);
+        if (!bridge.exists) throw new Error('Vault existence queries are unavailable on this host');
+        return bridge.exists(path);
+      },
       writeBinary: (path, data) => mutateBinary('writeBinary', path, data),
       createBinary: (path, data) => mutateBinary('createBinary', path, data),
       modifyBinary: (path, data) => mutateBinary('modifyBinary', path, data),

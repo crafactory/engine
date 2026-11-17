@@ -23,7 +23,7 @@ function onBeforeClose(fn) {
 const api = {
   desktop: true,
   ...Object.fromEntries(
-    ['readBinary', 'writeBinary', 'createBinary', 'modifyBinary'].map((name) => [
+    ['readBinary', 'writeBinary', 'createBinary', 'modifyBinary', 'exists'].map((name) => [
       name,
       invoke(name),
     ]),

@@ -14,6 +14,37 @@ afterEach(async () => {
   await fs.rm(outside, { recursive: true, force: true });
 });
 describe('local vault storage', () => {
+  it('queries current file/directory existence without reading bytes or hiding failures', async () => {
+    await fs.mkdir(path.join(root, 'folder'));
+    await fs.writeFile(path.join(root, 'folder/中文.bin'), new Uint8Array([0, 255]));
+    expect(await vault.exists('')).toBe(true);
+    expect(await vault.exists('folder')).toBe(true);
+    expect(await vault.exists('folder/中文.bin')).toBe(true);
+    expect(await vault.exists('missing')).toBe(false);
+    expect(await vault.exists('missing/nested.bin')).toBe(false);
+    expect(await vault.exists('folder/中文.bin/child')).toBe(false);
+    await fs.unlink(path.join(root, 'folder/中文.bin'));
+    expect(await vault.exists('folder/中文.bin')).toBe(false);
+    for (const invalid of ['../escape', '.crafactory', '\0', outside])
+      await expect(vault.exists(invalid)).rejects.toThrow('Invalid vault path');
+    await fs.symlink(
+      outside,
+      path.join(root, 'escape'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
+    await expect(vault.exists('escape')).rejects.toThrow('Symlink escapes vault');
+    const originalStat = fs.stat;
+    const stat = vi.spyOn(fs, 'stat').mockImplementation(async (...args) => {
+      if (args[0] === path.join(root, 'folder'))
+        throw Object.assign(new Error('Access denied'), { code: 'EACCES' });
+      return originalStat(...args);
+    });
+    try {
+      await expect(vault.exists('folder')).rejects.toThrow('Access denied');
+    } finally {
+      stat.mockRestore();
+    }
+  });
   it('documents the accepted final-check binary deletion race without claiming conditional publication', async () => {
     const target = path.join(root, 'image.bin'),
       original = fs.rename;

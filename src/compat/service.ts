@@ -32,6 +32,9 @@ function operationFor(manifest: PluginManifest, host: CompatHost) {
         return host.saveData(manifest.id, args[0]);
       case 'read':
         return host.read(path(args[0]));
+      case 'exists':
+        if (!host.exists) throw new Error('Vault existence queries are unavailable on this host');
+        return host.exists(path(args[0]));
       case 'readVersioned': {
         if (!host.readVersioned) throw new Error('Versioned text reads are unavailable');
         return host.readVersioned(path(args[0]));

@@ -1,0 +1,58 @@
+/* Host-owned workspace primitives used by trusted plugin DOM, not plugin-specific skins. */
+:where(.plugin-view-content) .nav-buttons-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+:where(.plugin-view-content) .clickable-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+:where(.plugin-view-content) .clickable-icon:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+:where(.plugin-view-content) .clickable-icon .svg-icon {
+  width: 18px;
+  height: 18px;
+}
+:where(.plugin-view-content) .tree-item-self {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+}
+:where(.plugin-view-content) .tree-item-inner {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:where(.plugin-view-content) .tree-item-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+:where(.plugin-view-content) .tree-item-children {
+  padding-left: 14px;
+}
+:where(.plugin-view-content) .cm-editor {
+  background: var(--panel);
+  color: var(--text);
+}
+:where(.plugin-view-content) .cm-gutters {
+  background: var(--panel);
+  color: var(--muted-foreground);
+  border-color: var(--border);
+}
+#plugin-views:has(> [data-type='split-diff-view']) {
+  width: min(860px, calc(100% - 32px));
+}

@@ -36,6 +36,26 @@ const callbacks = {
 const controller = { ready: Promise.resolve(), sync: () => {}, stop: async () => {} };
 
 describe('engine.compat/v1', () => {
+  it('permission-gates existence queries and explicitly rejects unavailable hosts', async () => {
+    const worker = vi.fn((..._args: any[]) => controller);
+    const exists = vi.fn(async (path: string) => path === 'present');
+    const service = createCompatService({ worker });
+    const start = (permissions: string[], extra: Partial<CompatHost> = {}) => {
+      service.start({
+        package: { manifest: { ...manifest, permissions }, code: '' },
+        mode: 'worker',
+        callbacks: { ...callbacks, host: { ...host, ...extra } },
+      });
+      return worker.mock.calls.at(-1)![4] as (name: string, args: unknown[]) => Promise<unknown>;
+    };
+    const operation = start(['vault:read'], { exists });
+    await expect(operation('exists', ['present'])).resolves.toBe(true);
+    await expect(operation('exists', ['missing'])).resolves.toBe(false);
+    await expect(operation('exists', [null])).rejects.toThrow('Invalid plugin vault path');
+    await expect(start([], { exists })('exists', ['present'])).rejects.toThrow('vault:read');
+    expect(exists).toHaveBeenCalledTimes(2);
+    await expect(start(['vault:read'])('exists', ['present'])).rejects.toThrow('unavailable');
+  });
   it('gates binary operations, validates buffers and preserves the host receiver', async () => {
     const worker = vi.fn((..._args: any[]) => controller),
       bytes = new Uint8Array([0, 255]);

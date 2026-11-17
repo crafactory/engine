@@ -189,6 +189,7 @@ async function start() {
   };
   ipc('nativePlugins', () => nativePluginsEnabled);
   ipc('readBinary', (p) => vault.readBinary(p));
+  ipc('exists', (p) => vault.exists(p));
   for (const [operation, mode] of [
     ['writeBinary', 'write'],
     ['createBinary', 'create'],

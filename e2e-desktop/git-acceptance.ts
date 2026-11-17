@@ -28,9 +28,9 @@ export async function acceptGitWorkflow({
     .filter({ hasText: /^Git: Open source control view$/ })
     .click();
   await expect(page.locator('.plugin-view-pane')).toBeVisible();
-  console.log('GIT SOURCE CONTROL ' + (await page.locator('.plugin-view-pane').innerText()));
-  await page.screenshot({ path: '/tmp/engine-84-git-source-baseline.png' });
-  await expect(page.locator('.plugin-view-content')).toContainText('Test.md');
+  await expect(
+    page.locator('.plugin-view-content').getByText('Test', { exact: true }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Command palette', exact: true }).click();
   await page.getByTestId('palette-input').fill('Git: Stage current file');
   await page
