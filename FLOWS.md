@@ -1,5 +1,16 @@
 # Main flows
 
+## Git source control and diff workflow
+- In a disposable native-trust desktop profile, enable the unchanged pinned Git
+  plugin. Open source control, inspect an edited note, and open its actual diff.
+- Require visible old/new content, retained dirty note bytes, safe navigation
+  back to the note, and no leaked view or focus after closing the diff.
+- Stage/unstage through the source control UI and compare the real Git index;
+  inspect commit history and a historical file diff without modifying the vault.
+- Keep existing local stage/commit/push/pull workflows and all main flows below.
+- Inspect populated desktop and short/narrow layouts; this desktop Node workflow
+  does not claim Android Git support or authenticated/conflicted remote safety.
+
 ## Live table composition continuity
 - Open a cell in Live editing at 1440px and 390px. Start Chinese composition:
   candidate Enter, Tab and Escape must not save, navigate, cancel or replace
