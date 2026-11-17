@@ -5,6 +5,7 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { nativeTestEnv } from './native-env';
+import { acceptGitWorkflow } from './git-acceptance';
 import { acceptDataviewReading } from './dataview-acceptance';
 const corpus = JSON.parse(
   await fs.readFile(
@@ -35,9 +36,11 @@ for (const plugin of corpus.plugins)
     const dir = path.join(root, '.crafactory/plugins', manifest.id);
     await fs.mkdir(dir, { recursive: true });
     const note =
-      plugin.name === 'Dataview'
-        ? '# Test\n\n#alpha\n\n```dataview\nTABLE file.name AS "Name", file.mtime AS "Modified"\n```\n\n```dataview\nTASK\n```\n\n```dataview\nLIST FROM "Folder"\n```\n\n```dataview\nLIST\nWHERE file.name = "Second"\n```\n\n```dataview\nLIST FROM ""\nSORT file.name DESC\nLIMIT 2\n```\n\n```dataview\nTABLE rows.file.name AS "Files", length(rows) AS "Count"\nGROUP BY file.folder\n```\n\n```dataview\nTABLE WITHOUT ID file.name AS "Name", Tag\nFLATTEN file.etags AS Tag\n```\n\n```dataviewjs\ndv.paragraph("JS " + dv.current().file.name)\n```\n\n```dataviewjs\nawait dv.view("View", {name: "Test"})\n```\n\nInline: `= this.file.name`\n\n- [ ] Task one\n- [x] Task two\n'
-        : Array(400).fill('word').join(' ');
+      plugin.name === 'Git'
+        ? '# Git baseline 中文\n\nOriginal second line\n'
+        : plugin.name === 'Dataview'
+          ? '# Test\n\n#alpha\n\n```dataview\nTABLE file.name AS "Name", file.mtime AS "Modified"\n```\n\n```dataview\nTASK\n```\n\n```dataview\nLIST FROM "Folder"\n```\n\n```dataview\nLIST\nWHERE file.name = "Second"\n```\n\n```dataview\nLIST FROM ""\nSORT file.name DESC\nLIMIT 2\n```\n\n```dataview\nTABLE rows.file.name AS "Files", length(rows) AS "Count"\nGROUP BY file.folder\n```\n\n```dataview\nTABLE WITHOUT ID file.name AS "Name", Tag\nFLATTEN file.etags AS Tag\n```\n\n```dataviewjs\ndv.paragraph("JS " + dv.current().file.name)\n```\n\n```dataviewjs\nawait dv.view("View", {name: "Test"})\n```\n\nInline: `= this.file.name`\n\n- [ ] Task one\n- [x] Task two\n'
+          : Array(400).fill('word').join(' ');
     await fs.writeFile(
       path.join(root, 'Test.md'),
       plugin.name === 'Templater'
@@ -103,7 +106,8 @@ for (const plugin of corpus.plugins)
       git('config', 'commit.gpgSign', 'false');
       git('config', 'core.hooksPath', os.platform() === 'win32' ? 'NUL' : '/dev/null');
       await fs.writeFile(path.join(root, '.gitignore'), '.crafactory/\n');
-      git('add', 'Test.md', '.gitignore');
+      await fs.writeFile(path.join(root, 'Tracked.md'), 'Tracked baseline\n');
+      git('add', 'Test.md', '.gitignore', 'Tracked.md');
       git('commit', '-m', 'Fixture initial commit');
       git('init', '--bare', gitRemote);
       git('remote', 'add', 'origin', gitRemote);
@@ -823,67 +827,7 @@ for (const plugin of corpus.plugins)
         ];
       }
       if (outcome === 'STARTUP_ONLY' && plugin.name === 'Git') {
-        await page.getByTestId('settings-close').click();
-        await fs.appendFile(path.join(root, 'Test.md'), '\nNative Git fixture edit\n');
-        await expect(page.locator('.cm-content')).toContainText('Native Git fixture edit');
-        await page.getByRole('button', { name: 'Command palette', exact: true }).click();
-        await page.getByTestId('palette-input').fill('Git: Stage current file');
-        await page
-          .locator('.palette-list [role="option"]')
-          .filter({ hasText: 'Git: Stage current file' })
-          .click();
-        await expect.poll(() => git('diff', '--cached', '--name-only')).toContain('Test.md');
-        await page.getByRole('button', { name: 'Command palette', exact: true }).click();
-        await page.getByTestId('palette-input').fill('Git: Commit staged with specific message');
-        await page
-          .locator('.palette-list [role="option"]')
-          .filter({ hasText: 'Git: Commit staged with specific message' })
-          .click();
-        await expect(page.locator('.modal')).toBeVisible();
-        console.log('GIT COMMIT DIALOG ' + (await page.locator('.modal').innerText()));
-        await page.locator('.modal input').fill('Native Git fixture commit');
-        await page.locator('.modal input').press('Enter');
-        await expect
-          .poll(() => git('log', '-1', '--format=%s'))
-          .toContain('Native Git fixture commit');
-        expect(git('show', 'HEAD:Test.md')).toContain('Native Git fixture edit');
-        const committed = git('rev-parse', 'HEAD').trim();
-        await page.getByRole('button', { name: 'Command palette', exact: true }).click();
-        await page.getByTestId('palette-input').fill('Git: Push');
-        await page
-          .locator('.palette-list [role="option"]')
-          .filter({ hasText: /^Git: Push$/ })
-          .click();
-        await expect.poll(() => git('ls-remote', 'origin', 'refs/heads/main')).toContain(committed);
-        const peer = path.join(profile, 'peer');
-        git('clone', '--branch', 'main', gitRemote, peer);
-        gitAt(peer, 'config', 'user.name', 'Engine Compatibility Fixture');
-        gitAt(peer, 'config', 'user.email', 'fixture@example.invalid');
-        gitAt(peer, 'config', 'commit.gpgSign', 'false');
-        gitAt(peer, 'config', 'core.hooksPath', os.platform() === 'win32' ? 'NUL' : '/dev/null');
-        await fs.appendFile(path.join(peer, 'Test.md'), '\nIncoming local-remote fixture edit\n');
-        gitAt(peer, 'add', 'Test.md');
-        gitAt(peer, 'commit', '-m', 'Incoming fixture commit');
-        gitAt(peer, 'push', 'origin', 'main');
-        await page.getByRole('button', { name: 'Command palette', exact: true }).click();
-        await page.getByTestId('palette-input').fill('Git: Pull');
-        await page
-          .locator('.palette-list [role="option"]')
-          .filter({ hasText: /^Git: Pull$/ })
-          .click();
-        await expect
-          .poll(() => fs.readFile(path.join(root, 'Test.md'), 'utf8'))
-          .toContain('Incoming local-remote fixture edit');
-        await expect(page.locator('.cm-content')).toContainText(
-          'Incoming local-remote fixture edit',
-        );
-        workflows = [
-          'explicit native profile uses real Node modules',
-          'stage current file updates the real index',
-          'commit staged with specific message creates a local commit containing the edit',
-          'push updates a disposable local bare remote',
-          'pull imports a peer commit and refreshes the real editor; no credentials or Internet remote used',
-        ];
+        workflows = await acceptGitWorkflow({ page, root, profile, git, gitAt });
         outcome = 'BOUNDED_WORKFLOWS_PASS';
       }
       if (outcome === 'STARTUP_ONLY' && plugin.name === 'Kanban') {

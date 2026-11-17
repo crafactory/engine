@@ -18,3 +18,10 @@ export function renameDestination(from: string, requested: string, folder = fals
     );
   return requested + extension;
 }
+/** Existing vault-path boundary shared by native and plugin note operations. */
+export const validPath = (path: string) =>
+  path &&
+  !path.startsWith('/') &&
+  !path.includes('\\') &&
+  !path.split('/').some((p) => !p || p.startsWith('.')) &&
+  !path.includes('\0');

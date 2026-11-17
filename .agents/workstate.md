@@ -1,67 +1,65 @@
-# Live table composition continuity
+# Git source control, diff and history
 
-## Current focus
+## Current increment
 
-Owner asked to repair #82 and continue quality/function coverage. #82 is merged
-as e594b90, tree identical to accepted head 04cfb4f. Final evidence:
-https://github.com/crafactory/engine/pull/82#issuecomment-6759533823.
+Owner requested continuing after #83. Main baseline is f55bcfc; branch
+`fix/git-diff-workflow`, ready PR https://github.com/crafactory/engine/pull/84.
+Candidate 847037d received one effective CodeRabbit review; its valid findings
+and both test nits were fixed in 6ecc8ce and both threads resolved. No agents or upstream implementation
+inspection. Opaque pinned Git 2.42.0 runs only in a disposable native-trust desktop
+profile with synthetic identity and local bare remote, never personal credentials.
 
-Branch `fix/live-table-composition`, baseline main e594b90. Draft PR #83 is open.
-Interactive candidate Enter prematurely commits 中 and removes the table input.
-Five browser negative controls confirm composing-key and blur failures. Ordinary
-Escape check had a multiline textContent harness error, now corrected; not a bug.
-Corrected baseline: five failures and one pass.
+## Reproduced gaps and implementation
 
-## Scope and verification
+Baseline command staging/commit worked, but Source Control failed on DOM getAttr
+and workspace getRoot. Original negative contracts failed as expected.
+Implemented HTML/SVG getAttr, stable same-document root/container identities,
+desktop real-disk adapter.exists and controlled adapter.read/write.
+The existence query is permission/path checked; missing returns false, other
+errors propagate. Android/browser hosts without the capability reject explicitly.
+Menu/MenuItem and shared failure/native adapter capabilities are focused
+extractions, not raised source ceilings.
 
-- Protect the active table input from composing Enter/Tab/Escape, native
-  isComposing and keyCode 229; defer composing blur to final compositionend value.
-- Preserve DOM, measured columns, following-block geometry and normal navigation.
-- LivePreview is at its frozen 997-line ceiling: move only the existing table
-  component to the approved ui/blocks domain; no wider widget refactoring.
-- Native gate must hold real InputConnection composition, use native keys,
-  keyboard Back/rotation, exact private-file bytes and restart.
-- Early PR, bounded CodeRabbit review/fix, exact-head full check/browser/source
-  Electron/Linux package/Android gates; merge before another increment.
+Interactive black-box probing subsequently exercised working-tree diff, real
+index stage/unstage and normal child-commit history diff. It exposed host toolbar
+layout and stale reused-view headers, fixed with scoped workspace CSS and header
+refresh. Six focused Electron cases passed, including real diff typing/save,
+index stage/unstage, staged-only commit preserving an unstaged sentinel, local
+push/pull and child history excluding later work edits. Five of the six cases are
+owned contracts. Interactive dark/light and resized narrow/short desktop were
+inspected; narrow desktop navigation must close to expose overlay plugin panes.
+New adapter reread, unseen-write conflict and native draft
+isolation contracts pass with the strengthened opaque Git workflow. Per-plugin
+observed versions are separate from native editor save versions. Staged diff now
+uses different working bytes, and staged-only commit preserves an unstaged
+tracked modification plus an untracked file. Do not claim final acceptance yet.
+Pinned plugin root-commit
+history diff errors on nonexistent parent `HEAD^`; record as an explicit limitation,
+not a host fix or full history certification.
 
-## Current evidence
+## Next checks
 
-At e44510d full check/browser/source Electron passed 965/120/109 with all eleven
-inputs. Three platform packages and actual APK thirteen groups passed too, but
-native screenshot exposed a clipped focused input behind landscape navigation.
-That first APK is not accepted. A browser negative control reproduces clipping;
-reflow now scrolls the same focused input fully into view. Seven new plus six
-original stability cases pass together. Browser/APK bounds now require the
-entire input between top and bottom bars.
+- Commit/push the clock setup fix; review threads are already handled. Included CodeRabbit quota is
+  exhausted after one effective round; do not churn requests. Freeze final head and run
+  full check/browser/source Electron with all eleven corpus inputs, all platform
+  builds/Android gates and downloaded Linux package replay. Merge that exact head.
+- Candidate6ecc8ce local 972-unit/121-browser/116-source gates, three-platform
+  builds and Android passed, but both CI Verify runs failed a new clock setup
+  race ("Cannot fast-forward to the past"). Fixed-epoch future-pause setup
+  passed five repeats of both contracts (10/10) before a new frozen head. Its package run was interrupted,
+  not accepted. Do not reuse old-head results as final acceptance.
+- Android candidate6ecc8ce passed; final-head native run must pass too.
+  Do not waive the gate or confuse old-head/partial passes with it.
+- Preserve accepted evidence/corpus; free disk currently about 1.9 GiB. No overlapping
+  local builds/Electron tests or watched source/docs writes during replays.
 
-CodeRabbit completed one effective review (COMMENTED, zero inline findings).
-Default docstring warning handled with helper comments. Allowance exhausted;
-do not request another review or treat a skip as approval. Next: freeze follow-up,
-all exact-head gates, inspect the new APK and actual package, then merge.
-First e44510d package replay stopped after 32 cases (exit143), not accepted.
+## Communication and attribution
 
-Negative-control log `/tmp/engine-table-negative-corrected.log`; interactive baseline image
-`/tmp/engine-live-table-composition-before.png`. Corrected tests still need replay.
-Existing Vite 5173 remains running. Persistent js_repl `liveQualityBrowser`,
-`liveQualityContext`, `liveQualityPage` are owned QA handles.
-They now show a fresh Table continuity note, not the Welcome table restored on
-preview reload. Final phone draft/desktop Tab screenshots inspected; no page
-errors. Initial source full 109 passed; package was stopped for the visual fix.
-No build/test currently running. New focused log:
-`/tmp/engine-83-landscape-focused.log`; negative log:
-`/tmp/engine-83-landscape-negative.log`.
-
-Accepted #82 files are shared, but no results email has been sent for the current
-request yet. Fold this increment's outcome into a single private Chinese email;
-do not send another acknowledgment. Disk has 3.4 GiB free; retain accepted
-evidence/corpus and avoid overlapping local builds/Electron runs or watched
-source/docs edits during replay.
-
-## Constraints
-
-- No agents, issues or upstream plugin implementation inspection/copying.
-- Verify author AND committer before every commit/merge; no credentials inspection.
-- Do not raise frozen ceilings; Node 22 `/tmp/engine-node/node_modules/node/bin`.
-- Desktop trust is OS-profile-wide; Android has no Node/Electron.
-- Use `send_email(cc=[])` for private Chinese results, then empty final.
-- PR/comments footer: `<sub>Created with [Perplexity](https://www.perplexity.ai/computer/tasks/6cd27721-c736-5d46-b8cf-1f89aa2c3cbe)</sub>`
+Current request already has one private Chinese acknowledgment. Send one private
+results email with cc=[] when complete, then an empty final. No extra acknowledgment.
+Verify configured author AND committer before every commit/merge; never inspect
+credentials or override configured repository identity.
+Commits end with `Co-authored-by: Perplexity <noreply@perplexity.ai>` exactly once.
+PR bodies/GitHub comments only, on their own final line:
+`<sub>Created with [Perplexity](https://www.perplexity.ai/computer/tasks/6cd27721-c736-5d46-b8cf-1f89aa2c3cbe)</sub>`.
+Do not put that footer in user replies or emails.

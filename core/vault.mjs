@@ -128,6 +128,17 @@ export class Vault {
   async create(relative, content) {
     return this.write(relative, content, undefined, true);
   }
+  /** Query files and directories without bypassing the normal vault path checks. */
+  async exists(relative) {
+    try {
+      const full = await this.safe(relative);
+      await fs.stat(full);
+      return true;
+    } catch (error) {
+      if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return false;
+      throw error;
+    }
+  }
   /** Return bounded exact file bytes after the normal vault path checks. */
   async readBinary(relative) {
     const full = await this.safe(relative),

@@ -7,6 +7,8 @@ import type { Entry, Note, PluginManifest } from './types';
 import type { CachedMetadata } from './metadata';
 import { Scope } from './compat-keymap';
 import { platformInfo } from './platform';
+import { FileSystemAdapter, unsupported } from './compat/capabilities';
+export { CompatibilityError, FileSystemAdapter, unsupported } from './compat/capabilities';
 
 const exposedApps: any[] = [];
 /** Expose the latest trusted renderer App globally, matching Obsidian's untyped window.app. */
@@ -92,40 +94,6 @@ export interface CompatHost {
     ): { processor: any; dispose: () => Promise<void> };
   };
 }
-export class FileSystemAdapter {
-  constructor(
-    private readonly root = '',
-    private readonly binary?: {
-      read: (path: string) => Promise<ArrayBuffer>;
-      write: (path: string, data: ArrayBuffer | ArrayBufferView) => Promise<unknown>;
-    },
-  ) {}
-  getBasePath() {
-    if (!this.root) return unsupported('FileSystemAdapter.getBasePath');
-    return this.root;
-  }
-  getName() {
-    if (!this.root) return unsupported('FileSystemAdapter.getName');
-    return this.root.split(/[\\/]/).filter(Boolean).pop() || '';
-  }
-  async readBinary(path: string) {
-    if (!this.binary) return unsupported('FileSystemAdapter.readBinary');
-    return this.binary.read(path);
-  }
-  async writeBinary(path: string, data: ArrayBuffer | ArrayBufferView) {
-    if (!this.binary) return unsupported('FileSystemAdapter.writeBinary');
-    await this.binary.write(path, data);
-  }
-}
-export class CompatibilityError extends Error {
-  constructor(readonly capability: string) {
-    super('Unsupported Obsidian capability: ' + capability + '. See docs/PLUGIN-COMPATIBILITY.md.');
-    this.name = 'CompatibilityError';
-  }
-}
-export const unsupported = (name: string): never => {
-  throw new CompatibilityError(name);
-};
 /** Refuse unknown members explicitly while preserving ordinary Promise detection. */
 export function guardCompatibilityObject<T extends object>(
   object: T,
@@ -772,7 +740,10 @@ export function createCompatibilityRuntime(
   }
   const adapter = new FileSystemAdapter(host.native?.basePath, {
     read: (path) => request('readBinary', [path]) as Promise<ArrayBuffer>,
+    readText: (path) => request('read', [path]) as Promise<string>,
+    writeText: (path, data) => mutate('writeText', [path, data]),
     write: (path, data) => mutate('writeBinary', [path, data]),
+    exists: (path) => request('exists', [path]) as Promise<boolean>,
   });
   /** Intern file/folder identities and attach them once to the cached parent graph. */
   function ensureAbstract(path: string, folder: boolean): TAbstractFile {

@@ -72,6 +72,7 @@ export interface Bridge {
   choose(create?: boolean): Promise<boolean>;
   list(): Promise<Entry[]>;
   read(path: string): Promise<Note>;
+  exists?(path: string): Promise<boolean>;
   readBinary?(path: string): Promise<ArrayBuffer>;
   writeBinary?(
     path: string,

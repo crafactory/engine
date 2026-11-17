@@ -26,6 +26,8 @@ export interface CompatHost {
   loadData(id: string): Promise<unknown>;
   saveData(id: string, data: unknown): Promise<unknown>;
   read(path: string): Promise<string>;
+  exists?(path: string): Promise<boolean>;
+  writeText?(path: string, data: string): Promise<unknown>;
   readVersioned?(path: string): Promise<{ content: string; version: string }>;
   readBinary?(path: string): Promise<ArrayBuffer>;
   writeBinary?(path: string, data: ArrayBuffer | ArrayBufferView): Promise<unknown>;

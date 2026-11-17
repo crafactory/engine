@@ -7,6 +7,7 @@ import './ui/theme.css';
 import './components/ui/ui.css';
 import './style.css';
 import './ui/overlays.css';
+import './compat/workspace.css';
 class Boundary extends React.Component<{ children: React.ReactNode }, { error: string }> {
   state = { error: '' };
   static getDerivedStateFromError(error: Error) {

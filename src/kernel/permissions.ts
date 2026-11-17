@@ -20,6 +20,7 @@ export type PluginPermission = (typeof PLUGIN_PERMISSIONS)[number];
 export function requiredPermission(operation: string): PluginPermission | null {
   switch (operation) {
     case 'read':
+    case 'exists':
     case 'readVersioned':
     case 'readBinary':
     case 'open':
@@ -37,6 +38,7 @@ export function requiredPermission(operation: string): PluginPermission | null {
     case 'createBinary':
     case 'modifyBinary':
     case 'writeLegacy':
+    case 'writeText':
     case 'mkdir':
     case 'rename':
       return 'vault:write';

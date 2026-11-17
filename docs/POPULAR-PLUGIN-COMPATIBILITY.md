@@ -12,7 +12,7 @@ The target set is the all-time download top ten on [Obsidian Stats](https://www.
 | 2 | Templater | 2.26.0 | Existing insertion, creation, startup/user scripts and settings workflows |
 | 3 | Dataview | tag 0.5.70 / manifest 0.5.68 | Existing bounded DQL and DataviewJS workflows |
 | 4 | Tasks | 8.6.0 | Cross-note not-done query, persisted completion and refresh without the former property-type error; bounded profile/vault-keyed property overrides |
-| 5 | Git | 2.42.0 | Native-profile stage/commit/push to local bare remote and peer-commit pull; authentication/conflicts not certified |
+| 5 | Git | 2.42.0 | Native-profile Source Control, working/staged diff and Unicode diff save, stage/unstage, staged-only commit, local push/pull and child-commit history diff; root history error, authentication/conflicts not certified |
 | 6 | Advanced Tables | 0.23.2 | Existing live-editor table-formatting workflow |
 | 7 | Calendar | tag 2.0.0-beta.2 / manifest 2.0.0 | Existing today/create/open daily-note workflow |
 | 8 | Copilot | 4.0.17 | Startup with background failure at `App.secretStorage`; inference not tested |
@@ -38,7 +38,7 @@ Worker remains the default and rejects DOM/native modules. Renderer execution re
 
 Git receives actual native modules in that full-trust profile rather than fake filesystem/process modules. Disposable-repository acceptance does not establish credential, cancellation or conflict safety for arbitrary user repositories. The original embed registry, editable CodeMirror source surface and metadata type manager are bounded implementations, not complete private-API parity. Property overrides use profile-local vault-keyed storage, not Obsidian types.json or a complete property editor.
 
-The remaining goal includes additional Excalidraw tools/export/embedding and core Canvas integration, Kanban card/list reordering, other movement/conversion modes and cross-plugin integrations, Git diff/backup/conflict/authentication flows, Copilot authorized authenticated inference, and Style Settings other control types/import/export/theme management. Existing bounded tests establish neither mobile compatibility nor arbitrary versions, complete settings coverage, cross-plugin focus sharing or all upstream features.
+The remaining goal includes additional Excalidraw tools/export/embedding and core Canvas integration, Kanban card/list reordering, other movement/conversion modes and cross-plugin integrations, Git root-commit/other diff modes, automatic backup/conflict/authentication flows, Copilot authorized authenticated inference, and Style Settings other control types/import/export/theme management. Existing bounded tests establish neither mobile compatibility nor arbitrary versions, complete settings coverage, cross-plugin focus sharing or all upstream features.
 
 ## Public contracts
 

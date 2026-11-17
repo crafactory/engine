@@ -90,7 +90,29 @@ Package metadata is validated before a plugin is offered in Settings: lowercase 
 
 In-repo extensions add UI through `engine.views/v1` (main/panel component loaders) and `engine.ui/v1` (ribbon buttons, status-bar text, settings sections and opt-in fenced-block previews). Compatibility plugins use the trusted renderer DOM host for ribbon, status, settings tabs, custom views and editor extensions. The compatibility loader is itself the native `engine.compat` runtime plugin (`engine.compat/v1` contract); App resolves it and the **Obsidian plugin support** Core plugin switch gates package loading. Discovery/validation and the permission-to-host operation mapping now live in the support implementation; the Community plugins UI remains application-side. Native `engine.views` UI from arbitrary external plugin packages is not wired yet; the Obsidian compatibility path uses its own DOM host.
 
-Vault supports snapshot file identities, a bounded `FileSystemAdapter`, `getConfig`, allowlisted text read/create/modify/append/copy/createFolder (including `.js`/`.mjs` for custom view scripts), scoped desktop binary operations described below, rename/trash for files and folder subtrees, an advisory collision-free `getAvailablePath` helper (creation still relies on create-only rejection) and a data-URL getResourcePath. Options, general adapter filesystem operations, appendBinary/delete/process still reject. See [Vault](https://docs.obsidian.md/Reference/TypeScript+API/Vault). createFolder returns the resulting TFolder; create refuses overwrite, appends serialize in-process, text writes use optimistic conflicts, and plugin data is isolated by ID, capped at 1 MiB and rejects namespace symlinks. Binary writes do not provide text-version compare-and-swap. Cross-process/power-loss atomicity and stats equivalence are not certified.
+Vault supports snapshot file identities, a bounded `FileSystemAdapter`, `getConfig`, allowlisted text read/create/modify/append/copy/createFolder (including `.js`/`.mjs` for custom view scripts), scoped desktop binary operations described below, rename/trash for files and folder subtrees, an advisory collision-free `getAvailablePath` helper (creation still relies on create-only rejection) and a data-URL getResourcePath. Options, other general adapter filesystem operations, appendBinary/delete/process still reject. See [Vault](https://docs.obsidian.md/Reference/TypeScript+API/Vault). createFolder returns the resulting TFolder; create refuses overwrite, appends serialize in-process, text writes use optimistic conflicts, and plugin data is isolated by ID, capped at 1 MiB and rejects namespace symlinks. Binary writes do not provide text-version compare-and-swap. Cross-process/power-loss atomicity and stats equivalence are not certified.
+
+The adapter's `read`/`write` route through the existing controlled text storage,
+including format/path checks, draft flush, tracked note versions and native note refresh.
+Write can create or overwrite supported text files, but rejects metadata options;
+it does not supply a caller-visible read/write transaction or general filesystem access.
+Desktop `exists` queries current file/directory state through checked native stat,
+including the empty root path; missing/ENOTDIR returns false while invalid paths,
+escaping symlinks and other filesystem failures reject. It requires `vault:read`,
+while text write requires `vault:write` without an additional read grant.
+Hosts lacking native existence queries explicitly reject rather than guessing from
+the snapshot. Case-folding options, arbitrary formats and mobile existence parity
+are not certified by this bounded contract.
+
+Renderer HTML/SVG `getAttr` retains native missing/null and empty-string behavior.
+Same-document leaves share stable `getRoot`/`getContainer` and `workspace.rootSplit`
+identity, actual document/window and the host main container, following the public
+[WorkspaceLeaf](https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceLeaf) and
+[WorkspaceRoot](https://docs.obsidian.md/Reference/TypeScript+API/WorkspaceRoot) surface.
+This is one document root, not a reference split/popout hierarchy. Reused plugin
+view state refreshes the host title and close label without replacing the view.
+Scoped neutral toolbar/tree/CodeMirror primitives and a wider split-diff overlay
+improve desktop plugin readability without changing the Android shell.
 
 Vault now accepts the bounded `create`/`delete`/`rename`/`modify` event registrations; create and delete are derived from snapshot entry diffs, modify from note changes, while rename registration is accepted but no rename event is synthesized. MetadataCache accepts both `resolved` and the reference spelling `resolve`, and emits `resolve` alongside changed for reloaded notes. App exposes the compatibility namespace `appId` (`crafactory-engine`), `isMobile:false`, a bounded `app.plugins.getPlugin`, a synthetic `daily-notes` internal plugin built from the app's daily-note settings, a no-op `foldManager`, JSON-backed `loadLocalStorage`/`saveLocalStorage` and a bounded `fileManager.renameFile` that routes through `Vault.rename`; `workspace.iterateAllLeaves` is supplied by the renderer host. Local storage is renderer-profile state, not a vault file; runtimes without `localStorage` fall back to per-runtime memory, and other App members still reject. The trusted renderer installs `window.app` (owned by the active renderer and released when its owner stops), `moment` as a module export/global/`require`, a production-only `process.env.NODE_ENV` shim for bundled libraries and a minimal `window.CodeMirror` shim (`defineMode`/`getMode`) so plugins that still register CodeMirror 5 highlighting modes can finish startup; highlighting behavior is not emulated. The `process` object is not Node and exposes no filesystem/env mutation.
 

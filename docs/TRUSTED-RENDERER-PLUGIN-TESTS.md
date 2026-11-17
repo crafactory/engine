@@ -2,6 +2,26 @@
 
 Unchanged upstream release bytes, pinned in `compatibility/community-corpus.json`, are loaded only into disposable Linux x64 vaults. Explicit trusted renderer is **not sandboxed**. These outcomes do not supersede default Worker failures or establish full plugin compatibility. No installed reference application or Windows/macOS/mobile differential test has been performed.
 
+## Git workflow expansion
+
+[PR #84](https://github.com/crafactory/engine/pull/84) expands the unchanged Git
+2.42.0 workflow in `e2e-desktop/git-acceptance.ts`. It exercises the documented
+[Source Control and History features](https://publish.obsidian.md/git-doc/Features)
+with UI input and real repository/index bytes: working/staged diff, Unicode editing
+and saved/native refresh, individual stage/unstage, staged-only commit preserving
+an unstaged sentinel, local bare push/peer pull, and a child-commit history diff
+that excludes newer working edits. Closing every plugin pane preserves the note.
+
+The root commit has no parent; the pinned plugin's history diff errors when it
+asks Git for that nonexistent parent. This remains an observed limitation, not
+a repaired or accepted full-history claim. Credentials, Internet remotes, signing,
+hooks, automatic backup, conflicts, other diff modes and Android Git were not tested.
+Five original owned Electron contracts separately cover DOM attributes, shared
+roots, checked real-disk existence/read, header reuse and controlled text writes;
+they are host regression evidence, not additional upstream plugin certification.
+
+## Earlier pinned package evidence
+
 | Plugin | Tag / manifest | Observed outcome | First blocker or bounded workflows | Upstream |
 |---|---|---|---|---|
 | Dataview | 0.5.70 / 0.5.68 | BOUNDED_WORKFLOWS_PASS | Bounded workflows: TABLE file.name/file.mtime; TASK; LIST FROM folder; LIST WHERE file.name; LIST SORT/LIMIT; GROUP BY folder; FLATTEN etags; DataviewJS; dv.view custom view; inline query | [Dataview](https://github.com/blacksmithgu/obsidian-dataview) |
