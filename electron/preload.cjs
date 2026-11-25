@@ -22,6 +22,11 @@ function onBeforeClose(fn) {
 }
 const api = {
   desktop: true,
+  pluginSecrets: (root, operation, id, value) => {
+    const result = ipcRenderer.sendSync('engine:plugin-secrets', root, operation, id, value);
+    if (result.error) throw new Error(result.error);
+    return result.value;
+  },
   ...Object.fromEntries(
     ['readBinary', 'writeBinary', 'createBinary', 'modifyBinary', 'exists'].map((name) => [
       name,

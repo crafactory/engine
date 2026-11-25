@@ -53,6 +53,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { bridge, defaults } from './bridge';
+import { pluginSecretAdapter } from './compat/plugin-secrets';
 import { renameDestination, validPath } from './file-path';
 import { observePluginText } from './compat/observed-text';
 import { flushIndependent } from './services/flush-independent';
@@ -1938,6 +1939,7 @@ export function App() {
     try {
       const native = {
         basePath: root,
+        secretStorage: renderer ? pluginSecretAdapter(bridge, root, ensureOpen) : undefined,
         resolveLink: (link: string, from: string) =>
           indexRuntime.current?.index.resolve(link, from),
         metadata: (path: string) => indexRuntime.current?.index.metadata(path),

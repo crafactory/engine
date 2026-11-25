@@ -15,7 +15,7 @@ The target set is the all-time download top ten on [Obsidian Stats](https://www.
 | 5 | Git | 2.42.0 | Native-profile Source Control, working/staged diff and Unicode diff save, stage/unstage, staged-only commit, local push/pull and child-commit history diff; root history error, authentication/conflicts not certified |
 | 6 | Advanced Tables | 0.23.2 | Existing live-editor table-formatting workflow |
 | 7 | Calendar | tag 2.0.0-beta.2 / manifest 2.0.0 | Existing today/create/open daily-note workflow |
-| 8 | Copilot | 4.0.17 | Startup with background failure at `App.secretStorage`; inference not tested |
+| 8 | Copilot | 4.0.17 | Standalone native Electron with an OS keychain passes the `App.secretStorage` boundary and reaches `SharedArrayBuffer is not defined`; no chat command or inference verified. The standard test launcher uses a mock keychain and still reports `App.secretStorage`. |
 | 9 | Style Settings | 1.0.9 | Documented CSS fixture, class-toggle/variable-text effects, search/clear, exact saved data and restart; other controls/theme management unfinished |
 | 10 | Kanban | 2.0.51 | Board/list/card creation, editing, checkbox completion, real pointer movement between lists, exact Markdown save, switch and restart/reopen; other movement/integration modes unverified |
 
@@ -30,6 +30,7 @@ Reading Time 1.1.2 remains an eleventh regression sentinel, not a top-ten claim.
 - **Host integration:** `getLanguage()` returns `en`, matching Engine's UI rather than OS locale. Theme/custom-CSS settings changes emit `css-change`. Style Settings' explicit parse event can be registered/triggered. Lezer LR/common use actual open-source modules.
 - **Evidence:** all eleven pinned inputs run in both modes. Reports retain runtime/console diagnostics and distinguish background errors, clean startup, and bounded workflows. Recoverable console warnings are retained even when a bounded workflow passes.
 - **Native shutdown:** early window-close requests wait for the renderer's initialized save/unload listener, rather than being lost during startup. Close-time state flush also retains property types instead of relying on the debounced settings save.
+- **Desktop plugin secrets:** standalone Linux Electron with an isolated GNOME keyring round-trips synthetic values after restart and keeps different vault scopes separate. `ENGINE_TEST_OS_KEYCHAIN=1 npm run test:desktop -- plugin-secrets.spec.ts` opts into the real keychain test. Supply `ENGINE_PLUGIN_CORPUS` for the hash-verified Copilot startup boundary. Neither test uses a real provider key.
 - **Workflow gap fixes:** actual property types remove Tasks' former background error; isolated Component child ownership unblocks Style Settings controls; after-connected insertion delivery and Node.detach allow Kanban drag registration/cleanup. Search/extra/date controls, DOM factories and modal reachability have original regressions. Exact API limits are maintained in [the compatibility boundary](PLUGIN-COMPATIBILITY.md).
 
 ## Remaining scope and security

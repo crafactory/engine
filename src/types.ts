@@ -106,6 +106,10 @@ export interface Bridge {
   setUnsafeEval?(enabled: boolean): Promise<boolean>;
   /** Profile-wide full Node access, never enabled by default. Restart grants/revokes it. */
   nativePlugins?(): Promise<boolean>;
+  pluginSecrets?(root: string, operation: 'available', id?: never, value?: never): boolean;
+  pluginSecrets?(root: string, operation: 'get', id: string, value?: never): string | null;
+  pluginSecrets?(root: string, operation: 'list', id?: never, value?: never): string[];
+  pluginSecrets?(root: string, operation: 'set', id: string, value: string): void;
   setNativePlugins?(enabled: boolean): Promise<boolean>;
   /** Saved preferences and immutable privileges active in this process. */
   trustProfile?(): Promise<{

@@ -47,6 +47,12 @@ export interface CompatNativeServices {
   metadata?(path: string): CachedMetadata | undefined;
   /** Desktop base path for the bounded FileSystemAdapter. */
   basePath?: string;
+  /** Available only for the desktop native profile with an OS-backed keychain. */
+  secretStorage?: {
+    getSecret(id: string): string | null;
+    listSecrets(): string[];
+    setSecret(id: string, value: string): void;
+  };
   /** Bounded daily-note settings exposed through the synthetic Daily Notes internal plugin. */
   dailyNotes?: { folder: string; format: string; template: string };
 }
@@ -1515,6 +1521,7 @@ export function createCompatibilityRuntime(
   const app = guard(
     {
       appId: 'crafactory-engine',
+      ...(host.native?.secretStorage ? { secretStorage: host.native.secretStorage } : {}),
       get isMobile() {
         return snapshot.platform === 'android';
       },
