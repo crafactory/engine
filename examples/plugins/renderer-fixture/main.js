@@ -79,6 +79,7 @@ class FixtureEmbeddedView extends ItemView {
 }
 module.exports=class extends Plugin {
   async onload(){
+    this.registerEvent(this.app.workspace.on('file-menu',(menu,file,source)=>{menu.addSeparator();menu.addItem(item=>item.setTitle('Disabled fixture item').setDisabled(true));menu.addItem(item=>item.setTitle('Active fixture item').onClick(event=>{document.body.dataset.fixtureMenu=[file.path,source,event.detail].join(':');}));}));
     this.addCommand({id:'large-modal',name:'Open large modal',callback:()=>{const modal=new Modal(this.app);modal.setTitle('Large fixture modal');modal.modalEl.className='modal mod-settings';for(let i=0;i<60;i++){const input=modal.contentEl.createEl('input',{placeholder:'Row '+i});input.style.display='block';input.style.margin='12px';}modal.open();}});
     this.data=(await this.loadData())||{};
     this.status=this.addStatusBarItem();this.status.setText('CM changes: 0');this.changes=0;

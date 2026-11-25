@@ -109,7 +109,7 @@ export interface PanelViewProps {
   childrenFor?: (parent: string) => Entry[];
   onToggleFolder?: (path: string) => void;
   onOpenFile?: (path: string) => void;
-  onFileContextMenu?: (path: string, x: number, y: number) => void;
+  onFileContextMenu?: (path: string, anchor: FileMenuAnchor) => void;
   onDropFile?: (from: string, folder: string) => void;
   onCollapseAll?: () => void;
   onFileSortChange?: (sort: string) => void;
@@ -152,3 +152,4 @@ export async function loadViewComponent(contribution: ViewContribution): Promise
     throw new Error(`View ${contribution.viewType} did not provide a component`);
   return candidate as ViewComponent;
 }
+import type { FileMenuAnchor } from './FileContextMenu';

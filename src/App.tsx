@@ -10,6 +10,7 @@ import {
   type LazyExoticComponent,
 } from 'react';
 import type { CompletionContext } from '@codemirror/autocomplete';
+import { FileContextMenu, type FileMenuAnchor } from './views/FileContextMenu';
 import {
   Files,
   Search,
@@ -289,8 +290,7 @@ export function App() {
     [slides, setSlides] = useState(false);
   const [context, setContext] = useState<{
     path: string;
-    x: number;
-    y: number;
+    anchor: FileMenuAnchor;
     menu?: ContextMenu;
   } | null>(null);
   const [recovery, setRecovery] = useState<Snapshot[] | null>(null);
@@ -2857,16 +2857,11 @@ export function App() {
             return next;
           }),
         onOpenFile: open,
-        onFileContextMenu: (path: string, x: number, y: number) => {
+        onFileContextMenu: (path: string, anchor: FileMenuAnchor) => {
           const menu = new ContextMenu();
           for (const controller of pluginStops.current.values())
             controller.triggerWorkspaceEvent?.('file-menu', [menu, path, 'file-explorer']);
-          setContext({
-            path,
-            x: Math.min(x, window.innerWidth - 225),
-            y: Math.min(y, window.innerHeight - 260),
-            menu,
-          });
+          setContext({ path, anchor, menu });
         },
         onDropFile: (from: string, folder: string) =>
           renamePath(from, folder + '/' + from.split('/').pop()),
@@ -2959,10 +2954,7 @@ export function App() {
     },
   ];
   return (
-    <div
-      className={'app app-container' + (nativeAndroid ? ' mobile-shell' : '')}
-      onClick={() => context && setContext(null)}
-    >
+    <div className={'app app-container' + (nativeAndroid ? ' mobile-shell' : '')}>
       <style>{settings.css}</style>
       <input
         ref={importInput}
@@ -3644,80 +3636,51 @@ export function App() {
         </div>
       )}
       {context && (
-        <div
-          className="context-menu"
-          style={{ left: context.x, top: context.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={() => {
-              open(context.path);
-              setContext(null);
-            }}
-          >
-            <FileText size={14} />
-            Open
-          </button>
-          {!nativeAndroid && (
-            <button
-              onClick={() => {
-                setSplit(context.path);
-                setContext(null);
-              }}
-            >
-              <PanelRightOpen size={14} />
-              Open in split
-            </button>
-          )}
-          <button
-            onClick={() => {
-              setContext(null);
-              renamePath(context.path);
-            }}
-          >
-            <Pencil size={14} />
-            Rename or move
-          </button>
-          <button
-            onClick={() => {
-              if (!bookmarkPaths().includes(context.path)) toggleBookmarkPath(context.path);
-              setContext(null);
-            }}
-          >
-            <Bookmark size={14} />
-            Bookmark
-          </button>
-          <button
-            onClick={() => {
-              navigator.clipboard?.writeText(context.path);
-              setContext(null);
-            }}
-          >
-            <Copy size={14} />
-            Copy path
-          </button>
-          <hr />
-          <button className="danger-text" onClick={() => deletePath(context.path)}>
-            <Trash2 size={14} />
-            Move to trash
-          </button>
-          {context.menu?.items.map((item, index) =>
-            item.separator ? (
-              <hr key={'plugin-' + index} />
-            ) : (
-              <button
-                key={'plugin-' + index}
-                disabled={item.disabled}
-                onClick={(event) => {
-                  item.callback?.(event.nativeEvent);
-                  setContext(null);
-                }}
-              >
-                {item.title}
-              </button>
-            ),
-          )}
-        </div>
+        <FileContextMenu
+          anchor={context.anchor}
+          close={() => setContext(null)}
+          items={[
+            { label: 'Open', icon: <FileText />, run: () => open(context.path) },
+            ...(!nativeAndroid
+              ? [
+                  {
+                    label: 'Open in split',
+                    icon: <PanelRightOpen />,
+                    run: () => setSplit(context.path),
+                  },
+                ]
+              : []),
+            { label: 'Rename or move', icon: <Pencil />, run: () => renamePath(context.path) },
+            {
+              label: 'Bookmark',
+              icon: <Bookmark />,
+              run: () => {
+                if (!bookmarkPaths().includes(context.path)) toggleBookmarkPath(context.path);
+              },
+            },
+            {
+              label: 'Copy path',
+              icon: <Copy />,
+              run: () => navigator.clipboard?.writeText(context.path).catch(report),
+            },
+            { separator: true },
+            {
+              label: 'Move to trash',
+              icon: <Trash2 />,
+              danger: true,
+              run: () => deletePath(context.path),
+            },
+            ...(context.menu?.items.map((item) =>
+              item.separator
+                ? { separator: true as const }
+                : {
+                    label: item.title,
+                    disabled: item.disabled,
+                    run: (event: MouseEvent) => item.callback?.(event),
+                  },
+            ) ?? []),
+          ]}
+        />
       )}
       {palette && (
         <Palette

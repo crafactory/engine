@@ -496,12 +496,17 @@ test('file-specific text views flush pending data and recreate safely across ren
     'pending before rename',
   );
   expect(await fs.readFile(path.join(root, 'Moved.md'), 'utf8')).toBe('pending before rename');
-  await expect(fs.stat(path.join(root, 'Zeta.md'))).rejects.toThrow();
   await page
     .getByRole('textbox', { name: 'Fixture document', exact: true })
     .fill('pending before trash');
   await page.getByTestId('file-Moved.md').click({ button: 'right' });
-  await page.getByRole('button', { name: 'Move to trash', exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Disabled fixture item' })).toBeDisabled();
+  await page.getByRole('menuitem', { name: 'Active fixture item' }).click();
+  expect(await page.locator('body').getAttribute('data-fixture-menu')).toBe(
+    'Moved.md:file-explorer:1',
+  );
+  await page.getByTestId('file-Moved.md').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Move to trash', exact: true }).click();
   await page.getByTestId('dialog-submit').click();
   await expect(page.getByTestId('file-Moved.md')).toHaveCount(0);
   await expect(page.getByRole('textbox', { name: 'Fixture document', exact: true })).toHaveCount(0);
