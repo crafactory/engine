@@ -1,7 +1,18 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell, protocol, net } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  Menu,
+  shell,
+  protocol,
+  net,
+  safeStorage,
+} = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
+const { createPluginSecrets } = require('./plugin-secrets.cjs');
 let win,
   vault,
   watcher,
@@ -89,6 +100,10 @@ async function start() {
       const headers = new Headers(response.headers);
       headers.delete('content-length');
       headers.delete('content-encoding');
+      // Expose shared memory only to the cross-origin isolated native desktop entry.
+      // Credentialless keeps public, non-CORS embeds usable without sending credentials.
+      headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+      headers.set('Cross-Origin-Embedder-Policy', 'credentialless');
       return new Response(html, {
         status: response.status,
         statusText: response.statusText,
@@ -172,6 +187,27 @@ async function start() {
     active: { unsafeEval: activeUnsafeEval, nativePlugins: activeNativePlugins },
   });
   ipc('trustProfile', trustProfile);
+  const secretStorage = createPluginSecrets(app.getPath('userData'), safeStorage);
+  ipcMain.on('engine:plugin-secrets', (event, root, operation, id, value) => {
+    const trusted =
+      activeNativePlugins &&
+      win &&
+      event.sender === win.webContents &&
+      event.senderFrame === win.webContents.mainFrame &&
+      root === currentRoot;
+    if (!trusted) {
+      event.returnValue =
+        operation === 'available' ? { value: false } : { error: 'Plugin secrets unavailable' };
+      return;
+    }
+    try {
+      event.returnValue = { value: secretStorage(root, operation, id, value) };
+    } catch {
+      event.returnValue = {
+        error: 'Plugin secret operation failed; check the OS keychain and secret ID',
+      };
+    }
+  });
   let trustSettingsQueue = Promise.resolve();
   const withTrustLock = (action) => {
     const result = trustSettingsQueue.then(action);

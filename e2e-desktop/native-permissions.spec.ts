@@ -309,6 +309,7 @@ test('native permission is cancellable, preserves eval settings, grants real Nod
       if (second.exitCode === null) second.kill();
     }
     expect(await page.evaluate(() => typeof (window as any).require)).toBe('undefined');
+    expect(await page.evaluate(() => crossOriginIsolated)).toBe(false);
     await expect(page.locator('meta[http-equiv="Content-Security-Policy"]')).toHaveAttribute(
       'content',
       /font-src 'self' data:;/,
@@ -342,6 +343,7 @@ test('native permission is cancellable, preserves eval settings, grants real Nod
     page = await app.firstWindow();
     await expect(page.locator('.note-title h1')).toHaveText('Test');
     expect(await page.evaluate(() => typeof (window as any).require)).toBe('function');
+    expect(await page.evaluate(() => crossOriginIsolated)).toBe(true);
     await expect(page.locator('meta[http-equiv="Content-Security-Policy"]')).toHaveAttribute(
       'content',
       /font-src 'self' data: blob: https:;/,

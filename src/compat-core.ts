@@ -47,6 +47,12 @@ export interface CompatNativeServices {
   metadata?(path: string): CachedMetadata | undefined;
   /** Desktop base path for the bounded FileSystemAdapter. */
   basePath?: string;
+  /** Available only for the desktop native profile with an OS-backed keychain. */
+  secretStorage?: {
+    getSecret(id: string): string | null;
+    listSecrets(): string[];
+    setSecret(id: string, value: string): void;
+  };
   /** Bounded daily-note settings exposed through the synthetic Daily Notes internal plugin. */
   dailyNotes?: { folder: string; format: string; template: string };
 }
@@ -1429,9 +1435,10 @@ export function createCompatibilityRuntime(
     const bindings = [];
     for (const hotkey of values) {
       bindings.push(
-        scope.register(hotkey.modifiers, hotkey.key, () => {
+        scope.register(hotkey.modifiers, hotkey.key, (event: KeyboardEvent) => {
           initEditor();
           if (!available(command, true)) return;
+          if (event.repeat && !command.repeatable) return false;
           void Promise.resolve(available(command, false))
             .then(settle)
             .catch((error) =>
@@ -1515,6 +1522,7 @@ export function createCompatibilityRuntime(
   const app = guard(
     {
       appId: 'crafactory-engine',
+      ...(host.native?.secretStorage ? { secretStorage: host.native.secretStorage } : {}),
       get isMobile() {
         return snapshot.platform === 'android';
       },
@@ -1659,6 +1667,7 @@ export function createCompatibilityRuntime(
   initEditor();
   /** Check and run commands against the admitted editor context rather than a different host draft. */
   function available(command: CompatCommand, checking: boolean) {
+    if (command.mobileOnly && snapshot.platform !== 'android') return false;
     let result: unknown;
     const focused = host.ui?.getActiveEditor?.(),
       active = focused?.editor ?? editor,
@@ -1716,8 +1725,6 @@ export function createCompatibilityRuntime(
     addCommand(command: CompatCommand) {
       if (typeof command.id !== 'string' || typeof command.name !== 'string' || !command.id)
         throw new Error('Invalid plugin command');
-      if (command.repeatable || command.mobileOnly)
-        return unsupported('Command repeatable/mobileOnly');
       commands.set(command.id, command);
       bindHotkeys(command.id);
       publish();
