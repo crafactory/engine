@@ -131,7 +131,7 @@ test('pinned Copilot reaches command registration with shared memory and an OS k
           ]),
         );
       // This intentionally does not certify that Copilot finished enabling or can send chat.
-      await cdp.detach();
+      // The standalone Electron helper closes the CDP session with the process.
     });
   } finally {
     await fs.rm(work, { recursive: true, force: true });
