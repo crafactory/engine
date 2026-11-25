@@ -1323,26 +1323,6 @@ kbd {
 .palette footer span:last-child {
   margin-left: auto;
 }
-.context-menu {
-  position: fixed;
-  z-index: 70;
-  width: 215px;
-  padding: 6px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow);
-}
-.context-menu > button {
-  width: 100%;
-  font-size: var(--text-xs);
-  padding: 9px;
-}
-.context-menu hr {
-  border: 0;
-  border-top: 1px solid var(--border);
-  margin: 5px;
-}
 .settings-modal {
   display: flex;
   width: min(910px, 100%);

@@ -35,7 +35,11 @@ layout and domain behavior. This does not replace the Obsidian-compatible plugin
   interaction. Host shortcuts respect consumed keyboard events, so plugin-menu Escape
   cannot also close underlying settings. A future unified portal owner may strengthen
   background isolation without changing or remounting third-party plugin DOM.
-- Remaining legacy forms, contextual menus and navigation are not yet migrated.
+- File explorer context actions use a registry menu with viewport collision handling and
+  scrolling, keyboard opening (Shift+F10 / Context Menu), and focus return before
+  selecting actions that open another prompt. Existing plugin `file-menu` items and
+  Android Back dismissal remain supported.
+- Remaining legacy forms, other contextual menus and navigation are not yet migrated.
   Migrate them in bounded follow-up PRs, not a claim that the whole UI is already shadcn.
 
 ## Standard appearance

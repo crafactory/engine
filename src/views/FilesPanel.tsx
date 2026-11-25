@@ -30,8 +30,25 @@ export default function FilesPanel({
           onClick={() => (entry.folder ? onToggleFolder?.(entry.path) : onOpenFile?.(entry.path))}
           onContextMenu={(event) => {
             event.preventDefault();
-            onFileContextMenu?.(entry.path, event.clientX, event.clientY);
+            onFileContextMenu?.(entry.path, {
+              x: event.clientX,
+              y: event.clientY,
+              trigger: event.currentTarget,
+              keyboard: false,
+            });
           }}
+          onKeyDown={(event) => {
+            if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+            event.preventDefault();
+            const rect = event.currentTarget.getBoundingClientRect();
+            onFileContextMenu?.(entry.path, {
+              x: rect.left,
+              y: rect.bottom,
+              trigger: event.currentTarget,
+              keyboard: true,
+            });
+          }}
+          aria-haspopup={onFileContextMenu ? 'menu' : undefined}
           draggable
           onDragStart={(event) => event.dataTransfer.setData('engine/path', entry.path)}
           onDragOver={(event) => entry.folder && event.preventDefault()}
