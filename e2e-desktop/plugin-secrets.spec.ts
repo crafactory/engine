@@ -15,6 +15,7 @@ test('plugin secret IPC fails closed outside the desktop native profile', async 
     const app = await launch(root, profile);
     try {
       const page = await app.firstWindow();
+      expect(await page.evaluate(() => crossOriginIsolated)).toBe(false);
       expect(
         await page.evaluate((root) => window.engine!.pluginSecrets!(root, 'available'), root),
       ).toBe(false);
@@ -67,7 +68,7 @@ test('OS keychain round trips synthetic data after restart without mixing vaults
   }
 });
 
-test('pinned Copilot reaches its SharedArrayBuffer boundary with an isolated OS keychain', async () => {
+test('pinned Copilot reaches command registration with shared memory and an OS keychain', async () => {
   test.skip(
     !process.env.ENGINE_TEST_OS_KEYCHAIN || !process.env.ENGINE_PLUGIN_CORPUS,
     'Requires an isolated OS keychain and verified upstream input',
@@ -98,24 +99,39 @@ test('pinned Copilot reaches its SharedArrayBuffer boundary with an isolated OS 
     await fs.writeFile(path.join(dir, 'manifest.json'), manifest);
     await withRealKeychain(root, profile, async (page) => {
       expect(
+        await page.evaluate(() => ({
+          isolated: crossOriginIsolated,
+          shared: typeof SharedArrayBuffer,
+        })),
+      ).toEqual({ isolated: true, shared: 'function' });
+      expect(
         await page.evaluate((vault) => window.engine!.pluginSecrets!(vault, 'available'), root),
       ).toBe(true);
-      const errors: string[] = [];
-      page.on('pageerror', (error) => errors.push(error.message));
-      page.on('console', (message) => {
-        if (message.type() === 'error' && message.text().includes('failed to start'))
-          errors.push(message.text());
+      // Startup emits these markers in a burst; listen on CDP before enabling the plugin.
+      const signals = new Set<string>();
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Runtime.enable');
+      cdp.on('Runtime.consoleAPICalled', (event) => {
+        const text = event.args[0]?.value;
+        if (typeof text === 'string' && text.startsWith(`[compat:${id}] `)) signals.add(text);
       });
+      await page.evaluate((plugin) => Object.assign(window, { __ENGINE_TRACE_COMPAT: plugin }), id);
+      await page.getByTestId('file-Test.md').click();
       await page.getByRole('button', { name: 'Settings', exact: true }).click();
       await page.getByRole('button', { name: 'Community plugins', exact: true }).click();
       await page.getByLabel('Runtime for ' + name, { exact: true }).selectOption('renderer');
       await page.getByRole('switch', { name: 'Enable ' + name, exact: true }).click();
       await page.getByTestId('dialog-submit').click();
-      await page.getByTestId('settings-close').click();
-      await page.getByRole('button', { name: 'Command palette', exact: true }).click();
-      await page.getByTestId('palette-input').fill(name + ':');
-      await expect.poll(() => errors[0]).toContain('SharedArrayBuffer is not defined');
-      await expect(page.locator('.palette-list')).not.toContainText(/copilot:.*chat/i);
+      await expect
+        .poll(() => [...signals], { timeout: 15000 })
+        .toEqual(
+          expect.arrayContaining([
+            `[compat:${id}] App.secretStorage`,
+            `[compat:${id}] Plugin.addCommand`,
+          ]),
+        );
+      // This intentionally does not certify that Copilot finished enabling or can send chat.
+      await cdp.detach();
     });
   } finally {
     await fs.rm(work, { recursive: true, force: true });
@@ -178,6 +194,7 @@ async function withRealKeychain(
       await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeVisible();
       await run(page);
     } finally {
+      child.kill();
       await client.close();
     }
   } finally {

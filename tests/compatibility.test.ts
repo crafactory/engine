@@ -372,16 +372,6 @@ describe('documented command callback rules', () => {
     await h.runtime.boot(P);
     expect(h.commands).toEqual([{ id: 'icon', name: 'Fixture: Icon' }]);
   });
-  for (const option of ['repeatable', 'mobileOnly'])
-    it(`rejects command option ${option} instead of ignoring it`, async () => {
-      const h = harness();
-      class P extends h.api.Plugin {
-        onload() {
-          this.addCommand({ id: 'x', name: 'X', [option]: true });
-        }
-      }
-      await expect(h.runtime.boot(P)).rejects.toThrow('Unsupported');
-    });
   it('rejects asynchronous checking and non-Plugin default exports', async () => {
     const h = harness();
     class P extends h.api.Plugin {

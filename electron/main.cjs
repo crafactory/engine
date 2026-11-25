@@ -100,6 +100,10 @@ async function start() {
       const headers = new Headers(response.headers);
       headers.delete('content-length');
       headers.delete('content-encoding');
+      // Expose shared memory only to the cross-origin isolated native desktop entry.
+      // Credentialless keeps public, non-CORS embeds usable without sending credentials.
+      headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+      headers.set('Cross-Origin-Embedder-Policy', 'credentialless');
       return new Response(html, {
         status: response.status,
         statusText: response.statusText,

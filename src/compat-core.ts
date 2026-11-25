@@ -1435,9 +1435,10 @@ export function createCompatibilityRuntime(
     const bindings = [];
     for (const hotkey of values) {
       bindings.push(
-        scope.register(hotkey.modifiers, hotkey.key, () => {
+        scope.register(hotkey.modifiers, hotkey.key, (event: KeyboardEvent) => {
           initEditor();
           if (!available(command, true)) return;
+          if (event.repeat && !command.repeatable) return false;
           void Promise.resolve(available(command, false))
             .then(settle)
             .catch((error) =>
@@ -1666,6 +1667,7 @@ export function createCompatibilityRuntime(
   initEditor();
   /** Check and run commands against the admitted editor context rather than a different host draft. */
   function available(command: CompatCommand, checking: boolean) {
+    if (command.mobileOnly && snapshot.platform !== 'android') return false;
     let result: unknown;
     const focused = host.ui?.getActiveEditor?.(),
       active = focused?.editor ?? editor,
@@ -1723,8 +1725,6 @@ export function createCompatibilityRuntime(
     addCommand(command: CompatCommand) {
       if (typeof command.id !== 'string' || typeof command.name !== 'string' || !command.id)
         throw new Error('Invalid plugin command');
-      if (command.repeatable || command.mobileOnly)
-        return unsupported('Command repeatable/mobileOnly');
       commands.set(command.id, command);
       bindHotkeys(command.id);
       publish();

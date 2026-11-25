@@ -15,7 +15,7 @@ The target set is the all-time download top ten on [Obsidian Stats](https://www.
 | 5 | Git | 2.42.0 | Native-profile Source Control, working/staged diff and Unicode diff save, stage/unstage, staged-only commit, local push/pull and child-commit history diff; root history error, authentication/conflicts not certified |
 | 6 | Advanced Tables | 0.23.2 | Existing live-editor table-formatting workflow |
 | 7 | Calendar | tag 2.0.0-beta.2 / manifest 2.0.0 | Existing today/create/open daily-note workflow |
-| 8 | Copilot | 4.0.17 | Standalone native Electron with an OS keychain passes the `App.secretStorage` boundary and reaches `SharedArrayBuffer is not defined`; no chat command or inference verified. The standard test launcher uses a mock keychain and still reports `App.secretStorage`. |
+| 8 | Copilot | 4.0.17 | Standalone native Electron with an OS keychain passes `App.secretStorage` and `SharedArrayBuffer` and reaches `Plugin.addCommand`. It does not finish enabling in the probe, and no working chat command or inference has been verified. The standard test launcher uses a mock keychain and still reports `App.secretStorage`. |
 | 9 | Style Settings | 1.0.9 | Documented CSS fixture, class-toggle/variable-text effects, search/clear, exact saved data and restart; other controls/theme management unfinished |
 | 10 | Kanban | 2.0.51 | Board/list/card creation, editing, checkbox completion, real pointer movement between lists, exact Markdown save, switch and restart/reopen; other movement/integration modes unverified |
 
