@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { fixture } from './android-fixture';
 
 test('keyboard opens the menu, moves focus and hands it off to a prompt', async ({ page }) => {
   await page.goto('/');
@@ -44,3 +45,20 @@ for (const theme of ['dark', 'light']) {
     await expect(row).toBeFocused();
   });
 }
+
+test('Android Back closes the file actions before the file sheet', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const android = await fixture(page);
+  await page.getByRole('button', { name: 'Mobile files', exact: true }).click();
+  const sheet = page.locator('.left-sidebar');
+  const row = sheet.getByTestId('file-A.md');
+  await row.press('Shift+F10');
+  const menu = page.getByRole('menu', { name: 'File actions' });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: 'Open in split' })).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).fixtureBack())).toBe(true);
+  await expect(menu).toHaveCount(0);
+  await expect(sheet).toBeVisible();
+  await expect(row).toBeFocused();
+  expect(android.errors).toEqual([]);
+});
